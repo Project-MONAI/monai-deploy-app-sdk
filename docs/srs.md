@@ -507,7 +507,8 @@ MONAI Deploy App SDK 0.2.0
 The SDK shall allow analyzing performance of the application at multiple levels: application, operator, kernel
 
 #### Background
-TBD
+Please refer to the following for details on the MAP spec
+https://github.com/Project-MONAI/monai-deploy-experimental/blob/70862cafb8ec5487037cf524e56eb1bf86d72d53/guidelines/monai-application-package.md
 
 #### Verification Strategy
 TBD
