@@ -1,3 +1,6 @@
+## MONAI Deploy Application SDK
+
+
 ### Introduction
 Productionizing an AI model is difficult as there is a chasm between training an AI model and deploying it to a production environment. In the healthcare domain, this chasm involves more than just performing inference with a model. An App developer would need to address issues such as: ingestion of medical imaging datasets, performing application specific pre and post processing operations,  packaging output from the application, integration with clinical informatics systems & ensuring right compute resources are specified and utilized by the application at run-time 
 
@@ -397,55 +400,10 @@ MONAI Deploy App SDK 0.1.0
 The SDK shall provide an operator that supports generating and exporting a RT Structure Set Storage SOP Instance.
 
 #### Background
-TBD
-
-
-#### Verification Strategy
-TBD
-
-#### Target Release
-MONAI Deploy App SDK 0.1.0
-
----
-
-### [REQ] GPU Accelerated Primitives
-The SDK shall allow support for incorporating common GPU accelerated image processing and computer vision primitives in an Operator
-App Verification
-
-#### Background
-TBD
+There are significant differences in the types of information required for radiology and radiation therapy domains. The radiation therapy information is defined in seven information objects known as DICOM-RT objects which include RT Structure Set, RT Plan, RT Dose, RT Image, RT Treatment Record, RT Brachy Treatment Record, and RT Treatment. The data models set the standard for integration of radiation therapy information for an electronic patient record and would facilitate the interoperability of information among different systems.
 
 #### Verification Strategy
-TBD
-
-#### Target Release
-MONAI Deploy App SDK 0.1.0
-
----
-
-
-### [REQ] App Verification
-The SDK shall enable app verification at two levels: operator, application
-
-#### Background
-TBD
-
-#### Verification Strategy
-TBD
-
-#### Target Release
-MONAI Deploy App SDK 0.1.0
-
----
-
-### [REQ] App Analytics
-The SDK shall allow analyzing performance of the application at multiple levels: application, operator, kernel
-
-#### Background
-TBD
-
-#### Verification Strategy
-TBD
+Make use of an AI model that creates contour of segmented anatomical objects. Verify whether such a model can be used in an application and the out of the model inference can use used to generate an instance of RT Structure set
 
 #### Target Release
 MONAI Deploy App SDK 0.2.0
@@ -453,89 +411,160 @@ MONAI Deploy App SDK 0.2.0
 ---
 
 
-### [REQ] Data Visualization
-The SDK shall enable 2D/3D/4D medical image visualization of input, intermediate artifacts & output of an application during development
+### [REQ] Specifying App Resource Requirements
+The SDK shall enable developers to specify minimum resource requirements for an operator during app development. The type of resources supported shall be: GPU Memory, System Memory. 
 
 #### Background
-TBD
+To orchestrate an application effectively the orchestration engine would need to know what kind of resources are required for an operator and for the overall application.
 
 #### Verification Strategy
-TBD
-
-#### Target Release
-MONAI Deploy App SDK 0.2.0
-
----
-
-### [REQ] Data Specification for App
-The SDK shall enable developers to specify conditions so that the right input datasets can be routed to an app during execution
-
-#### Background
-TBD
-
-#### Verification Strategy
-TBD
+Ensure that the resource requirements specified for an operator is provided by the orchestration engine during run-time
 
 #### Target Release
 MONAI Deploy App SDK 0.1.0
 
 ---
 
-
-### [REQ] App Resource Requirements
+### [REQ] Making use of an existing container to build an operator
+The SDK shall support use of an existing container image as the basis for designing an Operator in such a way so that the newly created Operator conforms to the interfaces required to behave like any other off-the-shelf Operators in the MONAI Deploy SDK.
 
 #### Background
-TBD
+The preferred way to build a design-time operator in MONAI Deploy SDK is Pythonic. Users can either use built-in Operators (where each such operator is a Python class) or extend from one of those Operators to design their own. However some situations where this approach may not be feasible. Examples are:
 
-The SDK shall enable developers to specify desired resource requirements (GPU Memory, System Memory), for the application during app development
+* An organization has legacy source code that already has been containerized and would like to reuse in the context of a MONAI Deploy Application
+* An organization has a 3rd party container and it is not feasible to recompile the source code
+* Mixing multiple operators in a single container makes it difficult to resolve dependenices.
+
 
 #### Verification Strategy
-TBD
+Given an existing container verifry that the SDK enables creation of a new Operator that makes use of such containers. Also verify that the newly created Operator is inter
 
 #### Target Release
 MONAI Deploy App SDK 0.1.0
 
 ---
 
-### [REQ] Existing Containers
-The SDK shall support use of an existing container image as the base for designing an Operator
-
-#### Background
-TBD
-
-#### Verification Strategy
-TBD
-
-#### Target Release
-MONAI Deploy App SDK 0.1.0
-
----
-
-### [REQ] Packaging an Application
+### [REQ] Creating a MONAI Application Package (MAP)
 The SDK shall allow packaging of the application in a standardized format so that it can be executed by a compliant runtime environment
 
 #### Background
-TBD
+Please refer to [MONAI Application Packge Spec](https://github.com/Project-MONAI/monai-deploy-experimental/blob/70862cafb8ec5487037cf524e56eb1bf86d72d53/guidelines/monai-application-package.md)for details
 
 #### Verification Strategy
-TBD
+Develop a sample application using MONAI SDK. Run the app as a Python application with a gold input. Use the App Packager utility to generate a MAP. Run the MAP using App Runner. Verify that the two sets of output match.
 
 #### Target Release
 MONAI Deploy App SDK 0.1.0
 
+---
 
-
-### [REQ]  Execution of Application
+### [REQ] App Runner
 The SDK shall allow execution of an application in the developer's workstation.
 
 #### Background
-TBD
+Developers need a way to run an instance of a MAP in his/her local workstation before the MAP is deployed in a production environment
+
+#### Verification Strategy
+Develop a sample application using MONAI SDK. Run the app as a Python application with a gold input. Use the App Packager utility to generate a MAP. Run the MAP using App Runner. Verify that the two sets of output match.
+
+#### Target Release
+MONAI Deploy App SDK 0.1.0
+
+---
+
+### [REQ] MAP Executor
+The MONAI Deploy SDK shall provide a MAP Executor as a shim between the runner of a MAP and the MAP's application. It shall support the following aspects:
+
+* Provide entry-point (or initial process) of a MAP's container
+* Execute the Application as defined by the MAP Package Manifest and then exit
+* Set initial conditions for the Application when invoking it
+* Monitor the Application process and enforce any timeout value specified in the MAP
+
+#### Background
+
 
 #### Verification Strategy
 TBD
 
 #### Target Release
+
 MONAI Deploy App SDK 0.1.0
+
+---
+
+
+### [REQ] Testing the functional veracity of an Operator
+The SDK shall enable app verification of on operator by allowing developers to specify the following: (a) A Gold Input (b) A Gold Output (c) Similarity Metric (d) Allowed Tolerance between measured output and gold output
+
+#### Background
+Having a mechanism to test the functionality of an operator during development makes it easier for developer to be ready for deployment to a production quality server.
+
+#### Verification Strategy
+For a classification inference operator verify that given a gold input, a similarity metric, the generated output closely matches the output within the specified tolerance limits.
+
+#### Target Release
+MONAI Deploy App SDK 0.2.0
+
+---
+
+
+### [REQ] Testing the functional veracity of an Application
+The SDK shall enable app verification of an application by allowing developers to specify the following: (a) A Gold Input (b) A Gold Output (c) Similarity Metric (d) Allowed Tolerance between measured output and gold output
+
+#### Background
+Having a mechanism to test the functionality of an application during development makes it easier for developer to be ready for deployment to a production quality server.
+
+#### Verification Strategy
+For an application that makes use of a classification inference operator verify that given a gold input, a similarity metric, the generated output closely matches the output within the specified tolerance limits.
+
+#### Target Release
+MONAI Deploy App SDK 0.2.0
+
+---
+
+
+### [REQ] Supporting Medical Image Visualization during App Development
+The SDK shall enable 2D/3D/4D medical image visualization of input, intermediate artifacts & output of an application during development
+
+#### Background
+Making sense of the output from deep learning algorithms in medical imaging often requires use of advanced 2D, 3D, and 4D visualization. Existing 3D visualization systems which are deployed to handle typical clinical workloads are often not designed to handle the outputs from an AI inference platform. In addition, such visualization needs to be built using GPU based hardware for optimal performance. Lack of an ability to meaningfully visualize outputs from AI inference hinders the growth of adoption of AI-driven clinical workflows. 
+
+#### Verification Strategy
+Verify whether Direct Volume Rendering, Multi-Planar Reformatting and Original Slice viewing are offered for CT/MR modalities
+
+#### Target Release
+MONAI Deploy App SDK 0.2.0
+
+---
+
+
+### [REQ] Enabling App Analytics
+The SDK shall allow analyzing performance of the application at multiple levels: system, operator
+
+**System Level**
+* Execution time of an App Run
+* Real-time Tracking of available GPUs in the system
+* GPU Activity during an App Run
+* GPU Memory occupancy by processes during the App Run.
+
+**Operator Level**
+* Operator runtime plot
+* Identify GPU idle and sparse usage
+* GPU workload trace for Kernels utilized by Operator
+
+
+#### Background
+MONAI Deploy App developers need to understand the bottleneck and resource utilization for their applications so that they can improve their applications for optimal performance. Developers need a combination of post processing & real-time tools to understand the performance implication of resource utilization.
+
+
+#### Verification Strategy
+TBD
+
+#### Target Release
+MONAI Deploy App SDK 0.2.0
+
+---
+
 
 
 ### [REQ] Development Console
