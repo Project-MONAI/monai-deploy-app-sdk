@@ -448,7 +448,7 @@ MONAI Deploy App SDK 0.1.0
 The SDK shall allow packaging of the application in a standardized format so that it can be executed by a compliant runtime environment
 
 #### Background
-TBD
+Please refer to [MONAI Application Packge Spec](https://github.com/Project-MONAI/monai-deploy-experimental/blob/70862cafb8ec5487037cf524e56eb1bf86d72d53/guidelines/monai-application-package.md)for details
 
 #### Verification Strategy
 TBD
@@ -507,8 +507,7 @@ MONAI Deploy App SDK 0.2.0
 The SDK shall allow analyzing performance of the application at multiple levels: application, operator, kernel
 
 #### Background
-Please refer to the following for details on the MAP spec
-https://github.com/Project-MONAI/monai-deploy-experimental/blob/70862cafb8ec5487037cf524e56eb1bf86d72d53/guidelines/monai-application-package.md
+
 
 #### Verification Strategy
 TBD
