@@ -460,7 +460,7 @@ The preferred way to build a design-time operator in MONAI Deploy SDK is Pythoni
 
 
 #### Verification Strategy
-Given an existing container verifry that the SDK enables creation of a new Operator that makes use of such containers. Also verify that the newly created Operator is inter
+Given an existing container verifry that the SDK enables creation of a new Operator that makes use of such containers. Also verify that the newly created Operator is interoperable with other existing operators
 
 #### Target Release
 MONAI Deploy App SDK 0.1.0
