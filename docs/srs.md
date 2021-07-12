@@ -14,13 +14,13 @@ The MONAI Application SDK provides a framework to develop, verify, analyze AI dr
 * A set of sample applications
 * API documentation & User's Guide
 
---
+---
 
 ### Scope
 
 The scope of this document is limited to the MONAI Deploy App SDK. There are other subsystems of the MONAI Deploy platform such as MONAI App Server, MONAI App Informatics Gateway. However this requirements document does not address specifications belonging to those subsystems
 
---
+---
 
 
 ### Attributes of a Requirement
