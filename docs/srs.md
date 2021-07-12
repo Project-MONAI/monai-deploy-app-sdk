@@ -395,6 +395,16 @@ MONAI Deploy App SDK 0.1.0
 
 ---
 
+### [REQ] Supporting DICOM Segmentation Storage SOP Class as input
+
+#### Background
+
+#### Verification Strategy
+
+#### Target Release
+MONAI Deploy App SDK 0.2.0
+
+---
 
 ### [REQ] Supporting DICOM RT Structure Storage SOP Class as Output
 The SDK shall provide an operator that supports generating and exporting a RT Structure Set Storage SOP Instance.
