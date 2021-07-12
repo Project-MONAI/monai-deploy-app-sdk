@@ -16,14 +16,10 @@ class MedianOperator(BaseOperator):
     """
     def __init__(self):
         super().__init__()
-        self.data_out = None
     
 
-    def get_output(self, index):
-        return self.data_out
-    
-
-    def execute(self):
-        super().execute()
-        data_in = self.get_input(0)
-        self.data_out = median(data_in)
+    def execute(self, execution_context):
+        super().execute(execution_context)
+        data_in =  execution_context.get_operator_input(self._uid, 0)
+        data_out = median(data_in)
+        execution_context.set_operator_output(self._uid, 0, data_out)

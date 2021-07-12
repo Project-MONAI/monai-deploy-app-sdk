@@ -15,15 +15,10 @@ class GaussianOperator(BaseOperator):
     """
     def __init__(self):
         super().__init__()
-        self.data_out = None
-    
 
-    def get_output(self, index):
-        return self.data_out
-    
-
-    def execute(self):
-        super().execute()
-        data_in = self.get_input(0)
-        self.data_out = gaussian(data_in, sigma=0.2)
-        imsave("final_output.png", self.data_out)
+    def execute(self, execution_context):
+        super().execute(execution_context)
+        data_in =  execution_context.get_operator_input(self._uid, 0)
+        data_out = gaussian(data_in, sigma=0.2)
+        execution_context.set_operator_output(self._uid, 0, data_out)
+        imsave("final_output.png", data_out)
