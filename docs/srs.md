@@ -522,18 +522,19 @@ MONAI Deploy App SDK 0.2.0
 The SDK shall allow analyzing performance of the application at multiple levels: system, operator
 
 **System Level**
-Execution time of an App Run
-Real-time Tracking of available GPUs in the system
-GPU % Activity during an App Run
-% GPU Memory occupancy by processes during the App Run.
+* Execution time of an App Run
+* Real-time Tracking of available GPUs in the system
+* GPU Activity during an App Run
+* GPU Memory occupancy by processes during the App Run.
 
 **Operator Level**
-Operator runtime plot
-Identify GPU idle and sparse usage
-GPU workload trace for Kernels utilized by Operator
+* Operator runtime plot
+* Identify GPU idle and sparse usage
+* GPU workload trace for Kernels utilized by Operator
 
 
 #### Background
+MONAI Deploy App developers need to understand the bottleneck and resource utilization for their applications so that they can improve their applications for optimal performance. Developers need a combination of post processing & real-time tools to understand the performance implication of resource utilization.
 
 
 #### Verification Strategy
