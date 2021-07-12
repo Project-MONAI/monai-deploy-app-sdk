@@ -458,7 +458,7 @@ MONAI Deploy App SDK 0.1.0
 
 ---
 
-### [REQ]  Executing a MAP using App Runner
+### [REQ] App Runner
 The SDK shall allow execution of an application in the developer's workstation.
 
 #### Background
@@ -468,6 +468,27 @@ Developers need a way to run an instance of a MAP in his/her local workstation b
 Develop a sample application using MONAI SDK. Run the app as a Python application with a gold input. Use the App Packager utility to generate a MAP. Run the MAP using App Runner. Verify that the two sets of output match.
 
 #### Target Release
+MONAI Deploy App SDK 0.1.0
+
+---
+
+### [REQ] MAP Executor
+The MONAI Deploy SDK shall provide a MAP Executor as a shim between the runner of a MAP and the MAP's application. It shall support the following aspects:
+
+* Provide entry-point (or initial process) of a MAP's container
+* Execute the Application as defined by the MAP Package Manifest and then exit
+* Set initial conditions for the Application when invoking it
+* Monitor the Application process and record its CPU, system memory, and GPU utilization metrics
+* Shall monitor the Application process and enforce any timeout value specified
+
+#### Background
+
+
+#### Verification Strategy
+TBD
+
+#### Target Release
+
 MONAI Deploy App SDK 0.1.0
 
 ---
@@ -518,7 +539,7 @@ MONAI Deploy App SDK 0.2.0
 ---
 
 
-### [REQ] App Analytics
+### [REQ] Enabling App Analytics
 The SDK shall allow analyzing performance of the application at multiple levels: system, operator
 
 **System Level**
@@ -542,21 +563,6 @@ TBD
 
 #### Target Release
 MONAI Deploy App SDK 0.2.0
-
----
-
-
-### [REQ] Data Specification for App
-The SDK shall enable developers to specify conditions so that the right input datasets can be routed to an app during execution
-
-#### Background
-TBD
-
-#### Verification Strategy
-TBD
-
-#### Target Release
-MONAI Deploy App SDK 0.1.0
 
 ---
 
