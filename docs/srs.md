@@ -519,7 +519,19 @@ MONAI Deploy App SDK 0.2.0
 
 
 ### [REQ] App Analytics
-The SDK shall allow analyzing performance of the application at multiple levels: application, operator, kernel
+The SDK shall allow analyzing performance of the application at multiple levels: system, operator
+
+**System Level**
+Execution time of an App Run
+Real-time Tracking of available GPUs in the system
+GPU % Activity during an App Run
+% GPU Memory occupancy by processes during the App Run.
+
+**Operator Level**
+Operator runtime plot
+Identify GPU idle and sparse usage
+GPU workload trace for Kernels utilized by Operator
+
 
 #### Background
 
