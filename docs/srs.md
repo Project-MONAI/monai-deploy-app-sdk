@@ -408,6 +408,67 @@ MONAI Deploy App SDK 0.2.0
 ---
 
 
+### [REQ] Specifying App Resource Requirements
+The SDK shall enable developers to specify minimum resource requirements for an operator during app development. The type of resources supported shall be: GPU Memory, System Memory. 
+
+#### Background
+To orchestrate an application effectively the orchestration engine would need to know what kind of resources are required for an operator and for the overall application.
+
+#### Verification Strategy
+Ensure that the resource requirements specified for an operator is provided by the orchestration engine during run-time
+
+#### Target Release
+MONAI Deploy App SDK 0.1.0
+
+---
+
+### [REQ] Making use of an existing container to build an operator
+The SDK shall support use of an existing container image as the basis for designing an Operator in such a way so that the newly created Operator conforms the interfaces required to behave like any other off-the-shelf Operators in the MONAI Deploy SDK.
+
+#### Background
+The preferred way to build a design-time operator in MONAI Deploy SDK is Pythonic. Users can either use built-in Operators (where each such operator is a Python class) or extend from one of those Operators to design their own. However some situations where this approach may not be feasible. Examples are:
+
+* An organization has legacy source code that already has been containerized and would like to reuse in the context of a MONAI Deploy Application
+* An organization has a 3rd party container and it is not feasible to recompile the source code
+* Mixing multiple operators in a single container makes it difficult to resolve dependenices.
+
+
+#### Verification Strategy
+Given an existing container verifry that the SDK enables creation of a new Operator that makes use of such containers. Also verify that the newly created Operator is inter
+
+#### Target Release
+MONAI Deploy App SDK 0.1.0
+
+---
+
+### [REQ] Packaging an Application
+The SDK shall allow packaging of the application in a standardized format so that it can be executed by a compliant runtime environment
+
+#### Background
+TBD
+
+#### Verification Strategy
+TBD
+
+#### Target Release
+MONAI Deploy App SDK 0.1.0
+
+
+
+### [REQ]  Execution of Application
+The SDK shall allow execution of an application in the developer's workstation.
+
+#### Background
+TBD
+
+#### Verification Strategy
+TBD
+
+#### Target Release
+MONAI Deploy App SDK 0.1.0
+
+
+
 ### [REQ] Testing the functional veracity of an Operator
 The SDK shall enable app verification of on operator by allowing developers to specify the following: (a) A Gold Input (b) A Gold Output (c) Similarity Metric (d) Allowed Tolerance between measured output and gold output
 
@@ -423,16 +484,14 @@ MONAI Deploy App SDK 0.2.0
 ---
 
 
-
-
 ### [REQ] Testing the functional veracity of an Application
-The SDK shall enable app verification of on operator by allowing developers to specify the following: (a) A Gold Input (b) A Gold Output (c) Similarity Metric (d) Allowed Tolerance between measured output and gold output
+The SDK shall enable app verification of an application by allowing developers to specify the following: (a) A Gold Input (b) A Gold Output (c) Similarity Metric (d) Allowed Tolerance between measured output and gold output
 
 #### Background
-Having a mechanism to test the functionality of an operator during development makes it easier for developer to be ready for deployment to a production quality server.
+Having a mechanism to test the functionality of an application during development makes it easier for developer to be ready for deployment to a production quality server.
 
 #### Verification Strategy
-For a classification inference operator verify that given a gold input, a similarity metric, the generated output closely matches the output within the specified tolerance limits.
+For an application that makes use of a classification inference operator verify that given a gold input, a similarity metric, the generated output closely matches the output within the specified tolerance limits.
 
 #### Target Release
 MONAI Deploy App SDK 0.2.0
@@ -483,61 +542,6 @@ MONAI Deploy App SDK 0.1.0
 
 ---
 
-
-### [REQ] App Resource Requirements
-
-#### Background
-TBD
-
-The SDK shall enable developers to specify desired resource requirements (GPU Memory, System Memory), for the application during app development
-
-#### Verification Strategy
-TBD
-
-#### Target Release
-MONAI Deploy App SDK 0.1.0
-
----
-
-### [REQ] Existing Containers
-The SDK shall support use of an existing container image as the base for designing an Operator
-
-#### Background
-TBD
-
-#### Verification Strategy
-TBD
-
-#### Target Release
-MONAI Deploy App SDK 0.1.0
-
----
-
-### [REQ] Packaging an Application
-The SDK shall allow packaging of the application in a standardized format so that it can be executed by a compliant runtime environment
-
-#### Background
-TBD
-
-#### Verification Strategy
-TBD
-
-#### Target Release
-MONAI Deploy App SDK 0.1.0
-
-
-
-### [REQ]  Execution of Application
-The SDK shall allow execution of an application in the developer's workstation.
-
-#### Background
-TBD
-
-#### Verification Strategy
-TBD
-
-#### Target Release
-MONAI Deploy App SDK 0.1.0
 
 
 ### [REQ] Development Console
