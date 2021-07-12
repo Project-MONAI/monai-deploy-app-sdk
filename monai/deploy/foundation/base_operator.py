@@ -1,7 +1,8 @@
 from abc import ABC, abstractmethod
 import uuid
 import os
-from monai.deploy.foundation.data_store import DataStore
+from monai.deploy.foundation.operator_info import OperatorInfo
+
 from colorama import Fore, Back, Style
 
 
@@ -18,11 +19,18 @@ class BaseOperator(ABC):
         to all inpuuts and outputs relavant for this operator
         """
         super().__init__()
-        self._storage = DataStore.get_instance()
         self._num_input_ports = 1
         self._num_output_ports = 1
         self._uid = uuid.uuid4()
-        
+        self._op_info = self.create_op_info()
+    
+
+    def create_op_info(self):
+        _op_info = OperatorInfo()
+        _op_info.num_input_ports = 1
+        _op_info.num_output_ports = 1
+        return _op_info
+
 
     def get_uid(self):
         """ Gives access to the UID of the operator
@@ -32,36 +40,22 @@ class BaseOperator(ABC):
         return self._uid
    
    
-
-    def get_input(self, input_port_number):
-        """ Retrieves the input from the data store
-
+    def get_operator_info(self):
+        """ Retrieves the operator info
         Args:
-            input_port_number: corresponding port number for which inout will be retrieved
         Returns:
-            Input attribute to the operator at the specified port 
+            An instance of OperatorInfo
+        
         """
-        return self._storage.retrieve((self.get_uid(), 'input', input_port_number))
-    
+        return self._op_info
 
-
-    @abstractmethod
-    def get_output(self, output_port_number):
-        """ Retrieves the output from the data store
-        Args:
-            output_port_number: corresponding port number for which output will be retrieved
-        Returns:
-            Output attribute from the operator at the specified port 
-        """
-        pass
-    
 
     def get_num_input_ports(self):
         """ Provides number of input ports that this operator has
         Returns:
             Number of input ports
         """
-        return self._num_input_ports
+        return self._op_info.num_input_ports
     
 
     def get_num_output_ports(self):
@@ -69,7 +63,7 @@ class BaseOperator(ABC):
         Returns:
             Number of output ports
         """
-        return self._num_output_ports
+        return self._op_info.num_output_ports
         
     
     def pre_execute(self):
@@ -82,7 +76,7 @@ class BaseOperator(ABC):
         pass
 
     @abstractmethod
-    def execute(self):
+    def execute(self, execution_context):
         """ Provides number of output ports that this operator has
         Returns:
             Number of output ports
