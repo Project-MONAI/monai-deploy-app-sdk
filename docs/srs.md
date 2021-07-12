@@ -478,8 +478,7 @@ The MONAI Deploy SDK shall provide a MAP Executor as a shim between the runner o
 * Provide entry-point (or initial process) of a MAP's container
 * Execute the Application as defined by the MAP Package Manifest and then exit
 * Set initial conditions for the Application when invoking it
-* Monitor the Application process and record its CPU, system memory, and GPU utilization metrics
-* Shall monitor the Application process and enforce any timeout value specified
+* Monitor the Application process and enforce any timeout value specified in the MAP
 
 #### Background
 
