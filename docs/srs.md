@@ -346,7 +346,7 @@ MONAI Informatics Gateway is a subsystem of the MONAI Deploy platform which faci
 Design an app which ingests FHIR Records as input and generates FHIR Records as output. Verify that the input can be provided from the MONAI Informatics Gateway and outputs can be pushed to the MONAI Informatics Gateway.
 
 #### Target Release
-MONAI Deploy App SDK 0.1.0
+MONAI Deploy App SDK 0.2.0
 
 ---
 
