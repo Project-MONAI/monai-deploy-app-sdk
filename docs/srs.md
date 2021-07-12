@@ -397,46 +397,48 @@ MONAI Deploy App SDK 0.1.0
 The SDK shall provide an operator that supports generating and exporting a RT Structure Set Storage SOP Instance.
 
 #### Background
-TBD
-
+There are significant differences in the types of information required for radiology and radiation therapy domains. The radiation therapy information is defined in seven information objects known as DICOM-RT objects which include RT Structure Set, RT Plan, RT Dose, RT Image, RT Treatment Record, RT Brachy Treatment Record, and RT Treatment. The data models set the standard for integration of radiation therapy information for an electronic patient record and would facilitate the interoperability of information among different systems.
 
 #### Verification Strategy
-TBD
+Make use of an AI model that creates contour of segmented anatomical objects. Verify whether such a model can be used in an application and the out of the model inference can use used to generate an instance of RT Structure set
 
 #### Target Release
-MONAI Deploy App SDK 0.1.0
+MONAI Deploy App SDK 0.2.0
 
 ---
 
-### [REQ] GPU Accelerated Primitives
-The SDK shall allow support for incorporating common GPU accelerated image processing and computer vision primitives in an Operator
-App Verification
+
+### [REQ] Testing the functional veracity of an Operator
+The SDK shall enable app verification of on operator by allowing developers to specify the following: (a) A Gold Input (b) A Gold Output (c) Similarity Metric (d) Allowed Tolerance between measured output and gold output
 
 #### Background
-TBD
+Having a mechanism to test the functionality of an operator during development makes it easier for developer to be ready for deployment to a production quality server.
 
 #### Verification Strategy
-TBD
+For a classification inference operator verify that given a gold input, a similarity metric, the generated output closely matches the output within the specified tolerance limits.
 
 #### Target Release
-MONAI Deploy App SDK 0.1.0
+MONAI Deploy App SDK 0.2.0
 
 ---
 
 
-### [REQ] App Verification
-The SDK shall enable app verification at two levels: operator, application
+
+
+### [REQ] Testing the functional veracity of an Application
+The SDK shall enable app verification of on operator by allowing developers to specify the following: (a) A Gold Input (b) A Gold Output (c) Similarity Metric (d) Allowed Tolerance between measured output and gold output
 
 #### Background
-TBD
+Having a mechanism to test the functionality of an operator during development makes it easier for developer to be ready for deployment to a production quality server.
 
 #### Verification Strategy
-TBD
+For a classification inference operator verify that given a gold input, a similarity metric, the generated output closely matches the output within the specified tolerance limits.
 
 #### Target Release
-MONAI Deploy App SDK 0.1.0
+MONAI Deploy App SDK 0.2.0
 
 ---
+
 
 ### [REQ] App Analytics
 The SDK shall allow analyzing performance of the application at multiple levels: application, operator, kernel
