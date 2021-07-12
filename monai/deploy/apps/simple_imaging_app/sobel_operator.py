@@ -10,17 +10,8 @@ class SobelOperator(BaseOperator):
     """
     def __init__(self):
         super().__init__()
-        self.data_out = None
     
-    """ Provides the output at a given port number
-    This one has only one output
-    Args:
-        output_port_number: Ignored as it has a single output
-    Returns:
-        image: edge detected image
-    """
-    def get_output(self, output_port_number):
-        return self.data_out
+    
     
     """ Performs execution for this operator
     The input for this operator is hardcoded
@@ -28,7 +19,8 @@ class SobelOperator(BaseOperator):
     the input is provided via inversion of control
     mecchanism
     """
-    def execute(self):
-        super().execute()
+    def execute(self, execution_context):
+        super().execute(execution_context)
         data_in = io.imread("./brain_mr_input.jpg")
-        self.data_out = filters.sobel(data_in)
+        data_out = filters.sobel(data_in)
+        execution_context.set_operator_output(self._uid, 0, data_out)
