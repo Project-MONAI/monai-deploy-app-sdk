@@ -451,21 +451,21 @@ The SDK shall allow packaging of the application in a standardized format so tha
 Please refer to [MONAI Application Packge Spec](https://github.com/Project-MONAI/monai-deploy-experimental/blob/70862cafb8ec5487037cf524e56eb1bf86d72d53/guidelines/monai-application-package.md)for details
 
 #### Verification Strategy
-TBD
+Develop a sample application using MONAI SDK. Run the app as a Python application with a gold input. Use the App Packager utility to generate a MAP. Run the MAP using App Runner. Verify that the two sets of output match.
 
 #### Target Release
 MONAI Deploy App SDK 0.1.0
 
 ---
 
-### [REQ]  Execution of Application
+### [REQ]  Executing a MAP using App Runner
 The SDK shall allow execution of an application in the developer's workstation.
 
 #### Background
-TBD
+Developers need a way to run an instance of a MAP in his/her local workstation before the MAP is deployed in a production environment
 
 #### Verification Strategy
-TBD
+Develop a sample application using MONAI SDK. Run the app as a Python application with a gold input. Use the App Packager utility to generate a MAP. Run the MAP using App Runner. Verify that the two sets of output match.
 
 #### Target Release
 MONAI Deploy App SDK 0.1.0
@@ -503,6 +503,21 @@ MONAI Deploy App SDK 0.2.0
 ---
 
 
+### [REQ] Supporting Medical Image Visualization during App Development
+The SDK shall enable 2D/3D/4D medical image visualization of input, intermediate artifacts & output of an application during development
+
+#### Background
+Making sense of the output from deep learning algorithms in medical imaging often requires use of advanced 2D, 3D, and 4D visualization. Existing 3D visualization systems which are deployed to handle typical clinical workloads are often not designed to handle the outputs from an AI inference platform. In addition, such visualization needs to be built using GPU based hardware for optimal performance. Lack of an ability to meaningfully visualize outputs from AI inference hinders the growth of adoption of AI-driven clinical workflows. 
+
+#### Verification Strategy
+Verify whether Direct Volume Rendering, Multi-Planar Reformatting and Original Slice viewing are offered for CT/MR modalities
+
+#### Target Release
+MONAI Deploy App SDK 0.2.0
+
+---
+
+
 ### [REQ] App Analytics
 The SDK shall allow analyzing performance of the application at multiple levels: application, operator, kernel
 
@@ -517,20 +532,6 @@ MONAI Deploy App SDK 0.2.0
 
 ---
 
-
-### [REQ] Data Visualization
-The SDK shall enable 2D/3D/4D medical image visualization of input, intermediate artifacts & output of an application during development
-
-#### Background
-TBD
-
-#### Verification Strategy
-TBD
-
-#### Target Release
-MONAI Deploy App SDK 0.2.0
-
----
 
 ### [REQ] Data Specification for App
 The SDK shall enable developers to specify conditions so that the right input datasets can be routed to an app during execution
