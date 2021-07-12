@@ -16,7 +16,9 @@ class GaussianOperator(BaseOperator):
     def __init__(self):
         super().__init__()
 
+
     def execute(self, execution_context):
+        #first execute the base operator's execute
         super().execute(execution_context)
         data_in =  execution_context.get_operator_input(self._uid, 0)
         data_out = gaussian(data_in, sigma=0.2)
