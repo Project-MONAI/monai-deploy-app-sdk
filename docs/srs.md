@@ -423,7 +423,7 @@ MONAI Deploy App SDK 0.1.0
 ---
 
 ### [REQ] Making use of an existing container to build an operator
-The SDK shall support use of an existing container image as the basis for designing an Operator in such a way so that the newly created Operator conforms the interfaces required to behave like any other off-the-shelf Operators in the MONAI Deploy SDK.
+The SDK shall support use of an existing container image as the basis for designing an Operator in such a way so that the newly created Operator conforms to the interfaces required to behave like any other off-the-shelf Operators in the MONAI Deploy SDK.
 
 #### Background
 The preferred way to build a design-time operator in MONAI Deploy SDK is Pythonic. Users can either use built-in Operators (where each such operator is a Python class) or extend from one of those Operators to design their own. However some situations where this approach may not be feasible. Examples are:
@@ -441,7 +441,7 @@ MONAI Deploy App SDK 0.1.0
 
 ---
 
-### [REQ] Packaging an Application
+### [REQ] Creating a MONAI Application Package (MAP)
 The SDK shall allow packaging of the application in a standardized format so that it can be executed by a compliant runtime environment
 
 #### Background
@@ -453,7 +453,7 @@ TBD
 #### Target Release
 MONAI Deploy App SDK 0.1.0
 
-
+---
 
 ### [REQ]  Execution of Application
 The SDK shall allow execution of an application in the developer's workstation.
@@ -467,6 +467,7 @@ TBD
 #### Target Release
 MONAI Deploy App SDK 0.1.0
 
+---
 
 
 ### [REQ] Testing the functional veracity of an Operator
