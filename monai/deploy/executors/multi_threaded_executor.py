@@ -1,16 +1,25 @@
-from abc import ABC, abstractmethod
-from monai.deploy.foundation.data_store import DataStore
-from monai.deploy.executors.executor import Executor
+# Copyright 2020 - 2021 MONAI Consortium
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#     http://www.apache.org/licenses/LICENSE-2.0
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 from queue import Queue
 
-class MultiThreadedExecutor(Executor):
+from monai.deploy.executors.executor import Executor
+from monai.deploy.foundation.application import Application
+from monai.deploy.foundation.data_store import DataStore
 
-    def __init__(self, app):
+
+class MultiThreadedExecutor(Executor):
+    def __init__(self, app: Application):
         super().__init__(app)
         self._storage = DataStore.get_instance()
-
-
-
 
     def execute(self):
         g = self._app.get_graph()
@@ -19,26 +28,18 @@ class MultiThreadedExecutor(Executor):
             q = Queue()
             q.put(node)
 
-            while(q.empty() == False):
+            while not q.empty():
                 n = q.get()
                 edges = g.out_edges(n)
                 n.execute()
 
                 for e in edges:
 
-                    #figure out how to deal with duplicate nodes
+                    # Figure out how to deal with duplicate nodes
                     q.put(e[1])
                     edge_data = g.get_edge_data(e[0], e[1])
-                    output = node.get_output(edge_data['upstream_op_port'])
-                    key1 = (e[0].get_uid(), 'output', edge_data['upstream_op_port'])
+                    output = node.get_output(edge_data["upstream_op_port"])
+                    key1 = (e[0].get_uid(), "output", edge_data["upstream_op_port"])
                     self._storage.store(key1, output)
-                    key2 = (e[1].get_uid(), 'input', edge_data['downstream_op_port'])
+                    key2 = (e[1].get_uid(), "input", edge_data["downstream_op_port"])
                     self._storage.store(key2, output)
-
-
-
-
-
-
-
-        
