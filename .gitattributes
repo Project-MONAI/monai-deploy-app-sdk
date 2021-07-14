@@ -1,0 +1,1 @@
+monai/deploy/_version.py export-subst

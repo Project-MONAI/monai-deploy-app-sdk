@@ -1,0 +1,26 @@
+{
+	"folders": [
+		{
+			"path": "."
+		}
+	],
+	"extensions": {
+		"recommendations": [
+			"eamodio.gitlens",
+			"ms-python.python",
+			"ms-python.vscode-pylance",
+			"shardulm94.trailing-spaces",
+		]
+	},
+	"settings": {
+		"editor.rulers": [
+			79,
+			120
+		],
+		"editor.wordWrapColumn": 120,
+		"python.formatting.provider": "black",
+		"python.linting.mypyEnabled": true,
+		"python.languageServer": "Pylance",
+		"editor.formatOnSaveMode": "modifications",
+	}
+}

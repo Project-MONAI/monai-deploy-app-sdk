@@ -1,9 +1,9 @@
 # MONAI Deploy Application SDK
 
-MONAI Deploy Application SDK offers a framework and associated tools to design, verify and analyze performance of AI-driven applications in healthcare domain 
-
+MONAI Deploy Application SDK offers a framework and associated tools to design, verify and analyze performance of AI-driven applications in healthcare domain.
 
 ## Features
+
 > _The codebase is currently under active development._
 
 - Pythonic Framework for app development
@@ -14,26 +14,18 @@ MONAI Deploy Application SDK offers a framework and associated tools to design, 
 - A set of sample applications
 - API documentation & User's Guide
 
-
-
 ## Installation
 
-To install [the current release](https://pypi.org/project/monai/), you can simply run:
+To install [the current release](https://pypi.org/project/monai-app-sdk/), you can simply run:
 
 ```bash
-pip install monai-deploy
+pip install monai-app-sdk
 ```
-
 
 ## Getting Started
 
-
-
 ## Contributing
 
-
-
 ## Community
-
 
 ## Links
