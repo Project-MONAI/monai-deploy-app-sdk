@@ -11,7 +11,7 @@
 
 from abc import ABC, abstractmethod
 
-from monai.deploy.foundation.application import Application
+from monai.deploy.core.application import Application
 
 
 class Executor(ABC):

@@ -11,7 +11,7 @@
 
 from skimage.filters import median
 
-from monai.deploy.foundation.base_operator import BaseOperator
+from monai.deploy.core.base_operator import BaseOperator
 
 
 class MedianOperator(BaseOperator):

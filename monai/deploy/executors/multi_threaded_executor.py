@@ -12,8 +12,8 @@
 from queue import Queue
 
 from monai.deploy.executors.executor import Executor
-from monai.deploy.foundation.application import Application
-from monai.deploy.foundation.data_store import DataStore
+from monai.deploy.core.application import Application
+from monai.deploy.core.data_store import DataStore
 
 
 class MultiThreadedExecutor(Executor):

@@ -13,8 +13,8 @@
 import networkx as nx
 
 from monai.deploy.executors.executor import Executor
-from monai.deploy.foundation.application import Application
-from monai.deploy.foundation.execution_context import ExecutionContext
+from monai.deploy.core.application import Application
+from monai.deploy.core.execution_context import ExecutionContext
 
 
 class SingleProcessExecutor(Executor):

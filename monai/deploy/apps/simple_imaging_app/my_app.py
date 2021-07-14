@@ -13,7 +13,7 @@ from monai.deploy.apps.simple_imaging_app.gaussian_operator import GaussianOpera
 from monai.deploy.apps.simple_imaging_app.median_operator import MedianOperator
 from monai.deploy.apps.simple_imaging_app.sobel_operator import SobelOperator
 from monai.deploy.executors.single_process_executor import SingleProcessExecutor
-from monai.deploy.foundation.application import Application
+from monai.deploy.core.application import Application
 
 
 class MyApp(Application):
