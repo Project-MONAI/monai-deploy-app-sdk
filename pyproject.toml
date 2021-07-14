@@ -1,0 +1,36 @@
+[build-system]
+requires = [
+    "setuptools>=42",
+    "wheel",
+    "versioneer-518"
+]
+build-backend = "setuptools.build_meta"
+
+[tool.black]
+line-length = 120
+target-version = ['py36', 'py37', 'py38']
+include = '\.pyi?$'
+exclude = '''
+(
+  /(
+    # exclude a few common directories in the root of the project
+      \.eggs
+    | \.git
+    | \.hg
+    | \.mypy_cache
+    | \.tox
+    | \.venv
+    | \.pytype
+    | _build
+    | buck-out
+    | build
+    | dist
+  )/
+  # also separately exclude a file named versioneer.py
+  | monai/deploy/_version.py
+)
+'''
+
+# https://github.com/microsoft/pyright/blob/main/docs/configuration.md
+[tool.pyright]
+ignore = ["versioneer.py", "_version.py"]

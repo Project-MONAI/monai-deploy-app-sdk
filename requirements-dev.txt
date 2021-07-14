@@ -1,0 +1,22 @@
+# Full requirements for developments
+-r requirements-min.txt
+flake8>=3.8.1
+flake8-bugbear
+flake8-comprehensions
+flake8-executable
+flake8-pyi
+mccabe
+pep8-naming
+pycodestyle
+pyflakes
+black
+isort
+pytype>=2020.6.1; platform_system != "Windows"
+types-pkg_resources
+mypy>=0.790
+psutil
+Sphinx==3.5.3
+recommonmark==0.6.0
+sphinx-autodoc-typehints==1.11.1
+sphinx-rtd-theme==0.5.2
+cucim~=21.06; platform_system == "Linux"

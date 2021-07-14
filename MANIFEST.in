@@ -1,0 +1,7 @@
+# https://packaging.python.org/guides/using-manifest-in/
+
+include versioneer.py
+include monai/deploy/_version.py
+
+include README.md
+include LICENSE
