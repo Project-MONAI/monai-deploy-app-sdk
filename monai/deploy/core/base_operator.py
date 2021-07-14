@@ -14,8 +14,8 @@ import uuid
 from abc import ABC, abstractmethod
 
 from colorama import Fore
-from monai.deploy.foundation.operator_info import OperatorInfo
-from monai.deploy.foundation.execution_context import ExecutionContext
+from monai.deploy.core.operator_info import OperatorInfo
+from monai.deploy.core.execution_context import ExecutionContext
 
 
 class BaseOperator(ABC):
