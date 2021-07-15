@@ -9,11 +9,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from monai.deploy.apps.simple_imaging_app.gaussian_operator import GaussianOperator
-from monai.deploy.apps.simple_imaging_app.median_operator import MedianOperator
-from monai.deploy.apps.simple_imaging_app.sobel_operator import SobelOperator
-from monai.deploy.executors.single_process_executor import SingleProcessExecutor
+from gaussian_operator import GaussianOperator
+from median_operator import MedianOperator
+from sobel_operator import SobelOperator
+
 from monai.deploy.core.application import Application
+from monai.deploy.executors import SingleProcessExecutor
 
 
 class MyApp(Application):
