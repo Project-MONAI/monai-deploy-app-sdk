@@ -481,6 +481,63 @@ MONAI Deploy App SDK 0.1.0
 
 ---
 
+### [REQ] App Packager Configuration
+The SDK shall maintain a group of configuration values which the App Packager will use to build a MAP
+
+#### Background
+In order to build a MAP, The App Packager will need access to information about the application such as:
+* Input/Output requirements
+* Resource requirements
+* The driver class to invoke the application 
+
+The App Packager will translate some of this data into manifests which are defined in the [MONAI Application Packge Spec](https://github.com/Project-MONAI/monai-deploy-experimental/blob/70862cafb8ec5487037cf524e56eb1bf86d72d53/guidelines/monai-application-package.md)
+
+The SDK shall provide a map with the following configuration values:
+```
+{
+  "command": "main.py --batch 3",    # Driver application class including required parameters
+  "inputs":[                         # Input Specification
+    {
+      "data": "image",
+      "format": "dicom",
+      "protocols": [],
+      "region": "spleen",
+      "series-count": 1,
+      "slice-per-file": 1
+    }
+  ],
+  "output": {                        # Output Specification
+    "path": "/output",
+    "format": {
+      "data": "segmentation-image",
+      "format": "nifti",
+      "series-count": 1,
+      "slice-per-file": "*"
+    }
+  },
+  "timeout": 600                     # Application Timeout
+  "models": [                        # Model Specification
+    {
+      "name": "spleen-segmentation",
+      "path": "/var/opt/monai/models/spleen_model/data.ts"
+    }
+  ],
+  "resource": {                      # Resource Specification
+    "cpu": 1,
+    "gpu": 1,
+    "memory": "4Gi"
+  }
+}
+```
+
+#### Verification Strategy
+TBD
+
+#### Target Release
+MONAI Deploy App SDK 0.1.0
+
+---
+
 ### [REQ] App Runner
 The SDK shall allow execution of an application in the developer's workstation.
 
