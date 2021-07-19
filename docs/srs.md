@@ -495,29 +495,38 @@ The App Packager will translate some of this data into manifests which are defin
 The SDK shall provide a map with the following configuration values:
 ```
 {
+  "app-name": "CT MR Brain Registration Application",
+  "sdk-version": "0.0",
+  "app-version": "0.0",
   "command": "main.py --batch 3",    # Driver application class including required parameters
   "inputs":[                         # Input Specification
     {
-      "data": ["image"],
-      "format": ["dicom"],
+      "modality": "CT",
+      "format": "DICOM",
       "series-count": 1,
-      "slice-per-file": 1
+      "slice-per-file": 1,
+      "path": "file://localhost/input/1"
+    },
+    {
+      "modality": "MR",
+      "format": "DICOM",
+      "series-count": 1,
+      "slice-per-file": 1,
+      "path": "file://localhost/input/2"
     }
   ],
   "output": {                        # Output Specification
-    "path": "/output",
-    "format": {
-      "data": "segmentation-image",
-      "format": "nifti",
-      "series-count": 1,
-      "slice-per-file": "*"
-    }
+    "modality": ["MR","CT"],
+    "format": "DICOM",
+    "series-count": 1,
+    "slice-per-file": 1,
+    "path": "file://localhost/output/1"
   },
   "timeout": 600                     # Application Timeout
   "models": [                        # Model Specification
     {
       "name": "spleen-segmentation",
-      "path": "/var/opt/monai/models/spleen_model/data.ts"
+      "path": "file://localhost/var/opt/monai/models/spleen_model/data.ts"
     }
   ],
   "resource": {                      # Resource Specification
