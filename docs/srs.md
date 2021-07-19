@@ -498,10 +498,8 @@ The SDK shall provide a map with the following configuration values:
   "command": "main.py --batch 3",    # Driver application class including required parameters
   "inputs":[                         # Input Specification
     {
-      "data": "image",
-      "format": "dicom",
-      "protocols": [],
-      "region": "spleen",
+      "data": ["image"],
+      "format": ["dicom"],
       "series-count": 1,
       "slice-per-file": 1
     }
