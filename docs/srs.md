@@ -490,46 +490,68 @@ In order to build a MAP, The App Packager will need access to information about 
 * Resource requirements
 * The driver class to invoke the application 
 
-The App Packager will translate some of this data into manifests which are defined in the [MONAI Application Packge Spec](https://github.com/Project-MONAI/monai-deploy-experimental/blob/70862cafb8ec5487037cf524e56eb1bf86d72d53/guidelines/monai-application-package.md)
+The App Packager will translate some of this data into manifests which are defined in the [MONAI Application Packge Spec](https://github.com/Project-MONAI/monai-deploy-experimental/blob/main/guidelines/monai-application-package.md)
 
 The SDK shall provide a map with the following configuration values:
+##### Package Specific Fields
+
+* Application package name (`#app-name`)
+* Application package version (`#app-version`)
+* Application timeout  (`#app-timeout`)
+* Version of MONAI Application SDK  (`#sdk-version`)
+* Command for invoking driver class of application, along with its parameters (`#command`)
+
+##### Input Specification (`#input`)
+*Initially supporting only single input*
+
+* Input type (`#input.data`)
+* Input format (`#input.format`)
+* Path within packaged MAP container to input files (`#input.path`)
+
+##### Output Specification (`#output`)
+
+* Output type (`#output.data`)
+* Output format (`#output.format`)
+* Path within packaged MAP container to output files (`#output.path`)
+
+##### Model Specification (`#models`)
+
+* Model name (`#models.entry.name`)
+* Path within packaged MAP container to model`#models.entry.path`)
+
+##### Resource Specification (`#resource`)
+
+* Required number of cpus for system running application (`#resource.cpu`)
+* Required number of gpus for system running application (`#resource.gpu`)
+* Required amount of memory for system running application (`#resource.memory`)
+
+Example for `spleen_application/`:
 ```
 {
-  "app-name": "CT MR Brain Registration Application",
-  "sdk-version": "0.0",
+  "app-name": "Spleen Application",
   "app-version": "0.0",
-  "command": "main.py --batch 3",    # Driver application class including required parameters
-  "inputs":[                         # Input Specification
-    {
-      "modality": "CT",
-      "format": "DICOM",
-      "series-count": 1,
-      "slice-per-file": 1,
-      "path": "file://localhost/input/1"
-    },
-    {
-      "modality": "MR",
-      "format": "DICOM",
-      "series-count": 1,
-      "slice-per-file": 1,
-      "path": "file://localhost/input/2"
-    }
-  ],
-  "output": {                        # Output Specification
-    "modality": ["MR","CT"],
+  "app-timeout": 600
+  "sdk-version": "0.0",
+  "command": "python spleen_application/my_app.py --batch 3", 
+  "input":
+  {
+    "data": "image",
     "format": "DICOM",
-    "series-count": 1,
-    "slice-per-file": 1,
-    "path": "file://localhost/output/1"
+    "path": "input/1"
+  }
+  ,
+  "output": {                    
+    "data": "image",
+    "format": "DICOM",
+    "path": "output/1"
   },
-  "timeout": 600                     # Application Timeout
-  "models": [                        # Model Specification
+  "models": [                        
     {
       "name": "spleen-segmentation",
-      "path": "file://localhost/var/opt/monai/models/spleen_model/data.ts"
+      "path": "models/spleen_model/data.ts"
     }
   ],
-  "resource": {                      # Resource Specification
+  "resource": {
     "cpu": 1,
     "gpu": 1,
     "memory": "4Gi"
