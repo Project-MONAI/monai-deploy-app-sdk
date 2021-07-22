@@ -5,7 +5,6 @@ from monai.deploy.apps.simple_imaging_app.sobel_operator import SobelOperator
 from monai.deploy.apps.simple_imaging_app.median_operator import MedianOperator
 from monai.deploy.apps.simple_imaging_app.gaussian_operator import GaussianOperator
 from monai.deploy.executors.single_process_executor import SingleProcessExecutor
-from monai.deploy.executors.multi_process_executor import MultiProcessExecutor
 
 
 from skimage import data, io, filters
