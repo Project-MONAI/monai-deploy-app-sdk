@@ -1,3 +1,17 @@
+# use the base image given or any custom Docker base image
+FROM nvcr.io/nvidia/cuda:11.1-runtime-ubuntu20.04
+
+LABEL base="nvcr.io/nvidia/cuda:11.1-runtime-ubuntu20.04"
+LABEL monai="0.0-prototype.0"
+LABEL name="map/spleen-segmentation"
+LABEL version="0.0"
+
+# Set dpkg to non-interactive to avoid docker build stopping to ask questions.
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Set additional environment values that make usage more pleasant.
+ENV TERM=xterm-256color
+
 RUN apt update \
  && apt upgrade -y --no-install-recommends \
  && apt install -y --no-install-recommends \
