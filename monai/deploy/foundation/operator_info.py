@@ -42,19 +42,19 @@ class OperatorInfo():
 
     
     def set_input_storage_type(self, port_num, storage_type):
-        self.input_storage_type[port_num] = storage_type
+        self.input_storage_type.insert(port_num, storage_type)
 
 
     def set_input_data_type(self, port_num, data_type):
-        self.input_data_type[port_num] = data_type
+        self.input_data_type.insert(port_num, data_type)
 
 
     def set_output_storage_type(self, port_num, storage_type):
-        self.output_storage_type[port_num] = storage_type
+        self.output_storage_type.insert(port_num, storage_type)
 
 
     def set_output_data_type(self, port_num, storage_type):
-        self.output_data_type[port_num] = data_type
+        self.output_data_type.insert(port_num, data_type)
 
 
     def get_input_storage_type(self, port_num):
