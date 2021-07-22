@@ -346,7 +346,7 @@ MONAI Informatics Gateway is a subsystem of the MONAI Deploy platform which faci
 Design an app which ingests FHIR Records as input and generates FHIR Records as output. Verify that the input can be provided from the MONAI Informatics Gateway and outputs can be pushed to the MONAI Informatics Gateway.
 
 #### Target Release
-MONAI Deploy App SDK 0.1.0
+MONAI Deploy App SDK 0.2.0
 
 ---
 
@@ -382,7 +382,7 @@ MONAI Deploy App SDK 0.1.0
 ---
 
 ### [REQ] Supporting DICOM Segmentation Storage SOP Class as output
-The SDK shall provide a mechanism to generate a Segmentation Storage SOP Instance where each pixel/voxel can belong to a single category among multiple supported categories. This operator shall be able to output a multi-frame image representing a classification of pixels where each frame represents a 2D plane or a slice of a single segmentation category
+The SDK shall provide a mechanism to generate a Segmentation Storage SOP Instance where each pixel/voxel can belong to a single category among multiple supported categories. This operator shall be able to output a multi-frame image representing a classification of pixels where each frame represents a 2D plane or a slice of a single segmentation category. Only binary segmentation shall be supported
 
 #### Background
 Healthcare AI apps create segmentation instances during acquisition, post-processing, interpretation and treatment. DICOM Segmentation Storage SOP class provides a way to encode segmentation data. It is intended for composite data objects of any modality or clinical specialty. Segmentations are either binary or fractional.
@@ -395,6 +395,16 @@ MONAI Deploy App SDK 0.1.0
 
 ---
 
+### [REQ] Supporting DICOM Segmentation Storage SOP Class as input
+
+#### Background
+
+#### Verification Strategy
+
+#### Target Release
+MONAI Deploy App SDK 0.2.0
+
+---
 
 ### [REQ] Supporting DICOM RT Structure Storage SOP Class as Output
 The SDK shall provide an operator that supports generating and exporting a RT Structure Set Storage SOP Instance.
@@ -404,6 +414,19 @@ There are significant differences in the types of information required for radio
 
 #### Verification Strategy
 Make use of an AI model that creates contour of segmented anatomical objects. Verify whether such a model can be used in an application and the out of the model inference can use used to generate an instance of RT Structure set
+
+#### Target Release
+MONAI Deploy App SDK 0.2.0
+
+---
+
+### [REQ] Supporting DICOM RT Structure Storage SOP Class as Input
+
+#### Background
+There are significant differences in the types of information required for radiology and radiation therapy domains. The radiation therapy information is defined in seven information objects known as DICOM-RT objects which include RT Structure Set, RT Plan, RT Dose, RT Image, RT Treatment Record, RT Brachy Treatment Record, and RT Treatment. The data models set the standard for integration of radiation therapy information for an electronic patient record and would facilitate the interoperability of information among different systems.
+
+#### Verification Strategy
+
 
 #### Target Release
 MONAI Deploy App SDK 0.2.0
@@ -437,10 +460,10 @@ The preferred way to build a design-time operator in MONAI Deploy SDK is Pythoni
 
 
 #### Verification Strategy
-Given an existing container verifry that the SDK enables creation of a new Operator that makes use of such containers. Also verify that the newly created Operator is inter
+Given an existing container verifry that the SDK enables creation of a new Operator that makes use of such containers. Also verify that the newly created Operator is interoperable with other existing operators
 
 #### Target Release
-MONAI Deploy App SDK 0.1.0
+MONAI Deploy App SDK 0.2.0
 
 ---
 
