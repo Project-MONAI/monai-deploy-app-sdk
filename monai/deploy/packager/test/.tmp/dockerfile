@@ -1,0 +1,45 @@
+FROM nvcr.io/nvidia/cuda:11.1-runtime-ubuntu20.04
+
+LABEL base="nvcr.io/nvidia/cuda:11.1-runtime-ubuntu20.04"
+LABEL tag=""
+LABEL version="0.0"
+LABEL sdk_version="0.0"
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+ENV TERM=xterm-256color
+ENV MONAI_INPUTPATH=/opt/monai/input/
+ENV MONAI_OUTPUTPATH=/opt/monai/output/
+
+RUN apt update \
+ && apt upgrade -y --no-install-recommends \
+ && apt install -y --no-install-recommends \
+    build-essential \
+    python3 \
+    python3-pip \
+    python3-setuptools \
+    curl \
+ && apt autoremove -y \
+ && rm -f /usr/bin/python /usr/bin/pip \
+ && ln -s /usr/bin/python3 /usr/bin/python \
+ && ln -s /usr/bin/pip3 /usr/bin/pip
+
+RUN mkdir -p /etc/monai/
+RUN mkdir -p /opt/monai/
+RUN mkdir -p /opt/monai/app/
+RUN mkdir -p /opt/monai/executor/
+RUN mkdir -p /opt/monai/input/
+RUN mkdir -p /opt/monai/output/
+RUN mkdir -p /opt/monai/models/
+
+COPY ./app/ /opt/monai/app/
+COPY ./app/models/ /opt/monai/models/
+
+RUN pip install -r /opt/monai/app/requirements.txt
+
+COPY ./.tmp/app.json /etc/monai/
+COPY ./.tmp/pkg.json /etc/monai/
+COPY ./.tmp/monai-exec /opt/monai/executor/
+
+ENTRYPOINT [ "/opt/monai/executor/monai-exec" ]
+    

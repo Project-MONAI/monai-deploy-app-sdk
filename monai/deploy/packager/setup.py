@@ -31,7 +31,7 @@ setuptools.setup(
     packages=setuptools.find_packages('.'),
     entry_points={
             'console_scripts': [
-                'monaipackager = src.cli:main'
+                'monaideploy = src.cli:main'
             ]
         },
     classifiers=[
@@ -41,7 +41,7 @@ setuptools.setup(
     python_requires='>=3.6',
     include_package_data=True,
     data_files=[
-        ("template_dockerfile", [
-         "src/dockerfiles/template.dockerfile"]),
+        ("monai_executor", [
+         "src/executor/monai-exec"])
     ],
 )
