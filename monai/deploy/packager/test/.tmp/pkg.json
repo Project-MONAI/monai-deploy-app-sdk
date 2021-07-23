@@ -1,0 +1,17 @@
+
+    {
+        "sdk-version": "0.0",
+        "models": [
+            {
+            "name": "spleen-segmentation",
+            "path": "/opt/monai/models/"
+            }
+        ],
+        "resource": {
+            "cpu": 1,
+            "gpu": 2,
+            "memory": "4Gi"
+        }
+    }
+        
+    
