@@ -1,0 +1,19 @@
+# .coveragerc to control coverage.py
+# Refer to: https://coverage.readthedocs.io/en/latest/config.html#syntax
+
+[run]
+source =
+    monai
+omit =
+    # omit versioneer file
+    */monai/deploy/_version.py
+
+[paths]
+source =
+    monai
+    */site-packages
+
+
+[report]
+show_missing = true
+precision = 2
