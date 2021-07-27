@@ -29,7 +29,6 @@ class Executor(ABC):
         super().__init__()
         self._app = app
         self._app.compose()
-        self._root_nodes = [n for n, d in self._app.get_graph().in_degree() if d == 0]
 
     @abstractmethod
     def execute(self):

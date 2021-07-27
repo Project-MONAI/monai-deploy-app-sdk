@@ -13,5 +13,8 @@ from enum import Enum
 
 
 class IOType(Enum):
-    IN_MEMORY = 1
-    FILE = 2
+    DISK = 1
+    IN_MEMORY = 2
+
+    def __or__(self, other):
+        return self.value | other.value

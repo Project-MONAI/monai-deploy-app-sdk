@@ -10,15 +10,18 @@
 # limitations under the License.
 
 
-import networkx as nx
+import os
 
-from monai.deploy.executors.executor import Executor
+from colorama import Fore
+
 from monai.deploy.core.application import Application
-from monai.deploy.core.execution_context import ExecutionContext
+from monai.deploy.core.datastores.memory_store import MemoryDataStore
+from monai.deploy.core.execution_context import BaseContext, ExecutionContext
+from monai.deploy.exceptions import IOMappingError
+from monai.deploy.executors.executor import Executor
 
 
 class SingleProcessExecutor(Executor):
-
     """This class implements execution of a MONAI App
     in a single process in environment.
     """
@@ -42,18 +45,36 @@ class SingleProcessExecutor(Executor):
         Sets the right input to a downstrem operator at the right input port.
         Executes the operators.
         """
-        g = self._app.get_graph()
-        nodes_old = [list(nx.bfs_tree(g, n)) for n in self._root_nodes]
-        nodes = [item for sublist in nodes_old for item in sublist]
+        data_store = MemoryDataStore()
+        exec_context = BaseContext(data_store)
 
-        exec_context = ExecutionContext()
+        g = self._app.graph
+        for op in g.gen_worklist():
+            op_exec_context = ExecutionContext(exec_context, op)
 
-        for node in nodes:
-            node.pre_execute()
-            node.execute(exec_context)
-            node.post_execute()
-            edges = g.out_edges(node)
-            for e in edges:
-                edge_data = g.get_edge_data(e[0], e[1])
-                output = exec_context.get_operator_output(e[0].get_uid(), edge_data["upstream_op_port"])
-                exec_context.set_operator_input(e[1].get_uid(), edge_data["downstream_op_port"], output)
+            print(Fore.BLUE + "Going to initiate execution of operator %s" % self.__class__.__name__)
+            op.pre_execute()
+
+            print(Fore.YELLOW + "Process ID %s" % os.getpid())
+            print(Fore.GREEN + "Executing operator %s" % self.__class__.__name__)
+            op.execute(op_exec_context)
+
+            print(Fore.BLUE + "Done performing execution of operator %s" % self.__class__.__name__)
+            op.post_execute()
+
+            next_ops = g.gen_next_operators(op)
+            for next_op in next_ops:
+                io_map = g.get_io_map(op, next_op)
+                if not io_map:
+                    import inspect
+
+                    raise IOMappingError(
+                        f"No IO mappings found for {op.name} -> {next_op.name} in "
+                        f"{inspect.getabsfile(self._app.__class__)}"
+                    )
+
+                next_op_exec_context = ExecutionContext(exec_context, next_op)
+                for (out_label, in_labels) in io_map.items():
+                    output = op_exec_context.get_output(out_label)
+                    for in_label in in_labels:
+                        next_op_exec_context.set_input(output, group=in_label)

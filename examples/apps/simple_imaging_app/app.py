@@ -18,14 +18,10 @@ from monai.deploy.executors import SingleProcessExecutor
 
 
 class MyApp(Application):
-
     """This is a very basic application.
 
     This showcases the MONAI Deploy application framework.
     """
-
-    def __init__(self):
-        super().__init__()
 
     def compose(self):
         """This application has three operators.
@@ -36,8 +32,8 @@ class MyApp(Application):
         self.sobel_op = SobelOperator()
         self.median_op = MedianOperator()
         self.gaussian_op = GaussianOperator()
-        self.link_operators(self.sobel_op, self.median_op)
-        self.link_operators(self.median_op, self.gaussian_op)
+        self.add_flow(self.sobel_op, self.median_op, {"image": "image"})
+        self.add_flow(self.median_op, self.gaussian_op)
 
 
 def main():
