@@ -10,4 +10,5 @@
 # limitations under the License.
 
 
-from .operator import Operator, input, output
+from .datastore import DataStore
+from .memory_store import MemoryDataStore

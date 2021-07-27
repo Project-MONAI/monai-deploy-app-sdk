@@ -1,6 +1,6 @@
 from typing import Any, Dict, Hashable, KeysView, Optional
 
-from monai.deploy.core.datastore import DataStore
+from .datastore import DataStore
 
 
 class MemoryDataStore(DataStore):

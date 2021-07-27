@@ -11,13 +11,14 @@
 
 from abc import ABC, abstractmethod
 
-from monai.deploy.core.application import Application
+from monai.deploy.core import Application
+from monai.deploy.core.datastores import DataStore, MemoryDataStore
 
 
 class Executor(ABC):
     """This is the base class that enables execution of an application."""
 
-    def __init__(self, app: Application):
+    def __init__(self, app: Application, data_store: DataStore = None):
         """Constructor of the class.
 
         Given an application it invokes the compose method on the app, which
@@ -25,10 +26,15 @@ class Executor(ABC):
 
         Args:
             app: An application that needs to be executed.
+            data_store: A data store that is used to store the data.
         """
         super().__init__()
         self._app = app
         self._app.compose()
+        if data_store:
+            self._data_store = data_store
+        else:
+            self._data_store = MemoryDataStore()
 
     @abstractmethod
     def execute(self):
@@ -36,6 +42,6 @@ class Executor(ABC):
 
         It is called to execute an application.
         This method needs to be implemented by specific concrete subclasses
-        of ``Executor``.
+        of `Executor`.
         """
         pass

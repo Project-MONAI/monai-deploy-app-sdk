@@ -13,8 +13,9 @@ from gaussian_operator import GaussianOperator
 from median_operator import MedianOperator
 from sobel_operator import SobelOperator
 
-from monai.deploy.core.application import Application
-from monai.deploy.executors import SingleProcessExecutor
+from monai.deploy.core import Application
+from monai.deploy.core.datastores import MemoryDataStore
+from monai.deploy.core.executors import SingleProcessExecutor
 
 
 class MyApp(Application):
@@ -38,7 +39,8 @@ class MyApp(Application):
 
 def main():
     app = MyApp()
-    executor = SingleProcessExecutor(app)
+    data_store = MemoryDataStore()
+    executor = SingleProcessExecutor(app, data_store)
     executor.execute()
 
 
