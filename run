@@ -1,0 +1,427 @@
+#!/bin/bash
+#
+# Copyright 2020 - 2021 MONAI Consortium
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#     http://www.apache.org/licenses/LICENSE-2.0
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+init_globals() {
+    if [ "$0" != "/bin/bash" ]; then
+        SCRIPT_DIR=$(dirname "$(readlink -f "$0")")
+        export RUN_SCRIPT_FILE="$(readlink -f "$0")"
+    else
+        export RUN_SCRIPT_FILE="$(readlink -f "${BASH_SOURCE[0]}")"
+    fi
+
+    export TOP=$(git rev-parse --show-toplevel || $(dirname "${RUN_SCRIPT_FILE}"))
+}
+
+################################################################################
+# Utility functions
+################################################################################
+
+#######################################
+# Get list of available commands from a given input file.
+#
+# Available commands and command summary are extracted by checking a pattern
+# "_desc() { echo '".
+# Section title is extracted by checking a pattern "# Section: ".
+# This command is used for listing available commands in CLI.
+#
+# e.g.)
+#   "# Section: String/IO functions"
+#     => "# String/IO functions"
+#   "to_lower_desc() { echo 'Convert to lower case"
+#     => "to_lower ----------------- Convert to lower case"
+#
+# Arguments:
+#   $1 - input file that defines commands
+# Returns:
+#   Print list of available commands from $1
+#######################################
+get_list_of_available_commands() {
+    local file_name="$1"
+    if [ ! -e "$1" ]; then
+        echo "$1 doesn't exist!"
+    fi
+
+    local line_str='--------------------------------'
+    local IFS= cmd_lines="$(IFS= cat "$1" | grep -E -e "^(([[:alpha:]_[:digit:]]+)_desc\(\)|# Section: )" | sed "s/_desc() *{ *echo '/ : /")"
+    local line
+    while IFS= read -r line; do
+        local cmd=$(echo "$line" | cut -d":" -f1)
+        local desc=$(echo "$line" | cut -d":" -f2-)
+        if [ "$cmd" = "# Section" ]; then
+            c_echo B "${desc}"
+        else
+            # there is no substring operation in 'sh' so use 'cut'
+            local dash_line="$(echo "${line_str}" | cut -c ${#cmd}-)"  #  = "${line_str:${#cmd}}"
+             c_echo Y "   ${cmd}" w " ${dash_line} ${desc}"
+        fi
+        # use <<EOF, not '<<<"$cmd_lines"' to be executable in sh
+    done <<EOF
+$cmd_lines
+EOF
+}
+
+my_cat_prefix() {
+    local IFS
+    local prefix="$1"
+    local line
+    while IFS= read -r line; do
+        echo "${prefix}${line}" # -e option doesn't work in 'sh' so disallow escaped characters
+    done <&0
+}
+
+c_str() {
+    local old_color=39
+    local old_attr=0
+    local color=39
+    local attr=0
+    local text=""
+    for i in "$@"; do
+        case "$i" in
+            r|R)
+                color=31
+                ;;
+            g|G)
+                color=32
+                ;;
+            y|Y)
+                color=33
+                ;;
+            b|B)
+                color=34
+                ;;
+            p|P)
+                color=35
+                ;;
+            c|C)
+                color=36
+                ;;
+            w|W)
+                color=37
+                ;;
+
+            z|Z)
+                color=0
+                ;;
+        esac
+        case "$i" in
+            l|L|R|G|Y|B|P|C|W)
+                attr=1
+                ;;
+            n|N|r|g|y|b|p|c|w)
+                attr=0
+                ;;
+            z|Z)
+                attr=0
+                ;;
+            *)
+                text="${text}$i"
+        esac
+        if [ ${old_color} -ne ${color} ] || [ ${old_attr} -ne ${attr} ]; then
+            text="${text}\033[${attr};${color}m"
+            old_color=$color
+            old_attr=$attr
+        fi
+    done
+    /bin/echo -en "$text"
+}
+
+c_echo() {
+    local old_opt="$(shopt -op xtrace)" # save old xtrace option
+    set +x # unset xtrace
+    local text="$(c_str "$@")"
+    /bin/echo -e "$text\033[0m"
+    eval "${old_opt}" # restore old xtrace option
+}
+
+echo_err() {
+    >&2 echo "$@"
+}
+
+c_echo_err() {
+    >&2 c_echo "$@"
+}
+
+printf_err() {
+    >&2 printf "$@"
+}
+
+get_item_ranges() {
+    local indexes="$1"
+    local list="$2"
+    echo -n "$(echo "${list}" | xargs | cut -d " " -f "${indexes}")"
+    return $?
+}
+
+get_unused_ports() {
+    local num_of_ports=${1:-1}
+    local start=${2:-49152}
+    local end=${3:-61000}
+    comm -23 \
+    <(seq ${start} ${end} | sort) \
+    <(ss -tan | awk '{print $4}' | while read line; do echo ${line##*\:}; done | grep '[0-9]\{1,5\}' | sort -u) \
+    | shuf | tail -n ${num_of_ports} # use tail instead head to avoid broken pipe in VSCode terminal
+}
+
+newline() {
+    echo
+}
+
+info() {
+    c_echo W "$(date -u '+%Y-%m-%d %H:%M:%S') [INFO] " Z "$@"
+}
+
+error() {
+    echo R "$(date -u '+%Y-%m-%d %H:%M:%S') [ERROR] " Z "$@"
+}
+
+fatal() {
+    echo R "$(date -u '+%Y-%m-%d %H:%M:%S') [FATAL] " Z "$@"
+    echo
+    if [ -n "${SCRIPT_DIR}" ]; then
+        exit 1
+    fi
+}
+
+run_command() {
+    local status=0
+    local cmd="$*"
+
+    c_echo B "$(date -u '+%Y-%m-%d %H:%M:%S') " W "\$ " G "${cmd}"
+
+    [ "$(echo -n "$@")" = "" ] && return 1 # return 1 if there is no command available
+
+    "$@"
+    status=$?
+
+    return $status
+}
+
+retry() {
+    local retries=$1
+    shift
+
+    local count=0
+    until run_command "$@"; do
+        exit=$?
+        wait=$((2 ** count))
+        count=$((count + 1))
+        if [ $count -lt $retries ]; then
+            info "Retry $count/$retries. Exit code=$exit, Retrying in $wait seconds..."
+            sleep $wait
+        else
+            fatal "Retry $count/$retries. Exit code=$exit, no more retries left."
+            return 1
+        fi
+    done
+    return 0
+}
+
+#==================================================================================
+# Section: Build
+#==================================================================================
+
+
+#==================================================================================
+# Section: Test
+#==================================================================================
+
+test_desc() { echo 'Execute test cases
+
+Arguments:
+  $1 - subcommand [all] (default: all)
+  $2 - test_type [all|unit|integration|system|performance] (default: all)
+  $3 - test_component [all] (default: all)
+'
+}
+test() {
+    local subcommand="${1:-all}"
+    local test_type="${2:-all}"
+    shift;
+
+    if [ "$subcommand" = "all" ] || [ "$subcommand" = "python" ]; then
+        test_python "$@"
+    fi
+}
+
+install_python_test_deps_() {
+    if [ -n "${CONDA_PREFIX}" ]; then
+        run_command conda install -c conda-forge -y \
+            --file ${TOP}/requirements-dev.txt
+    else
+        if [ -n "${VIRTUAL_ENV}" ]; then
+            run_command pip3 install -q -r ${TOP}/requirements-dev.txt
+        else
+            run_command pip3 install -q --user -r ${TOP}/requirements-dev.txt
+        fi
+    fi
+    hash -r
+}
+
+test_python_desc() { echo 'Execute Python test cases
+
+Arguments:
+  $1 - test_type [all|unit|integration|system|performance] (default: all)
+  $2 - test_component [all] (default: all)
+'
+}
+test_python() {
+    local test_type="${1:-all}"
+    local test_component="${2:-all}"
+    local result=0
+
+    local testsuite=""
+    local testsuite_performance="tests/performance"
+
+    install_python_test_deps_
+
+    if [ "$test_type" = "all" ] || [ "$test_type" = "unit" ]; then
+        local testsuite="tests/unit"
+    fi
+    if [ "$test_type" = "all" ] || [ "$test_type" = "performance" ]; then
+        testsuite="${testsuite} ${testsuite_performance}"
+    fi
+
+    pushd $TOP > /dev/null
+    run_command py.test --cache-clear -vv \
+        --cov=monai \
+        --junitxml="$TOP/junit-monai-app-sdk.xml" \
+        --cov-config=$TOP/.coveragerc \
+        --cov-report=xml:"$TOP/monai-app-sdk-coverage.xml" \
+        --cov-report term \
+        ${testsuite}
+    result=$?
+    popd > /dev/null
+
+    return $result
+}
+
+
+#==================================================================================
+# Section: Example
+#==================================================================================
+
+
+#==================================================================================
+# Section: Documentation
+#==================================================================================
+
+#==================================================================================
+# Section: Release
+#==================================================================================
+
+
+#==================================================================================
+
+parse_args() {
+    local OPTIND
+    while getopts 'yh' option;
+    do
+        case "${option}" in
+            y)
+                ALWAYS_YES=true;
+                ;;
+            h)
+                print_usage
+                exit 1
+                ;;
+            *)
+                ;;
+        esac
+    done
+    shift $((OPTIND-1))
+
+    CMD="$1"
+    shift
+
+    ARGS=("$@")
+}
+
+print_usage() {
+    set +x
+    echo_err
+    echo_err "USAGE: $0 [command] [arguments]..."
+    echo_err ""
+    c_echo_err W "Global Arguments"
+    echo_err
+    c_echo_err W "Command List"
+    c_echo_err Y "    help  " w "----------------------------  Print detailed description for a given argument (command name)"
+    echo_err "$(get_list_of_available_commands "${RUN_SCRIPT_FILE}" | my_cat_prefix " ")"
+    echo_err
+}
+
+print_cmd_help_messages() {
+    local cmd="$1"
+    if [ -n "${cmd}" ]; then
+        if type ${cmd}_desc > /dev/null 2>&1; then
+            ${cmd}_desc
+            exit 0
+        else
+            c_echo_err R "Command '${cmd}' doesn't exist!"
+            exit 1
+        fi
+    fi
+    print_usage
+    return 0
+}
+
+main() {
+    local ret=0
+    parse_args "$@"
+
+    case "$CMD" in
+        help)
+            print_cmd_help_messages "${ARGS[@]}"
+            exit 0
+            ;;
+        ''|main)
+            print_usage
+            ;;
+        *)
+            if type ${CMD} > /dev/null 2>&1; then
+                "$CMD" "${ARGS[@]}"
+            else
+                print_usage
+                exit 1
+            fi
+            ;;
+    esac
+    ret=$?
+    if [ -n "${SCRIPT_DIR}" ]; then
+        exit $ret
+    fi
+}
+
+init_globals
+
+if [ -n "${SCRIPT_DIR}" ]; then
+    main "$@"
+fi
+
+
+# Description template
+
+# Globals:
+#   MOPNAI_OS
+#   MOPNAI_TARGET
+#   MOPNAI_USER (used if MOPNAI_OS is "linux")
+#   MOPNAI_HOST (used if MOPNAI_OS is "linux")
+# Arguments:
+#   Command line to execute
+# Returns:
+#   Outputs print messages during the execution (stdout->stdout, stderr->stderr).
+
+#   Note:
+#     This command removes "\r" characters from stdout.
+
+#   Exit code:
+#     exit code returned from executing a given command
