@@ -1,0 +1,56 @@
+# Copyright 2020 - 2021 MONAI Consortium
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#     http://www.apache.org/licenses/LICENSE-2.0
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+from abc import ABC, abstractmethod
+from typing import Dict, Generator, Optional
+
+from monai.deploy.core.operator import Operator
+
+
+class Graph(ABC):
+    """Abstract class for graph."""
+
+    @abstractmethod
+    def add_operator(self, op: Operator):
+        """Add a node to the graph."""
+        pass
+
+    @abstractmethod
+    def add_flow(self, op_u: Operator, op_v: Operator, io_map: Dict[str, str]):
+        """Add an edge to the graph.
+
+        Args:
+            op_u (Operator): A source operator.
+            op_v (Operator): A destination operator.
+            io_map (Dict[str, str]): A dictionary of mapping from the source operator's label to the destination operator's label.
+        """
+        pass
+
+    @abstractmethod
+    def get_io_map(self, op_u: Operator, op_v) -> Dict[str, str]:
+        """Get a mapping from the source operator's output label to the destination operator's input label.
+        Args:
+            op_u (Operator): A source operator.
+            op_v (Operator): A destination operator.
+        Returns:
+            A dictionary of mapping from the source operator's output label to the destination operator's input label.
+        """
+        pass
+
+    @abstractmethod
+    def gen_worklist(self) -> Generator[Optional[Operator], None, None]:
+        """Get worklist."""
+        pass
+
+    @abstractmethod
+    def gen_next_operators(self, op: Operator) -> Generator[Optional[Operator], None, None]:
+        """Get next operators."""
+        pass

@@ -9,24 +9,27 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from skimage.filters import gaussian
-from skimage.io import imsave
-from monai.deploy.core.base_operator import BaseOperator
+from monai.deploy.core import Blob, ExecutionContext, Image, IOType, Operator, input, output
 
 
-class GaussianOperator(BaseOperator):
-
+@input("image", Image, IOType.IN_MEMORY)
+@output("image", Blob, IOType.DISK)
+class GaussianOperator(Operator):
     """This Operator implements a smoothening based on Gaussian.
-    It ingest a single input and provides a single output
+
+    It ingests a single input and provides a single output.
     """
 
-    def __init__(self):
-        super().__init__()
+    def execute(self, context: ExecutionContext):
+        from skimage.filters import gaussian
+        from skimage.io import imsave
 
-    def execute(self, execution_context):
-        # First execute the base operator's execute
-        super().execute(execution_context)
-        data_in = execution_context.get_operator_input(self._uid, 0)
+        data_in = context.get_input().asnumpy()
         data_out = gaussian(data_in, sigma=0.2)
-        execution_context.set_operator_output(self._uid, 0, data_out)
-        imsave("final_output.png", data_out)
+
+        output_filename = "final_output.png"
+        output_folder = context.get_output_location()
+        output_path = output_folder / output_filename
+        imsave(output_path, data_out)
+
+        context.set_output(Blob(output_filename))

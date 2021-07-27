@@ -9,57 +9,72 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from typing import Type, Union
+
+from monai.deploy.core.domain import Domain
+from monai.deploy.core.domain.blob import Blob
+from monai.deploy.core.io_type import IOType
+
 
 class OperatorInfo:
-    """This is the Operator Info."""
+    """A class to store information about operator's input and output data types and storage types."""
 
     def __init__(self):
         # Initializing the attributes
-        self.num_input_ports = 0
-        self.num_output_ports = 0
-        self.input_storage_type = []
-        self.output_storage_type = []
-        self.input_data_type = []
-        self.output_data_type = []
+        self.input_labels = set()
+        self.output_labels = set()
+        self.input_data_type = {}
+        self.output_data_type = {}
+        self.input_storage_type = {}
+        self.output_storage_type = {}
 
-    @property
-    def num_input_ports(self):
-        return self.__num_input_ports
+    def ensure_valid(self):
+        """Ensure that the operator info is valid.
 
-    # Setter for num_input_ports
-    @num_input_ports.setter
-    def num_input_ports(self, val):
-        self.__num_input_ports = val
+        This sets default values for OperatorInfo.
+        """
+        if len(self.input_labels) == 0:
+            self.input_labels.add("")
+            self.input_data_type[""] = Blob
+            self.input_storage_type[""] = IOType.DISK
 
-    @property
-    def num_output_ports(self):
-        return self.__num_output_ports
+        if len(self.output_labels) == 0:
+            self.output_labels.add("")
+            self.output_data_type[""] = Blob
+            self.output_storage_type[""] = IOType.DISK
 
-    # Setter for num_output_ports
-    @num_output_ports.setter
-    def num_output_ports(self, val):
-        self.__num_output_ports = val
+    def add_input_label(self, label: str):
+        self.input_labels.add(label)
 
-    def set_input_storage_type(self, port_num, storage_type):
-        self.input_storage_type[port_num] = storage_type
+    def get_input_labels(self) -> str:
+        return self.input_labels
 
-    def set_input_data_type(self, port_num, data_type):
-        self.input_data_type[port_num] = data_type
+    def add_output_label(self, label: str):
+        self.output_labels.add(label)
 
-    def set_output_storage_type(self, port_num, storage_type):
-        self.output_storage_type[port_num] = storage_type
+    def get_output_labels(self) -> str:
+        return self.output_labels
 
-    def set_output_data_type(self, port_num, storage_type):
-        self.output_data_type[port_num] = storage_type
+    def set_input_data_type(self, label: str, data_type: Type[Domain] = None):
+        self.input_data_type[label] = data_type
 
-    def get_input_storage_type(self, port_num):
-        return self.input_storage_type[port_num]
+    def get_input_data_type(self, label: str) -> Type[Domain]:
+        return self.input_data_type[label]
 
-    def get_output_storage_type(self, port_num):
-        return self.output_storage_type[port_num]
+    def set_output_data_type(self, label: str, data_type: Type[Domain] = None):
+        self.output_data_type[label] = data_type
 
-    def get_input_data_type(self, port_num):
-        return self.input_data_type[port_num]
+    def get_output_data_type(self, label: str) -> Type[Domain]:
+        return self.output_data_type[label]
 
-    def get_output_data_type(self, port_num):
-        return self.output_data_type[port_num]
+    def set_input_storage_type(self, label: str, storage_type: Union[int, IOType] = None):
+        self.input_storage_type[label] = storage_type
+
+    def get_input_storage_type(self, label: str) -> Union[int, IOType]:
+        return self.input_storage_type[label]
+
+    def set_output_storage_type(self, label: str, storage_type: Union[int, IOType] = None):
+        self.output_storage_type[label] = storage_type
+
+    def get_output_storage_type(self, label: str) -> Union[int, IOType]:
+        return self.output_storage_type[label]

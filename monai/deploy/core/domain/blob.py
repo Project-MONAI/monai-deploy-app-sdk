@@ -9,26 +9,21 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from pathlib import Path
+from typing import Dict, Union
 
-class MONAIAppSdkError(Exception):
-    """Base class for exceptions in this module."""
-
-    pass
-
-
-class ItemAlreadyExistsError(MONAIAppSdkError):
-    """Raises when an item already exists in the data store."""
-
-    pass
+from .domain import Domain
 
 
-class ItemNotExistsError(MONAIAppSdkError):
-    """Raises when an item does not exist in the data store."""
+class Blob(Domain):
+    def __init__(self, path: Union[str, Path], metadata: Dict = None):
+        super().__init__(metadata=metadata)
+        self._path = Path(path)
 
-    pass
+    @property
+    def path(self):
+        return self._path
 
-
-class IOMappingError(MONAIAppSdkError):
-    """Raises when IO mapping is missing or invalid."""
-
-    pass
+    @path.setter
+    def path(self, val):
+        self._path = Path(val)

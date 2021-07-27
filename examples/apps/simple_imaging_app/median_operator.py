@@ -9,24 +9,21 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from skimage.filters import median
-
-from monai.deploy.core.base_operator import BaseOperator
+from monai.deploy.core import ExecutionContext, Image, IOType, Operator, input, output
 
 
-class MedianOperator(BaseOperator):
-
+@input("image", Image, IOType.IN_MEMORY)
+@output("image", Image, IOType.IN_MEMORY)
+class MedianOperator(Operator):
     """This Operator implements a noise reduction.
 
     The algorithm is based on the median operator.
     It ingests a single input and provides a single output.
     """
 
-    def __init__(self):
-        super().__init__()
+    def execute(self, context: ExecutionContext):
+        from skimage.filters import median
 
-    def execute(self, execution_context):
-        super().execute(execution_context)
-        data_in = execution_context.get_operator_input(self._uid, 0)
+        data_in = context.get_input("image").asnumpy()
         data_out = median(data_in)
-        execution_context.set_operator_output(self._uid, 0, data_out)
+        context.set_output(Image(data_out))

@@ -9,26 +9,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-
-class MONAIAppSdkError(Exception):
-    """Base class for exceptions in this module."""
-
-    pass
+from abc import ABC
+from typing import Dict
 
 
-class ItemAlreadyExistsError(MONAIAppSdkError):
-    """Raises when an item already exists in the data store."""
+class Domain(ABC):
+    def __init__(self, metadata: Dict = None):
+        super().__init__()
 
-    pass
+        if metadata is not None:
+            self._metadata = metadata
+        else:
+            self._metadata = {}
 
-
-class ItemNotExistsError(MONAIAppSdkError):
-    """Raises when an item does not exist in the data store."""
-
-    pass
-
-
-class IOMappingError(MONAIAppSdkError):
-    """Raises when IO mapping is missing or invalid."""
-
-    pass
+    def metadata(self) -> Dict:
+        return self._metadata
