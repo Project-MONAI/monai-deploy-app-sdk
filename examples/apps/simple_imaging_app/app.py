@@ -14,11 +14,8 @@ from median_operator import MedianOperator
 from sobel_operator import SobelOperator
 
 from monai.deploy.core import Application
-from monai.deploy.core.datastores import MemoryDataStore
-from monai.deploy.core.executors import SingleProcessExecutor
 
-
-class MyApp(Application):
+class App(Application):
     """This is a very basic application.
 
     This showcases the MONAI Deploy application framework.
@@ -37,12 +34,5 @@ class MyApp(Application):
         self.add_flow(self.median_op, self.gaussian_op)
 
 
-def main():
-    app = MyApp()
-    data_store = MemoryDataStore()
-    executor = SingleProcessExecutor(app, data_store)
-    executor.execute()
-
-
 if __name__ == "__main__":
-    main()
+    App()

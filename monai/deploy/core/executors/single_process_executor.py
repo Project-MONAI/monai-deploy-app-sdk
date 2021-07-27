@@ -10,11 +10,16 @@
 # limitations under the License.
 
 
+from __future__ import annotations
+
 import os
+from typing import TYPE_CHECKING
 
 from colorama import Fore
 
-from monai.deploy.core import Application
+if TYPE_CHECKING:
+    from monai.deploy.core import Application
+
 from monai.deploy.core.datastores import DataStore
 from monai.deploy.core.execution_context import BaseExecutionContext, ExecutionContext
 from monai.deploy.core.executors.executor import Executor

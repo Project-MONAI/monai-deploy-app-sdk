@@ -12,6 +12,8 @@
 from abc import ABC, abstractmethod
 from typing import Dict
 
+from monai.deploy.core.datastores import MemoryDataStore
+from monai.deploy.core.executors import SingleProcessExecutor
 from monai.deploy.core.operators import Operator
 from monai.deploy.exceptions import IOMappingError
 
@@ -26,7 +28,7 @@ class Application(ABC):
     as mechanism to execute the application.
     """
 
-    def __init__(self):
+    def __init__(self, do_run: bool = True):
         """Constructor for the base class.
 
         It created an instance of an empty Directed Acyclic Graph to hold on to
@@ -34,6 +36,11 @@ class Application(ABC):
         """
         super().__init__()
         self._graph = NetworkXGraph()
+
+        if do_run:
+            data_store = MemoryDataStore()
+            executor = SingleProcessExecutor(self, data_store)
+            executor.execute()
 
     @property
     def name(self):
