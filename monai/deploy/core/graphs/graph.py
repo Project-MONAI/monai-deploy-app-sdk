@@ -12,7 +12,7 @@
 from abc import ABC, abstractmethod
 from typing import Dict, Generator, Optional
 
-from monai.deploy.core.operator import Operator
+from monai.deploy.core.operators import Operator
 
 
 class Graph(ABC):

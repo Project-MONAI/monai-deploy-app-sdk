@@ -9,14 +9,15 @@
 # # See the License for the specific language governing permissions and
 # # limitations under the License.
 
+# from multiprocessing import Process
 # from queue import Queue
 
-# from monai.deploy.executors.executor import Executor
-# from monai.deploy.core.application import Application
-# from monai.deploy.core.data_store import DataStore
+# from monai.deploy.core.executors.executor import Executor
+# from monai.deploy.core import Application
+# from monai.deploy.core.datastores import DataStore
 
 
-# class MultiThreadedExecutor(Executor):
+# class MultiProcessExecutor(Executor):
 #     def __init__(self, app: Application):
 #         super().__init__(app)
 #         self._storage = DataStore.get_instance()
@@ -31,10 +32,9 @@
 #             while not q.empty():
 #                 n = q.get()
 #                 edges = g.out_edges(n)
-#                 n.execute()
+#                 self._launch_operator(n)
 
 #                 for e in edges:
-
 #                     # Figure out how to deal with duplicate nodes
 #                     q.put(e[1])
 #                     edge_data = g.get_edge_data(e[0], e[1])
@@ -43,3 +43,8 @@
 #                     self._storage.store(key1, output)
 #                     key2 = (e[1].get_uid(), "input", edge_data["downstream_op_port"])
 #                     self._storage.store(key2, output)
+
+#     def _launch_operator(self, op):
+#         p = Process(target=op.execute)
+#         p.start()
+#         p.join()

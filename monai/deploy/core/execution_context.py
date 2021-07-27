@@ -14,18 +14,17 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from monai.deploy.core.operator import Operator
+    from monai.deploy.core.operators import Operator
 
 from pathlib import Path
 from typing import Any, Optional
 
-from monai.deploy.core.datastore import DataStore
-from monai.deploy.core.datastores.memory_store import MemoryDataStore
+from monai.deploy.core.datastores import DataStore, MemoryDataStore
 from monai.deploy.exceptions import IOMappingError, ItemAlreadyExistsError, ItemNotExistsError
 
 
-class BaseContext:
-    """An execution context for the application."""
+class BaseExecutionContext:
+    """A base execution context for the application."""
 
     def __init__(self, data_store: Optional[DataStore] = None):
         if data_store is None:
@@ -38,10 +37,10 @@ class BaseContext:
         return self._storage
 
 
-class ExecutionContext(BaseContext):
+class ExecutionContext(BaseExecutionContext):
     """An execution context for the operator."""
 
-    def __init__(self, execution_context: BaseContext, op: Operator):
+    def __init__(self, execution_context: BaseExecutionContext, op: Operator):
         super().__init__(execution_context.storage)
         self._context = execution_context
         self._op = op

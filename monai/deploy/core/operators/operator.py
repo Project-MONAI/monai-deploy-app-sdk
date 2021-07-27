@@ -96,7 +96,7 @@ class Operator(ABC):
         op_info.ensure_valid()
 
     def pre_execute(self):
-        """This method gets executed before ``execute`` of an operator is called.
+        """This method gets executed before `execute()` of an operator is called.
 
         This is a preperatory step before the operator executes its main job.
         This needs to be overridden by a base class for any meaningful action.

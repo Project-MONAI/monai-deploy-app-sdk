@@ -14,8 +14,9 @@ from typing import Dict, Generator, Optional
 import networkx as nx
 from networkx.algorithms.dag import topological_sort
 
-from monai.deploy.core import Operator
-from monai.deploy.core.graph import Graph
+from monai.deploy.core.operators import Operator
+
+from .graph import Graph
 
 
 class NetworkXGraph(Graph):

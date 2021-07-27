@@ -12,7 +12,7 @@
 from abc import ABC, abstractmethod
 from typing import Dict
 
-from monai.deploy.core.operator import Operator
+from monai.deploy.core.operators import Operator
 from monai.deploy.exceptions import IOMappingError
 
 from .graphs.nx_digraph import NetworkXGraph

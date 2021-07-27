@@ -14,11 +14,11 @@ import os
 
 from colorama import Fore
 
-from monai.deploy.core.application import Application
-from monai.deploy.core.datastores.memory_store import MemoryDataStore
-from monai.deploy.core.execution_context import BaseContext, ExecutionContext
+from monai.deploy.core import Application
+from monai.deploy.core.datastores import DataStore
+from monai.deploy.core.execution_context import BaseExecutionContext, ExecutionContext
+from monai.deploy.core.executors.executor import Executor
 from monai.deploy.exceptions import IOMappingError
-from monai.deploy.executors.executor import Executor
 
 
 class SingleProcessExecutor(Executor):
@@ -26,7 +26,7 @@ class SingleProcessExecutor(Executor):
     in a single process in environment.
     """
 
-    def __init__(self, app: Application):
+    def __init__(self, app: Application, data_store: DataStore = None):
         """Constructor for the class.
 
         The instance internally holds on to the data store.
@@ -34,7 +34,7 @@ class SingleProcessExecutor(Executor):
         Args:
             app: An instance of the application that needs to be executed
         """
-        super().__init__(app)
+        super().__init__(app, data_store)
 
     def execute(self):
         """Executes the app.
@@ -45,8 +45,7 @@ class SingleProcessExecutor(Executor):
         Sets the right input to a downstrem operator at the right input port.
         Executes the operators.
         """
-        data_store = MemoryDataStore()
-        exec_context = BaseContext(data_store)
+        exec_context = BaseExecutionContext(self._data_store)
 
         g = self._app.graph
         for op in g.gen_worklist():
