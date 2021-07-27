@@ -136,20 +136,9 @@ def plt_3d(verts, faces):
 
     ax.set_xlim(0, max(x))
     ax.set_ylim(0, max(y))
-    ax.set_zlim(0, max(z))
-    ax.set_facecolor((0.7, 0.7, 0.7))
-    plt.show()
+    ax.set_zlim(0, max(z))                #print("appending")
 
-
-# Standardize the pixel values
-def make_lungmask(img, display=False):
-    row_size = img.shape[0]
-    col_size = img.shape[1]
-
-    mean = np.mean(img)
-    std = np.std(img)
-    img = img - mean
-    img = img / std
+    img = img/std
     # Find the average pixel value near the lungs
     # to renormalize washed out images
     middle = img[int(col_size / 5) : int(col_size / 5 * 4), int(row_size / 5) : int(row_size / 5 * 4)]
