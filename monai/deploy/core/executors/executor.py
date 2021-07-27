@@ -9,9 +9,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from abc import ABC, abstractmethod
+from __future__ import annotations
 
-from monai.deploy.core import Application
+from abc import ABC, abstractmethod
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from monai.deploy.core import Application
+
 from monai.deploy.core.datastores import DataStore, MemoryDataStore
 
 
