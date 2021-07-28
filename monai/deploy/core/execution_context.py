@@ -14,12 +14,12 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from monai.deploy.core.operator import Operator
+    from .operator import Operator
 
 from typing import Optional
 
-from monai.deploy.core.datastores import DataStore, MemoryDataStore
-from monai.deploy.core.io_context import InputContext, OutputContext
+from .datastores import DataStore, MemoryDataStore
+from .io_context import InputContext, OutputContext
 
 
 class BaseExecutionContext:

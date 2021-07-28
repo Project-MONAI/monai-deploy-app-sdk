@@ -16,7 +16,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from monai.deploy.core.execution_context import ExecutionContext
+    from .execution_context import ExecutionContext
 
 from monai.deploy.exceptions import IOMappingError, ItemAlreadyExistsError, ItemNotExistsError
 

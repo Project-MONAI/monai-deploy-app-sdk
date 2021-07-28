@@ -12,13 +12,13 @@
 from abc import ABC, abstractmethod
 from typing import Dict, Optional
 
-from monai.deploy.core.datastores import MemoryDataStore
-from monai.deploy.core.executors import SingleProcessExecutor
-from monai.deploy.core.operator import Operator
-from monai.deploy.core.operator_info import IO
 from monai.deploy.exceptions import IOMappingError
 
+from .datastores import MemoryDataStore
+from .executors import SingleProcessExecutor
 from .graphs.nx_digraph import NetworkXGraph
+from .operator import Operator
+from .operator_info import IO
 
 
 class Application(ABC):

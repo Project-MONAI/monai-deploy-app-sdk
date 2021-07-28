@@ -22,8 +22,9 @@ if TYPE_CHECKING:
 
 from monai.deploy.core.datastores import DataStore
 from monai.deploy.core.execution_context import BaseExecutionContext, ExecutionContext
-from monai.deploy.core.executors.executor import Executor
 from monai.deploy.exceptions import IOMappingError
+
+from .executor import Executor
 
 
 class SingleProcessExecutor(Executor):
