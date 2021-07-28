@@ -9,6 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from enum import Enum
 from typing import Type, Union
 
 from monai.deploy.core.domain import Domain
@@ -16,65 +17,54 @@ from monai.deploy.core.domain.blob import Blob
 from monai.deploy.core.io_type import IOType
 
 
+class IO(Enum):
+    INPUT = "input"
+    OUTPUT = "output"
+
+    def __str__(self):
+        return self.value
+
+
 class OperatorInfo:
     """A class to store information about operator's input and output data types and storage types."""
 
     def __init__(self):
         # Initializing the attributes
-        self.input_labels = set()
-        self.output_labels = set()
-        self.input_data_type = {}
-        self.output_data_type = {}
-        self.input_storage_type = {}
-        self.output_storage_type = {}
+        self.labels = {IO.INPUT: set(), IO.OUTPUT: set()}
+        self.data_type = {IO.INPUT: {}, IO.OUTPUT: {}}
+        self.storage_type = {IO.INPUT: {}, IO.OUTPUT: {}}
 
     def ensure_valid(self):
         """Ensure that the operator info is valid.
 
         This sets default values for OperatorInfo.
         """
-        if len(self.input_labels) == 0:
-            self.input_labels.add("")
-            self.input_data_type[""] = Blob
-            self.input_storage_type[""] = IOType.DISK
+        for kind in [IO.INPUT, IO.OUTPUT]:
+            if len(self.labels[kind]) == 0:
+                self.labels[kind].add("")
+                self.data_type[kind][""] = Blob
+                self.storage_type[kind][""] = IOType.DISK
 
-        if len(self.output_labels) == 0:
-            self.output_labels.add("")
-            self.output_data_type[""] = Blob
-            self.output_storage_type[""] = IOType.DISK
+    def add_label(self, io_kind: IO, label: str):
+        io_kind = IO(io_kind)
+        self.labels[io_kind].add(label)
 
-    def add_input_label(self, label: str):
-        self.input_labels.add(label)
+    def get_labels(self, io_kind: IO) -> str:
+        io_kind = IO(io_kind)
+        return self.labels[io_kind]
 
-    def get_input_labels(self) -> str:
-        return self.input_labels
+    def set_data_type(self, io_kind: IO, label: str, data_type: Type[Domain]):
+        io_kind = IO(io_kind)
+        self.data_type[io_kind][label] = data_type
 
-    def add_output_label(self, label: str):
-        self.output_labels.add(label)
+    def get_data_type(self, io_kind: IO, label: str) -> Type[Domain]:
+        io_kind = IO(io_kind)
+        return self.data_type[io_kind][label]
 
-    def get_output_labels(self) -> str:
-        return self.output_labels
+    def set_storage_type(self, io_kind: IO, label: str, storage_type: Union[int, IOType]):
+        io_kind = IO(io_kind)
+        self.storage_type[io_kind][label] = storage_type
 
-    def set_input_data_type(self, label: str, data_type: Type[Domain] = None):
-        self.input_data_type[label] = data_type
-
-    def get_input_data_type(self, label: str) -> Type[Domain]:
-        return self.input_data_type[label]
-
-    def set_output_data_type(self, label: str, data_type: Type[Domain] = None):
-        self.output_data_type[label] = data_type
-
-    def get_output_data_type(self, label: str) -> Type[Domain]:
-        return self.output_data_type[label]
-
-    def set_input_storage_type(self, label: str, storage_type: Union[int, IOType] = None):
-        self.input_storage_type[label] = storage_type
-
-    def get_input_storage_type(self, label: str) -> Union[int, IOType]:
-        return self.input_storage_type[label]
-
-    def set_output_storage_type(self, label: str, storage_type: Union[int, IOType] = None):
-        self.output_storage_type[label] = storage_type
-
-    def get_output_storage_type(self, label: str) -> Union[int, IOType]:
-        return self.output_storage_type[label]
+    def get_storage_type(self, io_kind: IO, label: str) -> Union[int, IOType]:
+        io_kind = IO(io_kind)
+        return self.storage_type[io_kind][label]

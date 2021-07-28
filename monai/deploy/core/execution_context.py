@@ -16,11 +16,10 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from monai.deploy.core.operator import Operator
 
-from pathlib import Path
-from typing import Any, Optional
+from typing import Optional
 
 from monai.deploy.core.datastores import DataStore, MemoryDataStore
-from monai.deploy.exceptions import IOMappingError, ItemAlreadyExistsError, ItemNotExistsError
+from monai.deploy.core.io_context import InputContext, OutputContext
 
 
 class BaseExecutionContext:
@@ -40,10 +39,16 @@ class BaseExecutionContext:
 class ExecutionContext(BaseExecutionContext):
     """An execution context for the operator."""
 
-    def __init__(self, execution_context: BaseExecutionContext, op: Operator):
-        super().__init__(execution_context.storage)
-        self._context = execution_context
+    def __init__(self, context: BaseExecutionContext, op: Operator):
+        super().__init__(context.storage)
+        self._context = context
         self._op = op
+        self._input_context = InputContext(self)
+        self._output_context = OutputContext(self)
+
+    @property
+    def op(self):
+        return self._op
 
     def get_execution_index(self):
         """Returns the execution index for the operator.
@@ -76,97 +81,12 @@ class ExecutionContext(BaseExecutionContext):
         storage.put(key, new_execution_index)
         return new_execution_index
 
-    def get_input(self, group: str = ""):
-        """Returns the input data for the operator."""
-        op_info = self._op.get_operator_info()
-        input_labels = op_info.get_input_labels()
-        if group not in input_labels:
-            if group == "" and len(input_labels) == 1:
-                group = next(iter(input_labels))
-            else:
-                raise IOMappingError(
-                    f"'{group}' is not a valid input label of the operator({self._op.name}). "
-                    f"It should be one of ({', '.join(input_labels)})."
-                )
+    @property
+    def input(self):
+        """Returns the input context for the operator."""
+        return self._input_context
 
-        storage = self._context.storage
-        execution_index = self.get_execution_index()
-        parent_node = f"/operators/{self._op.get_uid()}/{execution_index}/input"
-        key = f"{parent_node}/{group}"
-        if not storage.exists(key):
-            raise ItemNotExistsError(f"'{key}' does not exist.")
-        return storage.get(key)
-
-    def set_input(self, value: Any, group: str = ""):
-        """Sets the input data for the operator."""
-        op_info = self._op.get_operator_info()
-        input_labels = op_info.get_input_labels()
-        if group not in input_labels:
-            if group == "" and len(input_labels) == 1:
-                group = next(iter(input_labels))
-            else:
-                raise IOMappingError(
-                    f"'{group}' is not a valid input label of the operator({self._op.name}). "
-                    f"It should be one of ({', '.join(input_labels)})."
-                )
-
-        storage = self._context.storage
-        execution_index = self.get_execution_index()
-        parent_node = f"/operators/{self._op.get_uid()}/{execution_index}/input"
-        key = f"{parent_node}/{group}"
-        if storage.exists(key):
-            raise ItemAlreadyExistsError(f"{key} already exists.")
-        else:
-            storage.put(key, value)
-
-    def get_output(self, group: str = ""):
-        """Returns the output data for the operator."""
-        op_info = self._op.get_operator_info()
-        output_labels = op_info.get_output_labels()
-        if group not in output_labels:
-            if group == "" and len(output_labels) == 1:
-                group = next(iter(output_labels))
-            else:
-                raise IOMappingError(
-                    f"'{group}' is not a valid output label of the operator({self._op.name}). "
-                    f"It should be one of ({', '.join(output_labels)})."
-                )
-
-        storage = self._context.storage
-        execution_index = self.get_execution_index()
-        parent_node = f"/operators/{self._op.get_uid()}/{execution_index}/output"
-        key = f"{parent_node}/{group}"
-        if storage.exists(key):
-            return storage.get(key)
-        else:
-            item = {}
-            storage.put(key, item)
-            return item
-
-    def get_output_location(self, group: str = ""):
-        """Returns the output location for the operator."""
-
-        # TODO: Implement this method
-        return Path("")
-
-    def set_output(self, value: Any, group: str = ""):
-        """Sets the output data for the operator."""
-        op_info = self._op.get_operator_info()
-        output_labels = op_info.get_output_labels()
-        if group not in output_labels:
-            if group == "" and len(output_labels) == 1:
-                group = next(iter(output_labels))
-            else:
-                raise IOMappingError(
-                    f"'{group}' is not a valid output label of the operator({self._op.name}). "
-                    f"It should be one of ({', '.join(output_labels)})."
-                )
-
-        storage = self._context.storage
-        execution_index = self.get_execution_index()
-        parent_node = f"/operators/{self._op.get_uid()}/{execution_index}/output"
-        key = f"{parent_node}/{group}"
-        if storage.exists(key):
-            raise ItemAlreadyExistsError(f"{key} already exists.")
-        else:
-            storage.put(key, value)
+    @property
+    def output(self):
+        """Returns the output context for the operator."""
+        return self._output_context

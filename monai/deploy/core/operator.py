@@ -17,8 +17,9 @@ from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Type, Union
 
 from monai.deploy.core.domain import Domain
+from monai.deploy.core.io_context import InputContext, OutputContext
 from monai.deploy.core.io_type import IOType
-from monai.deploy.core.operator_info import OperatorInfo
+from monai.deploy.core.operator_info import IO, OperatorInfo
 
 if TYPE_CHECKING:
     from monai.deploy.core import ExecutionContext
@@ -49,15 +50,15 @@ class Operator(ABC):
     def __eq__(self, other):
         return self._uid == other._uid
 
-    def add_input(self, label: str, data_type: Type[Domain] = None, storage_type: Union[int, IOType] = None):
-        self._op_info.add_input_label(label)
-        self._op_info.set_input_data_type(label, data_type)
-        self._op_info.set_input_storage_type(label, storage_type)
+    def add_input(self, label: str, data_type: Type[Domain], storage_type: Union[int, IOType]):
+        self._op_info.add_label(IO.INPUT, label)
+        self._op_info.set_data_type(IO.INPUT, label, data_type)
+        self._op_info.set_storage_type(IO.INPUT, label, storage_type)
 
-    def add_output(self, label: str, data_type: Type[Domain] = None, storage_type: Union[int, IOType] = None):
-        self._op_info.add_output_label(label)
-        self._op_info.set_output_data_type(label, data_type)
-        self._op_info.set_output_storage_type(label, storage_type)
+    def add_output(self, label: str, data_type: Type[Domain], storage_type: Union[int, IOType]):
+        self._op_info.add_label(IO.OUTPUT, label)
+        self._op_info.set_data_type(IO.OUTPUT, label, data_type)
+        self._op_info.set_storage_type(IO.OUTPUT, label, storage_type)
 
     @property
     def name(self):
@@ -95,8 +96,8 @@ class Operator(ABC):
         op_info = self.get_operator_info()
         op_info.ensure_valid()
 
-    def pre_execute(self):
-        """This method gets executed before `execute()` of an operator is called.
+    def pre_compute(self):
+        """This method gets executed before `compute()` of an operator is called.
 
         This is a preperatory step before the operator executes its main job.
         This needs to be overridden by a base class for any meaningful action.
@@ -104,16 +105,28 @@ class Operator(ABC):
         pass
 
     @abstractmethod
+    def compute(self, input: InputContext, output: OutputContext, context: ExecutionContext):
+        """An abstract method that needs to be implemented by the user.
+
+        Args:
+            input: An input context for the operator.
+            output: An output context for the operator.
+            context (ExecutionContext): An execution context for the operator.
+        """
+        pass
+
     def execute(self, execution_context: ExecutionContext):
         """Provides number of output ports that this operator has.
 
         Returns:
             Number of output ports.
         """
-        pass
+        input = execution_context.get_input()
+        output = execution_context.get_input()
+        self.compute(input, output)
 
-    def post_execute(self):
-        """This method gets executed after "execute" of an operator is called.
+    def post_compute(self):
+        """This method gets executed after "compute()" of an operator is called.
 
         This is a post-execution step before the operator is done doing its
         main action.

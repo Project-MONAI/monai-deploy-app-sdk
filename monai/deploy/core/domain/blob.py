@@ -10,13 +10,13 @@
 # limitations under the License.
 
 from pathlib import Path
-from typing import Dict, Union
+from typing import Dict, Optional, Union
 
 from .domain import Domain
 
 
 class Blob(Domain):
-    def __init__(self, path: Union[str, Path], metadata: Dict = None):
+    def __init__(self, path: Union[str, Path], metadata: Optional[Dict] = None):
         super().__init__(metadata=metadata)
         self._path = Path(path)
 

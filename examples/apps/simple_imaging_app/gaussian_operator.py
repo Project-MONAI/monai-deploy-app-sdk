@@ -9,7 +9,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from monai.deploy.core import Blob, ExecutionContext, Image, IOType, Operator, input, output
+from monai.deploy.core import (
+    Blob,
+    ExecutionContext,
+    Image,
+    InputContext,
+    IOType,
+    Operator,
+    OutputContext,
+    input,
+    output,
+)
 
 
 @input("image", Image, IOType.IN_MEMORY)
@@ -20,16 +30,16 @@ class GaussianOperator(Operator):
     It ingests a single input and provides a single output.
     """
 
-    def execute(self, context: ExecutionContext):
+    def compute(self, input: InputContext, output: OutputContext, context: ExecutionContext):
         from skimage.filters import gaussian
         from skimage.io import imsave
 
-        data_in = context.get_input().asnumpy()
+        data_in = input.get().asnumpy()
         data_out = gaussian(data_in, sigma=0.2)
 
         output_filename = "final_output.png"
-        output_folder = context.get_output_location()
+        output_folder = output.get_location()
         output_path = output_folder / output_filename
         imsave(output_path, data_out)
 
-        context.set_output(Blob(output_filename))
+        output.set(Blob(output_filename))

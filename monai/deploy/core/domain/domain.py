@@ -10,11 +10,11 @@
 # limitations under the License.
 
 from abc import ABC
-from typing import Dict
+from typing import Dict, Optional
 
 
 class Domain(ABC):
-    def __init__(self, metadata: Dict = None):
+    def __init__(self, metadata: Optional[Dict] = None):
         super().__init__()
 
         if metadata is not None:
@@ -22,5 +22,5 @@ class Domain(ABC):
         else:
             self._metadata = {}
 
-    def metadata(self) -> Dict:
+    def metadata(self) -> Optional[Dict]:
         return self._metadata
