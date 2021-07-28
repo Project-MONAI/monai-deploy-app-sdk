@@ -9,7 +9,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from monai.deploy.core import Blob, ExecutionContext, Image, IOType, Operator, input, output
+from monai.deploy.core import (
+    Blob,
+    ExecutionContext,
+    Image,
+    InputContext,
+    IOType,
+    Operator,
+    OutputContext,
+    input,
+    output,
+)
 
 
 @input("image", Blob, IOType.DISK)
@@ -20,10 +30,10 @@ class SobelOperator(Operator):
     It has a single input and single output.
     """
 
-    def execute(self, context: ExecutionContext):
-        """Performs execution for this operator.
+    def compute(self, input: InputContext, output: OutputContext, context: ExecutionContext):
+        """Performs computation for this operator.
 
-        The input for this operator is hardcoded.
+        The input for this operator is hardcoded for now.
         In near future this will be changed where the input is provided via
         inversion of control mecchanism.
         """
@@ -34,4 +44,4 @@ class SobelOperator(Operator):
         data_in = io.imread(pathlib.Path(__file__).parent.resolve() / "brain_mr_input.jpg")
         data_out = filters.sobel(data_in)
 
-        context.set_output(Image(data_out), "image")
+        output.set(Image(data_out))

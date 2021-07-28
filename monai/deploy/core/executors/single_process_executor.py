@@ -13,7 +13,7 @@
 from __future__ import annotations
 
 import os
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 
 from colorama import Fore
 
@@ -31,7 +31,7 @@ class SingleProcessExecutor(Executor):
     in a single process in environment.
     """
 
-    def __init__(self, app: Application, data_store: DataStore = None):
+    def __init__(self, app: Application, data_store: Optional[DataStore] = None):
         """Constructor for the class.
 
         The instance internally holds on to the data store.
@@ -41,8 +41,8 @@ class SingleProcessExecutor(Executor):
         """
         super().__init__(app, data_store)
 
-    def execute(self):
-        """Executes the app.
+    def run(self):
+        """Run the app.
 
         This method retrieves the root nodes of the graph traveres through the
         graph in a depth first approach.
@@ -57,14 +57,14 @@ class SingleProcessExecutor(Executor):
             op_exec_context = ExecutionContext(exec_context, op)
 
             print(Fore.BLUE + "Going to initiate execution of operator %s" % self.__class__.__name__)
-            op.pre_execute()
+            op.pre_compute()
 
             print(Fore.YELLOW + "Process ID %s" % os.getpid())
             print(Fore.GREEN + "Executing operator %s" % self.__class__.__name__)
-            op.execute(op_exec_context)
+            op.compute(op_exec_context.input, op_exec_context.output, op_exec_context)
 
             print(Fore.BLUE + "Done performing execution of operator %s" % self.__class__.__name__)
-            op.post_execute()
+            op.post_compute()
 
             next_ops = g.gen_next_operators(op)
             for next_op in next_ops:
@@ -79,6 +79,6 @@ class SingleProcessExecutor(Executor):
 
                 next_op_exec_context = ExecutionContext(exec_context, next_op)
                 for (out_label, in_labels) in io_map.items():
-                    output = op_exec_context.get_output(out_label)
+                    output = op_exec_context.output.get(out_label)
                     for in_label in in_labels:
-                        next_op_exec_context.set_input(output, group=in_label)
+                        next_op_exec_context.input.set(output, in_label)

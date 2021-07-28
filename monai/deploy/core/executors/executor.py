@@ -12,7 +12,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 
 if TYPE_CHECKING:
     from monai.deploy.core import Application
@@ -23,7 +23,7 @@ from monai.deploy.core.datastores import DataStore, MemoryDataStore
 class Executor(ABC):
     """This is the base class that enables execution of an application."""
 
-    def __init__(self, app: Application, data_store: DataStore = None):
+    def __init__(self, app: Application, data_store: Optional[DataStore] = None):
         """Constructor of the class.
 
         Given an application it invokes the compose method on the app, which
@@ -42,8 +42,8 @@ class Executor(ABC):
             self._data_store = MemoryDataStore()
 
     @abstractmethod
-    def execute(self):
-        """The execute method of an executor.
+    def run(self):
+        """Run the app.
 
         It is called to execute an application.
         This method needs to be implemented by specific concrete subclasses

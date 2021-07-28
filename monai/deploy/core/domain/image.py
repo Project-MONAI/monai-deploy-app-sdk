@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Any, Dict, Union
+from typing import Any, Dict, Optional, Union
 
 try:
     from numpy.typing import ArrayLike
@@ -20,7 +20,7 @@ from .domain import Domain
 
 
 class Image(Domain):
-    def __init__(self, data: Union[ArrayLike], metadata: Dict = None):
+    def __init__(self, data: Union[ArrayLike], metadata: Optional[Dict] = None):
         super().__init__(metadata)
         self._data = data
 

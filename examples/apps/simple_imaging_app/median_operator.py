@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from monai.deploy.core import ExecutionContext, Image, IOType, Operator, input, output
+from monai.deploy.core import ExecutionContext, Image, InputContext, IOType, Operator, OutputContext, input, output
 
 
 @input("image", Image, IOType.IN_MEMORY)
@@ -21,9 +21,9 @@ class MedianOperator(Operator):
     It ingests a single input and provides a single output.
     """
 
-    def execute(self, context: ExecutionContext):
+    def compute(self, input: InputContext, output: OutputContext, context: ExecutionContext):
         from skimage.filters import median
 
-        data_in = context.get_input("image").asnumpy()
+        data_in = input.get().asnumpy()
         data_out = median(data_in)
-        context.set_output(Image(data_out))
+        output.set(Image(data_out))

@@ -10,11 +10,12 @@
 # limitations under the License.
 
 from abc import ABC, abstractmethod
-from typing import Dict
+from typing import Dict, Optional
 
 from monai.deploy.core.datastores import MemoryDataStore
 from monai.deploy.core.executors import SingleProcessExecutor
 from monai.deploy.core.operator import Operator
+from monai.deploy.core.operator_info import IO
 from monai.deploy.exceptions import IOMappingError
 
 from .graphs.nx_digraph import NetworkXGraph
@@ -40,7 +41,7 @@ class Application(ABC):
         if do_run:
             data_store = MemoryDataStore()
             executor = SingleProcessExecutor(self, data_store)
-            executor.execute()
+            executor.run()
 
     @property
     def name(self):
@@ -67,7 +68,7 @@ class Application(ABC):
 
         self._graph.add_operator(operator)
 
-    def add_flow(self, upstream_op: Operator, downstream_op: Operator, io_map: Dict[str, str] = None):
+    def add_flow(self, upstream_op: Operator, downstream_op: Operator, io_map: Optional[Dict[str, str]] = None):
         """Adds a flow from upstream to downstream.
 
         An output port of the upstream operator is connected to one of the
@@ -84,8 +85,8 @@ class Application(ABC):
         upstream_op.ensure_valid()
         downstream_op.ensure_valid()
 
-        op_output_labels = upstream_op.get_operator_info().get_output_labels()
-        op_input_labels = downstream_op.get_operator_info().get_input_labels()
+        op_output_labels = upstream_op.get_operator_info().get_labels(IO.OUTPUT)
+        op_input_labels = downstream_op.get_operator_info().get_labels(IO.INPUT)
         if not io_map:
             if len(op_output_labels) > 1:
                 raise IOMappingError(
