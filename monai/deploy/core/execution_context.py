@@ -14,7 +14,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from monai.deploy.core.operators import Operator
+    from monai.deploy.core.operator import Operator
 
 from pathlib import Path
 from typing import Any, Optional
