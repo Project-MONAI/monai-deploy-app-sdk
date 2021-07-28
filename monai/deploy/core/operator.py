@@ -16,13 +16,13 @@ import uuid
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Type, Union
 
-from monai.deploy.core.domain import Domain
-from monai.deploy.core.io_context import InputContext, OutputContext
-from monai.deploy.core.io_type import IOType
-from monai.deploy.core.operator_info import IO, OperatorInfo
+from .domain import Domain
+from .io_context import InputContext, OutputContext
+from .io_type import IOType
+from .operator_info import IO, OperatorInfo
 
 if TYPE_CHECKING:
-    from monai.deploy.core import ExecutionContext
+    from .execution_context import ExecutionContext
 
 
 class Operator(ABC):
@@ -109,8 +109,8 @@ class Operator(ABC):
         """An abstract method that needs to be implemented by the user.
 
         Args:
-            input: An input context for the operator.
-            output: An output context for the operator.
+            input (InputContext): An input context for the operator.
+            output (OutputContext): An output context for the operator.
             context (ExecutionContext): An execution context for the operator.
         """
         pass

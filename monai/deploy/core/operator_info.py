@@ -12,9 +12,9 @@
 from enum import Enum
 from typing import Type, Union
 
-from monai.deploy.core.domain import Domain
-from monai.deploy.core.domain.blob import Blob
-from monai.deploy.core.io_type import IOType
+from .domain.domain import Domain
+from .domain.blob import Blob
+from .io_type import IOType
 
 
 class IO(Enum):
