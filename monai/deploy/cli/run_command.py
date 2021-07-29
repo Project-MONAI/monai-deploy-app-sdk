@@ -22,7 +22,7 @@ from monai.deploy.exceptions import MissingCommandArgumentError
 
 def create_run_parser(subparser: _SubParsersAction, command: str) -> ArgumentParser:
     parser = subparser.add_parser(command)
-    # parser.add_argument("app_path", help="Path to application folder/file")
+
     parser.add_argument("--input", "-i", help="Path to input folder/file")
     parser.add_argument("--output", "-o", help="Path to output folder/file")
     parser.add_argument("--model", "-m", help="Path to model folder/file")

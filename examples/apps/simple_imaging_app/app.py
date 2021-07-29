@@ -28,15 +28,15 @@ class App(Application):
         Each operator has a single input and a single output port.
         Each operator performs some kind of image processing function.
         """
-        self.sobel_op = SobelOperator()
-        self.median_op = MedianOperator()
-        self.gaussian_op = GaussianOperator()
+        sobel_op = SobelOperator()
+        median_op = MedianOperator()
+        gaussian_op = GaussianOperator()
 
-        self.add_flow(self.sobel_op, self.median_op)
-        # self.add_flow(self.sobel_op, self.median_op, {"image": "image"})
-        # self.add_flow(self.sobel_op, self.median_op, {"image": {"image"}})
+        self.add_flow(sobel_op, median_op)
+        # self.add_flow(sobel_op, median_op, {"image": "image"})
+        # self.add_flow(sobel_op, median_op, {"image": {"image"}})
 
-        self.add_flow(self.median_op, self.gaussian_op)
+        self.add_flow(median_op, gaussian_op)
 
 
 if __name__ == "__main__":
