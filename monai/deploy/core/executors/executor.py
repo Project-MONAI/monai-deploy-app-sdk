@@ -17,7 +17,7 @@ from typing import TYPE_CHECKING, Optional
 if TYPE_CHECKING:
     from monai.deploy.core import Application
 
-from monai.deploy.core.datastores import Datastore, MemoryDatastore
+from monai.deploy.core.datastores import Datastore, DatastoreFactory
 
 
 class Executor(ABC):
@@ -33,13 +33,12 @@ class Executor(ABC):
             app: An application that needs to be executed.
             datastore: A data store that is used to store the data.
         """
-        super().__init__()
         self._app = app
         self._app.compose()
         if datastore:
             self._datastore = datastore
         else:
-            self._datastore = MemoryDatastore()
+            self._datastore = DatastoreFactory.create(DatastoreFactory.DEFAULT)
 
     @abstractmethod
     def run(self):

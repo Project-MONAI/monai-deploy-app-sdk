@@ -69,7 +69,7 @@ class ExecutionContext(BaseExecutionContext):
             return 0
 
     def increase_execution_index(self):
-        """Increase the execution index for the operator.
+        """Increases the execution index for the operator.
 
         This index number would be increased once for each call to the operator
         so that the operator can be executed multiple times.

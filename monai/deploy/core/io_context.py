@@ -61,6 +61,8 @@ class IOContext(ABC):
 
 
 class InputContext(IOContext):
+    """An input context for an operator."""
+
     _io_kind = "input"
 
     def get(self, label: str = "") -> Any:
@@ -84,6 +86,8 @@ class InputContext(IOContext):
 
 
 class OutputContext(IOContext):
+    """An output context for an operator."""
+
     _io_kind = "output"
 
     def get_location(self, group: str = ""):

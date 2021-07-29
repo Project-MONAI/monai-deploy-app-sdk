@@ -12,11 +12,13 @@
 from abc import ABC, abstractmethod
 from typing import Dict, Optional
 
+from monai.deploy.core.graphs.factory import GraphFactory
 from monai.deploy.exceptions import IOMappingError
 
-from .datastores import MemoryDatastore
-from .executors import SingleProcessExecutor
-from .graphs.nx_digraph import NetworkXGraph
+from .app_context import AppContext
+from .datastores import DatastoreFactory
+from .executors import ExecutorFactory
+from .graphs.graph import Graph
 from .operator import Operator
 from .operator_info import IO
 
@@ -35,12 +37,15 @@ class Application(ABC):
         It created an instance of an empty Directed Acyclic Graph to hold on to
         the operators.
         """
-        super().__init__()
-        self._graph = NetworkXGraph()
+        ctx = AppContext()
+
+        self._ctx: AppContext = ctx
+
+        self._graph: Graph = GraphFactory.create(ctx.graph)
 
         if do_run:
-            datastore = MemoryDatastore()
-            executor = SingleProcessExecutor(self, datastore)
+            datastore = DatastoreFactory.create(ctx.datastore)
+            executor = ExecutorFactory.create(ctx.executor, {"app": self, "datastore": datastore})
             executor.run()
 
     @property
@@ -77,8 +82,8 @@ class Application(ABC):
         Args:
             upstream_op (Operator): An instance of the upstream operator of type Operator.
             downstream_op (Operator): An instance of the downstream operator of type Operator.
-            io_map (Dict[str, str]): A dictionary of mapping from the source operator's label to the destination
-                                     operator's label.
+            io_map (Optional[Dict[str, str]]): A dictionary of mapping from the source operator's label to the
+                                               destination operator's label.
         """
 
         # Ensure that the upstream and downstream operators are valid
