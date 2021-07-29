@@ -17,13 +17,13 @@ from typing import TYPE_CHECKING, Optional
 if TYPE_CHECKING:
     from monai.deploy.core import Application
 
-from monai.deploy.core.datastores import DataStore, MemoryDataStore
+from monai.deploy.core.datastores import Datastore, MemoryDatastore
 
 
 class Executor(ABC):
     """This is the base class that enables execution of an application."""
 
-    def __init__(self, app: Application, data_store: Optional[DataStore] = None):
+    def __init__(self, app: Application, datastore: Optional[Datastore] = None):
         """Constructor of the class.
 
         Given an application it invokes the compose method on the app, which
@@ -31,15 +31,15 @@ class Executor(ABC):
 
         Args:
             app: An application that needs to be executed.
-            data_store: A data store that is used to store the data.
+            datastore: A data store that is used to store the data.
         """
         super().__init__()
         self._app = app
         self._app.compose()
-        if data_store:
-            self._data_store = data_store
+        if datastore:
+            self._datastore = datastore
         else:
-            self._data_store = MemoryDataStore()
+            self._datastore = MemoryDatastore()
 
     @abstractmethod
     def run(self):

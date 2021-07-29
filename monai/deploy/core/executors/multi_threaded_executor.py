@@ -13,13 +13,13 @@
 
 # from monai.deploy.core import Application
 # from monai.deploy.core.executors.executor import Executor
-# from monai.deploy.core.datastores import DataStore
+# from monai.deploy.core.datastores import Datastore
 
 
 # class MultiThreadedExecutor(Executor):
 #     def __init__(self, app: Application):
 #         super().__init__(app)
-#         self._storage = DataStore.get_instance()
+#         self._storage = Datastore.get_instance()
 
 #     def execute(self):
 #         g = self._app.graph

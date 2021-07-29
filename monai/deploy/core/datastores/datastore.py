@@ -13,7 +13,7 @@ from abc import ABC, abstractmethod
 from typing import Any, Hashable, KeysView, Optional
 
 
-class DataStore(ABC):
+class Datastore(ABC):
     """Base class for data store."""
 
     @abstractmethod
