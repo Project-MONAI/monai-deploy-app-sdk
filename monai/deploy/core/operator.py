@@ -115,16 +115,6 @@ class Operator(ABC):
         """
         pass
 
-    def execute(self, execution_context: ExecutionContext):
-        """Provides number of output ports that this operator has.
-
-        Returns:
-            Number of output ports.
-        """
-        input = execution_context.get_input()
-        output = execution_context.get_input()
-        self.compute(input, output)
-
     def post_compute(self):
         """This method gets executed after "compute()" of an operator is called.
 
@@ -139,9 +129,9 @@ def input(label: str = "", data_type: Type[Domain] = None, storage_type: Union[i
     """A decorator that adds input specification to the operator.
 
     Args:
-        label: A label for the input port.
-        data_type: A data type of the input.
-        storage_type: A storage type of the input.
+        label (str): A label for the input port.
+        data_type (Type[Domain]): A data type of the input.
+        storage_type (Union[int, IOType]): A storage type of the input.
 
     Returns:
         A decorator that adds input specification to the operator.

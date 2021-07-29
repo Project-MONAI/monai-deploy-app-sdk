@@ -13,14 +13,9 @@
 from __future__ import annotations
 
 import os
-from typing import TYPE_CHECKING, Optional
 
 from colorama import Fore
 
-if TYPE_CHECKING:
-    from monai.deploy.core import Application
-
-from monai.deploy.core.datastores import Datastore
 from monai.deploy.core.execution_context import BaseExecutionContext, ExecutionContext
 from monai.deploy.exceptions import IOMappingError
 
@@ -31,16 +26,6 @@ class SingleProcessExecutor(Executor):
     """This class implements execution of a MONAI App
     in a single process in environment.
     """
-
-    def __init__(self, app: Application, datastore: Optional[Datastore] = None):
-        """Constructor for the class.
-
-        The instance internally holds on to the data store.
-
-        Args:
-            app: An instance of the application that needs to be executed
-        """
-        super().__init__(app, datastore)
 
     def run(self):
         """Run the app.

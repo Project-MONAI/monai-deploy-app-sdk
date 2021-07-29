@@ -11,4 +11,5 @@
 
 
 from .datastore import Datastore
-from .memory_store import MemoryDatastore
+from .factory import DatastoreFactory
+from .memory import MemoryDatastore
