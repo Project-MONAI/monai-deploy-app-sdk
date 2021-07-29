@@ -20,7 +20,7 @@ class AppContext:
     def __init__(self):
         # Parse the command line arguments
         argv = sys.argv
-        args = parse_args(argv, default_command="run")
+        args = parse_args(argv, default_command="exec")
 
         self.graph = args.graph
         self.datastore = args.datastore

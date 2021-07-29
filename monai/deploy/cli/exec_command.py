@@ -20,7 +20,7 @@ from monai.deploy.core.graphs.factory import GraphFactory
 from monai.deploy.exceptions import MissingCommandArgumentError
 
 
-def create_run_parser(subparser: _SubParsersAction, command: str) -> ArgumentParser:
+def create_exec_parser(subparser: _SubParsersAction, command: str) -> ArgumentParser:
     parser = subparser.add_parser(command)
 
     parser.add_argument("--input", "-i", help="Path to input folder/file")
@@ -49,7 +49,7 @@ def create_run_parser(subparser: _SubParsersAction, command: str) -> ArgumentPar
     return parser
 
 
-def execute_run_command(args: Namespace):
+def execute_exec_command(args: Namespace):
     remaining = args.remaining
 
     if len(remaining) != 1:

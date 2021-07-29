@@ -9,19 +9,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from setuptools import find_namespace_packages, setup
+from argparse import ArgumentParser, Namespace, _SubParsersAction
 
-import versioneer
+from monai.deploy.exceptions import MissingCommandArgumentError
 
-setup(
-    version=versioneer.get_version(),
-    cmdclass=versioneer.get_cmdclass(),
-    packages=find_namespace_packages(include=["monai.*"]),
-    include_package_data=True,
-    zip_safe=False,
-    entry_points={
-        "console_scripts": [
-            "monai-deploy = monai.deploy.cli.main:main",
-        ]
-    },
-)
+
+def create_package_parser(subparser: _SubParsersAction, command: str) -> ArgumentParser:
+    parser = subparser.add_parser(command)
+
+    parser.add_argument("application", type=str, help="MONAI application path")
+    parser.add_argument("--tag", type=str, help="tag name")
+
+    return parser
+
+
+def execute_package_command(args: Namespace):
+    if args.tag is None:
+        raise MissingCommandArgumentError("Missing tag name.")
