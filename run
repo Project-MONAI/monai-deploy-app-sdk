@@ -267,13 +267,6 @@ install_python_test_deps_() {
     hash -r
 }
 
-test_python_desc() { echo 'Execute Python test cases
-
-Arguments:
-  $1 - test_type [all|unit|integration|system|performance] (default: all)
-  $2 - test_component [all] (default: all)
-'
-}
 test_python() {
     local test_type="${1:-all}"
     local test_component="${2:-all}"
