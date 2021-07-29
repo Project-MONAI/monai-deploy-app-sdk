@@ -23,7 +23,7 @@
 #         self._storage = Datastore.get_instance()
 
 #     def execute(self):
-#         g = self._app.graph
+#         g = self.app.graph
 #         for node in self._root_nodes:
 
 #             q = Queue()

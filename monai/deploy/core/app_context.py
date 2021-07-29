@@ -26,7 +26,11 @@ class AppContext:
         self.datastore = args.datastore
         self.executor = args.executor
 
-        print("#", args)
+        self.input_path = args.input or "input"
+        self.output_path = args.output or "output"
+        self.model_path = args.model or "models"
+        print(args)
+
         # input/output/model paths
         # self.app_id = app_id
         # self.app_name = app_name

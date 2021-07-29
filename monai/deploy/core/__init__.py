@@ -10,7 +10,7 @@
 # limitations under the License.
 
 from .application import Application
-from .domain.blob import Blob
+from .domain.datapath import DataPath
 from .domain.image import Image
 from .execution_context import ExecutionContext
 from .io_context import InputContext, OutputContext

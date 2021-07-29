@@ -10,7 +10,7 @@
 # limitations under the License.
 
 from abc import ABC, abstractmethod
-from typing import Dict, Optional
+from typing import Dict, Optional, Set, Union
 
 from monai.deploy.core.graphs.factory import GraphFactory
 from monai.deploy.exceptions import IOMappingError
@@ -37,15 +37,15 @@ class Application(ABC):
         It created an instance of an empty Directed Acyclic Graph to hold on to
         the operators.
         """
-        ctx = AppContext()
+        context = AppContext()
 
-        self._ctx: AppContext = ctx
+        self._context: AppContext = context
 
-        self._graph: Graph = GraphFactory.create(ctx.graph)
+        self._graph: Graph = GraphFactory.create(context.graph)
 
         if do_run:
-            datastore = DatastoreFactory.create(ctx.datastore)
-            executor = ExecutorFactory.create(ctx.executor, {"app": self, "datastore": datastore})
+            datastore = DatastoreFactory.create(context.datastore)
+            executor = ExecutorFactory.create(context.executor, {"app": self, "datastore": datastore})
             executor.run()
 
     @property
@@ -54,7 +54,12 @@ class Application(ABC):
         return self.__class__.__name__
 
     @property
-    def graph(self):
+    def context(self) -> AppContext:
+        """Returns the context of this application."""
+        return self._context
+
+    @property
+    def graph(self) -> Graph:
         """Gives access to the DAG.
 
         Returns:
@@ -73,7 +78,9 @@ class Application(ABC):
 
         self._graph.add_operator(operator)
 
-    def add_flow(self, upstream_op: Operator, downstream_op: Operator, io_map: Optional[Dict[str, str]] = None):
+    def add_flow(
+        self, upstream_op: Operator, downstream_op: Operator, io_map: Optional[Dict[str, Union[str, Set]]] = None
+    ):
         """Adds a flow from upstream to downstream.
 
         An output port of the upstream operator is connected to one of the
@@ -90,8 +97,8 @@ class Application(ABC):
         upstream_op.ensure_valid()
         downstream_op.ensure_valid()
 
-        op_output_labels = upstream_op.get_operator_info().get_labels(IO.OUTPUT)
-        op_input_labels = downstream_op.get_operator_info().get_labels(IO.INPUT)
+        op_output_labels = upstream_op.op_info.get_labels(IO.OUTPUT)
+        op_input_labels = downstream_op.op_info.get_labels(IO.INPUT)
         if not io_map:
             if len(op_output_labels) > 1:
                 raise IOMappingError(

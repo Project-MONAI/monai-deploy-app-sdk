@@ -40,6 +40,16 @@ class Executor(ABC):
         else:
             self._datastore = DatastoreFactory.create(DatastoreFactory.DEFAULT)
 
+    @property
+    def app(self) -> Application:
+        """Returns the application that is executed by the executor."""
+        return self._app
+
+    @property
+    def datastore(self) -> Datastore:
+        """Returns the data store that is used to store the data."""
+        return self._datastore
+
     @abstractmethod
     def run(self):
         """Run the app.

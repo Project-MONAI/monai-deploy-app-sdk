@@ -10,7 +10,7 @@
 # limitations under the License.
 
 from monai.deploy.core import (
-    Blob,
+    DataPath,
     ExecutionContext,
     Image,
     InputContext,
@@ -22,7 +22,7 @@ from monai.deploy.core import (
 )
 
 
-@input("image", Blob, IOType.DISK)
+@input("image", DataPath, IOType.DISK)
 @output("image", Image, IOType.IN_MEMORY)
 class SobelOperator(Operator):
     """This Operator implements a Sobel edge detector.
@@ -37,11 +37,11 @@ class SobelOperator(Operator):
         In near future this will be changed where the input is provided via
         inversion of control mecchanism.
         """
-        import pathlib
-
         from skimage import filters, io
 
-        data_in = io.imread(pathlib.Path(__file__).parent.resolve() / "brain_mr_input.jpg")
+        input_path = input.get().path
+
+        data_in = io.imread(input_path)
         data_out = filters.sobel(data_in)
 
         output.set(Image(data_out))

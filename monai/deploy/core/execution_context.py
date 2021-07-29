@@ -60,7 +60,7 @@ class ExecutionContext(BaseExecutionContext):
             The execution index(int) for the operator.
         """
         storage = self._context.storage
-        parent_node = f"/operators/{self._op.get_uid()}"
+        parent_node = f"/operators/{self.op.uid}"
         key = f"{parent_node}/execution_index"
         if storage.exists(key):
             return storage.get(key)
@@ -75,7 +75,7 @@ class ExecutionContext(BaseExecutionContext):
         so that the operator can be executed multiple times.
         """
         storage = self._context.storage
-        parent_node = f"/operators/{self._op.get_uid()}"
+        parent_node = f"/operators/{self.op.uid}"
         key = f"{parent_node}/execution_index"
         new_execution_index = self.get_execution_index() + 1
         storage.put(key, new_execution_index)

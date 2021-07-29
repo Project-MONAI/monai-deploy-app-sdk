@@ -10,7 +10,7 @@
 # limitations under the License.
 
 from monai.deploy.core import (
-    Blob,
+    DataPath,
     ExecutionContext,
     Image,
     InputContext,
@@ -23,7 +23,7 @@ from monai.deploy.core import (
 
 
 @input("image", Image, IOType.IN_MEMORY)
-@output("image", Blob, IOType.DISK)
+@output("image", DataPath, IOType.DISK)
 class GaussianOperator(Operator):
     """This Operator implements a smoothening based on Gaussian.
 
@@ -37,9 +37,8 @@ class GaussianOperator(Operator):
         data_in = input.get().asnumpy()
         data_out = gaussian(data_in, sigma=0.2)
 
+        output_folder = output.get().path
+        output_folder.mkdir(parents=True, exist_ok=True)
         output_filename = "final_output.png"
-        output_folder = output.get_location()
         output_path = output_folder / output_filename
         imsave(output_path, data_out)
-
-        output.set(Blob(output_filename))

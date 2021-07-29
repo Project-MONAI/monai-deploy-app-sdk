@@ -35,6 +35,15 @@ class NetworkXGraph(Graph):
         io_map = self._graph.get_edge_data(op_u, op_v).get("io_map")
         return io_map
 
+    def is_root(self, op: Operator) -> bool:
+        return self._graph.in_degree(op) == 0
+
+    def is_leaf(self, op: Operator) -> bool:
+        return self._graph.out_degree(op) == 0
+
+    def get_root_operators(self) -> Generator[Operator, None, None]:
+        return (op for (op, degree) in self._graph.in_degree() if degree == 0)
+
     def gen_worklist(self) -> Generator[Optional[Operator], None, None]:
         return topological_sort(self._graph)
 

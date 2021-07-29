@@ -16,6 +16,7 @@ import os
 
 from colorama import Fore
 
+from monai.deploy.core.domain.datapath import DataPath
 from monai.deploy.core.execution_context import BaseExecutionContext, ExecutionContext
 from monai.deploy.exceptions import IOMappingError
 
@@ -36,22 +37,39 @@ class SingleProcessExecutor(Executor):
         Sets the right input to a downstrem operator at the right input port.
         Executes the operators.
         """
-        exec_context = BaseExecutionContext(self._datastore)
+        exec_context = BaseExecutionContext(self.datastore)
 
-        g = self._app.graph
+        g = self.app.graph
+
         for op in g.gen_worklist():
             op_exec_context = ExecutionContext(exec_context, op)
 
+            # Set source input if op is a root node
+            is_root = g.is_root(op)
+            if is_root:
+                input_path = self.app.context.input_path
+                op_exec_context.input.set(DataPath(input_path))
+
+            # Set destination output if op is a leaf node
+            is_leaf = g.is_leaf(op)
+            if is_leaf:
+                output_path = self.app.context.output_path
+                op_exec_context.output.set(DataPath(output_path))
+
+            # Execute pre_compute()
             print(Fore.BLUE + "Going to initiate execution of operator %s" % self.__class__.__name__)
             op.pre_compute()
 
+            # Execute compute()
             print(Fore.YELLOW + "Process ID %s" % os.getpid())
             print(Fore.GREEN + "Executing operator %s" % self.__class__.__name__)
             op.compute(op_exec_context.input, op_exec_context.output, op_exec_context)
 
+            # Execute post_compute()
             print(Fore.BLUE + "Done performing execution of operator %s" % self.__class__.__name__)
             op.post_compute()
 
+            # Set input to next operator
             next_ops = g.gen_next_operators(op)
             for next_op in next_ops:
                 io_map = g.get_io_map(op, next_op)
@@ -60,7 +78,7 @@ class SingleProcessExecutor(Executor):
 
                     raise IOMappingError(
                         f"No IO mappings found for {op.name} -> {next_op.name} in "
-                        f"{inspect.getabsfile(self._app.__class__)}"
+                        f"{inspect.getabsfile(self.app.__class__)}"
                     )
 
                 next_op_exec_context = ExecutionContext(exec_context, next_op)

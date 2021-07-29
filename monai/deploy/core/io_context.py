@@ -30,7 +30,7 @@ class IOContext(ABC):
         """Constructor for IOContext."""
         self._execution_context = execution_context
         self._op = execution_context.op
-        self._op_info = self._op.get_operator_info()
+        self._op_info = self._op.op_info
         self._labels = self._op_info.get_labels(self._io_kind)
         self._storage = execution_context._storage
 
@@ -56,7 +56,7 @@ class IOContext(ABC):
             The path for the group.
         """
         execution_index = self._execution_context.get_execution_index()
-        path = f"/operators/{self._op.get_uid()}/{execution_index}/{postfix}"
+        path = f"/operators/{self._op.uid}/{execution_index}/{postfix}"
         return path
 
 
@@ -89,12 +89,6 @@ class OutputContext(IOContext):
     """An output context for an operator."""
 
     _io_kind = "output"
-
-    def get_location(self, group: str = ""):
-        """Returns the output location for the operator."""
-
-        # TODO: Implement this method
-        return Path("")
 
     def get(self, label: str = "") -> Any:
         """Returns the output data for the operator."""
