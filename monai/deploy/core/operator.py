@@ -65,7 +65,8 @@ class Operator(ABC):
         """Returns the name of this operator."""
         return self.__class__.__name__
 
-    def get_uid(self):
+    @property
+    def uid(self):
         """Gives access to the UID of the operator.
 
         Returns:
@@ -73,7 +74,8 @@ class Operator(ABC):
         """
         return self._uid
 
-    def get_operator_info(self):
+    @property
+    def op_info(self):
         """Retrieves the operator info.
 
         Args:
@@ -93,8 +95,7 @@ class Operator(ABC):
         (e.g., set default value for the operator's input port, set default
         value for the operator's output port, etc.)
         """
-        op_info = self.get_operator_info()
-        op_info.ensure_valid()
+        self.op_info.ensure_valid()
 
     def pre_compute(self):
         """This method gets executed before `compute()` of an operator is called.

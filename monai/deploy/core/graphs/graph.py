@@ -46,6 +46,37 @@ class Graph(ABC):
         pass
 
     @abstractmethod
+    def is_root(self, op: Operator) -> bool:
+        """Check if the operator is a root operator.
+
+        Args:
+            op (Operator): A node in the graph.
+        Returns:
+            True if the operator is a root operator.
+        """
+        pass
+
+    @abstractmethod
+    def is_leaf(self, op: Operator) -> bool:
+        """Check if the operator is a leaf operator.
+
+        Args:
+            op (Operator): A node in the graph.
+        Returns:
+            True if the operator is a leaf operator.
+        """
+        pass
+
+    @abstractmethod
+    def get_root_operators(self) -> Generator[Operator, None, None]:
+        """Get all root operators.
+
+        Returns:
+            A generator of root operators.
+        """
+        pass
+
+    @abstractmethod
     def gen_worklist(self) -> Generator[Optional[Operator], None, None]:
         """Get worklist."""
         pass

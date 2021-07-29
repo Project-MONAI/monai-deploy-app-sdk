@@ -15,6 +15,7 @@ from sobel_operator import SobelOperator
 
 from monai.deploy.core import Application
 
+
 class App(Application):
     """This is a very basic application.
 
@@ -30,7 +31,11 @@ class App(Application):
         self.sobel_op = SobelOperator()
         self.median_op = MedianOperator()
         self.gaussian_op = GaussianOperator()
-        self.add_flow(self.sobel_op, self.median_op, {"image": "image"})
+
+        self.add_flow(self.sobel_op, self.median_op)
+        # self.add_flow(self.sobel_op, self.median_op, {"image": "image"})
+        # self.add_flow(self.sobel_op, self.median_op, {"image": {"image"}})
+
         self.add_flow(self.median_op, self.gaussian_op)
 
 

@@ -12,8 +12,8 @@
 from enum import Enum
 from typing import Type, Union
 
+from .domain.datapath import DataPath
 from .domain.domain import Domain
-from .domain.blob import Blob
 from .io_type import IOType
 
 
@@ -42,7 +42,7 @@ class OperatorInfo:
         for kind in [IO.INPUT, IO.OUTPUT]:
             if len(self.labels[kind]) == 0:
                 self.labels[kind].add("")
-                self.data_type[kind][""] = Blob
+                self.data_type[kind][""] = DataPath
                 self.storage_type[kind][""] = IOType.DISK
 
     def add_label(self, io_kind: IO, label: str):

@@ -15,7 +15,7 @@ from typing import Dict, Optional, Union
 from .domain import Domain
 
 
-class Blob(Domain):
+class DataPath(Domain):
     def __init__(self, path: Union[str, Path], metadata: Optional[Dict] = None):
         super().__init__(metadata=metadata)
         self._path = Path(path)
