@@ -32,7 +32,7 @@ class IOContext(ABC):
         self._op = execution_context.op
         self._op_info = self._op.op_info
         self._labels = self._op_info.get_labels(self._io_kind)
-        self._storage = execution_context._storage
+        self._storage = execution_context.storage
 
     def get_default_label(self, label: str = "") -> str:
         """Get a default label for IO context."""

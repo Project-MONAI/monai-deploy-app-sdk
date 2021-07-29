@@ -9,19 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from setuptools import find_namespace_packages, setup
 
-import versioneer
+from . import main
 
-setup(
-    version=versioneer.get_version(),
-    cmdclass=versioneer.get_cmdclass(),
-    packages=find_namespace_packages(include=["monai.*"]),
-    include_package_data=True,
-    zip_safe=False,
-    entry_points={
-        "console_scripts": [
-            "monai-deploy = monai.deploy.cli.main:main",
-        ]
-    },
-)
+if __name__ == "__main__":
+    main.main()
