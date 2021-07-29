@@ -14,7 +14,7 @@ from typing import Dict, Optional
 
 from monai.deploy.exceptions import IOMappingError
 
-from .datastores import MemoryDataStore
+from .datastores import MemoryDatastore
 from .executors import SingleProcessExecutor
 from .graphs.nx_digraph import NetworkXGraph
 from .operator import Operator
@@ -39,8 +39,8 @@ class Application(ABC):
         self._graph = NetworkXGraph()
 
         if do_run:
-            data_store = MemoryDataStore()
-            executor = SingleProcessExecutor(self, data_store)
+            datastore = MemoryDatastore()
+            executor = SingleProcessExecutor(self, datastore)
             executor.run()
 
     @property

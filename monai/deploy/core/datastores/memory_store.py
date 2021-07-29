@@ -1,9 +1,9 @@
 from typing import Any, Dict, Hashable, KeysView, Optional
 
-from .datastore import DataStore
+from .datastore import Datastore
 
 
-class MemoryDataStore(DataStore):
+class MemoryDatastore(Datastore):
     def __init__(self):
         self._storage: Dict = {}
 

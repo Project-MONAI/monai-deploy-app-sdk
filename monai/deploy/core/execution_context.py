@@ -18,18 +18,18 @@ if TYPE_CHECKING:
 
 from typing import Optional
 
-from .datastores import DataStore, MemoryDataStore
+from .datastores import Datastore, MemoryDatastore
 from .io_context import InputContext, OutputContext
 
 
 class BaseExecutionContext:
     """A base execution context for the application."""
 
-    def __init__(self, data_store: Optional[DataStore] = None):
-        if data_store is None:
-            self._storage = MemoryDataStore()
+    def __init__(self, datastore: Optional[Datastore] = None):
+        if datastore is None:
+            self._storage = MemoryDatastore()
         else:
-            self._storage = data_store
+            self._storage = datastore
 
     @property
     def storage(self):

@@ -10,5 +10,5 @@
 # limitations under the License.
 
 
-from .datastore import DataStore
-from .memory_store import MemoryDataStore
+from .datastore import Datastore
+from .memory_store import MemoryDatastore
