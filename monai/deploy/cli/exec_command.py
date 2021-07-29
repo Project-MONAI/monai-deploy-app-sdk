@@ -17,7 +17,6 @@ from argparse import ArgumentParser, Namespace, _SubParsersAction
 from monai.deploy.core.datastores.factory import DatastoreFactory
 from monai.deploy.core.executors.factory import ExecutorFactory
 from monai.deploy.core.graphs.factory import GraphFactory
-from monai.deploy.exceptions import MissingCommandArgumentError
 
 
 def create_exec_parser(subparser: _SubParsersAction, command: str) -> ArgumentParser:
@@ -53,7 +52,8 @@ def execute_exec_command(args: Namespace):
     remaining = args.remaining
 
     if len(remaining) != 1:
-        raise MissingCommandArgumentError("Missing command argument. " "Please provide an application path to execute.")
+        print("Missing command argument. Please provide an application path to execute.", file=sys.stderr)
+        sys.exit(1)
 
     app_path = remaining[0]
 

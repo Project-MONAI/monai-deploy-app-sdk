@@ -38,8 +38,3 @@ class UnknownTypeError(MONAIAppSdkError):
     """Raises when unknown type is specified."""
 
     pass
-
-class MissingCommandArgumentError(MONAIAppSdkError):
-    """Raises when a command is missing a required argument."""
-
-    pass

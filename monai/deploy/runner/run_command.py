@@ -9,9 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import sys
 from argparse import ArgumentParser, Namespace, _SubParsersAction
-
-from monai.deploy.exceptions import MissingCommandArgumentError
 
 
 def create_run_parser(subparser: _SubParsersAction, command: str) -> ArgumentParser:
@@ -24,5 +23,6 @@ def create_run_parser(subparser: _SubParsersAction, command: str) -> ArgumentPar
 
 
 def execute_run_command(args: Namespace):
-    if args.input is None:
-        raise MissingCommandArgumentError("Missing input folder.")
+    if not args.input:  # if input is empty
+        print("Missing tag name. Use --input=<input_dir>", file=sys.stderr)
+        sys.exit(1)

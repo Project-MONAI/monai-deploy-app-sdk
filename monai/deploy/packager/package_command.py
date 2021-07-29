@@ -9,9 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import sys
 from argparse import ArgumentParser, Namespace, _SubParsersAction
-
-from monai.deploy.exceptions import MissingCommandArgumentError
 
 
 def create_package_parser(subparser: _SubParsersAction, command: str) -> ArgumentParser:
@@ -24,5 +23,6 @@ def create_package_parser(subparser: _SubParsersAction, command: str) -> Argumen
 
 
 def execute_package_command(args: Namespace):
-    if args.tag is None:
-        raise MissingCommandArgumentError("Missing tag name.")
+    if not args.tag:  # if tag name is empty
+        print("Missing tag name. Use --tag=<tag name>", file=sys.stderr)
+        sys.exit(1)
