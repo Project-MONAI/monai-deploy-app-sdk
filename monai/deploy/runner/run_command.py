@@ -9,23 +9,32 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import argparse
-import sys
-from argparse import ArgumentParser, Namespace, _SubParsersAction
+from argparse import ArgumentParser, Namespace, _SubParsersAction, ArgumentDefaultsHelpFormatter
 from typing import List
+
+from monai.deploy.runner import runner, utils
 
 
 def create_run_parser(subparser: _SubParsersAction, command: str, parents: List[ArgumentParser]) -> ArgumentParser:
-    parser = subparser.add_parser(command, formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    parser = subparser.add_parser(command, formatter_class=ArgumentDefaultsHelpFormatter,
                                   parents=parents, add_help=False)
 
     parser.add_argument("map", metavar="<map-image[:tag]>", help="MAP image name")
-    parser.add_argument("--input", "-i", metavar="<input_dir>", help="Path to input folder/file")
+
+    parser.add_argument("input_dir", metavar="<input_dir>", type=utils.valid_dir_path,
+                        help="input directory path")
+
+    parser.add_argument("output_dir", metavar="<output_dir>", type=utils.valid_dir_path,
+                        help="output directory path")
+
+    parser.add_argument('-v', '--verbose', dest='verbose', action='store_true',
+                        default=False, help='verbose mode')
+
+    parser.add_argument('-q', '--quiet', dest='quiet', action='store_true', default=False,
+                        help='execute MAP quietly without printing container logs onto console')
 
     return parser
 
 
 def execute_run_command(args: Namespace):
-    if not args.input:  # if input is empty
-        print("Missing tag name. Use --input=<input_dir>", file=sys.stderr)
-        sys.exit(1)
+    runner.main(args)

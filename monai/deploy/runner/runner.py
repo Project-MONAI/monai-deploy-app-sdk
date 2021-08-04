@@ -1,3 +1,14 @@
+# Copyright 2020 - 2021 MONAI Consortium
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#     http://www.apache.org/licenses/LICENSE-2.0
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 import argparse
 import json
 import logging
@@ -7,37 +18,7 @@ import tempfile
 from pathlib import Path
 from typing import List, Tuple
 
-from utils import (run_cmd, run_cmd_quietly, set_up_logging, valid_dir_path,
-                   verify_image)
-
-
-def parse_args(args: List[str]) -> argparse.Namespace:
-    """Create a argument parser and parse the command-line arguments.
-
-    Args:
-        args: A list of arguments to parse.
-
-    Returns:
-        A parser object containing parsed arguments.
-    """
-
-    parser = argparse.ArgumentParser(prog="run", description="MONAI Application Runner (MAR)")
-
-    parser.add_argument("map", metavar="<map-image[:tag]>", help="MAP image name")
-
-    parser.add_argument("input_dir", metavar="<input_dir>", type=valid_dir_path,
-                        help="input directory path")
-
-    parser.add_argument("output_dir", metavar="<output_dir>", type=valid_dir_path,
-                        help="output directory path")
-
-    parser.add_argument('-v', '--verbose', dest='verbose', action='store_true',
-                        default=False, help='verbose mode')
-
-    parser.add_argument('-q', '--quiet', dest='quiet', action='store_true', default=False,
-                        help='execute MAP quietly without printing container logs onto console')
-
-    return parser.parse_args(args)
+from monai.deploy.runner.utils import run_cmd, run_cmd_quietly, set_up_logging, verify_image
 
 
 def fetch_map_manifest(map_name: str) -> Tuple[dict, int]:
@@ -126,13 +107,17 @@ def dependency_verification(map_name: str) -> bool:
     return True
 
 
-def main():
+def main(args: argparse.Namespace):
     """
     Main entry function for MONAI Application Runner.
+
+    Args:
+        args: parsed arguments
+
+    Returns:
+        None
     """
-    args = parse_args(sys.argv[1:])
     set_up_logging(args.verbose)
-    print(type(args))
 
     if not dependency_verification(args.map):
         logging.error("Aborting...")
@@ -150,7 +135,3 @@ def main():
     if returncode != 0:
         logging.error('\nERROR: MONAI Application "%s" failed.', args.map)
         sys.exit()
-
-
-if __name__ == "__main__":
-    main()

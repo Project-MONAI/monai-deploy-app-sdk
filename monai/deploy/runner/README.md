@@ -1,10 +1,10 @@
 # MONAI APPLICATION RUNNER
 
-The MONAI Application Runner (MAR) is a simple to use tool which allows users to run and test their MONAI Application Package (MAP) locally. MAR allows the users to specify input and output directories which it maps to the input and output of MAP during execution.
+The MONAI Application Runner (MAR) allows users to run and test their MONAI Application Package (MAP) locally. MAR allows the users to specify input and output directories which it maps to the input and output of MAP during execution.
 
 ## Syntax
 ```
-python3 main.py <container-image-name>[:tag] <input-dir> <output-dir> [-v|--verbose] [-q|--quiet]
+monai-deploy run <container-image-name>[:tag] <input-dir> <output-dir> [-v|--verbose] [-q|--quiet]
 ```
 ### Arguments
 
