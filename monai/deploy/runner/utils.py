@@ -2,23 +2,12 @@ import argparse
 import logging
 import shlex
 import subprocess
-import sys
 from pathlib import Path
 
 from spinner import ProgressSpinner
 
 
-class MyParser(argparse.ArgumentParser):
-    """A custom parser class to override the error method."""
-
-    def error(self, message):
-        """Overriding the default error method to print help message before exiting."""
-        sys.stderr.write('error: %s\n' % message)
-        self.print_help(sys.stderr)
-        self.exit(2)
-
-
-def valid_dir_path(path: str):
+def valid_dir_path(path: str) -> Path:
     """Helper method for parse_args to verify if a path exists and it is a directory path.
 
     Args:
@@ -29,13 +18,13 @@ def valid_dir_path(path: str):
 
         If path doesn't exist or it is not a directory, raises argparse.ArgumentTypeError.
     """
-    path = Path(path)
-    if path.exists() and path.is_dir():
-        return path.absolute()
-    raise argparse.ArgumentTypeError(f"No such directory: '{path}'")
+    dir_path = Path(path)
+    if dir_path.exists() and dir_path.is_dir():
+        return dir_path.absolute()
+    raise argparse.ArgumentTypeError(f"No such directory: '{dir_path}'")
 
 
-def run_cmd(cmd: str):
+def run_cmd(cmd: str) -> int:
     """
     Executes command and return the returncode of the executed command.
 
@@ -52,7 +41,7 @@ def run_cmd(cmd: str):
     return proc.wait()
 
 
-def run_cmd_quietly(cmd: str, waiting_msg: str):
+def run_cmd_quietly(cmd: str, waiting_msg: str) -> int:
     """
     Executes command quietly and return the returncode of the executed command.
 
@@ -67,6 +56,7 @@ def run_cmd_quietly(cmd: str, waiting_msg: str):
     with ProgressSpinner(waiting_msg):
         proc = subprocess.Popen(args, stdout=subprocess.DEVNULL, universal_newlines=True)
         return proc.wait()
+
 
 def set_up_logging(verbose: bool):
     """Setup logging to standard out.
@@ -85,16 +75,7 @@ def set_up_logging(verbose: bool):
     logging.basicConfig(format='%(message)s', level=level)
 
 
-def yes_or_no_prompt(prompt):
-    while "the answer is invalid":
-        reply = input(prompt+' (y/n): ').lower().strip()
-        if reply:
-            if reply[0] == 'y':
-                return True
-            if reply[0] == 'n':
-                return False
-
-def verify_image(image: str):
+def verify_image(image: str) -> bool:
     """Checks if the container image is present locally and tries to pull if not found.
 
     Args:
@@ -109,10 +90,10 @@ def verify_image(image: str):
             universal_newlines=True)
 
         if image_tag in response:
-            logging.debug(f"`{image_tag}` found.")
+            logging.info('"%s" found.', image_tag)
             return True
-        else:
-            return False
+
+        return False
 
     def _pull_image(image_tag):
         cmd = f'docker pull {image_tag}'
@@ -121,9 +102,11 @@ def verify_image(image: str):
         if returncode != 0:
             return False
 
-    logging.info(f'Checking for MAP "{image}" locally')
+        return True
+
+    logging.info('Checking for MAP "%s" locally', image)
     if not _check_image_exists_locally(image):
-        logging.warn(f'"{image}" not found locally.\nTrying to pull from registry...')
+        logging.warning('"%s" not found locally.\n\nTrying to pull from registry...', image)
         return _pull_image(image)
 
     return True

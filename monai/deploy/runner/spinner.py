@@ -18,7 +18,7 @@ class ProgressSpinner:
     def __enter__(self):
         self.start()
 
-    def __exit__(self, exception, value, tb):
+    def __exit__(self, exception, value, traceback):
         self.stop()
 
     def _spinner_task(self):
