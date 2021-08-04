@@ -31,7 +31,7 @@ def parse_args(args):
                         default=False, help='verbose mode')
 
     parser.add_argument('-q', '--quiet', dest='quiet', action='store_true',
-                        default=False, help='run conatiner quietly without printing container logs onto console')
+                        default=False, help='execute MAP quietly without printing container logs onto console')
 
     return parser.parse_args(args)
 
