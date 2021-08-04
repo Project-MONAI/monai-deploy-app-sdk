@@ -9,12 +9,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import argparse
 import sys
 from argparse import ArgumentParser, Namespace, _SubParsersAction
+from typing import List
 
 
-def create_run_parser(subparser: _SubParsersAction, command: str) -> ArgumentParser:
-    parser = subparser.add_parser(command)
+def create_run_parser(subparser: _SubParsersAction, command: str, parents: List[ArgumentParser]) -> ArgumentParser:
+    parser = subparser.add_parser(command, formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+                                  parents=parents, add_help=False)
 
     parser.add_argument("map", metavar="<map-image[:tag]>", help="MAP image name")
     parser.add_argument("--input", "-i", metavar="<input_dir>", help="Path to input folder/file")

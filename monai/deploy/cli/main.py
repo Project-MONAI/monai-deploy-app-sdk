@@ -28,17 +28,22 @@ def parse_args(argv: Optional[List[str]] = None, default_command: Optional[str] 
         argv = sys.argv
     argv = list(argv)  # copy argv for manipulation to avoid side-effects
 
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+
+    parser.add_argument('-l', '--log-level', dest='log_level', default='INFO', type=str.upper,
+                        choices=['DEBUG', 'INFO', 'WARN', 'ERROR', 'CRITICAL'],
+                        help='Set the logging level')
+
     subparser = parser.add_subparsers(dest="command")
 
     # Parser for `exec` command
-    create_exec_parser(subparser, "exec")
+    create_exec_parser(subparser, "exec", parents=[parser])
 
     # Parser for `package` command
-    create_package_parser(subparser, "package")
+    create_package_parser(subparser, "package", parents=[parser])
 
     # Parser for `run` command
-    create_run_parser(subparser, "run")
+    create_run_parser(subparser, "run", parents=[parser])
 
     # By default, execute `exec` command
     command = argv[1:2]
