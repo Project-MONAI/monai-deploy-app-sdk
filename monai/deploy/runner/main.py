@@ -6,7 +6,7 @@ import tempfile
 from pathlib import Path
 
 from utils import (MyParser, run_cmd, run_cmd_quietly, set_up_logging,
-                   valid_dir_path)
+                   valid_dir_path, verify_image)
 
 
 def parse_args(args):
@@ -28,7 +28,7 @@ def parse_args(args):
     parser.add_argument("output_dir", metavar="<output_dir>", type=valid_dir_path, help="output directory path")
 
     parser.add_argument('-v', '--verbose', dest='verbose', action='store_true',
-                        default=False, help='verbose')
+                        default=False, help='verbose mode')
 
     parser.add_argument('-q', '--quiet', dest='quiet', action='store_true',
                         default=False, help='run conatiner quietly without printing container logs onto console')
@@ -47,10 +47,11 @@ def fetch_map_manifest(map: str):
         app_info: application manifest as a json.
         returncode: command return code
     """
-    logging.info("Reading MONAI App Package manifest...")
+    logging.info("\nReading MONAI App Package manifest...")
 
     with tempfile.TemporaryDirectory() as info_dir:
-        cmd = f'docker run --rm -it -v {info_dir}:/var/run/monai/export {map}'
+        cmd = f'docker run --rm -it -v {info_dir}:/var/run/monai/export/config {map}'
+
         returncode = run_cmd(cmd)
         if returncode != 0:
             return {}, returncode
@@ -58,12 +59,14 @@ def fetch_map_manifest(map: str):
         app_json = Path(f'{info_dir}/app.json')
         pkg_json = Path(f'{info_dir}/pkg.json')
 
-        logging.debug(f"---------------app.json---------------\n\
-                        {app_json.read_text()}\n\
-                        --------------------------------------\n\n")
-        logging.debug(f"---------------pkg.json---------------\n\
-                        {pkg_json.read_text()}\n\
-                        --------------------------------------\n\n")
+        logging.debug("-------------------application manifest-------------------")
+        logging.debug(app_json.read_text())
+        logging.debug("----------------------------------------------\n")
+
+        logging.debug("-------------------package manifest-------------------")
+        logging.debug(pkg_json.read_text())
+        logging.debug("----------------------------------------------\n")
+
         app_info = json.loads(app_json.read_text())
         return app_info, returncode
 
@@ -92,7 +95,7 @@ def run_app(map: str, input_dir: Path, output_dir: Path, app_info: dict, quiet=F
     return run_cmd(cmd)
 
 
-def dependency_verification() -> bool:
+def dependency_verification(map: str) -> bool:
     """Check if all the dependencies are installed or not.
 
     Args:
@@ -101,13 +104,19 @@ def dependency_verification() -> bool:
     Returns:
         True if all dependencies are satisfied, otherwise False.
     """
-    logging.info("Verifying software dependecies are installed...")
+    logging.info("Checking dependencies...")
 
     # check for docker
     prog = "docker"
-    logging.info(f'   --> verifying if "{prog}" is installed...')
+    logging.info(f'--> Verifying if "{prog}" is installed...\n')
     if not shutil.which(prog):
         logging.error(f'ERROR: "{prog}" not installed, please install docker.')
+        return False
+
+    # check for map image
+    logging.info(f'--> Verifying if "{map}" is available...\n')
+    if not verify_image(map):
+        logging.error(f'ERROR: Unable to fetch required image.')
         return False
 
     return True
@@ -117,14 +126,14 @@ def main():
     args = parse_args(sys.argv[1:])
     set_up_logging(args.verbose)
 
-    if not dependency_verification():
-        logging.error("ERROR: Failed to satisfy all dependencies. Exiting...")
+    if not dependency_verification(args.map):
+        logging.error("Aborting...")
         sys.exit()
 
     # Fetch application manifest from MAP
     app_info, returncode = fetch_map_manifest(args.map)
     if returncode != 0:
-        logging.error("ERROR: Failed to fetch MAP manifest. Exiting...")
+        logging.error("ERROR: Failed to fetch MAP manifest. Aborting...")
         sys.exit()
 
     # Run MONAI Application

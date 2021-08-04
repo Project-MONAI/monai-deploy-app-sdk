@@ -65,9 +65,8 @@ def run_cmd_quietly(cmd: str, waiting_msg: str):
     args = shlex.split(cmd)
 
     with ProgressSpinner(waiting_msg):
-        proc = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
+        proc = subprocess.Popen(args, stdout=subprocess.DEVNULL, universal_newlines=True)
         return proc.wait()
-
 
 def set_up_logging(verbose: bool):
     """Setup logging to standard out.
@@ -94,3 +93,37 @@ def yes_or_no_prompt(prompt):
                 return True
             if reply[0] == 'n':
                 return False
+
+def verify_image(image: str):
+    """Checks if the container image is present locally and tries to pull if not found.
+
+    Args:
+        image: container image
+
+    Returns:
+        True if either image is already present or if it was successfully pulled.
+    """
+    def _check_image_exists_locally(image_tag):
+        response = subprocess.check_output(
+            ["docker", "images", image_tag, "--format", "{{.Repository}}:{{.Tag}}"],
+            universal_newlines=True)
+
+        if image_tag in response:
+            logging.debug(f"`{image_tag}` found.")
+            return True
+        else:
+            return False
+
+    def _pull_image(image_tag):
+        cmd = f'docker pull {image_tag}'
+        returncode = run_cmd(cmd)
+
+        if returncode != 0:
+            return False
+
+    logging.info(f'Checking for MAP "{image}" locally')
+    if not _check_image_exists_locally(image):
+        logging.warn(f'"{image}" not found locally.\nTrying to pull from registry...')
+        return _pull_image(image)
+
+    return True
