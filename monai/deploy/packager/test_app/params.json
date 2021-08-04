@@ -1,0 +1,18 @@
+{
+    "app-name" : "MAP Demo",
+    "app-version": 0.0,
+    "sdk-version": 0.0,
+    "command": "/usr/bin/python3 -u /opt/monai/app/main.py",
+    "models": [                      
+        {
+            "name": "spleen-segmentation",
+            "path": "./app/models/spleen_model.ts"
+        }
+    ],
+    "resource":
+    {
+        "cpu": 1,
+        "gpu": 2,
+        "memory": "4Gi"
+    }
+ }
