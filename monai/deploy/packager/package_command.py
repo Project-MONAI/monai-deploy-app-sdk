@@ -14,18 +14,30 @@ import sys
 from argparse import ArgumentParser, Namespace, _SubParsersAction
 from typing import List
 
+from monai.deploy.packager import util as packager_util
+
 
 def create_package_parser(subparser: _SubParsersAction, command: str, parents: List[ArgumentParser]) -> ArgumentParser:
     parser = subparser.add_parser(command, formatter_class=argparse.ArgumentDefaultsHelpFormatter,
                                   parents=parents, add_help=False)
 
-    parser.add_argument("application", type=str, help="MONAI application path")
-    parser.add_argument("--tag", type=str, help="tag name")
+    parser.add_argument('application', type=str, help="MONAI application path")
+    parser.add_argument('--tag', '-t', type=str, help="MONAI application package tag")
+    parser.add_argument('--base', type=str, help="Base Application Image")
+    parser.add_argument('--working-dir','-w', type=str, help="Directory mounted in container for Application")
+    parser.add_argument('--input-dir','-i', type=str, help="Directory mounted in container for Application Input")
+    parser.add_argument('--output-dir','-o', type=str, help="Directory mounted in container for Application Output")
+    parser.add_argument('--models-dir', type=str, help="Directory mounted in container for Models Path")
+    parser.add_argument('--models','-m', type=str, help="Optional Path to directory containing all application models")
+    parser.add_argument('--verbose', action='store_true', help="Display debug output")
+    parser.add_argument('--version', type=str, help="Version of the Application")
+    parser.add_argument('--timeout', type=str, help="Timeout")
+
+    # TEMPORARY parameter in place of SDK provided values
+    parser.add_argument('--params','-p', type=str, help="SDK Parameters")
 
     return parser
 
 
 def execute_package_command(args: Namespace):
-    if not args.tag:  # if tag name is empty
-        print("Missing tag name. Use --tag=<tag name>", file=sys.stderr)
-        sys.exit(1)
+    packager_util.package_application(args)

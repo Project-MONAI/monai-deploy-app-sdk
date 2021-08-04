@@ -1,0 +1,24 @@
+{
+  "command": "/usr/bin/python3 -u /opt/monai/app/main.py",
+  "inputs":[
+    {
+      "data": "image",
+      "format": "dicom",
+      "protocols": [],
+      "region": "spleen",
+      "series-count": 1,
+      "slice-per-file": 1,
+      "path": "/input/1"
+    }
+  ],
+  "output": {
+    "path": "/output/1",
+    "format": {
+      "data": "segmentation-image",
+      "format": "nifti",
+      "series-count": 1,
+      "slice-per-file": "*"
+    }
+  },
+  "timeout": 600
+}
