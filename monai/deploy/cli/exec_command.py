@@ -9,18 +9,21 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import argparse
 import os
 import runpy
 import sys
 from argparse import ArgumentParser, Namespace, _SubParsersAction
+from typing import List
 
 from monai.deploy.core.datastores.factory import DatastoreFactory
 from monai.deploy.core.executors.factory import ExecutorFactory
 from monai.deploy.core.graphs.factory import GraphFactory
 
 
-def create_exec_parser(subparser: _SubParsersAction, command: str) -> ArgumentParser:
-    parser = subparser.add_parser(command)
+def create_exec_parser(subparser: _SubParsersAction, command: str, parents: List[ArgumentParser]) -> ArgumentParser:
+    parser = subparser.add_parser(command, formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+                                  parents=parents, add_help=False)
 
     parser.add_argument("--input", "-i", help="Path to input folder/file")
     parser.add_argument("--output", "-o", help="Path to output folder/file")
