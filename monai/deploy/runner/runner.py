@@ -20,6 +20,7 @@ from typing import List, Tuple
 
 from monai.deploy.runner.utils import run_cmd, run_cmd_quietly, set_up_logging, verify_image
 
+logger = logging.getLogger(__name__)
 
 def fetch_map_manifest(map_name: str) -> Tuple[dict, int]:
     """
@@ -32,7 +33,7 @@ def fetch_map_manifest(map_name: str) -> Tuple[dict, int]:
         app_info: application manifest as a python dict.
         returncode: command return code
     """
-    logging.info("\nReading MONAI App Package manifest...")
+    logger.info("\nReading MONAI App Package manifest...")
 
     with tempfile.TemporaryDirectory() as info_dir:
         cmd = f'docker run --rm -it -v {info_dir}:/var/run/monai/export/config {map_name}'
@@ -44,13 +45,13 @@ def fetch_map_manifest(map_name: str) -> Tuple[dict, int]:
         app_json = Path(f'{info_dir}/app.json')
         pkg_json = Path(f'{info_dir}/pkg.json')
 
-        logging.debug("-------------------application manifest-------------------")
-        logging.debug(app_json.read_text())
-        logging.debug("----------------------------------------------\n")
+        logger.debug("-------------------application manifest-------------------")
+        logger.debug(app_json.read_text())
+        logger.debug("----------------------------------------------\n")
 
-        logging.debug("-------------------package manifest-------------------")
-        logging.debug(pkg_json.read_text())
-        logging.debug("----------------------------------------------\n")
+        logger.debug("-------------------package manifest-------------------")
+        logger.debug(pkg_json.read_text())
+        logger.debug("----------------------------------------------\n")
 
         app_info = json.loads(app_json.read_text())
         return app_info, returncode
@@ -89,19 +90,19 @@ def dependency_verification(map_name: str) -> bool:
     Returns:
         True if all dependencies are satisfied, otherwise False.
     """
-    logging.info("Checking dependencies...")
+    logger.info("Checking dependencies...")
 
     # check for docker
     prog = "docker"
-    logging.info('--> Verifying if "%s" is installed...\n', prog)
+    logger.info('--> Verifying if "%s" is installed...\n', prog)
     if not shutil.which(prog):
-        logging.error('ERROR: "%s" not installed, please install docker.', prog)
+        logger.error('ERROR: "%s" not installed, please install docker.', prog)
         return False
 
     # check for map image
-    logging.info('--> Verifying if "%s" is available...\n', map_name)
+    logger.info('--> Verifying if "%s" is available...\n', map_name)
     if not verify_image(map_name):
-        logging.error('ERROR: Unable to fetch required image.')
+        logger.error('ERROR: Unable to fetch required image.')
         return False
 
     return True
@@ -117,21 +118,19 @@ def main(args: argparse.Namespace):
     Returns:
         None
     """
-    set_up_logging(args.verbose)
-
     if not dependency_verification(args.map):
-        logging.error("Aborting...")
+        logger.error("Aborting...")
         sys.exit()
 
     # Fetch application manifest from MAP
     app_info, returncode = fetch_map_manifest(args.map)
     if returncode != 0:
-        logging.error("ERROR: Failed to fetch MAP manifest. Aborting...")
+        logger.error("ERROR: Failed to fetch MAP manifest. Aborting...")
         sys.exit()
 
     # Run MONAI Application
-    returncode = run_app(args.map, args.input_dir, args.output_dir, app_info, quiet=args.quiet)
+    returncode = run_app(args.map, args.input, args.output, app_info, quiet=args.quiet)
 
     if returncode != 0:
-        logging.error('\nERROR: MONAI Application "%s" failed.', args.map)
+        logger.error('\nERROR: MONAI Application "%s" failed.', args.map)
         sys.exit()

@@ -17,23 +17,7 @@ from pathlib import Path
 
 from monai.deploy.utils.spinner import ProgressSpinner
 
-
-def valid_dir_path(path: str) -> Path:
-    """Helper type checking and type converting method for ArgumentParser.add_argument
-    to convert string input to pathlib.Path if the given path exists and it is a directory path.
-
-    Args:
-        path: string input path
-
-    Returns:
-        If path exists and is a directory, return absolute path as a pathlib.Path object.
-
-        If path doesn't exist or it is not a directory, raises argparse.ArgumentTypeError.
-    """
-    dir_path = Path(path)
-    if dir_path.exists() and dir_path.is_dir():
-        return dir_path.absolute()
-    raise argparse.ArgumentTypeError(f"No such directory: '{dir_path}'")
+logger = logging.getLogger(__name__)
 
 
 def run_cmd(cmd: str) -> int:
@@ -102,7 +86,7 @@ def verify_image(image: str) -> bool:
             universal_newlines=True)
 
         if image_tag in response:
-            logging.info('"%s" found.', image_tag)
+            logger.info('"%s" found.', image_tag)
             return True
 
         return False
@@ -116,9 +100,9 @@ def verify_image(image: str) -> bool:
 
         return True
 
-    logging.info('Checking for MAP "%s" locally', image)
+    logger.info('Checking for MAP "%s" locally', image)
     if not _check_image_exists_locally(image):
-        logging.warning('"%s" not found locally.\n\nTrying to pull from registry...', image)
+        logger.warning('"%s" not found locally.\n\nTrying to pull from registry...', image)
         return _pull_image(image)
 
     return True

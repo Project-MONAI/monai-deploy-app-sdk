@@ -9,11 +9,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from argparse import ArgumentParser, Namespace, _SubParsersAction, ArgumentDefaultsHelpFormatter
+import logging
+from argparse import ArgumentDefaultsHelpFormatter, ArgumentParser, Namespace, _SubParsersAction
 from typing import List
 
-from monai.deploy.runner import runner, utils
+from monai.deploy.runner import runner
+from monai.deploy.utils import argparse_types
 
+logger = logging.getLogger(__name__)
 
 def create_run_parser(subparser: _SubParsersAction, command: str, parents: List[ArgumentParser]) -> ArgumentParser:
     parser = subparser.add_parser(command, formatter_class=ArgumentDefaultsHelpFormatter,
@@ -21,11 +24,11 @@ def create_run_parser(subparser: _SubParsersAction, command: str, parents: List[
 
     parser.add_argument("map", metavar="<map-image[:tag]>", help="MAP image name")
 
-    parser.add_argument("input_dir", metavar="<input_dir>", type=utils.valid_dir_path,
-                        help="input directory path")
+    parser.add_argument("input", metavar="<input>", type=argparse_types.valid_existing_path,
+                        help="input data path")
 
-    parser.add_argument("output_dir", metavar="<output_dir>", type=utils.valid_dir_path,
-                        help="output directory path")
+    parser.add_argument("output", metavar="<output>", type=argparse_types.valid_path,
+                        help="output data path")
 
     parser.add_argument('-v', '--verbose', dest='verbose', action='store_true',
                         default=False, help='verbose mode')
