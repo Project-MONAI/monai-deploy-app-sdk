@@ -30,19 +30,19 @@ def create_exec_parser(subparser: _SubParsersAction, command: str, parents: List
     parser.add_argument("--model", "-m", help="Path to model folder/file")
     parser.add_argument(
         "--graph",
-        help=f"Graph engine (default: {GraphFactory.DEFAULT})",
+        help=f"Graph engine",
         choices=GraphFactory.NAMES,
         default=GraphFactory.DEFAULT,
     )
     parser.add_argument(
         "--datastore",
-        help=f"Datastore (default: {DatastoreFactory.DEFAULT})",
+        help=f"Datastore",
         choices=DatastoreFactory.NAMES,
         default=DatastoreFactory.DEFAULT,
     )
     parser.add_argument(
         "--executor",
-        help=f"Executor (default: {ExecutorFactory.DEFAULT})",
+        help=f"Executor",
         choices=ExecutorFactory.NAMES,
         default=ExecutorFactory.DEFAULT,
     )
