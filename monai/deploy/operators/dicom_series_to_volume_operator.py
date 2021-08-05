@@ -55,6 +55,7 @@ class DICOMSeriesToVolumeOperator(Operator):
         metadata = self.create_metadata(dicom_series)
         voxel_data = self.generate_voxel_data(dicom_series)
         image = self.create_volumetric_image(voxel_data, metadata)
+        print(metadata.keys())
         output.set(image, "image")
 
 
