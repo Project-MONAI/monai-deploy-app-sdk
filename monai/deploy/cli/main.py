@@ -88,7 +88,7 @@ def set_up_logging(level: str):
     logging_config = log_config_dir / "logging.json"
     config_dict = json.loads(logging_config.read_bytes())
 
-    if level is not None:
+    if level is not None and 'root' in config_dict:
         config_dict['root']['level'] = level
     logging.config.dictConfig(config_dict)
 

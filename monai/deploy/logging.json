@@ -4,10 +4,17 @@
   "formatters": {
     "single": {
       "format": "%(message)s"
+    },
+    "simple": {
+      "format": "[%(asctime)s] [%(levelname)s] (%(name)s) - %(message)s"
     }
   },
   "handlers": {
     "console": {
+      "class": "logging.StreamHandler",
+      "formatter": "simple"
+    },
+    "runner_console": {
       "class": "logging.StreamHandler",
       "formatter": "single"
     }
@@ -18,5 +25,13 @@
     "handlers": [
       "console"
     ]
+  },
+  "loggers": {
+    "app_runner": {
+      "propagate": false,
+      "handlers": [
+        "runner_console"
+      ]
+    }
   }
 }
