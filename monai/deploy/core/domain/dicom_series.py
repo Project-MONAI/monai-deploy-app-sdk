@@ -118,6 +118,34 @@ class DICOMSeries(Domain):
         self.__depth_pixel_spacing = val
 
 
+    @property
+    def row_direction_cosine(self):
+        return self.__row_direction_cosine
+
+    @row_direction_cosine.setter
+    def row_direction_cosine(self, val):
+        self.__row_direction_cosine = val
+
+
+    @property
+    def col_direction_cosine(self):
+        return self.__col_direction_cosine
+        
+        
+    @col_direction_cosine.setter
+    def col_direction_cosine(self, val):
+        self.__col_direction_cosine = val
+
+    @property
+    def depth_direction_cosine(self):
+        return self.__depth_direction_cosine
+
+    @depth_direction_cosine.setter
+    def depth_direction_cosine(self, val):
+        self.__depth_direction_cosine = val
+
+
+
     def __str__(self):
         result = "---------------" +"\n"
         
@@ -149,13 +177,54 @@ class DICOMSeries(Domain):
         except AttributeError:
             pass
 
+        try:
+            series_desc_attr =  "Series Description: " + self.series_description + "\n"
+            result += series_desc_attr
+        except AttributeError:
+            pass
+
         
+        try:
+            row_pixel_spacing_attr =  "Row Pixel Spacing: " + str(self.row_pixel_spacing) + "\n"
+            result += row_pixel_spacing_attr
+        except AttributeError:
+            pass
+
+
+        try:
+            col_pixel_spacing_attr =  "Column Pixel Spacing: " + str(self.col_pixel_spacing) + "\n"
+            result += col_pixel_spacing_attr
+        except AttributeError:
+            pass
+
+
         try:
             depth_pixel_spacing_attr =  "Depth Pixel Spacing: " + str(self.depth_pixel_spacing) + "\n"
             result += depth_pixel_spacing_attr
         except AttributeError:
             pass
-        
+
+
+        try:
+            row_direction_cosine_attr =  "Row Direction Cosine: " + str(self.row_direction_cosine) + "\n"
+            result += row_direction_cosine_attr
+        except AttributeError:
+            pass
+
+
+        try:
+            col_direction_cosine_attr =  "Column Direction Cosine: " + str(self.col_direction_cosine) + "\n"
+            result += col_direction_cosine_attr
+        except AttributeError:
+            pass
+
+
+        try:
+            depth_direction_cosine_attr =  "Depth Direction Cosine: " + str(self.depth_direction_cosine) + "\n"
+            result += depth_direction_cosine_attr
+        except AttributeError:
+            pass
+
         result += "---------------" +"\n"
         
 
