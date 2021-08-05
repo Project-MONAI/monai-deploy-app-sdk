@@ -31,10 +31,14 @@ def parse_args(argv: Optional[List[str]] = None, default_command: Optional[str] 
         argv = sys.argv
     argv = list(argv)  # copy argv for manipulation to avoid side-effects
 
+    # We have intentionally not set the default using `default="INFO"` here so that the default
+    # value from here doesn't override the value in "logging.json" unless the user indends to do
+    # so. If the user doesn't use this flag to set log level, this argument is set to "None"
+    # and the logging level specified in "logging.json" is used.
     parent_parser = argparse.ArgumentParser()
-    parent_parser.add_argument('-l', '--log-level', dest='log_level', default='INFO', type=str.upper,
+    parent_parser.add_argument('-l', '--log-level', dest='log_level', type=str.upper,
                                choices=['DEBUG', 'INFO', 'WARN', 'ERROR', 'CRITICAL'],
-                               help='Set the logging level')
+                               help='Set the logging level (default: INFO)')
 
     parser = argparse.ArgumentParser(parents=[parent_parser],
                                      formatter_class=argparse.ArgumentDefaultsHelpFormatter,
@@ -74,11 +78,18 @@ def set_up_logging(level: str):
     Args:
         level: logging level (DEBUG, INFO, WARN, ERROR, CRITICAL)
     """
-    default_log_dir = Path(__file__).absolute().parent.parent.parent.parent
-    default_config = default_log_dir / "logging.json"
-    with open(default_config, 'r') as f:
-        config_dict = json.load(f)
-    config_dict['root']['level'] = level
+    # Default log config directory
+    log_config_dir = Path(__file__).absolute().parent.parent
+
+    # If a logging.json file exists in the current folder, it overrides the default one
+    if Path('logging.json').exists():
+        log_config_dir = Path.cwd()
+
+    logging_config = log_config_dir / "logging.json"
+    config_dict = json.loads(logging_config.read_bytes())
+
+    if level is not None:
+        config_dict['root']['level'] = level
     logging.config.dictConfig(config_dict)
 
 
