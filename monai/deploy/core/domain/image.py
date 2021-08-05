@@ -24,11 +24,6 @@ class Image(Domain):
         super().__init__(metadata)
         self._data = data
 
-    def asnumpy(self) -> ArrayLike:
-        return self._data
-
-    # @property
-    # def ndim(self):
     #     return self.__ndim
 
     # @ndim.setter
