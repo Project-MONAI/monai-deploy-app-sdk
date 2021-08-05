@@ -2,6 +2,7 @@
 
 include versioneer.py
 include monai/deploy/_version.py
+include monai/deploy/logging.json
 
 include README.md
 include LICENSE
