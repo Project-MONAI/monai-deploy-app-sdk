@@ -22,56 +22,79 @@ from monai.deploy.core import (
     input,
     output,
 )
+
+
 from monai.deploy.core.domain.dicom_series import DICOMSeries
 from monai.deploy.core.domain.dicom_study import DICOMStudy
 from monai.deploy.operators.dicom_data_loader_operator import DICOMDataLoaderOperator
+from monai.deploy.operators.dicom_series_selector_operator import DICOMSeriesSelectorOperator
+from monai.deploy.operators.dicom_series_to_volume_operator import DICOMSeriesToVolumeOperator
 
 from monai.deploy.core.domain.image import Image
-
-
 
 from os import listdir
 from os.path import isfile, join
 
 import math
 
-from pydicom.data import get_testdata_file
-from pydicom.fileset import FileSet
-from pydicom.uid import generate_uid
 import numpy as np
+from PIL import Image as PILImage
+import matplotlib.pyplot as plt
 
-@input("dicom_study_list", DICOMStudy, IOType.IN_MEMORY)
-@output("dicom_series", DICOMSeries, IOType.IN_MEMORY)
+@input("image", Image, IOType.IN_MEMORY)
+@output("image", DataPath, IOType.DISK)
 
-
-class DICOMSeriesSelector(Operator):
+class PNGConverter(Operator):
 
     def compute(self, input: InputContext, output: OutputContext, context: ExecutionContext):
         """Performs computation for this operator.
         """
-        dicom_study_list = input.get("dicom_study_list")
-        selection_rules = input.get("selection_rules")
-        dicom_series_list = self.filter(selection_rules, dicom_study_list)
-        output.set(dicom_series_list)
+        input = input.get("image")
+        output_dir = output.get().path
+        output_dir.mkdir(parents=True, exist_ok=True)
+        self.convert_and_save(input, output_dir)
 
 
-    def filter(self, selection_rules, dicom_study_list):
-        return dicom_study_list[0].get_all_series()[0]
-       
+
+
+    def convert_and_save(self, image, path):
+        image_data = image.asnumpy()
+        image_shape = image_data.shape
+
+        num_images = image_shape[0]
+
+        for i in range( 0, num_images):
+            input_data = image_data[i, :, :]
+            pil_image=PILImage.fromarray(input_data)
+            if pil_image.mode != 'RGB':
+                pil_image = pil_image.convert('RGB')
+            pil_image.save(str(path) + "/" + str(i) + ".png")
+
+    
 
 
 def main():
-    data_path = "/home/rahul/medical-images/mixed-data/"
-    # data_path = "/home/rahul/medical-images/lung-ct-1/"
+    op1 = DICOMSeriesToVolumeOperator()
+    data_path = "/home/rahul/medical-images/lung-ct-2/"
+    out_path = "/home/rahul/monai-output/"
+
+
     files = []
     loader = DICOMDataLoaderOperator()
     loader._list_files(files, data_path)
     study_list = loader._load_data(files)
 
-    selector = DICOMSeriesSelector()
-    series = selector.filter(None, study_list)
-    print (series)
-   
+    series = study_list[0].get_all_series()[0]
+    op1.prepare_series(series)
+    voxels = op1.generate_voxel_data(series)
+    metadata = op1.create_metadata(series)
+    image = op1.create_volumetric_image(voxels, metadata)
+
+    op2 = PNGConverter()
+    op2.convert_and_save(image, out_path, -200, -2000)
+
+    print(series)
+    #print(metadata.keys())
 
 
 

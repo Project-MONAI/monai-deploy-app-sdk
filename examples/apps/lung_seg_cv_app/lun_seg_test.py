@@ -225,7 +225,7 @@ imgs = get_pixels_hu(patient)
 np.save(output_path + "fullimages.npy", imgs)
 
 imgs_to_process = np.load(output_path + "fullimages.npy")
-# sample_stack(imgs_to_process)
+sample_stack(imgs_to_process)
 
 print("Shape before resampling\t", imgs_to_process.shape)
 imgs_after_resamp, spacing = resample(imgs_to_process, patient, [1, 1, 1])
