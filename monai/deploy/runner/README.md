@@ -4,7 +4,7 @@ The MONAI Application Runner (MAR) allows users to run and test their MONAI Appl
 
 ## Syntax
 ```
-monai-deploy run <container-image-name>[:tag] <input> <output> [-v|--verbose] [-q|--quiet]
+monai-deploy run <container-image-name>[:tag] <input> <output> [-q|--quiet]
 ```
 ### Arguments
 
@@ -21,4 +21,3 @@ monai-deploy run <container-image-name>[:tag] <input> <output> [-v|--verbose] [-
 | Name                | Shorthand  | Default    | Description                                                       |
 | ------------------- | ---------- | ---------- | --------------------------------------------------------------    |
 | quiet               | -q         | False      | Execute MAP quietly without printing container logs onto console. |
-| verbose             | -v         | False      | Verbose mode.                                                     |

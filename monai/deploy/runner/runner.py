@@ -18,9 +18,9 @@ import tempfile
 from pathlib import Path
 from typing import List, Tuple
 
-from monai.deploy.runner.utils import run_cmd, run_cmd_quietly, set_up_logging, verify_image
+from monai.deploy.runner.utils import run_cmd, run_cmd_quietly, verify_image
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("app_runner")
 
 def fetch_map_manifest(map_name: str) -> Tuple[dict, int]:
     """

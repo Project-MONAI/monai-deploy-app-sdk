@@ -17,7 +17,7 @@ from pathlib import Path
 
 from monai.deploy.utils.spinner import ProgressSpinner
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("app_runner")
 
 
 def run_cmd(cmd: str) -> int:
@@ -52,23 +52,6 @@ def run_cmd_quietly(cmd: str, waiting_msg: str) -> int:
     with ProgressSpinner(waiting_msg):
         proc = subprocess.Popen(args, stdout=subprocess.DEVNULL, universal_newlines=True)
         return proc.wait()
-
-
-def set_up_logging(verbose: bool):
-    """Setup logging to standard out.
-
-    Args:
-        verbose: Boolean value indicating whether log level will be debug or not
-
-    Returns:
-        None.
-    """
-    if verbose:
-        level = logging.DEBUG
-    else:
-        level = logging.INFO
-    # logging config are default to StreamHandlers
-    logging.basicConfig(format='%(message)s', level=level)
 
 
 def verify_image(image: str) -> bool:

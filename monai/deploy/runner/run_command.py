@@ -16,7 +16,7 @@ from typing import List
 from monai.deploy.runner import runner
 from monai.deploy.utils import argparse_types
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("app_runner")
 
 def create_run_parser(subparser: _SubParsersAction, command: str, parents: List[ArgumentParser]) -> ArgumentParser:
     parser = subparser.add_parser(command, formatter_class=ArgumentDefaultsHelpFormatter,
@@ -29,9 +29,6 @@ def create_run_parser(subparser: _SubParsersAction, command: str, parents: List[
 
     parser.add_argument("output", metavar="<output>", type=argparse_types.valid_path,
                         help="output data path")
-
-    parser.add_argument('-v', '--verbose', dest='verbose', action='store_true',
-                        default=False, help='verbose mode')
 
     parser.add_argument('-q', '--quiet', dest='quiet', action='store_true', default=False,
                         help='execute MAP quietly without printing container logs onto console')
