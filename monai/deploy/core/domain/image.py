@@ -23,8 +23,9 @@ class Image(Domain):
     def __init__(self, data: Union[ArrayLike], metadata: Optional[Dict] = None):
         super().__init__(metadata)
         self._data = data
-
-    #     return self.__ndim
+        
+    def asnumpy(self) -> ArrayLike:
+        return self._data
 
     # @ndim.setter
     # def ndim(self, val):
