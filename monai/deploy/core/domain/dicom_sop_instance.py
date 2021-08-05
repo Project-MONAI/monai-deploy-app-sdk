@@ -25,9 +25,8 @@ class DICOMSOPInstance(Domain):
     def __getitem__(self, key: Union[slice, TagType]) -> Union["Dataset", DataElement]:
         return self._sop.__getitem__(key)
 
-    
-    @property
-    def pixel_array(self):
+
+    def get_pixel_array(self):
         return self._sop.pixel_array
 
     def __str__(self):

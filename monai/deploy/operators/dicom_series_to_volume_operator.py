@@ -55,17 +55,15 @@ class DICOMSeriesToVolumeOperator(Operator):
         metadata = self.create_metadata(dicom_series)
         voxel_data = self.generate_voxel_data(dicom_series)
         image = self.create_volumetric_image(voxel_data, metadata)
-        output.set(image)
+        output.set(image, "image")
 
 
     def generate_voxel_data(self, series):
         slices = series.get_sop_instances()
-        vol_data = np.stack([s.pixel_array for s in slices])
+        vol_data = np.stack([s.get_pixel_array() for s in slices])
         vol_data = vol_data.astype(np.int16)
         intercept = slices[0][0x0028, 0x1052].value
         slope = slices[0][0x0028, 0x1053].value
-        print(intercept)
-        print(slope)
 
         if slope != 1:
             image = slope * vol_data.astype(np.float64)
