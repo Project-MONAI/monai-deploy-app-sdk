@@ -20,6 +20,7 @@ from monai.deploy.core import (
     input,
     output,
 )
+import copy
 from monai.deploy.core.domain.dicom_series import DICOMSeries
 from monai.deploy.core.domain.dicom_study import DICOMStudy
 
@@ -90,14 +91,8 @@ class DICOMDataLoaderOperator(Operator):
                 study_dict[study_instance_uid].add_series(series)
                 
                 
-            #print("adding sop instance to series ", series_instance_uid)
             series_dict[series_instance_uid].add_sop_instance(sop_instance)
 
-        # for each_series in series_dict.values():
-        #     #each_series.prepare()
-        #     #self.prepare_series(each_series)
-        #     #print(each_series)
-        #     # 
         
         return list(study_dict.values())
 
@@ -162,79 +157,72 @@ class DICOMDataLoaderOperator(Operator):
         except KeyError:
             pass
 
-    
 
-    def prepare_series(self, series):
+        try:
+            series_description_de = sop_instance[0x0008, 0x103E]
+            if series_description_de != None :
+                series.series_description = series_description_de.value
+        except KeyError:
+            pass
 
-        if len(series._sop_instances) <= 1:
-            return
-
-        slice_indices_to_be_removed = []
-        row_pixel_spacing = 0.0
-        col_pixel_spacing = 0.0
-        depth_pixel_spacing = 0.0
-
-        for slice_index, slice in enumerate(series._sop_instances):
-            distance = 0.0
-            point = [0.0, 0.0, 0.0]
-            slice_normal = [0.0, 0.0, 0.0]
-            slice_position = None
-            cosines = None
-            
-            try:
-                image_orientation_patient_de = slice[0x0020,0x0037]
-                if image_orientation_patient_de != None :
-                    image_orientation_patient = image_orientation_patient_de.value
-                    cosines = image_orientation_patient
-            except KeyError:
-                pass
+        try:
+            body_part_examined_de = sop_instance[0x0008, 0x0015]
+            if body_part_examined_de != None :
+                series.body_part_examined = body_part_examined_de.value
+        except KeyError:
+            pass
 
 
-            try:
-                image_poisition_patient_de = slice[0x0020,0x0032]
-                if image_poisition_patient_de  != None :
-                    image_poisition_patient = image_poisition_patient_de .value
-                    slice_position = image_poisition_patient
-            except KeyError:
-                pass
+        try:
+            patient_position_de = sop_instance[0x0018, 0x5100]
+            if patient_position_de != None :
+                series.patient_position = patient_position_de.value
+        except KeyError:
+            pass
 
 
-            distance = 0.0
-
-            if (cosines != None) and (slice_position != None):
-                slice_normal[0] = cosines[1]*cosines[5] - cosines[2]*cosines[4]
-                slice_normal[1] = cosines[2]*cosines[3] - cosines[0]*cosines[5]
-                slice_normal[2] = cosines[0]*cosines[4] - cosines[1]*cosines[3]
-                
-                i = 0
-                while i < 3:
-                    point[i] = slice_normal[i] * slice_position[i]
-                    i += 1
-
-                distance += point[0] + point[1] + point[2]
-
-                series._sop_instances[slice_index].distance = distance
-                series._sop_instances[slice_index].first_pixel_on_slice_normal = point
-            else:
-                slice_indices_to_be_removed.append(slice_index)
+        try:
+            series_number_de = sop_instance[0x0020, 0x0011]
+            if series_number_de != None :
+                series.series_number = series_number_de.value
+        except KeyError:
+            pass
 
 
+        try:
+            laterality_de = sop_instance[0x0020, 0x0060]
+            if laterality_de != None :
+                series.laterality = laterality_de.value
+        except KeyError:
+            pass
 
-        for sl_index, sl in enumerate(series._sop_instances):
-            del series._sop_instances[sl_index]
-        
 
-        series._sop_instances = sorted(series._sop_instances, key=lambda s: s.distance)
+        try:
+            row_pixel_spacing_de = sop_instance[0x0028, 0x0030]
+            if row_pixel_spacing_de != None :
+                series.row_pixel_spacing = row_pixel_spacing_de.value[0]
+        except KeyError:
+            pass
 
-        if len(series._sop_instances) > 1:
-            p1 = series._sop_instances[0].first_pixel_on_slice_normal
-            p2 = series._sop_instances[1].first_pixel_on_slice_normal
-            depth_pixel_spacing = (p1[0] - p2[0])*(p1[0] - p2[0]) + (p1[1] - p2[1])*(p1[1] - p2[1]) + (p1[2] - p2[2])*(p1[2] - p2[2])
-            depth_pixel_spacing = math.sqrt(depth_pixel_spacing)
-            series.depth_pixel_spacing = depth_pixel_spacing
-        
 
-        
+        try:
+            col_pixel_spacing_de = sop_instance[0x0028, 0x0030]
+            if col_pixel_spacing_de != None :
+                series.col_pixel_spacing = col_pixel_spacing_de.value[1]
+        except KeyError:
+            pass
+
+
+        try:
+            image_orientation_paient_de = sop_instance[0x0020, 0x0037]
+            if  image_orientation_paient_de != None :
+                orientation = image_orientation_paient_de.value
+                series.row_direction_cosine = copy.deepcopy(orientation[0:3])
+                series.col_direction_cosine = copy.deepcopy(orientation[3:6])
+        except KeyError:
+            pass
+
+
 
 def main():
     data_path = "/home/rahul/medical-images/mixed-data/"
@@ -257,9 +245,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-
-#https://github.com/pydicom/pydicom/issues/1238
-#https://github.com/pydicom/contrib-pydicom/blob/master/input-output/pydicom_series.py
-#https://github.com/pydicom/contrib-pydicom/blob/master/input-output/pydicom_series.py
-#https://github.com/pydicom/contrib-pydicom/tree/master/input-output/dicom_model
