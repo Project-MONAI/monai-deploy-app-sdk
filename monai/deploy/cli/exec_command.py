@@ -27,7 +27,7 @@ def create_exec_parser(subparser: _SubParsersAction, command: str, parents: List
 
     parser.add_argument("--input", "-i", help="Path to input folder/file")
     parser.add_argument("--output", "-o", help="Path to output folder/file")
-    parser.add_argument("--model", "-m", help="Path to model folder/file")
+    parser.add_argument("--model", "-m", help="Path to model(s) folder/file")
     parser.add_argument(
         "--graph",
         help=f"Graph engine",
