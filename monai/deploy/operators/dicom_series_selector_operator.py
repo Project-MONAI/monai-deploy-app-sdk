@@ -48,6 +48,8 @@ import numpy as np
 
 class DICOMSeriesSelectorOperator(Operator):
 
+    """This operator filters out a list of DICOM Series given some selection rules"""
+
     def compute(self, input: InputContext, output: OutputContext, context: ExecutionContext):
         """Performs computation for this operator.
         """
