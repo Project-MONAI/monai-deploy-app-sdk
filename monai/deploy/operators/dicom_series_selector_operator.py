@@ -25,6 +25,7 @@ from monai.deploy.core import (
 from monai.deploy.core.domain.dicom_series import DICOMSeries
 from monai.deploy.core.domain.dicom_study import DICOMStudy
 from monai.deploy.operators.dicom_data_loader_operator import DICOMDataLoaderOperator
+from monai.deploy.exceptions import ItemNotExistsError
 
 from monai.deploy.core.domain.image import Image
 
@@ -41,6 +42,7 @@ from pydicom.uid import generate_uid
 import numpy as np
 
 @input("dicom_study_list", DICOMStudy, IOType.IN_MEMORY)
+@input("selection_rules", Dict, IOType.IN_MEMORY)
 @output("dicom_series", DICOMSeries, IOType.IN_MEMORY)
 
 
@@ -49,10 +51,13 @@ class DICOMSeriesSelectorOperator(Operator):
     def compute(self, input: InputContext, output: OutputContext, context: ExecutionContext):
         """Performs computation for this operator.
         """
-        dicom_study_list = input.get("dicom_study_list")
-        #selection_rules = input.get("selection_rules")
-        dicom_series_list = self.filter(None, dicom_study_list)
-        output.set(dicom_series_list, "dicom_series")
+        try:
+            dicom_study_list = input.get("dicom_study_list")
+            #selection_rules = input.get("selection_rules")
+            dicom_series_list = self.filter(None, dicom_study_list)
+            output.set(dicom_series_list, "dicom_series")
+        except ItemNotExistsError:
+            pass
 
 
     def filter(self, selection_rules, dicom_study_list):
