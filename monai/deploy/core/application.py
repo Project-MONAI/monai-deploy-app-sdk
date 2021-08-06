@@ -10,10 +10,11 @@
 # limitations under the License.
 
 from abc import ABC, abstractmethod
-from typing import Dict, Optional, Set, Union
+from typing import Dict, Optional, Set, Union, Type
 
 from monai.deploy.core.graphs.factory import GraphFactory
 from monai.deploy.exceptions import IOMappingError
+from monai.deploy.utils.importutil import get_docstring
 
 from .app_context import AppContext
 from .datastores import DatastoreFactory
@@ -21,6 +22,7 @@ from .executors import ExecutorFactory
 from .graphs.graph import Graph
 from .operator import Operator
 from .operator_info import IO
+from .runtime_env import RuntimeEnv
 
 
 class Application(ABC):
@@ -31,13 +33,31 @@ class Application(ABC):
     as mechanism to execute the application.
     """
 
-    def __init__(self, do_run: bool = True):
+    name: str = ""
+    description: str = ""
+    version: str = ""
+
+    def __init__(self, runtime_env: Optional[Type[RuntimeEnv]] = None, do_run: bool = True):
         """Constructor for the base class.
 
         It created an instance of an empty Directed Acyclic Graph to hold on to
         the operators.
         """
-        context = AppContext()
+
+        # Setup app description
+        if not self.name:
+            self.name = self.__class__.__name__
+        if not self.description:
+            self.description = get_docstring(self.__class__)
+        if not self.version:
+            try:
+                from _version import get_versions
+
+                self.version = get_versions()["version"]
+            except ImportError:
+                self.version = "0.1"
+
+        context = AppContext(self, runtime_env)
 
         self._context: AppContext = context
 

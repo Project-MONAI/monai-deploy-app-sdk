@@ -22,6 +22,13 @@ class App(Application):
     This showcases the MONAI Deploy application framework.
     """
 
+    # App's name. <class name>('App') if not specified.
+    name = "simple_imaging_app"
+    # App's version. <git version tag> or '0.1' if not specified.
+    version = "0.1"
+    # App's description. <class docstring> if not specified.
+    description = "This is a very simple application."
+
     def compose(self):
         """This application has three operators.
 

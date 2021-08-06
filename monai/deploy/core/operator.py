@@ -24,7 +24,6 @@ from .operator_info import IO, OperatorInfo
 if TYPE_CHECKING:
     from .execution_context import ExecutionContext
 
-
 class Operator(ABC):
     """This is the base Operator class.
 

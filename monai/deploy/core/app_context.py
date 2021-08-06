@@ -9,32 +9,36 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import sys
+from typing import TYPE_CHECKING, Optional, Type
 
 from monai.deploy.cli.main import parse_args
+
+if TYPE_CHECKING:
+    from .application import Application
+
+from .runtime_env import RuntimeEnv
 
 
 class AppContext:
     """A class to store the context of an application."""
 
-    def __init__(self):
+    def __init__(self, app: Type[Application], runtime_env: Optional[Type[RuntimeEnv]] = None):
         # Parse the command line arguments
         argv = sys.argv
         args = parse_args(argv, default_command="exec")
 
+        # Set the runtime environment
+        self.runtime_env = runtime_env or RuntimeEnv()
+
+        # Set the backend engines
         self.graph = args.graph
         self.datastore = args.datastore
         self.executor = args.executor
 
-        self.input_path = args.input or "input"
-        self.output_path = args.output or "output"
-        self.model_path = args.model or "models"
-        print(args)
-
-        # input/output/model paths
-        # self.app_id = app_id
-        # self.app_name = app_name
-        # self.app_version = app_version
-        # self.app_description = app_description
-        # self.app_config = {}
-        # self.app_config_path = None
+        # Set the path to input/output/model
+        self.input_path = args.input or self.runtime_env.input
+        self.output_path = args.output or self.runtime_env.output
+        self.model_path = args.model or self.runtime_env.model
