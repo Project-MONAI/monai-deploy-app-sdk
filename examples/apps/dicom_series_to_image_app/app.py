@@ -11,13 +11,10 @@
 
 
 from monai.deploy.core import Application
-from monai.deploy.core.domain.dicom_study import DICOMStudy
-from monai.deploy.core.domain.dicom_series import DICOMSeries
-from monai.deploy.core.domain.dicom_sop_instance import DICOMSOPInstance
 from monai.deploy.operators.dicom_data_loader_operator import DICOMDataLoaderOperator
 from monai.deploy.operators.dicom_series_selector_operator import DICOMSeriesSelectorOperator
 from monai.deploy.operators.dicom_series_to_volume_operator import DICOMSeriesToVolumeOperator
-from monai.deploy.operators.png_converter_operator import PNGConverter
+from monai.deploy.operators.png_converter_operator import PNGConverterOperator
 
 
 
@@ -31,9 +28,8 @@ class App(Application):
         study_loader_op = DICOMDataLoaderOperator()
         series_selector_op = DICOMSeriesSelectorOperator()
         series_to_vol_op = DICOMSeriesToVolumeOperator()
-        png_converter_op = PNGConverter()
+        png_converter_op = PNGConverterOperator()
     
-
         self.add_flow(study_loader_op, series_selector_op, {"dicom_study_list": "dicom_study_list"})
         self.add_flow(series_selector_op, series_to_vol_op, {"dicom_series": "dicom_series"})
         self.add_flow(series_to_vol_op, png_converter_op, {"image": "image"})

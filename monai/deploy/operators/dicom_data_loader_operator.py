@@ -45,6 +45,9 @@ from pydicom.uid import generate_uid
 @output("dicom_study_list", DICOMStudy, IOType.IN_MEMORY)
 class DICOMDataLoaderOperator(Operator):
 
+    """This operator loads a collection of DICOM Studies in memory
+    given a directory which contains a list of SOP Instances"""
+
     def compute(self, input: InputContext, output: OutputContext, context: ExecutionContext):
         """Performs computation for this operator.
         """

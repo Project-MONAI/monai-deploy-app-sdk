@@ -46,6 +46,8 @@ import numpy as np
 
 
 class DICOMSeriesToVolumeOperator(Operator):
+    """This operator constructs a Volumetric Image out of a DICOM Series"""
+
 
     def compute(self, input: InputContext, output: OutputContext, context: ExecutionContext):
         """Performs computation for this operator.

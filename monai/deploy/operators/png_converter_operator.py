@@ -44,7 +44,9 @@ import matplotlib.pyplot as plt
 @input("image", Image, IOType.IN_MEMORY)
 @output("image", DataPath, IOType.DISK)
 
-class PNGConverter(Operator):
+class PNGConverterOperator(Operator):
+    """This operator writes out a 3D Volumtric Image to disk in a slice by slice manner"""
+
 
     def compute(self, input: InputContext, output: OutputContext, context: ExecutionContext):
         """Performs computation for this operator.
@@ -90,7 +92,7 @@ def main():
     metadata = op1.create_metadata(series)
     image = op1.create_volumetric_image(voxels, metadata)
 
-    op2 = PNGConverter()
+    op2 = PNGConverterOperator()
     op2.convert_and_save(image, out_path, -200, -2000)
 
     print(series)
