@@ -32,6 +32,7 @@ class App(Application):
         series_selector_op = DICOMSeriesSelectorOperator()
         series_to_vol_op = DICOMSeriesToVolumeOperator()
         png_converter_op = PNGConverter()
+    
 
         self.add_flow(study_loader_op, series_selector_op, {"dicom_study_list": "dicom_study_list"})
         self.add_flow(series_selector_op, series_to_vol_op, {"dicom_series": "dicom_series"})
