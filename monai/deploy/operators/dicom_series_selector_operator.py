@@ -48,7 +48,12 @@ import numpy as np
 
 class DICOMSeriesSelectorOperator(Operator):
 
-    """This operator filters out a list of DICOM Series given some selection rules"""
+    """
+    This operator filters out a list of DICOM Series given some selection rules
+    This is placeholder class. It has not been implemented yet.
+    Currently this operator always selects the first series in the List
+    When implemented it will honor the selection rules expressed in a dictionary format
+    """
 
     def compute(self, input: InputContext, output: OutputContext, context: ExecutionContext):
         """Performs computation for this operator.
