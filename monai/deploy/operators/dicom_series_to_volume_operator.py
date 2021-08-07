@@ -46,11 +46,17 @@ import numpy as np
 
 
 class DICOMSeriesToVolumeOperator(Operator):
-    """This operator constructs a Volumetric Image out of a DICOM Series"""
 
+    """
+    This operator converts an instance of DICOMSeries into an Image object. The loaded
+    Image Object can be used for further processing via other operators
+    """
 
     def compute(self, input: InputContext, output: OutputContext, context: ExecutionContext):
-        """Performs computation for this operator.
+        
+        """
+        Extracts the pixel data from a DICOM Series and other attributes to
+        for an instance of Image object
         """
         dicom_series = input.get()
         self.prepare_series(dicom_series)
@@ -61,6 +67,15 @@ class DICOMSeriesToVolumeOperator(Operator):
 
 
     def generate_voxel_data(self, series):
+        """
+        Applies rescale slope and rescale intercept to the pixels
+
+        Args:
+            series: DICOM Series for which the pixel data needs to be extracted
+        
+        Returns:
+            A 3D numpy tensor rerepesenting the volumetric data
+        """
         slices = series.get_sop_instances()
         vol_data = np.stack([s.get_pixel_array() for s in slices])
         vol_data = vol_data.astype(np.int16)
@@ -77,18 +92,36 @@ class DICOMSeriesToVolumeOperator(Operator):
 
 
     def create_volumetric_image(self, vox_data, metadata):
+        """
+        Creates an instance of 3D image
+
+        Args:
+            vox_data: numpy array representing the volumetric data
+            metadata: DICOM attributes in a dictionary
+        
+        Returns:
+            An instance of Image object
+        """
         image = Image(vox_data, metadata)
         return image
 
 
+
+
     def prepare_series(self, series):
 
+        """
+        Computes the slice normal for each slice and then projects the first voxel of each slice on that slice normal
+        Computes the distance of that point from the origin of the aient coordinate system along the alice normal
+        Orders the slices in the series according to that distance
+
+        Args:
+            series: an instance of DICOMSeries
+        """
         if len(series._sop_instances) <= 1:
             return
 
         slice_indices_to_be_removed = []
-        row_pixel_spacing = 0.0
-        col_pixel_spacing = 0.0
         depth_pixel_spacing = 0.0
         last_slice_normal = [0.0, 0.0, 0.0]
 
@@ -159,6 +192,14 @@ class DICOMSeriesToVolumeOperator(Operator):
 
     
     def create_metadata(self, series):
+        """
+        Collects all relevant metadata from the DICOM Series and creates a dictionary
+        Args:
+            series: an instance of DICOMSeries
+
+        Returns:
+            an instance of a dictionary containing metadata for the volumetric image
+        """
         metadata = {}
         metadata["series_instance_uid"] = series.get_series_instance_uid()
 
@@ -193,13 +234,10 @@ class DICOMSeriesToVolumeOperator(Operator):
         except AttributeError:
             pass
 
-
         try:
             metadata["depth_pixel_spacing"] =  series.depth_pixel_spacing
         except AttributeError:
             pass
-
-
 
         try:
             metadata["row_direction_cosine"] =  series.row_direction_cosine
@@ -228,7 +266,7 @@ def main():
     data_path = "/home/rahul/medical-images/lung-ct-2/"
     files = []
     loader = DICOMDataLoaderOperator()
-    loader._list_files(files, data_path)
+    loader._list_files(data_path, files)
     study_list = loader._load_data(files)
 
     series = study_list[0].get_all_series()[0]

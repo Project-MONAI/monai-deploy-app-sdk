@@ -44,30 +44,49 @@ from pydicom.uid import generate_uid
 @input("dicom_files", DataPath, IOType.DISK)
 @output("dicom_study_list", DICOMStudy, IOType.IN_MEMORY)
 class DICOMDataLoaderOperator(Operator):
+    """
+    This operator loads a collection of DICOM Studies in memory
+    given a directory which contains a list of SOP Instances
+    """
 
-    """This operator loads a collection of DICOM Studies in memory
-    given a directory which contains a list of SOP Instances"""
 
     def compute(self, input: InputContext, output: OutputContext, context: ExecutionContext):
-        """Performs computation for this operator.
+        """
+        Performs computation for this operator. It scans through the input
+        directory for all SOP instances. It groups them by a collection of studies where
+        each study contains one or more series. This method returns a set of studies
+
         """
         files = []
         input_path = input.get().path
-        self._list_files(files, input_path)
+        self._list_files(input_path, files)
         dicom_study_list = self._load_data(files)
         output.set(dicom_study_list)
     
 
-    def _list_files(self, files, path):
+    def _list_files(self, path, files):
+
+        """
+        Collects fully qualified names of all files recurvisely given a directory path
+
+        Args:
+            path: a directoty containing DICOM SOP instances. It have have nested hirerarchical directories
+            files: this method populates "files" with fully qualified names of files that belong to the specified directory
+        """
         for item in os.listdir(path):
             item = os.path.join(path, item)
             if os.path.isdir(item):
-                self._list_files(files, item)
+                self._list_files(item, files)
             else:
                 files.append(item)
 
 
     def _load_data(self, files):
+        """
+        Provides a list of DICOM Studies given a list of fully qualified file names
+        Args:
+            files: list of file names that represent SOP Instances
+        """
         study_dict = {}
         series_dict = {}
         sop_instances = []
@@ -95,12 +114,16 @@ class DICOMDataLoaderOperator(Operator):
                 
                 
             series_dict[series_instance_uid].add_sop_instance(sop_instance)
-
-        
         return list(study_dict.values())
 
 
     def populate_study_attributes(self, study, sop_instance):
+        """
+        Populates study level attributes in the study data structure
+        Args:
+            study: DICOM Study instance that needs to be filled-in with study level attribute values
+            sop_instance: A sample DICOM SOP Instance that contains the list of attributed which will be parsed
+        """
         try:
             study_id_de = sop_instance[0x0020,0x0010]
             if study_id_de != None :
@@ -138,7 +161,12 @@ class DICOMDataLoaderOperator(Operator):
 
 
     def populate_series_attributes(self, series, sop_instance):
-
+        """
+        Populates series level attributes in the study data structure
+        Args:
+            study: DICOM Series instance that needs to be filled-in with series level attribute values
+            sop_instance: A sample DICOM SOP Instance that contains the list of attributed which will be parsed
+        """
         try:
             series_date_de = sop_instance[0x0008,0x0021]
             if series_date_de != None :
@@ -159,7 +187,6 @@ class DICOMDataLoaderOperator(Operator):
                 series.modality = series_modality_de.value
         except KeyError:
             pass
-
 
         try:
             series_description_de = sop_instance[0x0008, 0x103E]
@@ -201,17 +228,10 @@ class DICOMDataLoaderOperator(Operator):
 
 
         try:
-            row_pixel_spacing_de = sop_instance[0x0028, 0x0030]
-            if row_pixel_spacing_de != None :
-                series.row_pixel_spacing = row_pixel_spacing_de.value[0]
-        except KeyError:
-            pass
-
-
-        try:
-            col_pixel_spacing_de = sop_instance[0x0028, 0x0030]
-            if col_pixel_spacing_de != None :
-                series.col_pixel_spacing = col_pixel_spacing_de.value[1]
+            pixel_spacing_de = sop_instance[0x0028, 0x0030]
+            if pixel_spacing_de != None :
+                series.row_pixel_spacing = pixel_spacing_de.value[0]
+                series.col_pixel_spacing = pixel_spacing_de.value[1]
         except KeyError:
             pass
 
@@ -219,20 +239,25 @@ class DICOMDataLoaderOperator(Operator):
         try:
             image_orientation_paient_de = sop_instance[0x0020, 0x0037]
             if  image_orientation_paient_de != None :
-                orientation = image_orientation_paient_de.value
-                series.row_direction_cosine = copy.deepcopy(orientation[0:3])
-                series.col_direction_cosine = copy.deepcopy(orientation[3:6])
+                orientation_orig = image_orientation_paient_de.value
+                orientation = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+                for index, name in enumerate(orientation_orig):
+                    orientation[index] = float(orientation_orig[index])
+
+                series.row_direction_cosine = orientation[0:3]
+                series.col_direction_cosine = orientation[3:6]
+
         except KeyError:
             pass
 
 
 
 def main():
-    data_path = "/home/rahul/medical-images/mixed-data/"
-    # data_path = "/home/rahul/medical-images/lung-ct-1/"
+    # data_path = "/home/rahul/medical-images/mixed-data/"
+    data_path = "/home/rahul/medical-images/lung-ct-1/"
     files = []
     loader = DICOMDataLoaderOperator()
-    loader._list_files(files, data_path)
+    loader._list_files(data_path, files)
     study_list = loader._load_data(files)
 
 

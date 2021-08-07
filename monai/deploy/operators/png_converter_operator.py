@@ -45,12 +45,12 @@ import matplotlib.pyplot as plt
 @output("image", DataPath, IOType.DISK)
 
 class PNGConverterOperator(Operator):
-    """This operator writes out a 3D Volumtric Image to disk in a slice by slice manner"""
+    """
+    This operator writes out a 3D Volumtric Image to disk in a slice by slice manner
+    """
 
 
     def compute(self, input: InputContext, output: OutputContext, context: ExecutionContext):
-        """Performs computation for this operator.
-        """
         input = input.get("image")
         output_dir = output.get().path
         output_dir.mkdir(parents=True, exist_ok=True)
@@ -60,6 +60,10 @@ class PNGConverterOperator(Operator):
 
 
     def convert_and_save(self, image, path):
+        """
+        extracts the slices in originally acquired direction (often axial)
+        and saves then in PNG format slice by slice in the specified directory
+        """
         image_data = image.asnumpy()
         image_shape = image_data.shape
 
