@@ -19,6 +19,7 @@ from monai.deploy.cli.main import parse_args
 if TYPE_CHECKING:
     from .application import Application
 
+from .resource import Resource
 from .runtime_env import RuntimeEnv
 
 
@@ -42,3 +43,7 @@ class AppContext:
         self.input_path = args.input or self.runtime_env.input
         self.output_path = args.output or self.runtime_env.output
         self.model_path = args.model or self.runtime_env.model
+
+        # Set resource limits
+        # TODO(gigony): Add cli option to set resource limits
+        self.resource = Resource()

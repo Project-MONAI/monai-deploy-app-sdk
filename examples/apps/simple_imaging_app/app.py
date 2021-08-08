@@ -13,9 +13,11 @@ from gaussian_operator import GaussianOperator
 from median_operator import MedianOperator
 from sobel_operator import SobelOperator
 
-from monai.deploy.core import Application
+from monai.deploy.core import Application, env, resource
 
 
+@resource(cpu=1, memory=-1, gpu=-1)
+@env(pip_packages=["scikit-image >= 0.18.0"])
 class App(Application):
     """This is a very basic application.
 
