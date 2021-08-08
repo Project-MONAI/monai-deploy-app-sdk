@@ -10,7 +10,7 @@
 # limitations under the License.
 
 from abc import ABC, abstractmethod
-from typing import Dict, Optional, Set, Union, Type
+from typing import Dict, List, Optional, Set, Type, Union
 
 from monai.deploy.core.graphs.factory import GraphFactory
 from monai.deploy.exceptions import IOMappingError
@@ -57,11 +57,16 @@ class Application(ABC):
             except ImportError:
                 self.version = "0.1"
 
+        self._env = None
+
         context = AppContext(self, runtime_env)
 
         self._context: AppContext = context
 
         self._graph: Graph = GraphFactory.create(context.graph)
+
+        # Compose operators
+        self.compose()
 
         if do_run:
             datastore = DatastoreFactory.create(context.datastore)
@@ -86,6 +91,19 @@ class Application(ABC):
             Instance of the DAG
         """
         return self._graph
+
+    @property
+    def env(self):
+        """Gives access to the environment.
+
+        This sets a default value for the application's environment if not set.
+
+        Returns:
+            An instance of ApplicationEnv.
+        """
+        if self._env is None:
+            self._env = ApplicationEnv()
+        return self._env
 
     def add_operator(self, operator: Operator):
         """Adds an operator to the graph.
@@ -193,3 +211,24 @@ class Application(ABC):
 
         """
         pass
+
+
+class ApplicationEnv:
+    """Settings for the application environment.
+
+    This class is used to specify the environment settings for the application.
+    """
+
+    def __init__(self, pip_packages: Optional[List[str]] = None):
+        """Constructor of the ApplicationEnv class.
+
+        Args:
+            pip_packages (Optional[List[str]]): A list of pip packages to install.
+
+        Returns:
+            An instance of ApplicationEnv.
+        """
+        self._pip_packages = pip_packages or []
+
+    def __str__(self):
+        return "ApplicationEnv(pip_packages={})".format(self._pip_packages)

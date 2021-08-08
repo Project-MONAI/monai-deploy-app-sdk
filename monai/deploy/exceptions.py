@@ -17,13 +17,13 @@ class MONAIAppSdkError(Exception):
 
 
 class ItemAlreadyExistsError(MONAIAppSdkError):
-    """Raises when an item already exists in the data store."""
+    """Raises when an item already exists in the container."""
 
     pass
 
 
 class ItemNotExistsError(MONAIAppSdkError):
-    """Raises when an item does not exist in the data store."""
+    """Raises when an item does not exist in the container."""
 
     pass
 
@@ -36,5 +36,10 @@ class IOMappingError(MONAIAppSdkError):
 
 class UnknownTypeError(MONAIAppSdkError):
     """Raises when unknown type is specified."""
+
+    pass
+
+class UnsupportedOperationError(MONAIAppSdkError):
+    """Raises when unsupported operation is requested."""
 
     pass

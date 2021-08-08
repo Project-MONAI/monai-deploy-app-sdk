@@ -14,7 +14,9 @@ from __future__ import annotations
 import functools
 import uuid
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Type, Union
+from typing import TYPE_CHECKING, List, Optional, Type, Union
+
+from monai.deploy.exceptions import UnknownTypeError
 
 from .domain import Domain
 from .io_context import InputContext, OutputContext
@@ -23,6 +25,7 @@ from .operator_info import IO, OperatorInfo
 
 if TYPE_CHECKING:
     from .execution_context import ExecutionContext
+
 
 class Operator(ABC):
     """This is the base Operator class.
@@ -42,6 +45,7 @@ class Operator(ABC):
         super().__init__()
         self._uid = uuid.uuid4()
         self._op_info = OperatorInfo()
+        self._env = None
 
     def __hash__(self):
         return hash(self._uid)
@@ -84,6 +88,19 @@ class Operator(ABC):
 
         """
         return self._op_info
+
+    @property
+    def env(self):
+        """Gives access to the environment.
+
+        This sets a default value for the operator's environment if not set.
+
+        Returns:
+            An instance of OperatorEnv.
+        """
+        if self._env is None:
+            self._env = OperatorEnv()
+        return self._env
 
     def ensure_valid(self):
         """Ensures that the operator is valid.
@@ -141,7 +158,10 @@ def input(label: str = "", data_type: Type[Domain] = None, storage_type: Union[i
         @functools.wraps(cls)
         def wrapper(*args, **kwargs):
             operator = cls(*args, **kwargs)
-            operator.add_input(label, data_type, storage_type)
+            if isinstance(operator, Operator):
+                operator.add_input(label, data_type, storage_type)
+            else:
+                raise UnknownTypeError("Use @input decorator only for an instance of Operator!")
             return operator
 
         return wrapper
@@ -165,9 +185,33 @@ def output(label: str = "", data_type: Type[Domain] = None, storage_type: Union[
         @functools.wraps(cls)
         def wrapper(*args, **kwargs):
             operator = cls(*args, **kwargs)
-            operator.add_output(label, data_type, storage_type)
+            if isinstance(operator, Operator):
+                operator.add_output(label, data_type, storage_type)
+            else:
+                raise UnknownTypeError("Use @output decorator only for an instance of Operator!")
             return operator
 
         return wrapper
 
     return decorator
+
+
+class OperatorEnv:
+    """Settings for the operator environment.
+
+    This class is used to specify the environment settings for the operator.
+    """
+
+    def __init__(self, pip_packages: Optional[List[str]] = None):
+        """Constructor of the OperatorEnv class.
+
+        Args:
+            pip_packages (Optional[List[str]]): A list of pip packages to install.
+
+        Returns:
+            An instance of OperatorEnv.
+        """
+        self._pip_packages = pip_packages or []
+
+    def __str__(self):
+        return "OperatorEnv(pip_packages={})".format(self._pip_packages)

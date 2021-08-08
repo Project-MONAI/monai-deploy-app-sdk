@@ -34,7 +34,6 @@ class Executor(ABC):
             datastore: A data store that is used to store the data.
         """
         self._app = app
-        self._app.compose()
         if datastore:
             self._datastore = datastore
         else:
