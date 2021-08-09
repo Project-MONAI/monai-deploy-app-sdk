@@ -315,7 +315,7 @@ Triton Inference Server provides a cloud and edge inferencing solution optimized
 Use a pre-trained model to develop an application using the App SDK. Verify that the application can be designed in such a way so that the app can leverage Triton at run-time without the app developer explicitly making use of Triton API
 
 #### Target Release
-MONAI Deploy App SDK 0.1.0
+MONAI Deploy App SDK 0.2.0
 
 ---
 
@@ -332,7 +332,7 @@ MONAI Informatics Gateway is a subsystem of the MONAI Deploy platform which faci
 Design an app which ingests DICOM SOP Instances as input and generates DICOM SOP Instances as output. Verify that the input can be provided from the MONAI Informatics Gateway and outputs can be pushed to the MONAI Informatics Gateway.
 
 #### Target Release
-MONAI Deploy App SDK 0.1.0
+MONAI Deploy App SDK 0.2.0
 
 ---
 
