@@ -14,6 +14,8 @@ import sys
 from argparse import ArgumentParser, Namespace, _SubParsersAction
 from typing import List
 
+from monai.deploy.utils.importutil import get_application
+
 
 def create_package_parser(subparser: _SubParsersAction, command: str, parents: List[ArgumentParser]) -> ArgumentParser:
     parser = subparser.add_parser(command, formatter_class=argparse.ArgumentDefaultsHelpFormatter,
@@ -26,6 +28,13 @@ def create_package_parser(subparser: _SubParsersAction, command: str, parents: L
 
 
 def execute_package_command(args: Namespace):
-    if not args.tag:  # if tag name is empty
-        print("Missing tag name. Use --tag=<tag name>", file=sys.stderr)
-        sys.exit(1)
+    # if not args.tag:  # if tag name is empty
+    #     print("Missing tag name. Use --tag=<tag name>", file=sys.stderr)
+    #     sys.exit(1)
+
+    # Package information example:
+    #   $ monai-deploy package examples/apps/simple_imaging_app
+    app = get_application(args.application)
+    from pprint import PrettyPrinter
+    pp = PrettyPrinter(indent=4)
+    pp.pprint(app.get_package_info())

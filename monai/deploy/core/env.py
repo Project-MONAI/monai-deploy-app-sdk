@@ -54,6 +54,9 @@ def env(pip_packages: Optional[List[str]] = None):
 
             return obj
 
+        if hasattr(cls, '_class_id'):
+            wrapper._class_id = cls._class_id
+
         return wrapper
 
     return decorator

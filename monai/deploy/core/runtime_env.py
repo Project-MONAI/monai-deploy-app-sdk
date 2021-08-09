@@ -13,6 +13,10 @@ import os
 from abc import ABC
 from typing import Dict, Tuple
 
+from monai.deploy.core.datastores.factory import DatastoreFactory
+from monai.deploy.core.executors.factory import ExecutorFactory
+from monai.deploy.core.graphs.factory import GraphFactory
+
 
 class RuntimeEnv(ABC):
     """Class responsible to managing run time settings.
@@ -24,7 +28,10 @@ class RuntimeEnv(ABC):
     ENV_DEFAULT = {
         "input": ("MONAI_INPUTPATH", "input"),
         "output": ("MONAI_OUTPUTPATH", "output"),
-        "model": ("MONAI_MODELPATH", "model"),
+        "model": ("MONAI_MODELPATH", "models"),
+        "graph": ("MONAI_GRAPH", GraphFactory.DEFAULT),
+        "datastore": ("MONAI_DATASTORE", DatastoreFactory.DEFAULT),
+        "executor": ("MONAI_EXECUTOR", ExecutorFactory.DEFAULT),
     }
 
     input: str = ""

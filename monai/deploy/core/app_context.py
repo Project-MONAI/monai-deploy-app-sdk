@@ -9,15 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from __future__ import annotations
-
-import sys
-from typing import TYPE_CHECKING, Optional, Type
-
-from monai.deploy.cli.main import parse_args
-
-if TYPE_CHECKING:
-    from .application import Application
+from argparse import Namespace
+from typing import Optional, Type
 
 from .resource import Resource
 from .runtime_env import RuntimeEnv
@@ -26,23 +19,19 @@ from .runtime_env import RuntimeEnv
 class AppContext:
     """A class to store the context of an application."""
 
-    def __init__(self, app: Type[Application], runtime_env: Optional[Type[RuntimeEnv]] = None):
-        # Parse the command line arguments
-        argv = sys.argv
-        args = parse_args(argv, default_command="exec")
-
+    def __init__(self, args: Namespace, runtime_env: Optional[Type[RuntimeEnv]] = None):
         # Set the runtime environment
         self.runtime_env = runtime_env or RuntimeEnv()
-
-        # Set the backend engines
-        self.graph = args.graph
-        self.datastore = args.datastore
-        self.executor = args.executor
 
         # Set the path to input/output/model
         self.input_path = args.input or self.runtime_env.input
         self.output_path = args.output or self.runtime_env.output
         self.model_path = args.model or self.runtime_env.model
+
+        # Set the backend engines
+        self.graph = args.graph or self.runtime_env.graph
+        self.datastore = args.datastore or self.runtime_env.datastore
+        self.executor = args.executor or self.runtime_env.executor
 
         # Set resource limits
         # TODO(gigony): Add cli option to set resource limits

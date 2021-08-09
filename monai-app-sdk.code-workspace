@@ -22,5 +22,22 @@
 		"python.linting.mypyEnabled": true,
 		"python.languageServer": "Pylance",
 		"editor.formatOnSaveMode": "modifications",
+	},
+	"launch": {
+		"version": "0.2.0",
+		// https://code.visualstudio.com/docs/editor/variables-reference
+		"configurations": [
+			{
+				"name": "Python: simple_imaging_app",
+				"type": "python",
+				"request": "launch",
+				"program": "${workspaceFolder:monai-app-sdk}/examples/apps/simple_imaging_app/app.py",
+				"args": ["-i", "${workspaceFolder:monai-app-sdk}/examples/apps/simple_imaging_app/brain_mr_input.jpg", "-o", "${workspaceFolder:monai-app-sdk}/output"],
+				"cwd": "${workspaceFolder:monai-app-sdk}",
+				"console": "integratedTerminal",
+				// Hanging on WSL2 if DISPLAY is set. Due to https://github.com/matplotlib/matplotlib/pull/17396
+				"env" : {"DISPLAY": ""}
+			}
+		]
 	}
 }
