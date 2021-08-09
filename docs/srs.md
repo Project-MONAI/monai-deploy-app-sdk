@@ -200,7 +200,7 @@ Use a pre-trained model designed for multi-class multi-output classification. Ve
 
 
 #### Target Release
-MONAI Deploy App SDK 0.1.0
+MONAI Deploy App SDK 0.2.0
 
 ---
 
@@ -235,7 +235,7 @@ Use a pre-trained model designed for Instance Segmentation. Verify that the SDK 
 
 
 #### Target Release
-MONAI Deploy App SDK 0.1.0
+MONAI Deploy App SDK 0.2.0
 
 ---
 
@@ -301,7 +301,7 @@ MMAR defines the standard structure for storing artifacts (files) needed and pro
 Use an existing MMAR from the Clara Train Repository. Verify that the App SDK provides built-in mechanisms to incorporate the model inherent in the MMAR to perform inference
 
 #### Target Release
-MONAI Deploy App SDK 0.1.0
+MONAI Deploy App SDK 0.2.0
 
 ---
 
