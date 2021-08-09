@@ -9,12 +9,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import sys
 from abc import ABC, abstractmethod
+from pathlib import Path
 from typing import Dict, List, Optional, Set, Type, Union
 
+from monai.deploy import __version__ as SDK_VERSION
+from monai.deploy.cli.main import LOG_CONFIG_FILENAME, parse_args, set_up_logging
 from monai.deploy.core.graphs.factory import GraphFactory
 from monai.deploy.exceptions import IOMappingError
-from monai.deploy.utils.importutil import get_docstring
+from monai.deploy.utils.importutil import get_class_file_path, get_docstring, is_application
 
 from .app_context import AppContext
 from .datastores import DatastoreFactory
@@ -33,17 +37,34 @@ class Application(ABC):
     as mechanism to execute the application.
     """
 
+    # Application's name. <class name> if not specified.
     name: str = ""
+    # Application's version. <git version tag> or '0.1.0' if not specified.
     description: str = ""
+    # Application's description. <class docstring> if not specified.
     version: str = ""
 
-    def __init__(self, runtime_env: Optional[Type[RuntimeEnv]] = None, do_run: bool = True):
-        """Constructor for the base class.
+    # Special attribute to identify the application
+    _class_id: str = "monai.application"
 
-        It created an instance of an empty Directed Acyclic Graph to hold on to
-        the operators.
+    def __init__(
+        self,
+        runtime_env: Optional[Type[RuntimeEnv]] = None,
+        do_run: bool = False,
+        path: Optional[Union[str, Path]] = None,
+    ):
+        """Constructor for the application class.
+
+        It initializes the application's graph, the runtime environment and the application context.
+
+        if `do_run` is True, it would accept user's arguments from CLI and execute the application.
+
+        Args:
+            runtime_env (Optional[RuntimeEnv]): The runtime environment to use.
+            do_run (bool): Whether to run the application.
+            path (Optional[Union[str, Path]]): The path to the application (Python file path).
+                This information is used for launching the application to get the package information.
         """
-
         # Setup app description
         if not self.name:
             self.name = self.__class__.__name__
@@ -59,7 +80,22 @@ class Application(ABC):
 
         self._env = None
 
-        context = AppContext(self, runtime_env)
+        # Set the application path
+        if path:
+            self.path = Path(path)
+        else:
+            self.path = get_class_file_path(self.__class__)
+
+        # Setup program arguments
+        if do_run:
+            argv = sys.argv
+        else:
+            argv = [sys.executable, str(self.path)]  # use default parameters
+
+        # Parse the command line arguments
+        args = parse_args(argv, default_command="exec")
+
+        context = AppContext(args, runtime_env)
 
         self._context: AppContext = context
 
@@ -69,9 +105,15 @@ class Application(ABC):
         self.compose()
 
         if do_run:
-            datastore = DatastoreFactory.create(context.datastore)
-            executor = ExecutorFactory.create(context.executor, {"app": self, "datastore": datastore})
-            executor.run()
+            # Set up logging (try to load `LOG_CONFIG_FILENAME` in the application folder)
+            # and run the application
+            app_log_config_path = self.path.parent / LOG_CONFIG_FILENAME
+            set_up_logging(args.log_level, config_path=app_log_config_path)
+            self.run()
+
+    @classmethod
+    def __subclasshook__(cls, c: Type) -> bool:
+        return is_application(c)
 
     @property
     def name(self):
@@ -201,6 +243,33 @@ class Application(ABC):
                     )
 
         self._graph.add_flow(upstream_op, downstream_op, io_map)
+
+    def get_package_info(self) -> Dict:
+        """Returns the package information of this application.
+
+        Returns:
+            A dictionary containing the package information of this application.
+        """
+        app_path = self.path.name
+        command = f"python3 -u /opt/monai/app/{app_path}"
+        resource = self.context.resource
+
+        return {
+            "app-name": self.name,
+            "app-version": self.version,
+            "sdk-version": SDK_VERSION,
+            "command": command,
+            "resource": {
+                "cpu": resource.cpu,
+                "gpu": resource.gpu,
+                "memory": resource.memory,
+            },
+        }
+
+    def run(self):
+        datastore = DatastoreFactory.create(self.context.datastore)
+        executor = ExecutorFactory.create(self.context.executor, {"app": self, "datastore": datastore})
+        executor.run()
 
     @abstractmethod
     def compose(self):

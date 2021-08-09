@@ -22,29 +22,29 @@ from monai.deploy.core.graphs.factory import GraphFactory
 
 
 def create_exec_parser(subparser: _SubParsersAction, command: str, parents: List[ArgumentParser]) -> ArgumentParser:
-    parser = subparser.add_parser(command, formatter_class=argparse.ArgumentDefaultsHelpFormatter,
-                                  parents=parents, add_help=False)
+    # Intentionally use `argparse.HelpFormatter` instead of `argparse.ArgumentDefaultsHelpFormatter`.
+    # Default values for those options are None and those would be filled by `RuntimeEnv` object later.
+    parser = subparser.add_parser(
+        command, formatter_class=argparse.HelpFormatter, parents=parents, add_help=False
+    )
 
-    parser.add_argument("--input", "-i", help="Path to input folder/file")
-    parser.add_argument("--output", "-o", help="Path to output folder/file")
-    parser.add_argument("--model", "-m", help="Path to model(s) folder/file")
+    parser.add_argument("--input", "-i", help="Path to input folder/file (default: input)")
+    parser.add_argument("--output", "-o", help="Path to output folder/file (default: output)")
+    parser.add_argument("--model", "-m", help="Path to model(s) folder/file (default: models)")
     parser.add_argument(
         "--graph",
-        help=f"Graph engine",
+        help=f"Graph engine (default: {GraphFactory.DEFAULT})",
         choices=GraphFactory.NAMES,
-        default=GraphFactory.DEFAULT,
     )
     parser.add_argument(
         "--datastore",
-        help=f"Datastore",
+        help=f"Datastore (default: {DatastoreFactory.DEFAULT})",
         choices=DatastoreFactory.NAMES,
-        default=DatastoreFactory.DEFAULT,
     )
     parser.add_argument(
         "--executor",
-        help=f"Executor",
+        help=f"Executor (default: {ExecutorFactory.DEFAULT})",
         choices=ExecutorFactory.NAMES,
-        default=ExecutorFactory.DEFAULT,
     )
     parser.add_argument("remaining", nargs="*")
 

@@ -18,7 +18,7 @@ from monai.deploy.exceptions import ItemAlreadyExistsError, UnknownTypeError, Un
 class Resource:
     """Class responible for resource limits.
 
-    Each resource limit value is None (its access would return -1) and the value is overriden by @resource decorator
+    Each resource limit value is None (its access would return 0) and the value is overriden by @resource decorator
     and then by the CLI arguments.
 
     To do so, first, each resource limit value is set to None unless those values are set by the CLI arguments.
@@ -34,19 +34,21 @@ class Resource:
     @property
     def cpu(self) -> int:
         if self._cpu is None:
-            return -1
+            return 0
         return self._cpu
 
     @property
     def memory(self) -> int:
         if self._memory is None:
-            return -1
+            return 0
         return self._memory
 
     @property
     def gpu(self) -> int:
+        # TODO(gigony): check if the gpu limit can be distinguished between all gpus vs zero gpu.
+        #               https://github.com/NVIDIA/k8s-device-plugin/issues/61
         if self._gpu is None:
-            return -1
+            return 0
         return self._gpu
 
     def set_resource_limits(
@@ -122,6 +124,9 @@ def resource(
                 raise UnknownTypeError("Use @resource decorator only for an instance of Application!")
 
             return app
+
+        if hasattr(cls, "_class_id"):
+            wrapper._class_id = cls._class_id
 
         return wrapper
 

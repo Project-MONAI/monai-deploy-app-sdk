@@ -16,7 +16,7 @@ from sobel_operator import SobelOperator
 from monai.deploy.core import Application, env, resource
 
 
-@resource(cpu=1, memory=-1, gpu=-1)
+@resource(cpu=1)
 @env(pip_packages=["scikit-image >= 0.18.0"])
 class App(Application):
     """This is a very basic application.
@@ -26,8 +26,8 @@ class App(Application):
 
     # App's name. <class name>('App') if not specified.
     name = "simple_imaging_app"
-    # App's version. <git version tag> or '0.1' if not specified.
-    version = "0.1"
+    # App's version. <git version tag> or '0.1.0' if not specified.
+    version = "0.1.0"
     # App's description. <class docstring> if not specified.
     description = "This is a very simple application."
 
@@ -49,4 +49,4 @@ class App(Application):
 
 
 if __name__ == "__main__":
-    App()
+    App(do_run=True)
