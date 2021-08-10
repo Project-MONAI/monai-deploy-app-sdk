@@ -128,7 +128,5 @@ dmypy.json
 # Pyre type checker
 .pyre/
 
-# input/output/models folders that exist temporarily
-input
+# output folders that exist temporarily
 output
-models

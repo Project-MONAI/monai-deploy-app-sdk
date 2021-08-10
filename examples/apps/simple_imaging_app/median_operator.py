@@ -29,6 +29,11 @@ class MedianOperator(Operator):
     def compute(self, input: InputContext, output: OutputContext, context: ExecutionContext):
         from skimage.filters import median
 
+        # model = context.models.get()  # PyTorchModel object that inherits Model class
+        # # model.name for accessing the model's name
+        # # model.path for accessing the model's path
+        # result = model.infer(input.get().asnumpy())
+
         data_in = input.get().asnumpy()
         data_out = median(data_in)
         output.set(Image(data_out))

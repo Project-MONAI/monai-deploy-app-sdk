@@ -230,6 +230,76 @@ retry() {
 # Section: Build
 #==================================================================================
 
+install_python_dev_deps_() {
+    if [ -n "${CONDA_PREFIX}" ]; then
+        run_command conda install -c conda-forge -y \
+            --file ${TOP}/requirements-dev.txt
+        run_command conda install -c conda-forge -y \
+            --file ${TOP}/requirements-examples.txt
+    else
+        if [ -n "${VIRTUAL_ENV}" ]; then
+            run_command python3 -m pip install -q -U setuptools pip wheel
+            run_command python3 -m pip install -q -r ${TOP}/requirements-dev.txt
+            run_command python3 -m pip install -q -r ${TOP}/requirements-examples.txt
+
+        else
+            run_command python3 -m pip install -q --user -U setuptools pip wheel
+            run_command python3 -m pip install -q --user -r ${TOP}/requirements-dev.txt
+            run_command python3 -m pip install -q --user -r ${TOP}/requirements-examples.txt
+        fi
+    fi
+
+    # Create a symlink to the virtual environment.
+    # This solves an issue with separate package folders for 'monai' and 'monai-app-sdk' like below:
+    # - 'monai': installed with 'pip install monai'
+    # - 'monai-app-sdk': installed with 'pip install -e .  # installed with development(edit) mode
+    local monai_package_path=$(python3 $TOP/monai/deploy/utils/importutil.py dist_module_path monai)
+    local sdk_package_path=$(python3 $TOP/monai/deploy/utils/importutil.py dist_module_path monai-app-sdk)
+    local is_sdk_editable="false"
+    if python3 $TOP/monai/deploy/utils/importutil.py is_dist_editable monai-app-sdk; then
+        is_sdk_editable="true"
+    fi
+
+    c_echo b "monai_package_path: " Z "${monai_package_path}"
+    c_echo b "sdk_package_path  : " Z "${sdk_package_path}"
+    c_echo b "is_sdk_editable   : " Z "${is_sdk_editable}"
+
+    if [ "${is_sdk_editable}" == "false" ]; then
+        c_echo W "Installing monai-app-sdk in edit mode..."
+        if [ -n "${VIRTUAL_ENV}" ]; then
+            run_command python3 -m pip install -e .
+        else
+            run_command python3 -m pip install -q --user -e .
+        fi
+
+        if python3 $TOP/monai/deploy/utils/importutil.py is_dist_editable monai-app-sdk; then
+            is_sdk_editable="true"
+        fi
+
+        sdk_package_path=$(python3 $TOP/monai/deploy/utils/importutil.py dist_module_path monai-app-sdk)
+        c_echo b "sdk_package_path  : " Z "${sdk_package_path}"
+        c_echo b "is_sdk_editable   : " Z "${is_sdk_editable}"
+    fi
+
+    if [ "${is_sdk_editable}" = "false" ]; then
+        c_echo W "Installing monai-app-sdk in edit mode..."
+    fi
+
+    if [ "$is_sdk_editable" = "true" ] && [ -n "${monai_package_path}" ] && [ ! -L ${monai_package_path}/monai/deploy ]; then
+        c_echo W "Creating a symbolic link... " b "'${monai_package_path}/monai/deploy' " Z "->" b " '${sdk_package_path}/monai/deploy'"
+        run_command ln -sfn ${sdk_package_path}/monai/deploy ${monai_package_path}/monai/deploy
+    fi
+
+    # Refresh command-line tools
+    hash -r
+}
+
+setup_desc() { echo 'Setup development environment
+'
+}
+setup() {
+    install_python_dev_deps_
+}
 
 #==================================================================================
 # Section: Test
@@ -253,20 +323,6 @@ test() {
     fi
 }
 
-install_python_test_deps_() {
-    if [ -n "${CONDA_PREFIX}" ]; then
-        run_command conda install -c conda-forge -y \
-            --file ${TOP}/requirements-dev.txt
-    else
-        if [ -n "${VIRTUAL_ENV}" ]; then
-            run_command pip3 install -q -r ${TOP}/requirements-dev.txt
-        else
-            run_command pip3 install -q --user -r ${TOP}/requirements-dev.txt
-        fi
-    fi
-    hash -r
-}
-
 test_python() {
     local test_type="${1:-all}"
     local test_component="${2:-all}"
@@ -275,7 +331,7 @@ test_python() {
     local testsuite=""
     local testsuite_performance="tests/performance"
 
-    install_python_test_deps_
+    install_python_dev_deps_
 
     if [ "$test_type" = "all" ] || [ "$test_type" = "unit" ]; then
         local testsuite="tests/unit"

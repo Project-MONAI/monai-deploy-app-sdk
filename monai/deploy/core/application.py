@@ -116,11 +116,6 @@ class Application(ABC):
         return is_application(c)
 
     @property
-    def name(self):
-        """Returns the name of this application."""
-        return self.__class__.__name__
-
-    @property
     def context(self) -> AppContext:
         """Returns the context of this application."""
         return self._context
@@ -244,9 +239,11 @@ class Application(ABC):
 
         self._graph.add_flow(upstream_op, downstream_op, io_map)
 
-    def get_package_info(self) -> Dict:
+    def get_package_info(self, model_path: Union[str, Path] = "") -> Dict:
         """Returns the package information of this application.
 
+        Args:
+            model_path (Union[str, Path]): The path to the model directory.
         Returns:
             A dictionary containing the package information of this application.
         """
