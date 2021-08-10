@@ -160,6 +160,24 @@ class DICOMSeries(Domain):
     def depth_direction_cosine(self, val):
         self.__depth_direction_cosine = val
 
+    
+    @property
+    def dicom_affine_transform(self):
+        return self.__dicom_affine_transform
+
+    @dicom_affine_transform.setter
+    def dicom_affine_transform(self, val):
+        self.__dicom_affine_transform = val
+
+    @property
+    def nifti_affine_transform(self):
+        return self.__nifti_affine_transform
+
+    @nifti_affine_transform.setter
+    def nifti_affine_transform(self, val):
+        self.__nifti_affine_transform = val
+
+
 
 
     def __str__(self):
@@ -238,6 +256,20 @@ class DICOMSeries(Domain):
         try:
             depth_direction_cosine_attr =  "Depth Direction Cosine: " + str(self.depth_direction_cosine) + "\n"
             result += depth_direction_cosine_attr
+        except AttributeError:
+            pass
+
+
+        try:
+            dicom_affine_transform_attr =  "DICOM affine transform: " + "\n" + str(self.dicom_affine_transform) + "\n"
+            result += dicom_affine_transform_attr
+        except AttributeError:
+            pass
+
+
+        try:
+            nifti_affine_transform_attr =  "NIFTI affine transform: " + "\n" + str(self.nifti_affine_transform) + "\n"
+            result += nifti_affine_transform_attr
         except AttributeError:
             pass
 
