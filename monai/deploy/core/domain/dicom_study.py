@@ -10,13 +10,14 @@
 # limitations under the License.
 
 
-
 from .dicom_series import DICOMSeries
 from .domain import Domain
 
-class DICOMStudy (Domain):
-    """This class represents a DICOM Study. It contains a collection 
-    of DICOM Studies
+
+class DICOMStudy(Domain):
+    """This class represents a DICOM Study.
+
+    It contains a collection of DICOM Studies.
     """
 
     def __init__(self, study_instance_uid):
@@ -27,10 +28,8 @@ class DICOMStudy (Domain):
     def get_study_instance_uid(self):
         return self._study_instance_uid
 
-    
     def add_series(self, series):
         self._series_dict[series.get_series_instance_uid()] = series
-
 
     def get_all_series(self):
         return list(self._series_dict.values())
@@ -39,7 +38,6 @@ class DICOMStudy (Domain):
     def study_id(self):
         return self.__study_id
 
-    
     @study_id.setter
     def study_id(self, val):
         self.__study_id = val
@@ -52,7 +50,6 @@ class DICOMStudy (Domain):
     def study_date(self, val):
         self.__study_date = val
 
-
     @property
     def study_time(self):
         return self.__study_time
@@ -60,8 +57,6 @@ class DICOMStudy (Domain):
     @study_time.setter
     def study_time(self, val):
         self.__study_time = val
-
-
 
     @property
     def study_description(self):
@@ -71,7 +66,6 @@ class DICOMStudy (Domain):
     def study_description(self, val):
         self.__study_description = val
 
-    
     @property
     def accession_number(self):
         return self.__accession_number
@@ -80,10 +74,8 @@ class DICOMStudy (Domain):
     def accession_number(self, val):
         self.__accession_number = val
 
-
-
     def __str__(self):
-        result = "---------------" +"\n"
+        result = "---------------" + "\n"
 
         study_instance_uid_attr = "Study Instance UID: " + self._study_instance_uid + "\n"
         result += study_instance_uid_attr
@@ -91,20 +83,18 @@ class DICOMStudy (Domain):
         study_id_attr = "Study ID: " + self.study_id + "\n"
         result += study_id_attr
 
-        study_date_attr =  "Study Date: " + self.study_date + "\n"
+        study_date_attr = "Study Date: " + self.study_date + "\n"
         result += study_date_attr
 
-        study_time_attr =  "Study Time: " + self.study_time + "\n"
+        study_time_attr = "Study Time: " + self.study_time + "\n"
         result += study_time_attr
 
-        study_desc_attr =  "Study Description: " + self.study_description + "\n"
+        study_desc_attr = "Study Description: " + self.study_description + "\n"
         result += study_desc_attr
 
-        accession_num_attr =  "Accession Number: " + self.accession_number + "\n"
+        accession_num_attr = "Accession Number: " + self.accession_number + "\n"
         result += accession_num_attr
 
-        result += "---------------" +"\n"
-        
+        result += "---------------" + "\n"
 
         return result
-
