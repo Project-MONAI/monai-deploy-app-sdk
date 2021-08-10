@@ -323,14 +323,6 @@ class DICOMSeriesToVolumeOperator(Operator):
 
 
 
-
-
-
-    def compute_nifti_affine_transform(self, s_1, s_n):
-        pass
-
-
-
     def create_metadata(self, series):
         """
         Collects all relevant metadata from the DICOM Series and creates a dictionary
