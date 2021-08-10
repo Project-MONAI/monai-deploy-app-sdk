@@ -44,6 +44,9 @@ class NetworkXGraph(Graph):
     def get_root_operators(self) -> Generator[Operator, None, None]:
         return (op for (op, degree) in self._graph.in_degree() if degree == 0)
 
+    def get_operators(self) -> Generator[Operator, None, None]:
+        return (op for op in self._graph.nodes())
+
     def gen_worklist(self) -> Generator[Optional[Operator], None, None]:
         return topological_sort(self._graph)
 

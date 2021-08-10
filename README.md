@@ -26,6 +26,16 @@ pip install monai-app-sdk
 
 ## Contributing
 
+For local development, please execute the following command:
+
+```bash
+./run setup
+```
+
+This will set up the development environment, installing necessary packages.
+
+For guidance on making a contribution to MONAI, see the [contributing guidelines](CONTRIBUTING.md).
+
 ## Community
 
 ## Links
