@@ -22,7 +22,8 @@ def create_package_parser(subparser: _SubParsersAction, command: str, parents: L
                                   parents=parents, add_help=False)
 
     parser.add_argument("application", type=str, help="MONAI application path")
-    parser.add_argument("--tag", type=str, help="tag name")
+    parser.add_argument("--model", "-m", type=str, default='models', help="Path to model(s) folder/file")
+    parser.add_argument("--tag", "-t", type=str, help="tag name")
 
     return parser
 
@@ -35,6 +36,13 @@ def execute_package_command(args: Namespace):
     # Package information example:
     #   $ monai-deploy package examples/apps/simple_imaging_app
     app = get_application(args.application)
+    info = app.get_package_info(args.model)
+
+    # pip_packages = info.get('pip-packages')
+    # from pathlib import Path
+    # if pip_packages:
+    #     Path("requirements.txt").write_text("\n".join(pip_packages))
+
     from pprint import PrettyPrinter
     pp = PrettyPrinter(indent=4)
     pp.pprint(app.get_package_info())
