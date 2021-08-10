@@ -84,8 +84,8 @@ class DICOMSeriesToVolumeOperator(Operator):
         slope = slices[0][0x0028, 0x1053].value
 
         if slope != 1:
-            image = slope * vol_data.astype(np.float64)
-            image = vol_data.astype(np.int16)
+            vol_data = slope * vol_data.astype(np.float64)
+            vol_data = vol_data.astype(np.int16)
         vol_data += np.int16(intercept)
         return np.array(vol_data, dtype=np.int16)
 
