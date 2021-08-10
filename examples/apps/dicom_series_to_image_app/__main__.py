@@ -1,2 +1,4 @@
 from app import App
-App()
+
+if __name__ == '__main__':
+    App(do_run=True)

@@ -77,6 +77,15 @@ class Graph(ABC):
         pass
 
     @abstractmethod
+    def get_operators(self) -> Generator[Operator, None, None]:
+        """Get all operators.
+
+        Returns:
+            A generator of operators.
+        """
+        pass
+
+    @abstractmethod
     def gen_worklist(self) -> Generator[Optional[Operator], None, None]:
         """Get worklist."""
         pass

@@ -10,54 +10,30 @@
 # limitations under the License.
 
 import copy
-
-from typing import Any, Dict, Optional, Union
-
-from monai.deploy.core import (
-    DataPath,
-    ExecutionContext,
-    Image,
-    InputContext,
-    IOType,
-    Operator,
-    OutputContext,
-    input,
-    output,
-)
-from monai.deploy.core.domain.dicom_series import DICOMSeries
-from monai.deploy.core.domain.dicom_study import DICOMStudy
-from monai.deploy.operators.dicom_data_loader_operator import DICOMDataLoaderOperator
-from monai.deploy.core.domain.image import Image
-
-
-
-from os import listdir
-from os.path import isfile, join
-
 import math
 
-from pydicom.data import get_testdata_file
-from pydicom.fileset import FileSet
-from pydicom.uid import generate_uid
 import numpy as np
+
+from monai.deploy.core import ExecutionContext, Image, InputContext, IOType, Operator, OutputContext, input, output
+from monai.deploy.core.domain.dicom_series import DICOMSeries
+from monai.deploy.operators.dicom_data_loader_operator import DICOMDataLoaderOperator
+from monai.deploy.utils.importutil import optional_import
+
+get_testdata_file, _ = optional_import("pydicom.data", name="get_testdata_file")
+FileSet, _ = optional_import("pydicom.file_set", name="FileSet")
+generate_id, _ = optional_import("pydicom.uid", name="generate_uid")
+
 
 @input("dicom_series", DICOMSeries, IOType.IN_MEMORY)
 @output("image", Image, IOType.IN_MEMORY)
-
-
 class DICOMSeriesToVolumeOperator(Operator):
+    """This operator converts an instance of DICOMSeries into an Image object.
 
-    """
-    This operator converts an instance of DICOMSeries into an Image object. The loaded
-    Image Object can be used for further processing via other operators
+    The loaded Image Object can be used for further processing via other operators.
     """
 
     def compute(self, input: InputContext, output: OutputContext, context: ExecutionContext):
-        
-        """
-        Extracts the pixel data from a DICOM Series and other attributes to
-        for an instance of Image object
-        """
+        """Extracts the pixel data from a DICOM Series and other attributes to for an instance of Image object"""
         dicom_series = input.get()
         self.prepare_series(dicom_series)
         metadata = self.create_metadata(dicom_series)
@@ -66,16 +42,14 @@ class DICOMSeriesToVolumeOperator(Operator):
         image = self.create_volumetric_image(voxel_data, metadata)
         output.set(image, "image")
 
-
     def generate_voxel_data(self, series):
-        """
-        Applies rescale slope and rescale intercept to the pixels
+        """Applies rescale slope and rescale intercept to the pixels.
 
         Args:
-            series: DICOM Series for which the pixel data needs to be extracted
-        
+            series: DICOM Series for which the pixel data needs to be extracted.
+
         Returns:
-            A 3D numpy tensor rerepesenting the volumetric data
+            A 3D numpy tensor rerepesenting the volumetric data.
         """
         slices = series.get_sop_instances()
         vol_data = np.stack([s.get_pixel_array() for s in slices])
@@ -89,35 +63,28 @@ class DICOMSeriesToVolumeOperator(Operator):
         vol_data += np.int16(intercept)
         return np.array(vol_data, dtype=np.int16)
 
-
-
-
     def create_volumetric_image(self, vox_data, metadata):
-        """
-        Creates an instance of 3D image
+        """Creates an instance of 3D image.
 
         Args:
-            vox_data: numpy array representing the volumetric data
-            metadata: DICOM attributes in a dictionary
-        
+            vox_data: A numpy array representing the volumetric data.
+            metadata: DICOM attributes in a dictionary.
+
         Returns:
-            An instance of Image object
+            An instance of Image object.
         """
         image = Image(vox_data, metadata)
         return image
 
-
-
-
     def prepare_series(self, series):
+        """Computes the slice normal for each slice and then projects the first voxel of each
+        slice on that slice normal.
 
-        """
-        Computes the slice normal for each slice and then projects the first voxel of each slice on that slice normal
-        Computes the distance of that point from the origin of the aient coordinate system along the alice normal
-        Orders the slices in the series according to that distance
+        It computes the distance of that point from the origin of the aient coordinate system along the alice normal.
+        It orders the slices in the series according to that distance.
 
         Args:
-            series: an instance of DICOMSeries
+            series: An instance of DICOMSeries.
         """
         if len(series._sop_instances) <= 1:
             return
@@ -132,34 +99,32 @@ class DICOMSeriesToVolumeOperator(Operator):
             slice_normal = [0.0, 0.0, 0.0]
             slice_position = None
             cosines = None
-            
+
             try:
-                image_orientation_patient_de = slice[0x0020,0x0037]
-                if image_orientation_patient_de != None :
+                image_orientation_patient_de = slice[0x0020, 0x0037]
+                if image_orientation_patient_de is not None:
                     image_orientation_patient = image_orientation_patient_de.value
                     cosines = image_orientation_patient
             except KeyError:
                 pass
 
-
             try:
-                image_poisition_patient_de = slice[0x0020,0x0032]
-                if image_poisition_patient_de  != None :
-                    image_poisition_patient = image_poisition_patient_de .value
+                image_poisition_patient_de = slice[0x0020, 0x0032]
+                if image_poisition_patient_de is not None:
+                    image_poisition_patient = image_poisition_patient_de.value
                     slice_position = image_poisition_patient
             except KeyError:
                 pass
 
-
             distance = 0.0
 
-            if (cosines != None) and (slice_position != None):
-                slice_normal[0] = cosines[1]*cosines[5] - cosines[2]*cosines[4]
-                slice_normal[1] = cosines[2]*cosines[3] - cosines[0]*cosines[5]
-                slice_normal[2] = cosines[0]*cosines[4] - cosines[1]*cosines[3]
+            if (cosines is not None) and (slice_position is not None):
+                slice_normal[0] = cosines[1] * cosines[5] - cosines[2] * cosines[4]
+                slice_normal[1] = cosines[2] * cosines[3] - cosines[0] * cosines[5]
+                slice_normal[2] = cosines[0] * cosines[4] - cosines[1] * cosines[3]
 
                 last_slice_normal = copy.deepcopy(slice_normal)
-                
+
                 i = 0
                 while i < 3:
                     point[i] = slice_normal[i] * slice_position[i]
@@ -173,37 +138,32 @@ class DICOMSeriesToVolumeOperator(Operator):
                 print("going to removing slice ", slice_index)
                 slice_indices_to_be_removed.append(slice_index)
 
-
-
-
-        for sl_index, sl in enumerate(series._sop_instances):
+        for sl_index, _ in enumerate(series._sop_instances):
             del series._sop_instances[sl_index]
-        
 
         series._sop_instances = sorted(series._sop_instances, key=lambda s: s.distance)
         series.depth_direction_cosine = copy.deepcopy(last_slice_normal)
 
-
         if len(series._sop_instances) > 1:
             p1 = series._sop_instances[0].first_pixel_on_slice_normal
             p2 = series._sop_instances[1].first_pixel_on_slice_normal
-            depth_pixel_spacing = (p1[0] - p2[0])*(p1[0] - p2[0]) + (p1[1] - p2[1])*(p1[1] - p2[1]) + (p1[2] - p2[2])*(p1[2] - p2[2])
+            depth_pixel_spacing = (
+                (p1[0] - p2[0]) * (p1[0] - p2[0])
+                + (p1[1] - p2[1]) * (p1[1] - p2[1])
+                + (p1[2] - p2[2]) * (p1[2] - p2[2])
+            )
             depth_pixel_spacing = math.sqrt(depth_pixel_spacing)
             series.depth_pixel_spacing = depth_pixel_spacing
 
-        
         s_1 = series._sop_instances[0]
         s_n = series._sop_instances[-1]
         num_slices = len(series._sop_instances)
         self.compute_affine_transform(s_1, s_n, num_slices, series)
-        
 
     def compute_affine_transform(self, s_1, s_n, n, series):
-
-        """
-        Computes the affine transform for this series. It does it in both DICOM Patient oriented
+        """Computes the affine transform for this series. It does it in both DICOM Patient oriented
         coordinate system as well as the pne preferred by NIFTI standard. Accordingly, the two attributes
-        dicom_affine_transform and nifti_affine_transform are stored in the series instance
+        dicom_affine_transform and nifti_affine_transform are stored in the series instance.
 
         The Image Orientation Patient contains two triplets, [rx ry rz cx cy cz], which encode
         direction cosines of the row and column of an image slice. The Image Position Patient of the first slice in
@@ -213,18 +173,19 @@ class DICOMSeriesToVolumeOperator(Operator):
         slice in a volume, [xn yn zn]. The voxel size within the slice plane, [vr vc], is stored in object Pixel Spacing.
 
         Args:
-            s_1: first slice in the series
-            s_n: last slice in the series
-            n: number of slices in the series
-            series: an instance of DICOMSeries
+            s_1: A first slice in the series.
+            s_n: A last slice in the series.
+            n: A number of slices in the series.
+            series: An instance of DICOMSeries.
         """
-        m1 = np.arange(1, 17, dtype=float).reshape(4,4)
-        m2 = np.arange(1, 17, dtype=float).reshape(4,4)
+
+        m1 = np.arange(1, 17, dtype=float).reshape(4, 4)
+        m2 = np.arange(1, 17, dtype=float).reshape(4, 4)
 
         image_orientation_patient = None
         try:
-            image_orientation_patient_de = s_1[0x0020,0x0037]
-            if image_orientation_patient_de != None :
+            image_orientation_patient_de = s_1[0x0020, 0x0037]
+            if image_orientation_patient_de is not None:
                 image_orientation_patient = image_orientation_patient_de.value
         except KeyError:
             pass
@@ -235,13 +196,12 @@ class DICOMSeriesToVolumeOperator(Operator):
         cy = image_orientation_patient[4]
         cz = image_orientation_patient[5]
 
-
         vr = 0.0
         vc = 0.0
         try:
             pixel_spacing_de = s_1[0x0028, 0x0030]
-            if pixel_spacing_de != None :
-                vr= pixel_spacing_de.value[0]
+            if pixel_spacing_de is not None:
+                vr = pixel_spacing_de.value[0]
                 vc = pixel_spacing_de.value[1]
         except KeyError:
             pass
@@ -257,10 +217,10 @@ class DICOMSeriesToVolumeOperator(Operator):
         ip1 = None
         ip2 = None
         try:
-            ip1_de = s_1[0x0020,0x0032]
-            ipn_de = s_n[0x0020,0x0032]
-            ip1 = ip1_de .value
-            ipn = ipn_de .value
+            ip1_de = s_1[0x0020, 0x0032]
+            ipn_de = s_n[0x0020, 0x0032]
+            ip1 = ip1_de.value
+            ipn = ipn_de.value
 
         except KeyError:
             pass
@@ -273,138 +233,128 @@ class DICOMSeriesToVolumeOperator(Operator):
         yn = ipn[1]
         zn = ipn[2]
 
-        m1[0,0] = rx*vr
-        m1[0,1] = cx*vc
-        m1[0,2] = (xn - x1)/(n-1)
-        m1[0,3] = x1
+        m1[0, 0] = rx * vr
+        m1[0, 1] = cx * vc
+        m1[0, 2] = (xn - x1) / (n - 1)
+        m1[0, 3] = x1
 
-        m1[1,0] = ry*vr
-        m1[1,1] = cy*vc
-        m1[1,2] = (yn - y1)/(n-1)
-        m1[1,3] = y1
+        m1[1, 0] = ry * vr
+        m1[1, 1] = cy * vc
+        m1[1, 2] = (yn - y1) / (n - 1)
+        m1[1, 3] = y1
 
-        m1[2,0] = rz*vr
-        m1[2,1] = cz*vc
-        m1[2,2] = (zn - z1)/(n-1)
-        m1[2,3] = z1
+        m1[2, 0] = rz * vr
+        m1[2, 1] = cz * vc
+        m1[2, 2] = (zn - z1) / (n - 1)
+        m1[2, 3] = z1
 
-        m1[3,0] = 0
-        m1[3,1] = 0
-        m1[3,2] = 0
-        m1[3,3] = 1
-
+        m1[3, 0] = 0
+        m1[3, 1] = 0
+        m1[3, 2] = 0
+        m1[3, 3] = 1
 
         series.dicom_affine_transform = m1
 
+        m2[0, 0] = -rx * vr
+        m2[0, 1] = -cx * vc
+        m2[0, 2] = -(xn - x1) / (n - 1)
+        m2[0, 3] = -x1
 
+        m2[1, 0] = -ry * vr
+        m2[1, 1] = -cy * vc
+        m2[1, 2] = -(yn - y1) / (n - 1)
+        m2[1, 3] = -y1
 
-        m2[0,0] = -rx*vr
-        m2[0,1] = -cx*vc
-        m2[0,2] = -(xn - x1)/(n-1)
-        m2[0,3] = -x1
+        m2[2, 0] = rz * vr
+        m2[2, 1] = cz * vc
+        m2[2, 2] = (zn - z1) / (n - 1)
+        m2[2, 3] = z1
 
-        m2[1,0] = -ry*vr
-        m2[1,1] = -cy*vc
-        m2[1,2] = -(yn - y1)/(n-1)
-        m2[1,3] = -y1
-
-        m2[2,0] = rz*vr
-        m2[2,1] = cz*vc
-        m2[2,2] = (zn - z1)/(n-1)
-        m2[2,3] = z1
-
-        m2[3,0] = 0
-        m2[3,1] = 0
-        m2[3,2] = 0
-        m2[3,3] = 1
+        m2[3, 0] = 0
+        m2[3, 1] = 0
+        m2[3, 2] = 0
+        m2[3, 3] = 1
 
         series.nifti_affine_transform = m2
 
-
-
-
     def create_metadata(self, series):
-        """
-        Collects all relevant metadata from the DICOM Series and creates a dictionary
+        """Collects all relevant metadata from the DICOM Series and creates a dictionary.
+
         Args:
-            series: an instance of DICOMSeries
+            series: An instance of DICOMSeries.
 
         Returns:
-            an instance of a dictionary containing metadata for the volumetric image
+            An instance of a dictionary containing metadata for the volumetric image.
         """
         metadata = {}
         metadata["series_instance_uid"] = series.get_series_instance_uid()
 
         try:
-             metadata["series_date"] =  series.series_date
-        except AttributeError:
-            pass
-        
-        try:
-            metadata["series_time"] =  series.series_time
-        except AttributeError:
-            pass 
-        
-        try:
-            metadata["modality"] =  series.modality
+            metadata["series_date"] = series.series_date
         except AttributeError:
             pass
 
         try:
-            metadata["series_description"] =  series.series_description
-        except AttributeError:
-            pass
-
-        
-        try:
-            metadata["row_pixel_spacing"] =  series.row_pixel_spacing
+            metadata["series_time"] = series.series_time
         except AttributeError:
             pass
 
         try:
-            metadata["col_pixel_spacing"] =  series.col_pixel_spacing
+            metadata["modality"] = series.modality
         except AttributeError:
             pass
 
         try:
-            metadata["depth_pixel_spacing"] =  series.depth_pixel_spacing
+            metadata["series_description"] = series.series_description
         except AttributeError:
             pass
 
         try:
-            metadata["row_direction_cosine"] =  series.row_direction_cosine
+            metadata["row_pixel_spacing"] = series.row_pixel_spacing
         except AttributeError:
             pass
 
         try:
-            metadata["col_direction_cosine"] =  series.col_direction_cosine
+            metadata["col_pixel_spacing"] = series.col_pixel_spacing
         except AttributeError:
             pass
 
         try:
-            metadata["depth_direction_cosine"] =  series.depth_direction_cosine
+            metadata["depth_pixel_spacing"] = series.depth_pixel_spacing
         except AttributeError:
             pass
 
         try:
-            metadata["dicom_affine_transform"] =  series.dicom_affine_transform
+            metadata["row_direction_cosine"] = series.row_direction_cosine
         except AttributeError:
             pass
 
         try:
-            metadata["nifti_affine_transform"] =  series.nifti_affine_transform
+            metadata["col_direction_cosine"] = series.col_direction_cosine
         except AttributeError:
             pass
 
+        try:
+            metadata["depth_direction_cosine"] = series.depth_direction_cosine
+        except AttributeError:
+            pass
+
+        try:
+            metadata["dicom_affine_transform"] = series.dicom_affine_transform
+        except AttributeError:
+            pass
+
+        try:
+            metadata["nifti_affine_transform"] = series.nifti_affine_transform
+        except AttributeError:
+            pass
 
         return metadata
 
 
-        
-
 def main():
     op = DICOMSeriesToVolumeOperator()
-    #data_path = "/home/rahul/medical-images/mixed-data/"
+    # data_path = "/home/rahul/medical-images/mixed-data/"
     data_path = "/home/rahul/medical-images/lung-ct-2/"
     files = []
     loader = DICOMDataLoaderOperator()
@@ -419,8 +369,6 @@ def main():
 
     print(series)
     print(metadata.keys())
-   
-
 
 
 if __name__ == "__main__":
