@@ -9,13 +9,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import argparse
 import logging
 import shlex
 import subprocess
-from pathlib import Path
-
-from monai.deploy.utils.spinner import ProgressSpinner
 
 logger = logging.getLogger("app_runner")
 
@@ -33,25 +29,8 @@ def run_cmd(cmd: str) -> int:
         output: child process returncode after the command has been executed.
     """
     args = shlex.split(cmd)
-    proc = subprocess.Popen(args, stderr=subprocess.STDOUT, universal_newlines=True)
+    proc = subprocess.Popen(args, universal_newlines=True)
     return proc.wait()
-
-
-def run_cmd_quietly(cmd: str, waiting_msg: str) -> int:
-    """
-    Executes command quietly and return the returncode of the executed command.
-
-    Args:
-        cmd: command to execute.
-
-    Returns:
-        output: child process returncode after the command has been executed.
-    """
-    args = shlex.split(cmd)
-
-    with ProgressSpinner(waiting_msg):
-        proc = subprocess.Popen(args, stdout=subprocess.DEVNULL, universal_newlines=True)
-        return proc.wait()
 
 
 def verify_image(image: str) -> bool:
@@ -74,7 +53,7 @@ def verify_image(image: str) -> bool:
 
         return False
 
-    def _pull_image(image_tag):
+    def _pull_image(image_tag: str) -> bool:
         cmd = f'docker pull {image_tag}'
         returncode = run_cmd(cmd)
 

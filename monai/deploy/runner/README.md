@@ -20,4 +20,4 @@ monai-deploy run <container-image-name>[:tag] <input> <output> [-q|--quiet]
 
 | Name                | Shorthand  | Default    | Description                                                       |
 | ------------------- | ---------- | ---------- | --------------------------------------------------------------    |
-| quiet               | -q         | False      | Execute MAP quietly without printing container logs onto console. |
+| quiet               | -q         | False      | Supress the STDOUT and print only STDERR from the application |

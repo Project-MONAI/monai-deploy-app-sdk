@@ -16,9 +16,9 @@ import shutil
 import sys
 import tempfile
 from pathlib import Path
-from typing import List, Tuple
+from typing import Tuple
 
-from monai.deploy.runner.utils import run_cmd, run_cmd_quietly, verify_image
+from monai.deploy.runner.utils import run_cmd, verify_image
 
 logger = logging.getLogger("app_runner")
 
@@ -71,12 +71,17 @@ def run_app(map_name: str, input_dir: Path, output_dir: Path, app_info: dict, qu
     Returns:
         returncode: command returncode
     """
-    cmd = 'docker run --rm -it -v {}:{} -v {}:{} {}'.format(input_dir, app_info['input']['path'],
+    cmd = 'docker run --rm -a STDERR'
+
+    if not quiet:
+        cmd += ' -a STDOUT'
+
+    cmd += ' -v {}:{} -v {}:{} {}'.format(input_dir, app_info['input']['path'],
                                                     output_dir, app_info['output']['path'],
                                                     map_name)
 
     if quiet:
-        return run_cmd_quietly(cmd, waiting_msg="Running MONAI Application...")
+        return run_cmd(cmd)
 
     return run_cmd(cmd)
 
