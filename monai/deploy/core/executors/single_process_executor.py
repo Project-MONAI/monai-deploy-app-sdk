@@ -57,16 +57,15 @@ class SingleProcessExecutor(Executor):
                 op_exec_context.output.set(DataPath(output_path))
 
             # Execute pre_compute()
-            print(Fore.BLUE + "Going to initiate execution of operator %s" % op.__class__.__name__)
+            print(Fore.BLUE + "Going to initiate execution of operator %s" % op.__class__.__name__ + Fore.RESET)
             op.pre_compute()
 
             # Execute compute()
-            print(Fore.YELLOW + "Process ID %s" % os.getpid())
-            print(Fore.GREEN + "Executing operator %s" % op.__class__.__name__)
+            print(Fore.GREEN + "Executing operator %s " % op.__class__.__name__ + Fore.YELLOW + "(Process ID %s)" % os.getpid() + Fore.RESET)
             op.compute(op_exec_context.input, op_exec_context.output, op_exec_context)
 
             # Execute post_compute()
-            print(Fore.BLUE + "Done performing execution of operator %s" % op.__class__.__name__)
+            print(Fore.BLUE + "Done performing execution of operator %s\n" % op.__class__.__name__ + Fore.RESET)
             op.post_compute()
 
             # Set input to next operator
