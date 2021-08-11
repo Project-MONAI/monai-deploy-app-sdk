@@ -86,6 +86,7 @@ class DICOMSeriesToVolumeOperator(Operator):
         Args:
             series: An instance of DICOMSeries.
         """
+
         if len(series._sop_instances) <= 1:
             return
 
@@ -138,7 +139,7 @@ class DICOMSeriesToVolumeOperator(Operator):
                 print("going to removing slice ", slice_index)
                 slice_indices_to_be_removed.append(slice_index)
 
-        for sl_index, _ in enumerate(series._sop_instances):
+        for sl_index, _ in enumerate(slice_indices_to_be_removed):
             del series._sop_instances[sl_index]
 
         series._sop_instances = sorted(series._sop_instances, key=lambda s: s.distance)
@@ -229,9 +230,12 @@ class DICOMSeriesToVolumeOperator(Operator):
         y1 = ip1[1]
         z1 = ip1[2]
 
+
+
         xn = ipn[0]
         yn = ipn[1]
         zn = ipn[2]
+
 
         m1[0, 0] = rx * vr
         m1[0, 1] = cx * vc
@@ -355,7 +359,8 @@ class DICOMSeriesToVolumeOperator(Operator):
 def main():
     op = DICOMSeriesToVolumeOperator()
     # data_path = "/home/rahul/medical-images/mixed-data/"
-    data_path = "/home/rahul/medical-images/lung-ct-2/"
+    # data_path = "/home/rahul/medical-images/lung-ct-2/"
+    data_path = "/home/rahul/medical-images/spleen-ct/"
     files = []
     loader = DICOMDataLoaderOperator()
     loader._list_files(data_path, files)
