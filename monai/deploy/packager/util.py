@@ -9,6 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from argparse import Namespace
 import json
 import logging
 import os
@@ -24,32 +25,49 @@ from monai.deploy.packager import executor
 
 from . import *
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("app_packager")
 
-def initialize_args(args):
-    # Parse arguements
+
+def initialize_args(args: Namespace) -> Namespace:
+    """Processes and formats input arguements for Packager
+
+    Args:
+        args (Namespace): Input arguements for Packager from CLI
+
+    Returns:
+        Namespace: Processed set of input arguements for Packager
+    """
+    # Parse arguements and set default values if any are missing
     args.docker_file_name = DEFAULT_DOCKER_FILE_NAME
     args.base_image = args.base if args.base else DEFAULT_BASE_IMAGE
     args.working_dir = args.working_dir if args.working_dir else DEFAULT_WORK_DIR
-    args.app_dir = "app/"
-    args.executor_dir = "executor/"
+    args.app_dir = "/opt/monai/app/"
+    args.executor_dir = "/opt/monai/executor/"
     args.input_dir = args.input if args.input_dir else DEFAULT_INPUT_DIR
     args.output_dir = args.output if args.output_dir else DEFAULT_OUTPUT_DIR
     args.models_dir = args.models if args.models_dir else DEFAULT_MODELS_DIR
     args.api_version = DEFAULT_API_VERSION
     args.timeout = args.timeout if args.timeout else DEFAULT_TIMEOUT
     args.version = args.version if args.version else DEFAULT_VERSION
-    
+
     # TEMPORARY parameter in place of SDK provided values
     with open(args.params, 'r') as file:
         args.param_values = json.loads(file.read())
+    if args.models:
+        args.param_values['models'] = [{"name": "app_model", "path": args.models}]
 
     return args
 
-def build_image(args, temp_dir):
+
+def build_image(args: Namespace, temp_dir: str):
+    """Creates dockerfile and builds MONAI Application Package (MAP) image
+
+    Args:
+        args (Namespace): Input arguements for Packager
+        temp_dir (str): Temporary directory to build MAP
+    """
     # Parse arguements for dockerfile
     tag = args.tag
-    verbose = args.verbose
     docker_file_name = args.docker_file_name
     base_image = args.base_image
     working_dir = args.working_dir
@@ -58,11 +76,14 @@ def build_image(args, temp_dir):
     input_dir = args.input_dir
     output_dir = args.output_dir
     models_dir = args.models_dir
+    timeout = args.timeout
 
     app_version = args.param_values['app-version']
     sdk_version = args.param_values['sdk-version']
     local_models = args.param_values['models']
-    
+    pip_packages = args.param_values['pip-packages']
+    pip_packages_string = ' '.join(pip_packages)
+
     # Dockerfile template
     docker_template_string = """FROM {{base_image}}
 
@@ -76,6 +97,8 @@ ENV DEBIAN_FRONTEND=noninteractive
 ENV TERM=xterm-256color
 ENV MONAI_INPUTPATH={{working_dir + input_dir}}
 ENV MONAI_OUTPUTPATH={{working_dir + output_dir}}
+ENV MONAI_APPLICATION={{app_dir}}
+ENV MONAI_TIMEOUT={{timeout}}
 
 RUN apt update \\
  && apt upgrade -y --no-install-recommends \\
@@ -95,27 +118,28 @@ RUN pip install --no-cache-dir --upgrade setuptools==57.4.0 pip==21.2.3 wheel==0
 RUN adduser monai
 
 RUN mkdir -p /etc/monai/ && chown -R monai:monai /etc/monai
+RUN mkdir -p /opt/monai/ && chown -R monai:monai /opt/monai
 RUN mkdir -p {{working_dir}} && chown -R monai:monai {{working_dir}}
-RUN mkdir -p {{working_dir + app_dir}} && chown -R monai:monai {{working_dir + app_dir}}
-RUN mkdir -p {{working_dir + executor_dir}} && chown -R monai:monai {{working_dir + executor_dir}}
+RUN mkdir -p {{app_dir}} && chown -R monai:monai {{app_dir}}
+RUN mkdir -p {{executor_dir}} && chown -R monai:monai {{executor_dir}}
 RUN mkdir -p {{working_dir + input_dir}} && chown -R monai:monai {{working_dir + input_dir}}
 RUN mkdir -p {{working_dir + output_dir}} && chown -R monai:monai {{working_dir + output_dir}}
-RUN mkdir -p {{working_dir + models_dir}} && chown -R monai:monai {{working_dir + models_dir}}
+RUN mkdir -p {{models_dir}} && chown -R monai:monai {{models_dir}}
 
-COPY --chown=monai:monai {{app_folder}} /opt/monai/app/
+COPY --chown=monai:monai {{app_folder}} {{app_dir}}
 {% for model_entry in local_models %}
 RUN mkdir -p {{models_dir + model_entry.name + "/"}} && chown -R monai:monai {{models_dir + model_entry.name + "/"}}
-COPY --chown=monai:monai {{model_entry.path}} {{models_dir + model_entry.name + "/"}}
+ADD --chown=monai:monai {{model_entry.path}} {{models_dir + model_entry.name + "/"}}
 {% endfor %}
 
-RUN pip install -r /opt/monai/app/requirements.txt
+RUN pip install --no-cache-dir --upgrade {{pip_packages_string}}
 
-COPY --chown=monai:monai ./.tmp/app.json /etc/monai/
-COPY --chown=monai:monai ./.tmp/pkg.json /etc/monai/
-COPY --chown=monai:monai ./.tmp/monai-exec /opt/monai/executor/
+COPY --chown=monai:monai {{tmp_directory + "/"}}app.json /etc/monai/
+COPY --chown=monai:monai {{tmp_directory + "/"}}pkg.json /etc/monai/
+COPY --chown=monai:monai {{tmp_directory + "/"}}monai-exec /opt/monai/executor/
 
 ENTRYPOINT [ "/opt/monai/executor/monai-exec" ]
-    
+
 """
 
     docker_template = Template(docker_template_string)
@@ -131,14 +155,17 @@ ENTRYPOINT [ "/opt/monai/executor/monai-exec" ]
             'input_dir': input_dir,
             'output_dir': output_dir,
             'models_dir': models_dir,
-            'local_models': local_models
+            'local_models': local_models,
+            'pip_packages_string': pip_packages_string,
+            'tmp_directory': temp_dir,
+            'timeout': timeout
         }
 
     # Write out dockerfile
     docker_parsed_template = docker_template.render(**args)
-    docker_file_path = temp_dir + docker_file_name
+    docker_file_path = temp_dir + "/" + docker_file_name
 
-    print(docker_parsed_template)
+    logger.debug(docker_parsed_template)
 
     with open(docker_file_path, "w") as docker_file:
         docker_file.write(docker_parsed_template)
@@ -151,18 +178,13 @@ ENTRYPOINT [ "/opt/monai/executor/monai-exec" ]
         while True:
             for cursor in '|/-\\':
                 yield cursor
-    
+
     spinner = build_spinning_wheel()
 
     print('Building MONAI Application Package... ')
 
-    while proc.poll()==None:
-
-        if verbose:
-            logger.debug(proc.stdout.readline().decode('utf-8'),end='')
-        else:
-            time.sleep(0.2)
-
+    while proc.poll() is None:
+        logger.debug(proc.stdout.readline().decode('utf-8'))
         sys.stdout.write(next(spinner))
         sys.stdout.flush()
         sys.stdout.write('\b')
@@ -173,7 +195,14 @@ ENTRYPOINT [ "/opt/monai/executor/monai-exec" ]
     if return_code == 0:
         print(f'Successfully Built {tag}')
 
-def create_app_manifest(args, temp_dir):
+
+def create_app_manifest(args: Namespace, temp_dir: str):
+    """Creates Application manifest .json file
+
+    Args:
+        args (Namespace): Input arguements for Packager
+        temp_dir (str): Temporary directory to build MAP
+    """
     input_dir = args.input_dir
     output_dir = args.output_dir
     working_dir = args.working_dir
@@ -183,8 +212,8 @@ def create_app_manifest(args, temp_dir):
 
     command = args.param_values['command']
     sdk_version = args.param_values['sdk-version']
-    environment = args.param_values['environment'] if 'environment' in args.param_values \
-                else {}
+    environment = args.param_values['environment'] if 'environment' \
+        in args.param_values else {}
 
     app_manifest = {}
     app_manifest["api_version"] = api_version
@@ -203,20 +232,27 @@ def create_app_manifest(args, temp_dir):
     app_manifest["version"] = app_version
     app_manifest["timeout"] = timeout
 
-    app_manifest_string = json.dumps(app_manifest, 
+    app_manifest_string = json.dumps(app_manifest,
                                      sort_keys=True,
                                      indent=4,
                                      separators=(',', ': '))
 
-    with open(temp_dir + "app.json", "w") as app_manifest_file:
+    with open(temp_dir + "/app.json", "w") as app_manifest_file:
         app_manifest_file.write(app_manifest_string)
 
-def create_package_manifest(args, temp_dir):
+
+def create_package_manifest(args: Namespace, temp_dir: str):
+    """Creates package manifest .json file
+
+    Args:
+        args (Namespace): Input arguements for Packager
+        temp_dir (str): Temporary directory to build MAP
+    """
     models_dir = args.models_dir
     working_dir = args.working_dir
     api_version = args.api_version
     app_version = args.version
-    
+
     sdk_version = args.param_values['sdk-version']
     cpu = args.param_values['resource']['cpu']
     gpu = args.param_values['resource']['gpu']
@@ -232,7 +268,7 @@ def create_package_manifest(args, temp_dir):
     for model_entry in models:
         model_name = model_entry["name"]
         model_file = os.path.basename(model_entry["path"])
-        model_path = working_dir + models_dir + model_file
+        model_path = models_dir + model_name + "/" + model_file
         package_manifest["models"].append({"name": model_name,
                                            "path": model_path})
 
@@ -242,16 +278,23 @@ def create_package_manifest(args, temp_dir):
     package_manifest["resources"]["memory"] = memory
     package_manifest["version"] = app_version
 
-    package_manifest_string = json.dumps(package_manifest, 
-                                     sort_keys=True,
-                                     indent=4,
-                                     separators=(',', ': '))
+    package_manifest_string = json.dumps(package_manifest,
+                                         sort_keys=True,
+                                         indent=4,
+                                         separators=(',', ': '))
 
-    with open(temp_dir + "pkg.json", "x") as package_manifest_file:
+    with open(temp_dir + "/pkg.json", "x") as package_manifest_file:
         package_manifest_file.write(package_manifest_string)
 
-def package_application(args):
-    with tempfile.TemporaryDirectory(prefix="monai_tmp") as temp_dir:
+
+def package_application(args: Namespace):
+    """Driver function for invoking all functions for creating and
+    building the MONAI Application package image
+
+    Args:
+        args (Namespace): Input arguements for Packager from CLI
+    """
+    with tempfile.TemporaryDirectory(prefix="monai_tmp", dir=".") as temp_dir:
         # Copies executor into temporary directory
         shutil.copy(os.path.join(os.path.dirname(executor.__file__), "monai-exec"), temp_dir)
 
@@ -263,4 +306,3 @@ def package_application(args):
         create_package_manifest(args, temp_dir)
 
         build_image(args, temp_dir)
-    

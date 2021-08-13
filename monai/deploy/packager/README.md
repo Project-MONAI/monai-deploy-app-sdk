@@ -1,1 +1,1 @@
-# ProjectMONAI
+# MONAI Application Packager

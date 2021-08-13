@@ -11,10 +11,10 @@
 
 DEFAULT_DOCKER_FILE_NAME = "dockerfile"
 DEFAULT_BASE_IMAGE = "nvcr.io/nvidia/cuda:11.1-runtime-ubuntu20.04"
-DEFAULT_WORK_DIR = "/opt/monai/"
+DEFAULT_WORK_DIR = "/var/monai/"
 DEFAULT_INPUT_DIR = "input/"
 DEFAULT_OUTPUT_DIR = "output/"
-DEFAULT_MODELS_DIR = "models/"
+DEFAULT_MODELS_DIR = "/opt/monai/models/"
 DEFAULT_API_VERSION = "0.0.0"
 DEFAULT_VERSION = "0.0.0"
 DEFAULT_TIMEOUT = 0
