@@ -1,1 +1,3 @@
 import pytest
+import docker
+

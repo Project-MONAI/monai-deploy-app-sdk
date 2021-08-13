@@ -9,17 +9,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import json
 import logging
 import os
 import shutil
 import subprocess
 import sys
+import tempfile
 import time
-import json
 
 from jinja2 import Template
 
 from monai.deploy.packager import executor
+
 from . import *
 
 logger = logging.getLogger(__name__)
@@ -31,9 +33,9 @@ def initialize_args(args):
     args.working_dir = args.working_dir if args.working_dir else DEFAULT_WORK_DIR
     args.app_dir = "app/"
     args.executor_dir = "executor/"
-    args.input_dir = args.input if args.input else DEFAULT_INPUT_DIR
-    args.output_dir = args.output if args.output else DEFAULT_OUTPUT_DIR
-    args.models_dir = args.models if args.models else DEFAULT_MODELS_DIR
+    args.input_dir = args.input if args.input_dir else DEFAULT_INPUT_DIR
+    args.output_dir = args.output if args.output_dir else DEFAULT_OUTPUT_DIR
+    args.models_dir = args.models if args.models_dir else DEFAULT_MODELS_DIR
     args.api_version = DEFAULT_API_VERSION
     args.timeout = args.timeout if args.timeout else DEFAULT_TIMEOUT
     args.version = args.version if args.version else DEFAULT_VERSION
@@ -88,24 +90,29 @@ RUN apt update \\
  && ln -s /usr/bin/python3 /usr/bin/python \\
  && ln -s /usr/bin/pip3 /usr/bin/pip
 
-RUN mkdir -p /etc/monai/
-RUN mkdir -p {{working_dir}}
-RUN mkdir -p {{working_dir + app_dir}}
-RUN mkdir -p {{working_dir + executor_dir}}
-RUN mkdir -p {{working_dir + input_dir}}
-RUN mkdir -p {{working_dir + output_dir}}
-RUN mkdir -p {{working_dir + models_dir}}
+RUN pip install --no-cache-dir --upgrade setuptools==57.4.0 pip==21.2.3 wheel==0.37.0
 
-COPY {{app_folder}} /opt/monai/app/
+RUN adduser monai
+
+RUN mkdir -p /etc/monai/ && chown -R monai:monai /etc/monai
+RUN mkdir -p {{working_dir}} && chown -R monai:monai {{working_dir}}
+RUN mkdir -p {{working_dir + app_dir}} && chown -R monai:monai {{working_dir + app_dir}}
+RUN mkdir -p {{working_dir + executor_dir}} && chown -R monai:monai {{working_dir + executor_dir}}
+RUN mkdir -p {{working_dir + input_dir}} && chown -R monai:monai {{working_dir + input_dir}}
+RUN mkdir -p {{working_dir + output_dir}} && chown -R monai:monai {{working_dir + output_dir}}
+RUN mkdir -p {{working_dir + models_dir}} && chown -R monai:monai {{working_dir + models_dir}}
+
+COPY --chown=monai:monai {{app_folder}} /opt/monai/app/
 {% for model_entry in local_models %}
-COPY {{model_entry.path}} {{models_dir}}
+RUN mkdir -p {{models_dir + model_entry.name + "/"}} && chown -R monai:monai {{models_dir + model_entry.name + "/"}}
+COPY --chown=monai:monai {{model_entry.path}} {{models_dir + model_entry.name + "/"}}
 {% endfor %}
 
 RUN pip install -r /opt/monai/app/requirements.txt
 
-COPY ./.tmp/app.json /etc/monai/
-COPY ./.tmp/pkg.json /etc/monai/
-COPY ./.tmp/monai-exec /opt/monai/executor/
+COPY --chown=monai:monai ./.tmp/app.json /etc/monai/
+COPY --chown=monai:monai ./.tmp/pkg.json /etc/monai/
+COPY --chown=monai:monai ./.tmp/monai-exec /opt/monai/executor/
 
 ENTRYPOINT [ "/opt/monai/executor/monai-exec" ]
     
@@ -130,9 +137,11 @@ ENTRYPOINT [ "/opt/monai/executor/monai-exec" ]
     # Write out dockerfile
     docker_parsed_template = docker_template.render(**args)
     docker_file_path = temp_dir + docker_file_name
-    docker_file = open(docker_file_path, "x")
-    docker_file.write(docker_parsed_template)
-    docker_file.close()
+
+    print(docker_parsed_template)
+
+    with open(docker_file_path, "w") as docker_file:
+        docker_file.write(docker_parsed_template)
 
     # Build dockerfile into an MAP image
     docker_build_cmd = ['docker', 'build', '-f', docker_file_path, '-t',  f'{tag}', '.']
@@ -199,9 +208,8 @@ def create_app_manifest(args, temp_dir):
                                      indent=4,
                                      separators=(',', ': '))
 
-    app_manifest_file = open(temp_dir + "app.json", "x")
-    app_manifest_file.write(app_manifest_string)
-    app_manifest_file.close()
+    with open(temp_dir + "app.json", "w") as app_manifest_file:
+        app_manifest_file.write(app_manifest_string)
 
 def create_package_manifest(args, temp_dir):
     models_dir = args.models_dir
@@ -239,27 +247,20 @@ def create_package_manifest(args, temp_dir):
                                      indent=4,
                                      separators=(',', ': '))
 
-    package_manifest_file = open(temp_dir + "pkg.json", "x")
-    package_manifest_file.write(package_manifest_string)
-    package_manifest_file.close()
+    with open(temp_dir + "pkg.json", "x") as package_manifest_file:
+        package_manifest_file.write(package_manifest_string)
 
 def package_application(args):
-    # Temporary directory to package all MAP components
-    temp_dir = ".tmp/"
+    with tempfile.TemporaryDirectory(prefix="monai_tmp") as temp_dir:
+        # Copies executor into temporary directory
+        shutil.copy(os.path.join(os.path.dirname(executor.__file__), "monai-exec"), temp_dir)
 
-    if os.path.exists(temp_dir):
-        shutil.rmtree(temp_dir)
-    os.makedirs(temp_dir)
+        # Initialize arguements for package
+        args = initialize_args(args)
 
-    # Copies executor into temporary directory
-    shutil.copy(os.path.join(os.path.dirname(executor.__file__), "monai-exec"), temp_dir)
+        # Create Manifest Files
+        create_app_manifest(args, temp_dir)
+        create_package_manifest(args, temp_dir)
 
-    # Initialize arguements for package
-    args = initialize_args(args)
-
-    # Create Manifest Files
-    create_app_manifest(args, temp_dir)
-    create_package_manifest(args, temp_dir)
-
-    build_image(args, temp_dir)
+        build_image(args, temp_dir)
     
