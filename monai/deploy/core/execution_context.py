@@ -11,36 +11,41 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional, Type
 
 if TYPE_CHECKING:
     from .operator import Operator
 
-from typing import Optional
-
 from .datastores import Datastore, MemoryDatastore
 from .io_context import InputContext, OutputContext
+from .models import Model
 
 
 class BaseExecutionContext:
     """A base execution context for the application."""
 
-    def __init__(self, datastore: Optional[Datastore] = None):
+    def __init__(self, datastore: Optional[Datastore] = None, models: Optional[Type[Model]] = None):
         if datastore is None:
             self._storage = MemoryDatastore()
         else:
             self._storage = datastore
 
+        self._models = models
+
     @property
     def storage(self):
         return self._storage
+
+    @property
+    def models(self):
+        return self._models
 
 
 class ExecutionContext(BaseExecutionContext):
     """An execution context for the operator."""
 
     def __init__(self, context: BaseExecutionContext, op: Operator):
-        super().__init__(context.storage)
+        super().__init__(context.storage, context.models)
         self._context = context
         self._op = op
         self._input_context = InputContext(self)

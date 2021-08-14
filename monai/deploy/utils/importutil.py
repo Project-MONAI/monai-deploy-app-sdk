@@ -9,15 +9,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import inspect
 import runpy
 import sys
 import warnings
 from importlib import import_module
 from pathlib import Path
-from typing import Any, Callable, Dict, Tuple, Union
+from typing import TYPE_CHECKING, Any, Callable, Dict, Optional, Tuple, Union
 
 import pkg_resources
+
+if TYPE_CHECKING:
+    from monai.deploy.core import Application
 
 
 def get_docstring(cls: type) -> str:
@@ -49,7 +54,7 @@ def is_application(cls: Any) -> bool:
     return False
 
 
-def get_application(path: Union[str, Path]):
+def get_application(path: Union[str, Path]) -> Optional[Application]:
     """Get application object from path."""
 
     if isinstance(path, str):
@@ -75,7 +80,7 @@ def get_application(path: Union[str, Path]):
     return None
 
 
-def get_class_file_path(cls):
+def get_class_file_path(cls) -> Path:
     """Get the file path of a class."""
     return Path(inspect.getfile(cls))
 

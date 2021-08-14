@@ -10,23 +10,64 @@
 # limitations under the License.
 
 import functools
-from typing import List, Optional
+from pathlib import Path
+from typing import List, Optional, Union
 
 from monai.deploy.exceptions import ItemAlreadyExistsError, UnknownTypeError
 
-from .application import Application, ApplicationEnv
-from .operator import Operator, OperatorEnv
+
+class BaseEnv:
+    """Settings for the environment.
+
+    This class is used to specify the environment settings for the application or the operator.
+    """
+
+    def __init__(self, pip_packages: Optional[Union[str, List[str]]] = None):
+        """Constructor of the BaseEnv class.
+
+        Args:
+            pip_packages Optional[Union[str, List[str]]]: A string that is a path to requirements.txt file
+                                                          or a list of packages to install.
+
+        Returns:
+            An instance of OperatorEnv.
+        """
+        if type(pip_packages) is str:
+            requirements_path = Path(pip_packages)
+
+            if requirements_path.exists():
+                pip_packages = requirements_path.read_text().strip().splitlines()  # make it a list
+            else:
+                raise FileNotFoundError(f"The '{requirements_path}' file does not exist!")
+
+        self._pip_packages = list(pip_packages or [])
+
+    @property
+    def pip_packages(self) -> List[str]:
+        """Get the list of pip packages.
+
+        Returns:
+            A list of pip packages.
+        """
+        return self._pip_packages
+
+    def __str__(self):
+        return "{}(pip_packages={})".format(self.__class__.__name__, self._pip_packages)
 
 
-def env(pip_packages: Optional[List[str]] = None):
+def env(pip_packages: Optional[Union[str, List[str]]] = None):
     """A decorator that adds an environment specification to either Operator or Application.
 
     Args:
-        pip_packages (Optional[List[str]]): A list of pip packages to install.
+        pip_packages Optional[Union[str, List[str]]]: A string that is a path to requirements.txt file
+                                                      or a list of packages to install.
 
     Returns:
         A decorator that adds an environment specification to either Operator or Application.
     """
+    # Import the classes here to avoid circular import.
+    from .application import Application, ApplicationEnv
+    from .operator import Operator, OperatorEnv
 
     def decorator(cls):
         @functools.wraps(cls)
@@ -45,16 +86,9 @@ def env(pip_packages: Optional[List[str]] = None):
 
                 obj._env = environment
 
-            if isinstance(obj, Operator):
-                if not hasattr(cls, "_env"):
-                    environment = OperatorEnv(*args, **kwargs)
-                    obj._env = environment
-                else:
-                    raise ItemAlreadyExistsError("@env decorator is aleady specified for {}.".format(cls))
-
             return obj
 
-        if hasattr(cls, '_class_id'):
+        if hasattr(cls, "_class_id"):
             wrapper._class_id = cls._class_id
 
         return wrapper

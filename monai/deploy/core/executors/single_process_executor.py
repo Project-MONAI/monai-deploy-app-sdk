@@ -18,6 +18,7 @@ from colorama import Fore
 
 from monai.deploy.core.domain.datapath import DataPath
 from monai.deploy.core.execution_context import BaseExecutionContext, ExecutionContext
+from monai.deploy.core.models import ModelFactory
 from monai.deploy.exceptions import IOMappingError
 
 from .executor import Executor
@@ -37,7 +38,10 @@ class SingleProcessExecutor(Executor):
         Sets the right input to a downstrem operator at the right input port.
         Executes the operators.
         """
-        exec_context = BaseExecutionContext(self.datastore)
+        app_context = self.app.context
+        models = ModelFactory.create(app_context.model_path)
+
+        exec_context = BaseExecutionContext(self.datastore, models)
 
         g = self.app.graph
 
@@ -61,7 +65,13 @@ class SingleProcessExecutor(Executor):
             op.pre_compute()
 
             # Execute compute()
-            print(Fore.GREEN + "Executing operator %s " % op.__class__.__name__ + Fore.YELLOW + "(Process ID %s)" % os.getpid() + Fore.RESET)
+            print(
+                Fore.GREEN
+                + "Executing operator %s " % op.__class__.__name__
+                + Fore.YELLOW
+                + "(Process ID %s)" % os.getpid()
+                + Fore.RESET
+            )
             op.compute(op_exec_context.input, op_exec_context.output, op_exec_context)
 
             # Execute post_compute()
