@@ -84,7 +84,8 @@ class Resource:
                     self._memory = memory_limit
                 else:
                     raise ItemAlreadyExistsError(
-                        f"'memory' wouldn't be set to {memory_limit} because it is already set to {self._memory} by the runtime environment."
+                        f"'memory' wouldn't be set to {memory_limit} because it is already set to {self._memory}"
+                        " by the runtime environment."
                     )
 
     def __str__(self):

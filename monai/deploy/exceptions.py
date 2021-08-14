@@ -35,7 +35,7 @@ class IOMappingError(MONAIAppSdkError):
 
 
 class UnknownTypeError(MONAIAppSdkError):
-    """Raises when unknown type is specified."""
+    """Raises when unknown/wrong type/name is specified."""
 
     pass
 

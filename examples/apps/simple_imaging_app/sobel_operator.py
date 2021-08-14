@@ -24,8 +24,6 @@ from monai.deploy.core import (
 
 @input("image", DataPath, IOType.DISK)
 @output("image", Image, IOType.IN_MEMORY)
-# If `pip_packages` is not specified, the operator will use a default package dependency list (requirements.txt)
-# in the same directory (or a parent directory up to App folder, if not exists) of the operator.
 # If `pip_packages` is specified, the definition will be aggregated with the package dependency list of other
 # operators and the application in packaging time.
 # @env(pip_packages=["scikit-image >= 0.18.0"])

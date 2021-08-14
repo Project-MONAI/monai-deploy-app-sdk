@@ -17,6 +17,7 @@ from monai.deploy.core import Application, env, resource
 
 
 @resource(cpu=1)
+# pip_packages can be a string that is a path(str) to requirements.txt file or a list of packages.
 @env(pip_packages=["scikit-image >= 0.18.0"])
 class App(Application):
     """This is a very basic application.
@@ -26,10 +27,10 @@ class App(Application):
 
     # App's name. <class name>('App') if not specified.
     name = "simple_imaging_app"
-    # App's version. <git version tag> or '0.1.0' if not specified.
-    version = "0.1.0"
     # App's description. <class docstring> if not specified.
     description = "This is a very simple application."
+    # App's version. <git version tag> or '0.0.0' if not specified.
+    version = "0.1.0"
 
     def compose(self):
         """This application has three operators.
