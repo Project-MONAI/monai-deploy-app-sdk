@@ -32,7 +32,7 @@ from monai.deploy.operators.dicom_series_to_volume_operator import DICOMSeriesTo
 
 from monai.deploy.core.domain.image import Image
 
-from os import listdir
+from os import listdir, makedirs
 from os.path import isfile, join
 
 import math
@@ -70,24 +70,22 @@ class PNGConverterOperator(Operator):
         num_images = image_shape[0]
 
         for i in range( 0, num_images):
-            input_data = image_data[i, :, :]
+            input_data = image_data[:, :, i]
             pil_image=PILImage.fromarray(input_data)
             if pil_image.mode != 'RGB':
                 pil_image = pil_image.convert('RGB')
-            pil_image.save(str(path) + "/" + str(i) + ".png")
-
-    
+            pil_image.save(join(str(path), join(str(i) + ".png")))
 
 
 def main():
     op1 = DICOMSeriesToVolumeOperator()
     data_path = "/home/rahul/medical-images/lung-ct-2/"
     out_path = "/home/rahul/monai-output/"
-
+    makedirs(out_path, exist_ok=True)
 
     files = []
     loader = DICOMDataLoaderOperator()
-    loader._list_files(files, data_path)
+    loader._list_files(data_path, files,)
     study_list = loader._load_data(files)
 
     series = study_list[0].get_all_series()[0]
@@ -97,7 +95,7 @@ def main():
     image = op1.create_volumetric_image(voxels, metadata)
 
     op2 = PNGConverterOperator()
-    op2.convert_and_save(image, out_path, -200, -2000)
+    op2.convert_and_save(image, out_path)
 
     print(series)
     #print(metadata.keys())
