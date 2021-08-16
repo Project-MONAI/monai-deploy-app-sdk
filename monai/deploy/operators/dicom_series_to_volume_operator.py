@@ -52,7 +52,10 @@ class DICOMSeriesToVolumeOperator(Operator):
             A 3D numpy tensor rerepesenting the volumetric data.
         """
         slices = series.get_sop_instances()
-        vol_data = np.stack([s.get_pixel_array() for s in slices])
+        # Need to transpose the DICOM pixel_array and pack the slice as the last dim,
+        # so the pixels are arranged in HWD. This is to have the same numpy ndarray
+        # as from Monai ImageReader (ITK, Nibabel etc).
+        vol_data = np.stack([np.transpose(s.get_pixel_array()) for s in slices], axis=-1)
         vol_data = vol_data.astype(np.int16)
         intercept = slices[0][0x0028, 0x1052].value
         slope = slices[0][0x0028, 0x1053].value
