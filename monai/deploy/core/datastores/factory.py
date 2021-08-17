@@ -18,7 +18,7 @@ from .memory import MemoryDatastore
 
 
 class DatastoreFactory:
-    """Datastore Factory is an abstract class that provides a way to create a datastore object."""
+    """DatastoreFactory is an abstract class that provides a way to create a datastore object."""
 
     NAMES = ["memory"]
     DEFAULT = "memory"
@@ -40,4 +40,4 @@ class DatastoreFactory:
         if datastore_type == "memory":
             return MemoryDatastore(**datastore_params)
         else:
-            raise UnknownTypeError("Unknown datastore type: %s" % datastore_type)
+            raise UnknownTypeError(f"Unknown datastore type: {datastore_type}")

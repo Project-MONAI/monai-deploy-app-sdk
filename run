@@ -231,22 +231,15 @@ retry() {
 #==================================================================================
 
 install_python_dev_deps_() {
-    if [ -n "${CONDA_PREFIX}" ]; then
-        run_command conda install -c conda-forge -y \
-            --file ${TOP}/requirements-dev.txt
-        run_command conda install -c conda-forge -y \
-            --file ${TOP}/requirements-examples.txt
-    else
-        if [ -n "${VIRTUAL_ENV}" ]; then
-            run_command python3 -m pip install -q -U setuptools pip wheel
-            run_command python3 -m pip install -q -r ${TOP}/requirements-dev.txt
-            run_command python3 -m pip install -q -r ${TOP}/requirements-examples.txt
+    if [ -n "${VIRTUAL_ENV}" ] || [ -n "${CONDA_PREFIX}" ]; then
+        run_command python3 -m pip install -q -U setuptools pip wheel
+        run_command python3 -m pip install -q -r ${TOP}/requirements-dev.txt
+        run_command python3 -m pip install -q -r ${TOP}/requirements-examples.txt
 
-        else
-            run_command python3 -m pip install -q --user -U setuptools pip wheel
-            run_command python3 -m pip install -q --user -r ${TOP}/requirements-dev.txt
-            run_command python3 -m pip install -q --user -r ${TOP}/requirements-examples.txt
-        fi
+    else
+        run_command python3 -m pip install -q --user -U setuptools pip wheel
+        run_command python3 -m pip install -q --user -r ${TOP}/requirements-dev.txt
+        run_command python3 -m pip install -q --user -r ${TOP}/requirements-examples.txt
     fi
 
     # Create a symlink to the virtual environment.

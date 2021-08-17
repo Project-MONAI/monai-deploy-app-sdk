@@ -18,7 +18,7 @@ from .single_process_executor import SingleProcessExecutor
 
 
 class ExecutorFactory:
-    """Executor Factory is an abstract class that provides a way to create an executor object."""
+    """ExecutorFactory is an abstract class that provides a way to create an executor object."""
 
     NAMES = ["single_process_executor"]
     DEFAULT = "single_process_executor"
@@ -40,4 +40,4 @@ class ExecutorFactory:
         if executor_type == "single_process_executor":
             return SingleProcessExecutor(**executor_params)
         else:
-            raise UnknownTypeError("Unknown executor type: %s" % executor_type)
+            raise UnknownTypeError(f"Unknown executor type: {executor_type}")

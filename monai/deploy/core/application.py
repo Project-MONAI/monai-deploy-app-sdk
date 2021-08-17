@@ -9,19 +9,22 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import os.path
 import sys
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Dict, List, Optional, Set, Type, Union
+from typing import Dict, Optional, Set, Type, Union
 
 from monai.deploy import __version__ as SDK_VERSION
 from monai.deploy.cli.main import LOG_CONFIG_FILENAME, parse_args, set_up_logging
 from monai.deploy.core.graphs.factory import GraphFactory
+from monai.deploy.core.models import ModelFactory
 from monai.deploy.exceptions import IOMappingError
 from monai.deploy.utils.importutil import get_class_file_path, get_docstring, is_application
 
 from .app_context import AppContext
 from .datastores import DatastoreFactory
+from .env import BaseEnv
 from .executors import ExecutorFactory
 from .graphs.graph import Graph
 from .operator import Operator
@@ -39,9 +42,9 @@ class Application(ABC):
 
     # Application's name. <class name> if not specified.
     name: str = ""
-    # Application's version. <git version tag> or '0.1.0' if not specified.
-    description: str = ""
     # Application's description. <class docstring> if not specified.
+    description: str = ""
+    # Application's version. <git version tag> or '0.0.0' if not specified.
     version: str = ""
 
     # Special attribute to identify the application
@@ -76,8 +79,7 @@ class Application(ABC):
 
                 self.version = get_versions()["version"]
             except ImportError:
-                self.version = "0.1"
-
+                self.version = "0.0.0"
         self._env = None
 
         # Set the application path
@@ -251,6 +253,31 @@ class Application(ABC):
         command = f"python3 -u /opt/monai/app/{app_path}"
         resource = self.context.resource
 
+        # Get model name/path list
+        # - If no model files are found at `model_path`, None will be returned by the ModelFactory.create method and
+        #   the `model_list` will be an empty list.
+        # - If the path represents a model repository (one or more model objects. Necessary condition is model_path is
+        #   a folder), then `model_list` will abe a list of model objects (name and path).
+        # - If only one model is found at model_path or model_path is a valid model file, `model_list` would be a
+        #   single model object list.
+        model_list = []
+        if model_path:
+            models = ModelFactory.create(model_path)
+            if models:
+                model_list = models.get_model_list()
+
+        # Get pip requirement list
+        spec_list = self.env.pip_packages
+        for op in self.graph.get_operators():
+            spec_list.extend(op.env.pip_packages)
+        spec_set = set()
+        pip_requirement_list = []
+        for p in spec_list:
+            spec = p.strip().lower()
+            if spec not in spec_set:
+                pip_requirement_list.append(spec)
+                spec_set.add(spec)
+
         return {
             "app-name": self.name,
             "app-version": self.version,
@@ -261,6 +288,8 @@ class Application(ABC):
                 "gpu": resource.gpu,
                 "memory": resource.memory,
             },
+            "models": model_list,
+            "pip-packages": pip_requirement_list,
         }
 
     def run(self):
@@ -279,22 +308,10 @@ class Application(ABC):
         pass
 
 
-class ApplicationEnv:
+class ApplicationEnv(BaseEnv):
     """Settings for the application environment.
 
     This class is used to specify the environment settings for the application.
     """
 
-    def __init__(self, pip_packages: Optional[List[str]] = None):
-        """Constructor of the ApplicationEnv class.
-
-        Args:
-            pip_packages (Optional[List[str]]): A list of pip packages to install.
-
-        Returns:
-            An instance of ApplicationEnv.
-        """
-        self._pip_packages = pip_packages or []
-
-    def __str__(self):
-        return "ApplicationEnv(pip_packages={})".format(self._pip_packages)
+    pass

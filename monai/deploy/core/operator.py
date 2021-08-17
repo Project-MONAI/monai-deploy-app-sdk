@@ -14,11 +14,12 @@ from __future__ import annotations
 import functools
 import uuid
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, List, Optional, Type, Union
+from typing import TYPE_CHECKING, Type, Union
 
 from monai.deploy.exceptions import UnknownTypeError
 
 from .domain import Domain
+from .env import BaseEnv
 from .io_context import InputContext, OutputContext
 from .io_type import IOType
 from .operator_info import IO, OperatorInfo
@@ -196,22 +197,10 @@ def output(label: str = "", data_type: Type[Domain] = None, storage_type: Union[
     return decorator
 
 
-class OperatorEnv:
+class OperatorEnv(BaseEnv):
     """Settings for the operator environment.
 
     This class is used to specify the environment settings for the operator.
     """
 
-    def __init__(self, pip_packages: Optional[List[str]] = None):
-        """Constructor of the OperatorEnv class.
-
-        Args:
-            pip_packages (Optional[List[str]]): A list of pip packages to install.
-
-        Returns:
-            An instance of OperatorEnv.
-        """
-        self._pip_packages = pip_packages or []
-
-    def __str__(self):
-        return "OperatorEnv(pip_packages={})".format(self._pip_packages)
+    pass

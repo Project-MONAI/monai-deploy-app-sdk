@@ -18,7 +18,7 @@ from .nx_digraph import NetworkXGraph
 
 
 class GraphFactory:
-    """Graph Factory is an abstract class that provides a way to create a graph object."""
+    """GraphFactory is an abstract class that provides a way to create a graph object."""
 
     NAMES = ["nx_digraph"]
     DEFAULT = "nx_digraph"
@@ -42,4 +42,4 @@ class GraphFactory:
         # elif graph_type == 'py':
         #     return PyGraph(graph_params)
         else:
-            raise UnknownTypeError("Unknown graph type: %s" % graph_type)
+            raise UnknownTypeError(f"Unknown graph type: {graph_type}")
