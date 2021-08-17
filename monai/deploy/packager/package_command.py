@@ -29,7 +29,7 @@ def create_package_parser(subparser: _SubParsersAction, command: str, parents: L
     parser.add_argument('--input-dir','-i', type=str, help="Directory mounted in container for Application Input")
     parser.add_argument('--output-dir','-o', type=str, help="Directory mounted in container for Application Output")
     parser.add_argument('--models-dir', type=str, help="Directory mounted in container for Models Path")
-    parser.add_argument('--models','-m', type=str, help="Optional Path to directory containing all application models")
+    parser.add_argument('--model','-m', type=str, help="Optional Path to directory containing all application models")
     parser.add_argument('--version', type=str, help="Version of the Application")
     parser.add_argument('--timeout', type=str, help="Timeout")
 
