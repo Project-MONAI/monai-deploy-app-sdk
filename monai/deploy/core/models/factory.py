@@ -51,7 +51,7 @@ class ModelFactory:
         """
         path = Path(path)
 
-        for model_cls in Model.registered_models:
+        for model_cls in Model.registered_models():
             # If a model_type is specified, check if it matches the model type.
             if model_type and model_cls.model_type != model_type:
                 continue
