@@ -23,9 +23,5 @@ setup(
         "console_scripts": [
             "monai-deploy = monai.deploy.cli.main:main",
         ]
-    },
-    data_files=[
-        ("monai_executor", [
-         "monai/deploy/packager/executor/monai-exec"])
-    ],
+    }
 )

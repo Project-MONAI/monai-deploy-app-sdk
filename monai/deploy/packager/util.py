@@ -12,21 +12,18 @@
 import json
 import logging
 import os
-import shutil
 import subprocess
 import sys
 import tempfile
 from argparse import Namespace
 from typing import Dict
 
-from jinja2 import Template
-
-from monai.deploy.packager import executor
+from monai.deploy.packager.default_values import *
 from monai.deploy.utils.importutil import get_application
 
-from . import *
-
 logger = logging.getLogger("app_packager")
+
+executor_url = "https://globalcdn.nuget.org/packages/monai.deploy.executor.0.1.0-prealpha.0.nupkg"
 
 
 def initialize_args(args: Namespace) -> Dict:
@@ -84,12 +81,13 @@ def build_image(args: dict, temp_dir: str):
     timeout = args['timeout']
     application_path = args['application']
 
+    # Parse SDK provided values
     app_version = args['application_info']['app-version']
     sdk_version = args['application_info']['sdk-version']
     local_models = args['application_info']['models']
     pip_packages = args['application_info']['pip-packages']
     pip_requirements_path = os.path.join(temp_dir, "requirements.txt")
-    with open(pip_requirements_path,"w") as requirements_file:
+    with open(pip_requirements_path, "w") as requirements_file:
         requirements_file.writelines(pip_packages)
     map_requirements_path = os.path.join(app_dir, "requirements.txt")
 
@@ -102,49 +100,72 @@ def build_image(args: dict, temp_dir: str):
             {container_models_folder}\n'
 
     # Dockerfile template
-    docker_template_string = f' \
-    FROM {base_image}\n\n \
-    LABEL base=\"{base_image}\"\n \
-    LABEL tag=\"{tag}\"\n \
-    LABEL version=\"{app_version}\"\n \
-    LABEL sdk_version=\"{sdk_version}\"\n\n \
-    ENV DEBIAN_FRONTEND=noninteractive\n \
-    ENV TERM=xterm-256color\n \
-    ENV MONAI_INPUTPATH={full_input_path}\n \
-    ENV MONAI_OUTPUTPATH={full_output_path}\n \
-    ENV MONAI_APPLICATION={app_dir}\n \
-    ENV MONAI_TIMEOUT={timeout}\n\n \
-    RUN apt update \\\n \
-     && apt upgrade -y --no-install-recommends \\\n \
-     && apt install -y --no-install-recommends \\\n \
-        build-essential \\\n \
-        python3 \\\n \
-        python3-pip \\\n \
-        python3-setuptools \\\n \
-        curl \\\n \
-     && apt autoremove -y \\\n \
-     && rm -rf /var/lib/apt/lists/* \\\n \
-     && rm -f /usr/bin/python /usr/bin/pip \\\n \
-     && ln -s /usr/bin/python3 /usr/bin/python \\\n \
-     && ln -s /usr/bin/pip3 /usr/bin/pip\n\n \
-    RUN pip install --no-cache-dir --upgrade setuptools==57.4.0 pip==21.2.3 wheel==0.37.0\n\n \
-    RUN adduser monai\n\n \
-    RUN mkdir -p /etc/monai/ && chown -R monai:monai /etc/monai\n \
-    RUN mkdir -p /opt/monai/ && chown -R monai:monai /opt/monai\n \
-    RUN mkdir -p {working_dir} && chown -R monai:monai {working_dir}\n \
-    RUN mkdir -p {app_dir} && chown -R monai:monai {app_dir}\n \
-    RUN mkdir -p {executor_dir} && chown -R monai:monai {executor_dir}\n \
-    RUN mkdir -p {full_input_path} && chown -R monai:monai {full_input_path}\n \
-    RUN mkdir -p {full_output_path} && chown -R monai:monai {full_output_path}\n \
-    RUN mkdir -p {models_dir} && chown -R monai:monai {models_dir}\n\n \
-    COPY --chown=monai:monai {application_path} {app_dir}\n\n \
-    {models_string}\n\n \
-    COPY {pip_requirements_path} {map_requirements_path}\n \
-    RUN pip install --no-cache-dir --upgrade -r {map_requirements_path}\n\n \
-    COPY --chown=monai:monai {temp_dir}/app.json /etc/monai/\n \
-    COPY --chown=monai:monai {temp_dir}/pkg.json /etc/monai/\n \
-    COPY --chown=monai:monai {temp_dir}/monai-exec /opt/monai/executor/\n \
-    ENTRYPOINT [ "/opt/monai/executor/monai-exec" ]\n\n'
+    docker_template_string = f"""FROM {base_image}
+
+    ARG MONAI_GID=1000
+    ARG MONAI_UID=1000
+
+    LABEL base=\"{base_image}\"
+    LABEL tag=\"{tag}\"
+    LABEL version=\"{app_version}\"
+    LABEL sdk_version=\"{sdk_version}\"
+
+    ENV DEBIAN_FRONTEND=noninteractive
+    ENV TERM=xterm-256color
+    ENV MONAI_INPUTPATH={full_input_path}
+    ENV MONAI_OUTPUTPATH={full_output_path}
+    ENV MONAI_APPLICATION={app_dir}
+    ENV MONAI_TIMEOUT={timeout}
+
+    RUN apt update \\
+     && apt upgrade -y --no-install-recommends \\
+     && apt install -y --no-install-recommends \\
+        build-essential \\
+        python3 \\
+        python3-pip \\
+        python3-setuptools \\
+        curl \\
+        unzip \\
+     && apt autoremove -y \\
+     && rm -rf /var/lib/apt/lists/* \\
+     && rm -f /usr/bin/python /usr/bin/pip \\
+     && ln -s /usr/bin/python3 /usr/bin/python \\
+     && ln -s /usr/bin/pip3 /usr/bin/pip
+
+    RUN pip install --no-cache-dir --upgrade setuptools==57.4.0 pip==21.2.3 wheel==0.37.0
+
+    RUN groupadd -g $MONAI_GID -o -r monai
+    RUN useradd -g $MONAI_GID -u $MONAI_UID -m -o -r monai
+
+    RUN mkdir -p /etc/monai/ && chown -R monai:monai /etc/monai \\
+     && mkdir -p /opt/monai/ && chown -R monai:monai /opt/monai \\
+     && mkdir -p {working_dir} && chown -R monai:monai {working_dir} \\
+     && mkdir -p {app_dir} && chown -R monai:monai {app_dir} \\
+     && mkdir -p {executor_dir} && chown -R monai:monai {executor_dir} \\
+     && mkdir -p {full_input_path} && chown -R monai:monai {full_input_path} \\
+     && mkdir -p {full_output_path} && chown -R monai:monai {full_output_path} \\
+     && mkdir -p {models_dir} && chown -R monai:monai {models_dir}
+
+    COPY --chown=monai:monai {application_path} {app_dir}
+
+    {models_string}
+
+    COPY {pip_requirements_path} {map_requirements_path}
+    RUN pip install --no-cache-dir --upgrade -r {map_requirements_path}
+
+    COPY --chown=monai:monai {temp_dir}/app.json /etc/monai/
+    COPY --chown=monai:monai {temp_dir}/pkg.json /etc/monai/
+
+    RUN curl {executor_url} -o {executor_dir}/executor.zip \\
+     && unzip {executor_dir}/executor.zip -d {executor_dir}/executor_pkg \\
+     && mv {executor_dir}/executor_pkg/lib/native/linux-x64/monai-exec {executor_dir}
+
+    RUN rm -f {executor_dir}/executor.zip \\
+     && rm -rf {executor_dir}/executor_pkg
+
+    ENTRYPOINT [ "/opt/monai/executor/monai-exec" ]
+
+    """
 
     # Write out dockerfile
     logger.debug(docker_template_string)
@@ -195,7 +216,7 @@ def create_app_manifest(args: Dict, temp_dir: str):
     command = args['application_info']['command']
     sdk_version = args['application_info']['sdk-version']
     environment = args['application_info']['environment'] if 'environment' \
-        in  args['application_info'] else {}
+        in args['application_info'] else {}
 
     app_manifest = {}
     app_manifest["api_version"] = api_version
@@ -280,9 +301,6 @@ def package_application(args: Namespace):
     initialized_args = initialize_args(args)
 
     with tempfile.TemporaryDirectory(prefix="monai_tmp", dir=".") as temp_dir:
-        # Copies executor into temporary directory
-        shutil.copy(os.path.join(os.path.dirname(executor.__file__), "monai-exec"), temp_dir)
-
         # Create Manifest Files
         create_app_manifest(initialized_args, temp_dir)
         create_package_manifest(initialized_args, temp_dir)

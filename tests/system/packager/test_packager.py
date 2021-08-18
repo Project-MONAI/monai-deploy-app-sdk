@@ -9,13 +9,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import argparse
 import json
 import os
 import shutil
 import tempfile
-import argparse
-
-import docker
 
 from monai.deploy.packager import util as packager_util
 
@@ -69,4 +67,3 @@ def test_packager():
 
     shutil.rmtree(test_app)
     os.remove(test_params_file[1])
-    
