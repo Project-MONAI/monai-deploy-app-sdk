@@ -86,6 +86,7 @@ def run_app(map_name: str, input_path: Path, output_path: Path, app_info: dict, 
 
     if input_path.is_file():
         map_input = map_input / input_path.name
+        cmd += f' -e MONAI_INPUTPATH={map_input}'
 
     cmd += ' -v {}:{} -v {}:{} {}'.format(input_path, map_input,
                                           output_path, map_output,
