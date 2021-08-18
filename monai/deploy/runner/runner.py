@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -57,14 +57,14 @@ def fetch_map_manifest(map_name: str) -> Tuple[dict, int]:
         return app_info, returncode
 
 
-def run_app(map_name: str, input_dir: Path, output_dir: Path, app_info: dict, quiet: bool) -> int:
+def run_app(map_name: str, input_path: Path, output_path: Path, app_info: dict, quiet: bool) -> int:
     """
     Executes the MONAI Application.
 
     Args:
         map_name: MONAI Application Package
-        input_dir: input directory path
-        output_dir: output directory path
+        input_path: input file/directory path
+        output_path: output directory path
         app_info: application manifest dictionary
         quiet: boolean flag indicating quiet mode
 
@@ -76,9 +76,20 @@ def run_app(map_name: str, input_dir: Path, output_dir: Path, app_info: dict, qu
     if not quiet:
         cmd += ' -a STDOUT'
 
-    cmd += ' -v {}:{} -v {}:{} {}'.format(input_dir, app_info['input']['path'],
-                                                    output_dir, app_info['output']['path'],
-                                                    map_name)
+    map_input = Path(app_info['input']['path'])
+    map_output = Path(app_info['output']['path'])
+    if not map_input.is_absolute():
+        map_input = app_info['working-directory'] / map_input
+
+    if not map_output.is_absolute():
+        map_output = app_info['working-directory'] / map_output
+
+    if input_path.is_file():
+        map_input = map_input / input_path.name
+
+    cmd += ' -v {}:{} -v {}:{} {}'.format(input_path, map_input,
+                                          output_path, map_output,
+                                          map_name)
 
     if quiet:
         return run_cmd(cmd)

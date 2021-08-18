@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -29,7 +29,7 @@ def create_run_parser(subparser: _SubParsersAction,command: str,
                         help="Input data path")
 
     parser.add_argument("output", metavar="<output>", type=argparse_types.valid_path,
-                        help="Output data path")
+                        help="Output data directory path")
 
     parser.add_argument('-q', '--quiet', dest='quiet', action='store_true', default=False,
                         help='Suppress the STDOUT and print only STDERR from the application')
