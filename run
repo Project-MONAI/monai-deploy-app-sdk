@@ -237,9 +237,17 @@ install_python_dev_deps_() {
         run_command python3 -m pip install -q -r ${TOP}/requirements-examples.txt
 
     else
-        run_command python3 -m pip install -q --user -U setuptools pip wheel
-        run_command python3 -m pip install -q --user -r ${TOP}/requirements-dev.txt
-        run_command python3 -m pip install -q --user -r ${TOP}/requirements-examples.txt
+        c_echo_err R "You must be in a virtual environment to install dependencies."
+        if [ ! -e "$TOP/.venv/dev/bin/python3" ]; then
+            c_echo_err W "Installing a virtual environment at " G "$TOP/.venv/dev" W " ..."
+            run_command python3 -m venv "$TOP/.venv/dev"
+        fi
+
+        c_echo_err W "Please activate the virtual environment at " G "$TOP/.venv/dev" W " and execute the setup command again."
+        c_echo_err
+        c_echo_err G "  source $TOP/.venv/dev/bin/activate"
+        c_echo_err G "  $0 setup"
+        exit 1
     fi
 
     # Create a symlink to the virtual environment.
@@ -259,10 +267,10 @@ install_python_dev_deps_() {
 
     if [ "${is_sdk_editable}" == "false" ]; then
         c_echo W "Installing monai-app-sdk in edit mode..."
-        if [ -n "${VIRTUAL_ENV}" ]; then
+        if [ -n "${VIRTUAL_ENV}" ] || [ -n "${CONDA_PREFIX}" ]; then
             run_command python3 -m pip install -e .
         else
-            run_command python3 -m pip install -q --user -e .
+            c_echo_err R "You must be in a virtual environment to install monai-app-sdk in edit mode."
         fi
 
         if python3 $TOP/monai/deploy/utils/importutil.py is_dist_editable monai-app-sdk; then

@@ -114,7 +114,6 @@ class Model:
         return self._name
 
     @classmethod
-    @property
     def class_name(cls):
         """Return a name of the model class."""
         return cls.__name__
@@ -125,9 +124,8 @@ class Model:
         global REGISTERED_MODELS
         REGISTERED_MODELS = cls_list
 
-    @classmethod
-    @property
-    def registered_models(cls):
+    @staticmethod
+    def registered_models():
         """Return a list of registered model classes."""
         return REGISTERED_MODELS
 
