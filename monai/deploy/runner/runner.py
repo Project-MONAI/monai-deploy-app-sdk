@@ -87,10 +87,18 @@ def run_app(map_name: str, input_path: Path, output_path: Path, app_info: dict, 
 
     if input_path.is_file():
         map_input = map_input / input_path.name
-        cmd += f" -e MONAI_INPUTPATH={map_input}"
 
-    cmd += " -v {}:{} -v {}:{} {}".format(input_path, map_input, output_path, map_output, map_name)
-    print("#", cmd)
+    cmd += f" -e MONAI_INPUTPATH={map_input}"
+    cmd += f" -e MONAI_OUTPUTPATH={map_output}"
+    # TODO(bhatt-piyush): Handle model environment correctly (maybe solved by fixing 'monai-exec')
+    cmd += " -e MONAI_MODELPATH=/opt/monai/models"
+
+    map_command = app_info["command"]
+
+    # TODO(bhatt-piyush): Fix 'monai-exec' to work correctly.
+    cmd += " -v {}:{} -v {}:{} --entrypoint '/bin/bash' {} -c '{}'".format(
+        input_path.absolute(), map_input, output_path.absolute(), map_output, map_name, map_command
+    )
 
     if quiet:
         return run_cmd(cmd)
