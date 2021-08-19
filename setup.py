@@ -23,5 +23,5 @@ setup(
         "console_scripts": [
             "monai-deploy = monai.deploy.cli.main:main",
         ]
-    },
+    }
 )

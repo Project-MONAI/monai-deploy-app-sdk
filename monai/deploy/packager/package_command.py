@@ -14,7 +14,7 @@ from argparse import ArgumentParser, Namespace, _SubParsersAction
 from pathlib import Path
 from typing import List
 
-from monai.deploy.utils.importutil import get_application
+from monai.deploy.packager import util as packager_util
 
 
 def create_package_parser(subparser: _SubParsersAction, command: str, parents: List[ArgumentParser]) -> ArgumentParser:
@@ -22,30 +22,19 @@ def create_package_parser(subparser: _SubParsersAction, command: str, parents: L
         command, formatter_class=argparse.ArgumentDefaultsHelpFormatter, parents=parents, add_help=False
     )
 
-    parser.add_argument("application", type=str, help="MONAI application path")
-    parser.add_argument("--model", "-m", type=str, default="models", help="Path to model(s) folder/file")
-    parser.add_argument("--tag", "-t", type=str, help="tag name")
+    parser.add_argument('application', type=str, help="MONAI application path")
+    parser.add_argument('--tag', '-t', required=True, type=str, help="MONAI application package tag")
+    parser.add_argument('--base', type=str, help="Base Application Image")
+    parser.add_argument('--working-dir','-w', type=str, help="Directory mounted in container for Application")
+    parser.add_argument('--input-dir','-i', type=str, help="Directory mounted in container for Application Input")
+    parser.add_argument('--output-dir','-o', type=str, help="Directory mounted in container for Application Output")
+    parser.add_argument('--models-dir', type=str, help="Directory mounted in container for Models Path")
+    parser.add_argument('--model','-m', type=str, help="Optional Path to directory containing all application models")
+    parser.add_argument('--version', type=str, help="Version of the Application")
+    parser.add_argument('--timeout', type=str, help="Timeout")
 
     return parser
 
 
 def execute_package_command(args: Namespace):
-    # if not args.tag:  # if tag name is empty
-    #     print("Missing tag name. Use --tag=<tag name>", file=sys.stderr)
-    #     sys.exit(1)
-
-    # Package information example:
-    #   $ monai-deploy package examples/apps/simple_imaging_app
-
-    app = get_application(args.application)
-    info = app.get_package_info(args.model)
-
-    pip_packages = info.get("pip-packages")
-
-    # if pip_packages:
-    #     Path("req.txt").write_text("\n".join(pip_packages))
-
-    from pprint import PrettyPrinter
-
-    pp = PrettyPrinter(indent=4)
-    pp.pprint(info)
+    packager_util.package_application(args)
