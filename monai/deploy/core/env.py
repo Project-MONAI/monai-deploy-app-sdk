@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -9,7 +9,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import functools
 from pathlib import Path
 from typing import List, Optional, Union
 
@@ -70,27 +69,18 @@ def env(pip_packages: Optional[Union[str, List[str]]] = None):
     from .operator import Operator, OperatorEnv
 
     def decorator(cls):
-        @functools.wraps(cls)
-        def wrapper(*args, **kwargs):
-            obj = cls(*args, **kwargs)
+        if hasattr(cls, "_env"):
+            raise ItemAlreadyExistsError(f"@env decorator is aleady specified for {cls}.")
 
-            if hasattr(cls, "_env"):
-                raise ItemAlreadyExistsError(f"@env decorator is aleady specified for {cls}.")
-            else:
-                if isinstance(obj, Operator):
-                    environment = OperatorEnv(pip_packages=pip_packages)
-                elif isinstance(obj, Application):
-                    environment = ApplicationEnv(pip_packages=pip_packages)
-                else:
-                    raise UnknownTypeError(f"Use @env decorator cannot be specified for {type(obj)}.")
+        if issubclass(cls, Operator):
+            environment = OperatorEnv(pip_packages=pip_packages)
+        elif issubclass(cls, Application):
+            environment = ApplicationEnv(pip_packages=pip_packages)
+        else:
+            raise UnknownTypeError(f"@env decorator cannot be specified for {cls}.")
 
-                obj._env = environment
+        cls._env = environment
 
-            return obj
-
-        if hasattr(cls, "_class_id"):
-            wrapper._class_id = cls._class_id
-
-        return wrapper
+        return cls
 
     return decorator

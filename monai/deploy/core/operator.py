@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -9,23 +9,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from __future__ import annotations
-
-import functools
 import uuid
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Type, Union
+from typing import Type, Union
 
 from monai.deploy.exceptions import UnknownTypeError
 
 from .domain import Domain
 from .env import BaseEnv
+from .execution_context import ExecutionContext
 from .io_context import InputContext, OutputContext
 from .io_type import IOType
 from .operator_info import IO, OperatorInfo
-
-if TYPE_CHECKING:
-    from .execution_context import ExecutionContext
 
 
 class Operator(ABC):
@@ -47,6 +42,20 @@ class Operator(ABC):
         self._uid = uuid.uuid4()
         self._op_info = OperatorInfo()
         self._env = None
+
+        # Execute the builder to set up the operator
+        self._builder()
+
+    def _builder(self):
+        """This method is called by the constructor of Operator to set up the operator.
+
+        This method returns `self` to allow for method chaining and new `_builder()` method is
+        chained by decorators.
+
+        Returns:
+            An instance of Operator.
+        """
+        return self
 
     def __hash__(self):
         return hash(self._uid)
@@ -156,16 +165,18 @@ def input(label: str = "", data_type: Type[Domain] = None, storage_type: Union[i
     """
 
     def decorator(cls):
-        @functools.wraps(cls)
-        def wrapper(*args, **kwargs):
-            operator = cls(*args, **kwargs)
-            if isinstance(operator, Operator):
-                operator.add_input(label, data_type, storage_type)
-            else:
-                raise UnknownTypeError("Use @input decorator only for an instance of Operator!")
-            return operator
+        if issubclass(cls, Operator):
+            builder = cls.__dict__.get("_builder")
+        else:
+            raise UnknownTypeError("Use @input decorator only for a subclass of Operator!")
 
-        return wrapper
+        def new_builder(self):
+            if builder:
+                builder(self)  # execute the original builder
+            self.add_input(label, data_type, storage_type)
+            return self
+
+        return type(cls.__name__, cls.__bases__, dict(cls.__dict__, _builder=new_builder))
 
     return decorator
 
@@ -183,16 +194,18 @@ def output(label: str = "", data_type: Type[Domain] = None, storage_type: Union[
     """
 
     def decorator(cls):
-        @functools.wraps(cls)
-        def wrapper(*args, **kwargs):
-            operator = cls(*args, **kwargs)
-            if isinstance(operator, Operator):
-                operator.add_output(label, data_type, storage_type)
-            else:
-                raise UnknownTypeError("Use @output decorator only for an instance of Operator!")
-            return operator
+        if issubclass(cls, Operator):
+            builder = cls.__dict__.get("_builder")
+        else:
+            raise UnknownTypeError("Use @output decorator only for a subclass of Operator!")
 
-        return wrapper
+        def new_builder(self):
+            if builder:
+                builder(self)  # execute the original builder
+            self.add_output(label, data_type, storage_type)
+            return self
+
+        return type(cls.__name__, cls.__bases__, dict(cls.__dict__, _builder=new_builder))
 
     return decorator
 

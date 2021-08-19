@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -9,7 +9,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import os.path
 import sys
 from abc import ABC, abstractmethod
 from pathlib import Path
@@ -47,7 +46,10 @@ class Application(ABC):
     # Application's version. <git version tag> or '0.0.0' if not specified.
     version: str = ""
 
-    # Special attribute to identify the application
+    # Special attribute to identify the application.
+    # Used by the CLI executing get_application() or is_application() from deploy.utils.importutil to
+    # determine the application to run.
+    # This is needed to identify Application class across different environments (e.g. by `runpy.run_path()`).
     _class_id: str = "monai.application"
 
     def __init__(
@@ -116,6 +118,17 @@ class Application(ABC):
     @classmethod
     def __subclasshook__(cls, c: Type) -> bool:
         return is_application(c)
+
+    def _builder(self):
+        """This method is called by the constructor of Application to set up the operator.
+
+        This method returns `self` to allow for method chaining and new `_builder()` method is
+        chained by decorators.
+
+        Returns:
+            An instance of Application.
+        """
+        return self
 
     @property
     def context(self) -> AppContext:
