@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -9,7 +9,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Any, Dict, Optional, Union
+
+from os import makedirs
+from os.path import join
 
 from monai.deploy.core import (
     DataPath,
@@ -22,42 +24,25 @@ from monai.deploy.core import (
     input,
     output,
 )
-
-
-from monai.deploy.core.domain.dicom_series import DICOMSeries
-from monai.deploy.core.domain.dicom_study import DICOMStudy
 from monai.deploy.operators.dicom_data_loader_operator import DICOMDataLoaderOperator
-from monai.deploy.operators.dicom_series_selector_operator import DICOMSeriesSelectorOperator
 from monai.deploy.operators.dicom_series_to_volume_operator import DICOMSeriesToVolumeOperator
+from monai.deploy.utils.importutil import optional_import
 
-from monai.deploy.core.domain.image import Image
+PILImage, _ = optional_import("PIL", name="Image")
 
-from os import listdir, makedirs
-from os.path import isfile, join
-
-import math
-
-import numpy as np
-from PIL import Image as PILImage
-import matplotlib.pyplot as plt
 
 @input("image", Image, IOType.IN_MEMORY)
 @output("image", DataPath, IOType.DISK)
-
 class PNGConverterOperator(Operator):
     """
     This operator writes out a 3D Volumtric Image to disk in a slice by slice manner
     """
-
 
     def compute(self, input: InputContext, output: OutputContext, context: ExecutionContext):
         input = input.get("image")
         output_dir = output.get().path
         output_dir.mkdir(parents=True, exist_ok=True)
         self.convert_and_save(input, output_dir)
-
-
-
 
     def convert_and_save(self, image, path):
         """
@@ -69,11 +54,11 @@ class PNGConverterOperator(Operator):
 
         num_images = image_shape[0]
 
-        for i in range( 0, num_images):
+        for i in range(0, num_images):
             input_data = image_data[:, :, i]
-            pil_image=PILImage.fromarray(input_data)
-            if pil_image.mode != 'RGB':
-                pil_image = pil_image.convert('RGB')
+            pil_image = PILImage.fromarray(input_data)
+            if pil_image.mode != "RGB":
+                pil_image = pil_image.convert("RGB")
             pil_image.save(join(str(path), join(str(i) + ".png")))
 
 
@@ -85,7 +70,10 @@ def main():
 
     files = []
     loader = DICOMDataLoaderOperator()
-    loader._list_files(data_path, files,)
+    loader._list_files(
+        data_path,
+        files,
+    )
     study_list = loader._load_data(files)
 
     series = study_list[0].get_all_series()[0]
@@ -98,8 +86,7 @@ def main():
     op2.convert_and_save(image, out_path)
 
     print(series)
-    #print(metadata.keys())
-
+    # print(metadata.keys())
 
 
 if __name__ == "__main__":

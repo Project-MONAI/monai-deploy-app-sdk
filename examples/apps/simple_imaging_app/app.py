@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -18,7 +18,7 @@ from monai.deploy.core import Application, env, resource
 
 @resource(cpu=1)
 # pip_packages can be a string that is a path(str) to requirements.txt file or a list of packages.
-@env(pip_packages=["scikit-image >= 0.18.0"])
+@env(pip_packages=["scikit-image >= 0.17.2"])
 class App(Application):
     """This is a very basic application.
 

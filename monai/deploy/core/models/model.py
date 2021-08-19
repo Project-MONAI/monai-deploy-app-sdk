@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -8,7 +8,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from __future__ import annotations
 
 import os.path
 from pathlib import Path
@@ -143,7 +142,7 @@ class Model:
             return False, None
         return True, cls.model_type
 
-    def get(self, name: str = "") -> Optional[Type[Model]]:
+    def get(self, name: str = "") -> Optional[Type["Model"]]:
         """Return a model object by name.
 
         If there is only one model in the repository or the model path, model object can be returned without specifying
@@ -192,7 +191,7 @@ class Model:
 
         return model_list
 
-    def items(self) -> ItemsView[str, Type[Model]]:
+    def items(self) -> ItemsView[str, Type["Model"]]:
         """Return an ItemsView of models that this Model instance has.
 
         If this model represents a model repository, then an ItemsView of submodel objects is returned.
