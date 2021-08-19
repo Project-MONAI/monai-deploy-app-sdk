@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -9,23 +9,33 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import argparse
-import sys
-from argparse import ArgumentParser, Namespace, _SubParsersAction
+import logging
+from argparse import ArgumentDefaultsHelpFormatter, ArgumentParser, Namespace, _SubParsersAction
 from typing import List
 
+from monai.deploy.runner import runner
+from monai.deploy.utils import argparse_types
 
-def create_run_parser(subparser: _SubParsersAction, command: str, parents: List[ArgumentParser]) -> ArgumentParser:
-    parser = subparser.add_parser(command, formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+logger = logging.getLogger("app_runner")
+
+def create_run_parser(subparser: _SubParsersAction,command: str,
+                      parents: List[ArgumentParser]) -> ArgumentParser:
+    parser = subparser.add_parser(command, formatter_class=ArgumentDefaultsHelpFormatter,
                                   parents=parents, add_help=False)
 
     parser.add_argument("map", metavar="<map-image[:tag]>", help="MAP image name")
-    parser.add_argument("--input", "-i", metavar="<input_dir>", help="Path to input folder/file")
+
+    parser.add_argument("input", metavar="<input>", type=argparse_types.valid_existing_path,
+                        help="Input data path")
+
+    parser.add_argument("output", metavar="<output>", type=argparse_types.valid_path,
+                        help="Output data directory path")
+
+    parser.add_argument('-q', '--quiet', dest='quiet', action='store_true', default=False,
+                        help='Suppress the STDOUT and print only STDERR from the application')
 
     return parser
 
 
 def execute_run_command(args: Namespace):
-    if not args.input:  # if input is empty
-        print("Missing tag name. Use --input=<input_dir>", file=sys.stderr)
-        sys.exit(1)
+    runner.main(args)
