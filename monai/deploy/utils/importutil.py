@@ -83,8 +83,13 @@ def get_application(path: Union[str, Path]) -> Optional["Application"]:
         if not var.startswith("_"):  # skip private variables
             app_cls = vars[var]
             if is_application(app_cls):
+                if path.is_file():
+                    app_path = path
+                else:
+                    app_path = path / f"{app_cls.__module__}.py"
+
                 # Create Application object with the application path
-                app_obj = app_cls(do_run=False, path=path)
+                app_obj = app_cls(do_run=False, path=app_path)
                 return app_obj
     return None
 
@@ -263,6 +268,14 @@ def dist_module_path(project_name: str) -> str:
     return ""
 
 
+def dist_requires(project_name: str) -> str:
+    distributions: Dict = {v.key: v for v in pkg_resources.working_set}
+    dist: Any = distributions.get(project_name)
+    if hasattr(dist, "requires"):
+        return [str(req) for req in dist.requires()]
+    return []
+
+
 if __name__ == "__main__":
     argv = sys.argv
     if len(argv) == 3 and argv[1] == "is_dist_editable":
@@ -274,6 +287,13 @@ if __name__ == "__main__":
         module_path = dist_module_path(argv[2])
         if module_path:
             print(module_path)
+            sys.exit(0)
+        else:
+            sys.exit(1)
+    if len(argv) == 3 and argv[1] == "dist_requires":
+        requires = dist_requires(argv[2])
+        if requires:
+            print("\n".join(requires))
             sys.exit(0)
         else:
             sys.exit(1)

@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -34,7 +34,7 @@ class TorchScriptModel(Model):
     model_type: str = "torch_script"
 
     @property
-    def predictor(self) -> torch.nn.Module:
+    def predictor(self) -> "torch.nn.Module":
         if self._predictor is None:
             self._predictor = torch.jit.load(self.path)
         return self._predictor
