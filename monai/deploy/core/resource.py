@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -9,7 +9,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import functools
 from typing import Optional, Union
 
 from monai.deploy.exceptions import ItemAlreadyExistsError, UnknownTypeError, UnsupportedOperationError
@@ -108,27 +107,26 @@ def resource(
         A decorator that adds an resource requirement to the application.
     """
 
+    # Import here to avoid circular imports
+    from .application import Application
+
     def decorator(cls):
-        @functools.wraps(cls)
-        def wrapper(*args, **kwargs):
-            # Import here to avoid circular imports
-            from .application import Application
+        if issubclass(cls, Application):
+            builder = cls.__dict__.get("_builder")
+        else:
+            raise UnknownTypeError("Use @resource decorator only for a subclass of Application!")
 
-            app = cls(*args, **kwargs)
+        def new_builder(self):
+            if builder:
+                builder(self)  # execute the original builder
 
-            if isinstance(app, Application):
-                try:
-                    app.context.resource.set_resource_limits(cpu, memory, gpu)
-                except ItemAlreadyExistsError as e:
-                    raise ItemAlreadyExistsError(f"In @resource decorator at {app.name}, {e.args[0]}")
-            else:
-                raise UnknownTypeError("Use @resource decorator only for an instance of Application!")
+            try:
+                self.context.resource.set_resource_limits(cpu, memory, gpu)
+            except ItemAlreadyExistsError as e:
+                raise ItemAlreadyExistsError(f"In @resource decorator at {self.name}, {e.args[0]}")
 
-            return app
+            return self
 
-        if hasattr(cls, "_class_id"):
-            wrapper._class_id = cls._class_id
-
-        return wrapper
+        return type(cls.__name__, cls.__bases__, dict(cls.__dict__, _builder=new_builder))
 
     return decorator

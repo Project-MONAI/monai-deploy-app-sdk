@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -16,8 +16,8 @@ from monai.deploy.core import ExecutionContext, Image, InputContext, IOType, Ope
 @output("image", Image, IOType.IN_MEMORY)
 # If `pip_packages` is specified, the definition will be aggregated with the package dependency list of other
 # operators and the application in packaging time.
-# @env(pip_packages=["scikit-image >= 0.18.0"])
-class MedianOperator(Operator):
+# @env(pip_packages=["scikit-image >= 0.17.2"])
+class MedianOperatorBase(Operator):
     """This Operator implements a noise reduction.
 
     The algorithm is based on the median operator.
@@ -25,6 +25,16 @@ class MedianOperator(Operator):
     """
 
     def compute(self, input: InputContext, output: OutputContext, context: ExecutionContext):
+        print("Executing base operator...")
+
+
+class MedianOperator(MedianOperatorBase):
+    """This operator is a subclass of the base operator to demonstrate the usage of inheritance."""
+
+    def compute(self, input: InputContext, output: OutputContext, context: ExecutionContext):
+        # Execute the base operator's compute method.
+        super().compute(input, output, context)
+
         from skimage.filters import median
 
         # Get a model instance if exists
