@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -36,7 +36,7 @@ class DICOMSOPInstance(Domain):
     def get_native_sop_instance(self):
         return self._sop
 
-    def __getitem__(self, key: Union[int, slice, TagType]) -> Union[Dataset, DataElement]:
+    def __getitem__(self, key: Union[int, slice, "TagType"]) -> Union["Dataset", "DataElement"]:
         return self._sop.__getitem__(key)
 
     def get_pixel_array(self):

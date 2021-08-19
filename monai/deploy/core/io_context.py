@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -8,8 +8,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-from __future__ import annotations
 
 from abc import ABC
 from typing import TYPE_CHECKING, Any
@@ -25,7 +23,7 @@ class IOContext(ABC):
 
     _io_kind = "undefined"
 
-    def __init__(self, execution_context: ExecutionContext):
+    def __init__(self, execution_context: "ExecutionContext"):
         """Constructor for IOContext."""
         self._execution_context = execution_context
         self._op = execution_context.op
