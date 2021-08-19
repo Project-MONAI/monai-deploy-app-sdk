@@ -105,6 +105,9 @@ class Application(ABC):
 
         self._graph: Graph = GraphFactory.create(context.graph)
 
+        # Execute the builder to set up the application
+        self._builder()
+
         # Compose operators
         self.compose()
 
