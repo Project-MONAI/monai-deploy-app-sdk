@@ -42,10 +42,11 @@ def verify_image(image: str) -> bool:
     Returns:
         True if either image is already present or if it was successfully pulled.
     """
+
     def _check_image_exists_locally(image_tag):
         response = subprocess.check_output(
-            ["docker", "images", image_tag, "--format", "{{.Repository}}:{{.Tag}}"],
-            universal_newlines=True)
+            ["docker", "images", image_tag, "--format", "{{.Repository}}:{{.Tag}}"], universal_newlines=True
+        )
 
         if image_tag in response:
             logger.info('"%s" found.', image_tag)
@@ -54,7 +55,7 @@ def verify_image(image: str) -> bool:
         return False
 
     def _pull_image(image_tag: str) -> bool:
-        cmd = f'docker pull {image_tag}'
+        cmd = f"docker pull {image_tag}"
         returncode = run_cmd(cmd)
 
         if returncode != 0:
