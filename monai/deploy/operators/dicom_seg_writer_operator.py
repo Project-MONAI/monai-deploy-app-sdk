@@ -523,6 +523,9 @@ def segslice_from_mhd(dcm_output, seg_img, input_ds, num_labels):
     """Sets the pixel data from the input numpy image
     """
 
+    if np.amax(seg_img) == 0 and np.amin(seg_img) == 0:
+        raise ValueError("Seg mask is not detected; all 0's.")
+
     # add frames
     out_frame_counter = 0
     out_frames = Sequence()
