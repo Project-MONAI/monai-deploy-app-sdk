@@ -47,12 +47,14 @@ class MedianOperator(MedianOperatorBase):
 
         from skimage.filters import median
 
+        # `context.models.get(model_name)` returns a model instance
+        #  (a null model would be returned if model is not available)
+        # If model_name is not specified and only one model exists, it returns that model.
+        model = context.models.get()  # a model object that inherits Model class
+
         # Get a model instance if exists
-        if context.models:
-            # `context.models.get(model_name)` returns a model instance if exists.
-            # If model_name is not specified and only one model exists, it returns that model.
-            model = context.models.get()  # PyTorchModel object that inherits Model class
-            # print(model.items())
+        if model:  # if model is not a null model
+            print(model.items())
             # # model.path for accessing the model's path
             # # model.name for accessing the model's name
             # result = model(input.get().asnumpy())
