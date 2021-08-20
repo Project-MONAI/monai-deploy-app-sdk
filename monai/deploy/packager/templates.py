@@ -51,6 +51,9 @@ COMMON_FOOTPRINT = """
 
     COPY --chown=monai:monai ./app {app_dir}
 
+    # Create bytecodes for monai and app's code. This would help speed up loading time a little bit.
+    RUN python -m compileall -q -j 0 /home/monai/.local/lib/python3.8/site-packages/monai /opt/monai/app
+
     ENTRYPOINT [ "/opt/monai/executor/monai-exec" ]
 """
 
