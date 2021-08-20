@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -36,7 +36,7 @@ class AISpleenSegApp(Application):
         study_loader_op = DICOMDataLoaderOperator()
         series_selector_op = DICOMSeriesSelectorOperator()
         series_to_vol_op = DICOMSeriesToVolumeOperator()
-        spleen_seg_op = SpleenSegOperator()
+        spleen_seg_op = SpleenSegOperator(testing=False)
         dicom_seg_writer = DICOMSegmentationWriterOperator()
 
         self.add_flow(study_loader_op, series_selector_op, {"dicom_study_list": "dicom_study_list"})
