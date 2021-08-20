@@ -29,19 +29,57 @@ class TorchScriptModel(Model):
 
     We consider that the model is a torchscript model if its unzipped archive contains files named 'data.pkl' and
     'constants.pkl', and folders named 'code' and 'data'.
+
+    When predictor property is accessed or the object is called (__call__), the model is loaded in `evaluation mode`
+    from the serialized model file (if it is not loaded yet) and the model is ready to be used.
     """
 
     model_type: str = "torch_script"
 
     @property
     def predictor(self) -> "torch.nn.Module":
+        """Get the model's predictor (torch.nn.Module)
+
+        If the predictor is not loaded, load it from the model file in evaluation mode.
+        (https://pytorch.org/docs/stable/generated/torch.jit.ScriptModule.html?highlight=eval#torch.jit.ScriptModule.eval)
+
+        Returns:
+            torch.nn.Module: the model's predictor
+        """
         if self._predictor is None:
-            self._predictor = torch.jit.load(self.path)
+            self._predictor = torch.jit.load(self.path).eval()
         return self._predictor
 
     @predictor.setter
     def predictor(self, predictor: Any):
         self._predictor = predictor
+
+    def eval(self) -> "TorchScriptModel":
+        """Set the model in evaluation model.
+
+        This is a proxy method for torch.jit.ScriptModule.eval().
+        See https://pytorch.org/docs/stable/generated/torch.jit.ScriptModule.html?highlight=eval#torch.jit.ScriptModule.eval
+
+        Returns:
+            self
+        """
+        self.predictor.eval()
+        return self
+
+    def train(self, mode: bool = True) -> "TorchScriptModel":
+        """Set the model in training mode.
+
+        This is a proxy method for torch.jit.ScriptModule.train().
+        See https://pytorch.org/docs/stable/generated/torch.jit.ScriptModule.html?highlight=train#torch.jit.ScriptModule.train
+
+        Args:
+            mode (bool): whether the model is in training mode
+
+        Returns:
+            self
+        """
+        self.predictor.train(mode)
+        return self
 
     @classmethod
     def accept(cls, path: str):
