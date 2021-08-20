@@ -119,13 +119,95 @@ PYTORCH_DOCKERFILE_TEMPLATE = (
     + COMMON_FOOTPRINT
 )
 
+DOCKERIGNORE_TEMPLATE = """
+# Git
+**/.git
+**/.gitignore
+**/.gitconfig
+
+# CI
+**/.codeclimate.yml
+**/.travis.yml
+**/.taskcluster.yml
+
+# Docker
+**/docker-compose.yml
+**/.docker
+
+# Byte-compiled/optimized/DLL files for Python
+**/__pycache__
+**/*.pyc
+**/.Python
+**/*$py.class
+
+# Conda folders
+**/.conda
+**/conda-bld
+
+# Distribution / packaging
+**/.Python
+**/.cmake
+**/cmake-build*/
+**/build-*/
+**/develop-eggs/
+**/.eggs/
+**/sdist/
+**/wheels/
+**/*.egg-info/
+**/.installed.cfg
+**/*.egg
+**/MANIFEST
+
+# PyInstaller
+#  Usually these files are written by a python script from a template
+#  before PyInstaller builds the exe, so as to inject date/other infos into it.
+**/*.manifest
+**/*.spec
+
+# Installer logs
+**/pip-log.txt
+**/pip-delete-this-directory.txt
+
+# Unit test / coverage reports
+**/htmlcov/
+**/.tox/
+**/.coverage
+**/.coverage.*
+**/.cache
+**/nosetests.xml
+**/coverage.xml
+**/*.cover
+**/*.log
+**/.hypothesis/
+**/.pytest_cache/
+
+# mypy
+**/.mypy_cache/
+
+## VSCode IDE
+**/.vscode
+
+# Jupyter Notebook
+**/.ipynb_checkpoints
+
+# Environments
+**/.env
+**/.venv
+**/env/
+**/venv/
+**/ENV/
+**/env.bak/
+**/venv.bak/
+"""
+
 TEMPLATE_MAP = {
     "ubuntu": UBUNTU_DOCKERFILE_TEMPLATE,
     "pytorch": PYTORCH_DOCKERFILE_TEMPLATE,
+    '.dockerignore' : DOCKERIGNORE_TEMPLATE
 }
 
 
 class Template:
     @staticmethod
     def get_template(name: str) -> str:
-        return TEMPLATE_MAP.get(name, "")
+        return TEMPLATE_MAP[name]

@@ -156,6 +156,12 @@ def build_image(args: dict, temp_dir: str):
     with open(docker_file_path, "w") as docker_file:
         docker_file.write(docker_template_string)
 
+    # Write out .dockerignore file
+    dockerignore_file_path = os.path.join(temp_dir, ".dockerignore")
+    with open(dockerignore_file_path, "w") as dockerignore_file:
+        docker_ignore_template = Template.get_template(".dockerignore")
+        dockerignore_file.write(docker_ignore_template)
+
     # Build dockerfile into an MAP image
     docker_build_cmd = ["docker", "build", "-f", docker_file_path, "-t", tag, temp_dir]
     proc = subprocess.Popen(docker_build_cmd, stdout=subprocess.PIPE)
