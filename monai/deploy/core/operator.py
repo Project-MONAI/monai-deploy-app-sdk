@@ -14,6 +14,7 @@ from abc import ABC, abstractmethod
 from typing import Type, Union
 
 from monai.deploy.exceptions import UnknownTypeError
+from monai.deploy.utils.importutil import is_subclass
 
 from .domain import Domain
 from .env import BaseEnv
@@ -32,6 +33,14 @@ class Operator(ABC):
     communicate with other operators.
     """
 
+    # Special attribute to identify the operator.
+    # Used by is_subclass() from deploy.utils.importutil to
+    # determine the operatorapplication to run.
+    # This is needed to identify Operator class across different environments (e.g. by `runpy.run_path()`).
+    _class_id: str = "monai.operator"
+
+    _env: "OperatorEnv" = None
+
     def __init__(self, *args, **kwargs):
         """Constructor of the base operator.
 
@@ -41,10 +50,13 @@ class Operator(ABC):
         super().__init__()
         self._uid = uuid.uuid4()
         self._op_info = OperatorInfo()
-        self._env = None
 
         # Execute the builder to set up the operator
         self._builder()
+
+    @classmethod
+    def __subclasshook__(cls, c: Type) -> bool:
+        return is_subclass(c, cls._class_id)
 
     def _builder(self):
         """This method is called by the constructor of Operator to set up the operator.
@@ -176,7 +188,8 @@ def input(label: str = "", data_type: Type[Domain] = None, storage_type: Union[i
             self.add_input(label, data_type, storage_type)
             return self
 
-        return type(cls.__name__, cls.__bases__, dict(cls.__dict__, _builder=new_builder))
+        cls._builder = new_builder
+        return cls
 
     return decorator
 
@@ -205,7 +218,8 @@ def output(label: str = "", data_type: Type[Domain] = None, storage_type: Union[
             self.add_output(label, data_type, storage_type)
             return self
 
-        return type(cls.__name__, cls.__bases__, dict(cls.__dict__, _builder=new_builder))
+        cls._builder = new_builder
+        return cls
 
     return decorator
 

@@ -19,7 +19,7 @@ from monai.deploy.cli.main import LOG_CONFIG_FILENAME, parse_args, set_up_loggin
 from monai.deploy.core.graphs.factory import GraphFactory
 from monai.deploy.core.models import ModelFactory
 from monai.deploy.exceptions import IOMappingError
-from monai.deploy.utils.importutil import get_class_file_path, get_docstring, is_application
+from monai.deploy.utils.importutil import get_class_file_path, get_docstring, is_subclass
 
 from .app_context import AppContext
 from .datastores import DatastoreFactory
@@ -47,10 +47,12 @@ class Application(ABC):
     version: str = ""
 
     # Special attribute to identify the application.
-    # Used by the CLI executing get_application() or is_application() from deploy.utils.importutil to
+    # Used by the CLI executing get_application() or is_subclass() from deploy.utils.importutil to
     # determine the application to run.
     # This is needed to identify Application class across different environments (e.g. by `runpy.run_path()`).
     _class_id: str = "monai.application"
+
+    _env: "ApplicationEnv" = None
 
     def __init__(
         self,
@@ -82,7 +84,6 @@ class Application(ABC):
                 self.version = get_versions()["version"]
             except ImportError:
                 self.version = "0.0.0"
-        self._env = None
 
         # Set the application path
         if path:
@@ -120,7 +121,7 @@ class Application(ABC):
 
     @classmethod
     def __subclasshook__(cls, c: Type) -> bool:
-        return is_application(c)
+        return is_subclass(c, cls._class_id)
 
     def _builder(self):
         """This method is called by the constructor of Application to set up the operator.
