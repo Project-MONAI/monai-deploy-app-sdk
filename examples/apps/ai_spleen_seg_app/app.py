@@ -1,8 +1,4 @@
-<<<<<<< HEAD
-# Copyright 2020 - 2021 MONAI Consortium
-=======
 # Copyright 2021 MONAI Consortium
->>>>>>> dd1a51d8fffbc91621333fbffa5a2350571ff50e
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
