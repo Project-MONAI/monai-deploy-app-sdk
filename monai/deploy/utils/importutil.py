@@ -43,9 +43,20 @@ def get_docstring(cls: type) -> str:
     return "\n".join([line.strip() for line in doc.split("\n")])
 
 
-def is_application(cls: Any) -> bool:
-    """Check if the given type is a subclass of Application class."""
-    if hasattr(cls, "_class_id") and cls._class_id == "monai.application":
+def is_subclass(cls: type, class_or_tuple: Union[str, Tuple[str]]) -> bool:
+    """Check if the given type is a subclass of a MONAI App SDK class.
+
+    Args:
+        cls (type): A class to check.
+        class_or_tuple (Union[str, Tuple[str]]): A class name or a tuple of class names.
+
+    Returns:
+        True if the given class is a subclass of the given class or one of the classes in the tuple.
+    """
+    if type(class_or_tuple) is str:
+        class_or_tuple  = (class_or_tuple,)
+
+    if hasattr(cls, "_class_id") and cls._class_id in class_or_tuple:
         if inspect.isclass(cls) and hasattr(cls, "__abstractmethods__") and len(cls.__abstractmethods__) != 0:
             return False
         return True

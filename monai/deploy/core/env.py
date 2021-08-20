@@ -69,7 +69,7 @@ def env(pip_packages: Optional[Union[str, List[str]]] = None):
     from .operator import Operator, OperatorEnv
 
     def decorator(cls):
-        if hasattr(cls, "_env"):
+        if hasattr(cls, "_env") and cls._env:
             raise ItemAlreadyExistsError(f"@env decorator is aleady specified for {cls}.")
 
         if issubclass(cls, Operator):

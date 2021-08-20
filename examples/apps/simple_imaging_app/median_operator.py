@@ -24,12 +24,22 @@ class MedianOperatorBase(Operator):
     It ingests a single input and provides a single output.
     """
 
+    # Define __init__ method with super().__init__() if you want to override the default behavior.
+    def __init__(self):
+        super().__init__()
+        # Do something
+
     def compute(self, input: InputContext, output: OutputContext, context: ExecutionContext):
         print("Executing base operator...")
 
 
 class MedianOperator(MedianOperatorBase):
     """This operator is a subclass of the base operator to demonstrate the usage of inheritance."""
+
+    # Define __init__ method with super().__init__() if you want to override the default behavior.
+    def __init__(self):
+        super().__init__()
+        # Do something
 
     def compute(self, input: InputContext, output: OutputContext, context: ExecutionContext):
         # Execute the base operator's compute method.

@@ -126,7 +126,7 @@ def resource(
                 raise ItemAlreadyExistsError(f"In @resource decorator at {self.name}, {e.args[0]}")
 
             return self
-
-        return type(cls.__name__, cls.__bases__, dict(cls.__dict__, _builder=new_builder))
+        cls._builder = new_builder
+        return cls
 
     return decorator
