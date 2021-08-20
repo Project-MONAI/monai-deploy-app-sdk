@@ -120,13 +120,14 @@ def resource(
             raise UnknownTypeError("Use @resource decorator only for a subclass of Application!")
 
         def new_builder(self: Application):
-            if builder:
-                builder(self)  # execute the original builder
-
+            # Execute (this) outer decorator first so decorators are executed in order
             try:
                 self.context.resource.set_resource_limits(cpu, memory, gpu)
             except ItemAlreadyExistsError as e:
                 raise ItemAlreadyExistsError(f"In @resource decorator at {self.name}, {e.args[0]}")
+
+            if builder:
+                builder(self)  # execute the original builder
 
             return self
         cls._builder = new_builder
