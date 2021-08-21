@@ -16,7 +16,8 @@ from threading import Lock
 from typing import TYPE_CHECKING, Any, Dict, List, Sequence, Optional, Union
 import numpy as np
 import nibabel as nib
-from monai.deploy.utils.importutil import optional_import
+from monai.deploy.utils.importutil import dist_module_path, optional_import
+from numpy.lib.type_check import imag
 
 # torch, _ = optional_import("torch", "1.5")
 # monai, _ = optional_import("monai", "0.6.0")
@@ -179,12 +180,19 @@ class MonaiSegInferenceOperator(InferenceOperator):
                     )
                     d = [post_transforms(i) for i in decollate_batch(d)]
                     out_ndarray = d[0][self._pred_dataset_key].cpu().numpy()
-                    print(out_ndarray.shape)
+                    print(f'Post transformed ndarray shape: {out_ndarray.shape}')
+                    # Need to squeeze out the channel dim fist
                     out_ndarray = np.squeeze(out_ndarray, 0)
-                    print(out_ndarray.shape)
-                    out_ndarray = np.moveaxis(out_ndarray, 2, 0)
-                    print(out_ndarray.shape)
-                    print(np.amax(out_ndarray))
+                    # NOTE: The domain Image object simply contains a Arraylike obj as image as of now.
+                    #       When the original DICOM series is converted by the Series to Volume operator,
+                    #       using pydicom pixel_array, the 2D ndarray of each slice is transposed, and the
+                    #       depth/axial direction dim made the last. So once post-transforms have completed,
+                    #       the resultant ndarray for each slice needs to be transposed back, and the depth
+                    #       dim moved back to first, otherwise the seg ndarray would be flipped compared to
+                    #       the DICOM pixel array, causing the DICOM Seg Writer generate flipped seg images.
+                    out_ndarray = np.swapaxes(out_ndarray, 2, 0)
+                    print(f'Output Seg image numpy array shaped: {out_ndarray.shape}')
+                    print(f'Output Seg image pixel max value: {np.amax(out_ndarray)}')
                     out_image = Image(out_ndarray)
                     output.set(out_image, "seg_image")
         finally:
