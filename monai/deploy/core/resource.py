@@ -11,7 +11,8 @@
 
 from typing import Optional, Union
 
-from monai.deploy.exceptions import ItemAlreadyExistsError, UnknownTypeError, UnsupportedOperationError
+from monai.deploy.exceptions import ItemAlreadyExistsError, UnknownTypeError, WrongValueError
+from monai.deploy.utils.sizeutil import get_bytes
 
 
 class Resource:
@@ -75,8 +76,10 @@ class Resource:
                 )
 
         if type(memory_limit) == str:
-            # TODO(gigony): convert str to int
-            raise UnsupportedOperationError("Memory limit must be an integer.")
+            try:
+                self._memory = get_bytes(memory_limit)
+            except Exception as e:
+                raise WrongValueError(f"Memory size specified in the application (via @resource) is not valid: {e.args[0]}")
         else:
             if memory_limit is not None:
                 if self._memory is None:
@@ -116,7 +119,7 @@ def resource(
         else:
             raise UnknownTypeError("Use @resource decorator only for a subclass of Application!")
 
-        def new_builder(self):
+        def new_builder(self: Application):
             if builder:
                 builder(self)  # execute the original builder
 

@@ -20,6 +20,7 @@ from monai.deploy.core.graphs.factory import GraphFactory
 from monai.deploy.core.models import ModelFactory
 from monai.deploy.exceptions import IOMappingError
 from monai.deploy.utils.importutil import get_class_file_path, get_docstring, is_subclass
+from monai.deploy.utils.sizeutil import convert_bytes
 
 from .app_context import AppContext
 from .datastores import DatastoreFactory
@@ -303,7 +304,7 @@ class Application(ABC):
             "resource": {
                 "cpu": resource.cpu,
                 "gpu": resource.gpu,
-                "memory": resource.memory,
+                "memory": convert_bytes(resource.memory),
             },
             "models": model_list,
             "pip-packages": pip_requirement_list,
