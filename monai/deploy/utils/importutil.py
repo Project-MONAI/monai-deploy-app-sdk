@@ -54,7 +54,7 @@ def is_subclass(cls: type, class_or_tuple: Union[str, Tuple[str]]) -> bool:
         True if the given class is a subclass of the given class or one of the classes in the tuple.
     """
     if type(class_or_tuple) is str:
-        class_or_tuple  = (class_or_tuple,)
+        class_or_tuple = (class_or_tuple,)
 
     if hasattr(cls, "_class_id") and cls._class_id in class_or_tuple:
         if inspect.isclass(cls) and hasattr(cls, "__abstractmethods__") and len(cls.__abstractmethods__) != 0:
@@ -65,6 +65,7 @@ def is_subclass(cls: type, class_or_tuple: Union[str, Tuple[str]]) -> bool:
 
 def get_application(path: Union[str, Path]) -> Optional["Application"]:
     """Get application object from path."""
+    from monai.deploy.core import Application
 
     if isinstance(path, str):
         path = Path(path)
@@ -82,7 +83,8 @@ def get_application(path: Union[str, Path]) -> Optional["Application"]:
     for var in vars.keys():
         if not var.startswith("_"):  # skip private variables
             app_cls = vars[var]
-            if is_application(app_cls):
+
+            if is_subclass(app_cls, Application._class_id):
                 if path.is_file():
                     app_path = path
                 else:
