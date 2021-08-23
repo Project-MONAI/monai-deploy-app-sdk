@@ -21,11 +21,12 @@ from typing import Dict
 
 from monai.deploy.packager.constants import DefaultValues
 from monai.deploy.packager.templates import Template
+from monai.deploy.utils.fileutil import checksum
 from monai.deploy.utils.importutil import dist_module_path, dist_requires, get_application
 
 logger = logging.getLogger("app_packager")
 
-executor_url = "https://globalcdn.nuget.org/packages/monai.deploy.executor.0.1.0-prealpha.0.nupkg"
+executor_url = "https://globalcdn.nuget.org/packages/monai.deploy.executor.0.1.0-prealpha.2.nupkg"
 
 
 def initialize_args(args: Namespace) -> Dict:
@@ -45,12 +46,12 @@ def initialize_args(args: Namespace) -> Dict:
     processed_args["docker_file_name"] = DefaultValues.DOCKER_FILE_NAME
     processed_args["base_image"] = args.base if args.base else DefaultValues.BASE_IMAGE
     processed_args["working_dir"] = args.working_dir if args.working_dir else DefaultValues.WORK_DIR
-    processed_args["app_dir"] = "/opt/monai/app/"
-    processed_args["executor_dir"] = "/opt/monai/executor/"
+    processed_args["app_dir"] = "/opt/monai/app"
+    processed_args["executor_dir"] = "/opt/monai/executor"
     processed_args["input_dir"] = args.input if args.input_dir else DefaultValues.INPUT_DIR
     processed_args["output_dir"] = args.output if args.output_dir else DefaultValues.OUTPUT_DIR
     processed_args["models_dir"] = args.models if args.models_dir else DefaultValues.MODELS_DIR
-    processed_args["api_version"] = DefaultValues.API_VERSION
+    processed_args["api-version"] = DefaultValues.API_VERSION
     processed_args["timeout"] = args.timeout if args.timeout else DefaultValues.TIMEOUT
     processed_args["version"] = args.version if args.version else DefaultValues.VERSION
 
@@ -198,7 +199,7 @@ def create_app_manifest(args: Dict, temp_dir: str):
     input_dir = args["input_dir"]
     output_dir = args["output_dir"]
     working_dir = args["working_dir"]
-    api_version = args["api_version"]
+    api_version = args["api-version"]
     app_version = args["version"]
     timeout = args["timeout"]
 
@@ -207,18 +208,16 @@ def create_app_manifest(args: Dict, temp_dir: str):
     environment = args["application_info"]["environment"] if "environment" in args["application_info"] else {}
 
     app_manifest = {}
-    app_manifest["api_version"] = api_version
-    app_manifest["sdk_version"] = sdk_version
+    app_manifest["api-version"] = api_version
+    app_manifest["sdk-version"] = sdk_version
     app_manifest["command"] = command
     app_manifest["environment"] = environment
     app_manifest["working-directory"] = working_dir
     app_manifest["input"] = {}
     app_manifest["input"]["path"] = input_dir
-    app_manifest["input"]["path_env"] = "MONAI_INPUTPATH"
     app_manifest["input"]["formats"] = []
     app_manifest["output"] = {}
     app_manifest["output"]["path"] = output_dir
-    app_manifest["output"]["path_env"] = "MONAI_OUTPUTPATH"
     app_manifest["output"]["format"] = {}
     app_manifest["version"] = app_version
     app_manifest["timeout"] = timeout
@@ -240,7 +239,7 @@ def create_package_manifest(args: Dict, temp_dir: str):
     """
     models_dir = args["models_dir"]
     working_dir = args["working_dir"]
-    api_version = args["api_version"]
+    api_version = args["api-version"]
     app_version = args["version"]
 
     sdk_version = args["application_info"]["sdk-version"]
@@ -256,9 +255,13 @@ def create_package_manifest(args: Dict, temp_dir: str):
     package_manifest["models"] = []
 
     for model_entry in models:
-        model_name = model_entry["name"]
+        local_model_name = model_entry["name"]
+        local_model_path = model_entry["path"]
+        # Here, the model name is conformant to the specification of the MAP.
+        #   '<model name up to 63 characters>-<checksum of the model file/folder>'
+        model_name = f"""{local_model_name[:63]}-{checksum(local_model_path)}"""
         model_file = os.path.basename(model_entry["path"])
-        model_path = os.path.join(models_dir, model_name, model_file)
+        model_path = os.path.join(models_dir, local_model_name, model_file)
         package_manifest["models"].append({"name": model_name, "path": model_path})
 
     package_manifest["resources"] = {}

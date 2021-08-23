@@ -14,13 +14,13 @@ from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Dict, Optional, Set, Type, Union
 
-from monai.deploy import __version__ as SDK_VERSION
 from monai.deploy.cli.main import LOG_CONFIG_FILENAME, parse_args, set_up_logging
 from monai.deploy.core.graphs.factory import GraphFactory
 from monai.deploy.core.models import ModelFactory
 from monai.deploy.exceptions import IOMappingError
 from monai.deploy.utils.importutil import get_class_file_path, get_docstring, is_subclass
 from monai.deploy.utils.sizeutil import convert_bytes
+from monai.deploy.utils.version import get_sdk_semver
 
 from .app_context import AppContext
 from .datastores import DatastoreFactory
@@ -299,7 +299,7 @@ class Application(ABC):
         return {
             "app-name": self.name,
             "app-version": self.version,
-            "sdk-version": SDK_VERSION,
+            "sdk-version": get_sdk_semver(),
             "command": command,
             "resource": {
                 "cpu": resource.cpu,
