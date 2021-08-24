@@ -17,7 +17,7 @@ from monai.deploy.operators.dicom_series_to_volume_operator import DICOMSeriesTo
 from monai.deploy.operators.dicom_seg_writer_operator import DICOMSegmentationWriterOperator
 from spleen_seg_operator import SpleenSegOperator
 
-@resource(cpu=1, gpu=1)
+@resource(cpu=1, gpu=1, memory="7Gi")
 # pip_packages can be a string that is a path(str) to requirements.txt file or a list of packages.
 # The monai pkg is not required by this class, instead by the included operators.
 @env(pip_packages=["monai == 0.6.0"])
