@@ -601,3 +601,24 @@ TBD
 
 #### Target Release
 MONAI Deploy App SDK 0.2.0
+
+
+### [REQ] Minimum System Requirements
+The SDK shall support the following system configurations for a given target release of the SDK when intsalled using "pip". The details of the system configurations are mentioned below
+
+| System Configiration      | Target Release                      |
+| ------------------------- | ------------------------------------|
+| Configuration A           | 0.1.0                               |
+
+
+
+#### System Configuration A
+
+| Attribute                 | Value                   |
+| --------------------------| ----------------------- |
+| Operating System          | Ubuntu 20.04            |
+| Minimum System Memory     |                         |
+| Minimum GPU Memory        |                         |
+| CUDA Version Number       |                         |
+| NVIDIA Driver             |                         |
+| CUDA Compute Capability   |                         |
