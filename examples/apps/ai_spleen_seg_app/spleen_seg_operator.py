@@ -10,6 +10,7 @@
 # limitations under the License.
 
 from typing import Any, Dict, Optional, Union
+import logging
 from monai.data import image_reader
 
 from monai.transforms import (
@@ -59,7 +60,7 @@ class SpleenSegOperator(Operator):
     This operator writes out a 3D Volumtric Image to disk in a slice by slice manner
     """
     def __init__(self, testing:bool =False):
-
+        self.logger = logging.getLogger("{}.{}".format(__name__, type(self).__name__))
         super().__init__()
         self.testing = testing
         self._input_dataset_key = "image"
