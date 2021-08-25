@@ -608,13 +608,13 @@ The SDK shall support the following system configurations for a given target rel
 
 | Target Release            | Supported System Configs            |
 | ------------------------- | ------------------------------------|
-| 0.1.0                     | A                                   |
+| 0.1.0                     | System Config #1                    |
 
-  
-  
+          
+          
+          
 
-#### System Configuration A
-
+#### System Config #1  
 | Attribute                 | Value                                                     |
 | --------------------------| --------------------------------------------------------- |
 | Operating System          | Ubuntu 20.04?                                             |
