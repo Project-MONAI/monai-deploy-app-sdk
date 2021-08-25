@@ -610,8 +610,9 @@ The SDK shall support the following system configurations for a given target rel
 | ------------------------- | ------------------------------------|
 | 0.1.0                     | A                                   |
 
-<br>
-<br>
+  
+  
+
 #### System Configuration A
 
 | Attribute                 | Value                                                     |
