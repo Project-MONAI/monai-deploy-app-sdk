@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -27,13 +27,6 @@ FileDataset, _ = optional_import("pydicom.dataset", name="FileDataset")
 Sequence, _ = optional_import("pydicom.sequence", name="Sequence")
 sitk, _ = optional_import("SimpleITK")
 
-#from pydicom import dcmread
-#from pydicom.dataset import Dataset, FileDataset
-#from pydicom.sequence import Sequence
-#from pydicom.uid import generate_uid
-#from pydicom.uid import ImplicitVRLittleEndian
-#import SimpleITK as sitk
-
 from monai.deploy.core import (
     DataPath,
     ExecutionContext,
@@ -51,11 +44,10 @@ from monai.deploy.core.domain.dicom_series import DICOMSeries
 from monai.deploy.operators.dicom_data_loader_operator import DICOMDataLoaderOperator
 from monai.deploy.operators.dicom_series_to_volume_operator import DICOMSeriesToVolumeOperator
 
-#@input("seg_image", DataPath, IOType.DISK)
 @input("seg_image", Image, IOType.IN_MEMORY)
 @input("dicom_series", DICOMSeries, IOType.IN_MEMORY)
 @output("dicom_seg_instance", DataPath, IOType.DISK)
-@env(pip_packages=["pydicom == 2.2.0", "SimpleITK == 2.1.0"])
+@env(pip_packages=["pydicom >= 1.4.2", "SimpleITK >= 2.0.0"])
 class DICOMSegmentationWriterOperator(Operator):
     """
     This operator writes out a DICOM Segmentation Part 10 file to disk
@@ -187,7 +179,6 @@ class DICOMSegmentationWriterOperator(Operator):
 
         return label_list
 
-# DICOMSegWriter temp
 class DICOMSegWriter(object):
 
     def __init__(self):
@@ -513,18 +504,6 @@ def set_pixel_meta(dicomOutput, input_ds):
     dicomOutput.SliceThickness = input_ds.get('SliceThickness', '')
     dicomOutput.RescaleSlope = 1
     dicomOutput.RescaleIntercept = 0
-    # if is_binary:
-    # dicomOutput.MaximumFractionalValue = 1
-    # dicomOutput.BitsAllocated = 1
-    # dicomOutput.BitsStored = 1
-    # dicomOutput.HighBit = 0
-    #####AEH maybe
-    # dicomOutput.PixelData = pydicom.pixel_data_handlers.numpy_handler.pack_bits(binaryOutput)
-    # binaryOutput= np.packbits(binaryOutput.astype(np.bool))
-    # dicomOutput.PixelData = binaryOutput.tostring('F')
-    # dicomOutput.PixelData = pydicom.pixel_data_handlers.numpy_handler.pack_bits(binaryOutput.flatten())
-    # dicomOutput.SegmentationType='BINARY'
-    ###############....
     # Set the transfer syntax
     dicomOutput.is_little_endian = False # True
     dicomOutput.is_implicit_VR = False #True

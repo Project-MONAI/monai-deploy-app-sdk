@@ -59,9 +59,9 @@ class MonaiSegInferenceOperator(InferenceOperator):
     MODEL_LOCAL_PATH = 'model/model.ts'
 
     def __init__(self,
-        roi_size:Union[Sequence[int], int],
-        pre_transforms:Compose,
-        post_transforms:Compose,
+        roi_size: Union[Sequence[int], int],
+        pre_transforms: Compose,
+        post_transforms: Compose,
         *args,
         **kwargs
     ):
@@ -89,7 +89,7 @@ class MonaiSegInferenceOperator(InferenceOperator):
         """The ROI size of tensors used in prediction."""
         return self._roi_size
     @roi_size.setter
-    def roi_size(self, roi_size:Union[Sequence[int], int]):
+    def roi_size(self, roi_size: Union[Sequence[int], int]):
          self._roi_size = ensure_tuple(roi_size)
 
     @property

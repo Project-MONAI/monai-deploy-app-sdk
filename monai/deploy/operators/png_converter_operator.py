@@ -34,7 +34,7 @@ PILImage, _ = optional_import("PIL", name="Image")
 
 @input("image", Image, IOType.IN_MEMORY)
 @output("image", DataPath, IOType.DISK)
-@env(pip_packages=["Pillow==8.3.1"])
+@env(pip_packages=["Pillow >= 8.0.0"])
 class PNGConverterOperator(Operator):
     """
     This operator writes out a 3D Volumtric Image to disk in a slice by slice manner

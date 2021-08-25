@@ -34,7 +34,7 @@ generate_uid, _ = optional_import("pydicom.uid", name="generate_uid")
 
 @input("dicom_files", DataPath, IOType.DISK)
 @output("dicom_study_list", DICOMStudy, IOType.IN_MEMORY)
-@env(pip_packages=["pydicom==2.2.0"])
+@env(pip_packages=["pydicom >= 1.4.2"])
 class DICOMDataLoaderOperator(Operator):
     """
     This operator loads a collection of DICOM Studies in memory
