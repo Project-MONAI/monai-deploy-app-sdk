@@ -28,14 +28,17 @@ class BaseExecutionContext:
         else:
             self._storage = datastore
 
-        self._models = models
+        if models is None:
+            self._models = Model("")  # set a null model
+        else:
+            self._models = models
 
     @property
     def storage(self):
         return self._storage
 
     @property
-    def models(self):
+    def models(self) -> Model:
         return self._models
 
 

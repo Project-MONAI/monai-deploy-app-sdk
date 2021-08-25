@@ -28,6 +28,9 @@ class Model:
 
     If this presents a model, the model's name and path are accessed via 'name' and 'path' attributes.
 
+    If the model's path is not specified(`Model("")`), the model is considered as a null model
+    and `bool(Model("")) == False`.
+
     All models that this class represents can be retrieved by using `items()` method and a model with specific name
     can be retrieved by `get()` method with a model name argument (If only one model is available, you can skip
     specifying the model name).
@@ -49,9 +52,8 @@ class Model:
     >>> class MyOperator(Operator):
     >>>     def compute(self, input: InputContext, output: OutputContext, context: ExecutionContext):
     >>>         import torch
-    >>>         inference_device = torch.device('cpu')
     >>>         model = context.models.get()
-    >>>         model.predictor = torch.jit.load(model.path, map_location=inference_device)
+    >>>         model.predictor = torch.jit.load(model.path, map_location="cpu").eval()
     >>>         result = model(input.get().asnumpy())
 
     Supported model types can be registered using static 'register' method.
@@ -64,8 +66,8 @@ class Model:
 
         If name is not provided, the model name is taken from the path.
         `_predicator` is set to None and it is expected to be set by the child class when needed.
-        `_items` is set to an empty dictionary and it is expected to be set by the child class when
-        the path presents a model repository.
+        `_items` is set to an dictionary having itself ({self.name: self}) and it is expected to be cleared
+        by the child class if the path presents a model repository.
 
         Args:
             path (str): A path to a model.
@@ -142,7 +144,7 @@ class Model:
             return False, None
         return True, cls.model_type
 
-    def get(self, name: str = "") -> Optional[Type["Model"]]:
+    def get(self, name: str = "") -> "Model":
         """Return a model object by name.
 
         If there is only one model in the repository or the model path, model object can be returned without specifying
@@ -219,3 +221,7 @@ class Model:
             return self.predictor(*args, **kwargs)
         else:
             raise ItemNotExistsError("A predictor of the model is not set.")
+
+    def __bool__(self):
+        """Return True if the model path is specified."""
+        return bool(self.path)

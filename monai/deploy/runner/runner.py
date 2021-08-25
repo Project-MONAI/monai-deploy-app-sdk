@@ -22,6 +22,7 @@ from monai.deploy.runner.utils import run_cmd, verify_image
 
 logger = logging.getLogger("app_runner")
 
+
 def fetch_map_manifest(map_name: str) -> Tuple[dict, int]:
     """
     Execute MONAI Application Package and fetch application manifest.
@@ -36,14 +37,14 @@ def fetch_map_manifest(map_name: str) -> Tuple[dict, int]:
     logger.info("\nReading MONAI App Package manifest...")
 
     with tempfile.TemporaryDirectory() as info_dir:
-        cmd = f'docker run --rm -it -v {info_dir}:/var/run/monai/export/config {map_name}'
+        cmd = f"docker run --rm -it -v {info_dir}:/var/run/monai/export/config {map_name}"
 
         returncode = run_cmd(cmd)
         if returncode != 0:
             return {}, returncode
 
-        app_json = Path(f'{info_dir}/app.json')
-        pkg_json = Path(f'{info_dir}/pkg.json')
+        app_json = Path(f"{info_dir}/app.json")
+        pkg_json = Path(f"{info_dir}/pkg.json")
 
         logger.debug("-------------------application manifest-------------------")
         logger.debug(app_json.read_text())
@@ -71,26 +72,35 @@ def run_app(map_name: str, input_path: Path, output_path: Path, app_info: dict, 
     Returns:
         returncode: command returncode
     """
-    cmd = 'docker run --rm -a STDERR'
+    cmd = "docker run --rm -a STDERR"
 
     if not quiet:
-        cmd += ' -a STDOUT'
+        cmd += " -a STDOUT"
 
-    map_input = Path(app_info['input']['path'])
-    map_output = Path(app_info['output']['path'])
+    map_input = Path(app_info["input"]["path"])
+    map_output = Path(app_info["output"]["path"])
     if not map_input.is_absolute():
-        map_input = app_info['working-directory'] / map_input
+        map_input = app_info["working-directory"] / map_input
 
     if not map_output.is_absolute():
-        map_output = app_info['working-directory'] / map_output
+        map_output = app_info["working-directory"] / map_output
 
     if input_path.is_file():
         map_input = map_input / input_path.name
-        cmd += f' -e MONAI_INPUTPATH={map_input}'
 
-    cmd += ' -v {}:{} -v {}:{} {}'.format(input_path, map_input,
-                                          output_path, map_output,
-                                          map_name)
+    cmd += f" -e MONAI_INPUTPATH={map_input}"
+    cmd += f" -e MONAI_OUTPUTPATH={map_output}"
+    # TODO(bhatt-piyush): Handle model environment correctly (maybe solved by fixing 'monai-exec')
+    cmd += " -e MONAI_MODELPATH=/opt/monai/models"
+
+    map_command = app_info["command"]
+    # TODO(bhatt-piyush): Fix 'monai-exec' to work correctly.
+    cmd += " -v {}:{} -v {}:{} --entrypoint '/bin/bash' {} -c '{}'".format(
+        input_path.absolute(), map_input, output_path.absolute(), map_output, map_name, map_command
+    )
+    # cmd += " -v {}:{} -v {}:{} {}".format(
+    #     input_path.absolute(), map_input, output_path.absolute(), map_output, map_name
+    # )
 
     if quiet:
         return run_cmd(cmd)
@@ -119,7 +129,7 @@ def dependency_verification(map_name: str) -> bool:
     # check for map image
     logger.info('--> Verifying if "%s" is available...\n', map_name)
     if not verify_image(map_name):
-        logger.error('ERROR: Unable to fetch required image.')
+        logger.error("ERROR: Unable to fetch required image.")
         return False
 
     return True

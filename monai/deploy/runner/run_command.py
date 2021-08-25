@@ -18,21 +18,26 @@ from monai.deploy.utils import argparse_types
 
 logger = logging.getLogger("app_runner")
 
-def create_run_parser(subparser: _SubParsersAction,command: str,
-                      parents: List[ArgumentParser]) -> ArgumentParser:
-    parser = subparser.add_parser(command, formatter_class=ArgumentDefaultsHelpFormatter,
-                                  parents=parents, add_help=False)
+
+def create_run_parser(subparser: _SubParsersAction, command: str, parents: List[ArgumentParser]) -> ArgumentParser:
+    parser = subparser.add_parser(
+        command, formatter_class=ArgumentDefaultsHelpFormatter, parents=parents, add_help=False
+    )
 
     parser.add_argument("map", metavar="<map-image[:tag]>", help="MAP image name")
 
-    parser.add_argument("input", metavar="<input>", type=argparse_types.valid_existing_path,
-                        help="Input data path")
+    parser.add_argument("input", metavar="<input>", type=argparse_types.valid_existing_path, help="Input data path")
 
-    parser.add_argument("output", metavar="<output>", type=argparse_types.valid_path,
-                        help="Output data directory path")
+    parser.add_argument("output", metavar="<output>", type=argparse_types.valid_path, help="Output data directory path")
 
-    parser.add_argument('-q', '--quiet', dest='quiet', action='store_true', default=False,
-                        help='Suppress the STDOUT and print only STDERR from the application')
+    parser.add_argument(
+        "-q",
+        "--quiet",
+        dest="quiet",
+        action="store_true",
+        default=False,
+        help="Suppress the STDOUT and print only STDERR from the application",
+    )
 
     return parser
 

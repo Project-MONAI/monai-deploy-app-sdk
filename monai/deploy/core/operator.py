@@ -183,9 +183,10 @@ def input(label: str = "", data_type: Type[Domain] = None, storage_type: Union[i
             raise UnknownTypeError("Use @input decorator only for a subclass of Operator!")
 
         def new_builder(self: Operator):
+            # Execute (this) outer decorator first so decorators are executed in order
+            self.add_input(label, data_type, storage_type)
             if builder:
                 builder(self)  # execute the original builder
-            self.add_input(label, data_type, storage_type)
             return self
 
         cls._builder = new_builder
@@ -213,9 +214,10 @@ def output(label: str = "", data_type: Type[Domain] = None, storage_type: Union[
             raise UnknownTypeError("Use @output decorator only for a subclass of Operator!")
 
         def new_builder(self: Operator):
+            # Execute (this) outer decorator first so decorators are executed in order
+            self.add_output(label, data_type, storage_type)
             if builder:
                 builder(self)  # execute the original builder
-            self.add_output(label, data_type, storage_type)
             return self
 
         cls._builder = new_builder
