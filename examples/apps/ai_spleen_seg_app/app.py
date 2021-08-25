@@ -65,7 +65,7 @@ if __name__ == "__main__":
     # Creates the app and test it standalone.
     # Model file is expected to be at: model/model.ts
     # Input DICOM CT series is expected to be in: input/
-    # Output of DICOM Seg instance is to be in: /output
+    # Output of DICOM Seg instance is to be in: output/
     #
     logging.basicConfig(level=logging.DEBUG)
     app_instance = AISpleenSegApp()  # Optional params' defaults are fine.
