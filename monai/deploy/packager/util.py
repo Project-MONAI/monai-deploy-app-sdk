@@ -26,7 +26,7 @@ from monai.deploy.utils.importutil import dist_module_path, dist_requires, get_a
 
 logger = logging.getLogger("app_packager")
 
-executor_url = "https://globalcdn.nuget.org/packages/monai.deploy.executor.0.1.0-prealpha.2.nupkg"
+executor_url = "https://globalcdn.nuget.org/packages/monai.deploy.executor.0.1.0-prealpha.0.nupkg"
 
 
 def initialize_args(args: Namespace) -> Dict:
