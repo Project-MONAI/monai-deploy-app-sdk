@@ -24,12 +24,6 @@ from monai.deploy.core.domain.dicom_series import DICOMSeries
 from monai.deploy.core.domain.dicom_study import DICOMStudy
 from monai.deploy.exceptions import ItemNotExistsError
 from monai.deploy.operators.dicom_data_loader_operator import DICOMDataLoaderOperator
-from monai.deploy.utils.importutil import optional_import
-
-get_testdata_file, _ = optional_import("pydicom.data", name="get_testdata_file")
-FileSet, _ = optional_import("pydicom.file_set", name="FileSet")
-generate_uid, _ = optional_import("pydicom.uid", name="generate_uid")
-
 
 @input("dicom_study_list", DICOMStudy, IOType.IN_MEMORY)
 @input("selection_rules", Dict, IOType.IN_MEMORY)

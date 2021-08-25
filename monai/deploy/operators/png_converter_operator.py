@@ -23,6 +23,7 @@ from monai.deploy.core import (
     OutputContext,
     input,
     output,
+    env
 )
 from monai.deploy.operators.dicom_data_loader_operator import DICOMDataLoaderOperator
 from monai.deploy.operators.dicom_series_to_volume_operator import DICOMSeriesToVolumeOperator
@@ -33,6 +34,7 @@ PILImage, _ = optional_import("PIL", name="Image")
 
 @input("image", Image, IOType.IN_MEMORY)
 @output("image", DataPath, IOType.DISK)
+@env(pip_packages=["Pillow >= 8.0.0"])
 class PNGConverterOperator(Operator):
     """
     This operator writes out a 3D Volumtric Image to disk in a slice by slice manner
