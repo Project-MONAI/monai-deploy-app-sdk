@@ -130,3 +130,6 @@ dmypy.json
 
 # output folders that exist temporarily
 output
+
+# Ignore .xml files (usually for coverage metrics files)
+*.xml

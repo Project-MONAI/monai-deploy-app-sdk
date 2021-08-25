@@ -15,12 +15,12 @@ import shutil
 import pytest
 
 
-@pytest.fixture(scope='session')
+@pytest.fixture(scope="session")
 def mock_manifest_export_dir(tmp_path_factory, faux_app_manifest, faux_pkg_manifest):
-    dataset_path = tmp_path_factory.mktemp('manifest_export_dir')
-    with open((dataset_path / 'app.json'), 'w') as f:
+    dataset_path = tmp_path_factory.mktemp("manifest_export_dir")
+    with open((dataset_path / "app.json"), "w") as f:
         json.dump(faux_app_manifest, f)
-    with open((dataset_path / 'pkg.json'), 'w') as f:
+    with open((dataset_path / "pkg.json"), "w") as f:
         json.dump(faux_pkg_manifest, f)
     yield str(dataset_path)
 
@@ -28,11 +28,11 @@ def mock_manifest_export_dir(tmp_path_factory, faux_app_manifest, faux_pkg_manif
     shutil.rmtree(dataset_path)
 
 
-@pytest.fixture(scope='session')
+@pytest.fixture(scope="session")
 def sample_map_name():
-    yield 'test/map/image/name:tag'
+    yield "test/map/image/name:tag"
 
-@pytest.fixture(scope='session')
+@pytest.fixture(scope="session")
 def faux_app_manifest():
     app_manifest = json.loads("""{
         "command": "/usr/bin/python3 -u /opt/monai/app/main.py",
@@ -52,10 +52,10 @@ def faux_app_manifest():
         "output": {
             "path": "output",
             "format": {
-            "data": "segmentation-image",
-            "format": "nifti",
-            "series-count": 1,
-            "slice-per-file": "*"
+                "data": "segmentation-image",
+                "format": "nifti",
+                "series-count": 1,
+                "slice-per-file": "*"
             }
         },
         "timeout": 600,
@@ -63,10 +63,10 @@ def faux_app_manifest():
         }""")
     yield app_manifest
 
-@pytest.fixture(scope='session')
+@pytest.fixture(scope="session")
 def faux_pkg_manifest():
     pkg_manifest = json.loads("""{
-        "sdk-version": "0.0",
+        "sdk-version": "0.0.0",
         "models": [
             {
             "name": "spleen-segmentation",
@@ -82,7 +82,7 @@ def faux_pkg_manifest():
     """)
     yield pkg_manifest
 
-@pytest.fixture(scope='session')
+@pytest.fixture(scope="session")
 def faux_app_manifest_with_absolute_path():
     """App manifest with absolute input and output paths"""
     app_manifest = json.loads("""{
@@ -115,16 +115,16 @@ def faux_app_manifest_with_absolute_path():
     yield app_manifest
 
 
-@pytest.fixture(scope='session')
+@pytest.fixture(scope="session")
 def faux_input_file(tmp_path_factory):
-    input_dir = tmp_path_factory.mktemp('input')
-    input_file = input_dir / 'input.jpg'
+    input_dir = tmp_path_factory.mktemp("input")
+    input_file = input_dir / "input.jpg"
     input_file.touch()
     yield input_file
 
 
-@pytest.fixture(scope='session')
+@pytest.fixture(scope="session")
 def faux_input_folder(tmp_path_factory):
-    input_dir = tmp_path_factory.mktemp('input')
+    input_dir = tmp_path_factory.mktemp("input")
     input_folder = input_dir
     yield input_folder

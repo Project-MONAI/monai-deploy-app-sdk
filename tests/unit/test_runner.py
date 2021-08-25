@@ -34,12 +34,12 @@ def not_raises(exception):
     try:
         yield
     except exception:
-        raise pytest.fail(f'DID RAISE {exception}')
+        raise pytest.fail(f"DID RAISE {exception}")
 
 
-@pytest.mark.parametrize('return_value', [0, 125])
-@patch('monai.deploy.runner.runner.run_cmd')
-@patch('tempfile.TemporaryDirectory')
+@pytest.mark.parametrize("return_value", [0, 125])
+@patch("monai.deploy.runner.runner.run_cmd")
+@patch("tempfile.TemporaryDirectory")
 def test_fetch_map_manifest(tempdir, mock_run_cmd, return_value, sample_map_name,
                             faux_app_manifest, mock_manifest_export_dir):
     from monai.deploy.runner import runner

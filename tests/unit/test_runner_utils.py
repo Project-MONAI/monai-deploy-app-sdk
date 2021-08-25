@@ -31,13 +31,13 @@ def not_raises(exception):
     try:
         yield
     except exception:
-        raise pytest.fail(f'DID RAISE {exception}')
+        raise pytest.fail(f"DID RAISE {exception}")
 
 
-@pytest.mark.parametrize('cmd, expected_returncode',
-                         [('my correct test command', 0),
-                          ('my errored test command', 125)])
-@patch('subprocess.Popen')
+@pytest.mark.parametrize("cmd, expected_returncode",
+                         [("my correct test command", 0),
+                          ("my errored test command", 125)])
+@patch("subprocess.Popen")
 def test_run_cmd(mock_popen, cmd, expected_returncode):
     from monai.deploy.runner import utils
 
@@ -47,13 +47,13 @@ def test_run_cmd(mock_popen, cmd, expected_returncode):
 
     assert actual_returncode == expected_returncode
 
-@pytest.mark.parametrize('image_name', [lazy_fixture('sample_map_name')])
-@pytest.mark.parametrize('docker_images_output, image_present, image_pulled',
-                        [(lazy_fixture('sample_map_name'), True, 0),
-                        ('', False, 0),
-                        ('', False, 1)])
-@patch('subprocess.check_output')
-@patch('monai.deploy.runner.utils.run_cmd')
+@pytest.mark.parametrize("image_name", [lazy_fixture("sample_map_name")])
+@pytest.mark.parametrize("docker_images_output, image_present, image_pulled",
+                        [(lazy_fixture("sample_map_name"), True, 0),
+                        ("", False, 0),
+                        ("", False, 1)])
+@patch("subprocess.check_output")
+@patch("monai.deploy.runner.utils.run_cmd")
 def test_verify_image(mock_run_cmd, mock_check_output, image_name, docker_images_output,
                       image_present, image_pulled):
     from monai.deploy.runner import utils
@@ -66,4 +66,4 @@ def test_verify_image(mock_run_cmd, mock_check_output, image_name, docker_images
     assert actual_response == image_present or (image_pulled is 0)
 
     if not image_present:
-        mock_run_cmd.assert_called_once_with(ContainsString('docker pull'))
+        mock_run_cmd.assert_called_once_with(ContainsString("docker pull"))
