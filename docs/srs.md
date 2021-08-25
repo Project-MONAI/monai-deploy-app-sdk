@@ -614,11 +614,12 @@ The SDK shall support the following system configurations for a given target rel
 
 #### System Configuration A
 
-| Attribute                 | Value                   |
-| --------------------------| ----------------------- |
-| Operating System          | Ubuntu 20.04            |
-| Minimum System Memory     |                         |
-| Minimum GPU Memory        |                         |
-| CUDA Version Number       |                         |
-| NVIDIA Driver             |                         |
-| CUDA Compute Capability   |                         |
+| Attribute                 | Value                                                     |
+| --------------------------| --------------------------------------------------------- |
+| Operating System          | Ubuntu 20.04?                                             |
+| Processor                 | Intel?                                                    |
+| Minimum System Memory     | 64 GB ?                                                    |
+| Minimum GPU Memory        | 4 GB?                                                     |
+| CUDA Toolkit              | v10.0+ ?                                                  |
+| NVIDIA Driver             |  ?                                                        |
+| CUDA Compute Capability   | NVIDIA CUDA GPU with the Compute Capability 3.0 or larger?|
