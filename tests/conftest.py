@@ -10,4 +10,4 @@
 # limitations under the License.
 
 # Fixtures
-#from .fixtures.testimage import *  # noqa
+from .fixtures.runner_fixtures import *  # noqa
