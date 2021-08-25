@@ -20,7 +20,6 @@ from spleen_seg_operator import SpleenSegOperator
 @resource(cpu=1, gpu=1, memory="7Gi")
 # pip_packages can be a string that is a path(str) to requirements.txt file or a list of packages.
 # The monai pkg is not required by this class, instead by the included operators.
-@env(pip_packages=["monai == 0.6.0"])
 class AISpleenSegApp(Application):
     def __init__(self, *args, **kwargs):
         """Creates an application instance."""
@@ -64,6 +63,10 @@ class AISpleenSegApp(Application):
 
 if __name__ == "__main__":
     # Creates the app and test it standalone.
+    # Model file is expected to be at: model/model.ts
+    # Input DICOM CT series is expected to be in: input/
+    # Output of DICOM Seg instance is to be in: /output
+    #  
     logging.basicConfig(level=logging.DEBUG)
     app_instance = AISpleenSegApp()  # Optional params' defaults are fine.
     app_instance.run()

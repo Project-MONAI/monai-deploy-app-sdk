@@ -17,12 +17,6 @@ import numpy as np
 from monai.deploy.core import ExecutionContext, Image, InputContext, IOType, Operator, OutputContext, input, output
 from monai.deploy.core.domain.dicom_series import DICOMSeries
 from monai.deploy.operators.dicom_data_loader_operator import DICOMDataLoaderOperator
-from monai.deploy.utils.importutil import optional_import
-
-get_testdata_file, _ = optional_import("pydicom.data", name="get_testdata_file")
-FileSet, _ = optional_import("pydicom.file_set", name="FileSet")
-generate_id, _ = optional_import("pydicom.uid", name="generate_uid")
-
 
 @input("dicom_series", DICOMSeries, IOType.IN_MEMORY)
 @output("image", Image, IOType.IN_MEMORY)

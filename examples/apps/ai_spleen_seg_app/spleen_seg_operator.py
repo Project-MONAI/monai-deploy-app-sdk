@@ -9,9 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Any, Dict, Optional, Union
 import logging
-from monai.data import image_reader
 
 from monai.transforms import (
     Activationsd,
@@ -21,17 +19,13 @@ from monai.transforms import (
     Invertd,
     LoadImaged,
     Spacingd,
-    Orientationd,
-    Resized,
     SaveImaged,
     ScaleIntensityRanged,
     CropForegroundd,
-    ToTensord,
-    EnsureTyped,
+    ToTensord
 )
 
 from monai.deploy.core import (
-    DataPath,
     ExecutionContext,
     Image,
     InputContext,
@@ -40,24 +34,22 @@ from monai.deploy.core import (
     OutputContext,
     input,
     output,
+    env
 )
 
-from monai.deploy.operators.dicom_data_loader_operator import DICOMDataLoaderOperator
-from monai.deploy.operators.dicom_series_to_volume_operator import DICOMSeriesToVolumeOperator
 from monai.deploy.operators.monai_seg_inference_operator import MonaiSegInferenceOperator, InMemImageReader
-
-from monai.deploy.core.domain.image import Image
-
-from os import listdir
-from os.path import isfile, join
-
-import numpy as np
 
 @input("image", Image, IOType.IN_MEMORY)
 @output("seg_image", Image, IOType.IN_MEMORY)
+@env(pip_packages=["monai==0.6.0", "torch>=1.5", "numpy>=1.17"])
 class SpleenSegOperator(Operator):
-    """
-    This operator writes out a 3D Volumtric Image to disk in a slice by slice manner
+    """Performs Spleen segmentation with 3D image converted from a DICOM CT series.
+
+    This operator makes use of the App SDK MonaiSegInferenceOperator in a compsition approach.
+    It creates the pre-transforms as well as post-transforms with Monai dictionary based transforms.
+    Note that the App SDK InMemImageReader, derived from Monai ImageReader, is passed to LoadImaged.
+    This derived reader is needed to parse the in memory image object, and return the expected data structure.
+    Loading of the model, and predicting using in-proc PyTorch inference is done by MonaiSegInferenceOperator.
     """
     def __init__(self, testing:bool =False):
         self.logger = logging.getLogger("{}.{}".format(__name__, type(self).__name__))
@@ -76,15 +68,26 @@ class SpleenSegOperator(Operator):
             seg_image = self.infer_and_save(input_image)
             output.set(seg_image, "seg_image")
         else:
+            # This operator gets an in-memory Image object, so a specialized ImageReader is needed.
             self._reader = InMemImageReader(input_image)
-            pre_transforms = self.compose_pre_transforms(self._reader)
-            post_transforms = self.compose_post_transforms(pre_transforms)
-            # Delegate inference and saving output to the built-in operator
-            infer_operator = MonaiSegInferenceOperator([160, 160, 160], pre_transforms, post_transforms)
+            pre_transforms = self.pre_process(self._reader)
+            post_transforms = self.post_process(pre_transforms)
+
+            # Delegates inference and saving output to the built-in operator.
+            infer_operator = MonaiSegInferenceOperator(
+                (160, 160, 160,),
+                pre_transforms,
+                post_transforms)
+
+            # Setting the keys used in the dictironary based transforms may change.
+            infer_operator.input_dataset_key = self._input_dataset_key
+            infer_operator.pred_dataset_key = self._pred_dataset_key
+
+            # Now let the built-in operator handles the work with the I/O spec and execution context.
             infer_operator.compute(input, output, context)
 
-    def compose_pre_transforms(self, img_reader) -> Compose:
-        """Compose transforms for preprocessing input before predicting on a model.
+    def pre_process(self, img_reader) -> Compose:
+        """Composes transforms for preprocessing input before predicting on a model.
         """
 
         my_key = self._input_dataset_key
@@ -97,8 +100,8 @@ class SpleenSegOperator(Operator):
             ToTensord(keys=my_key)
         ])
 
-    def compose_post_transforms(self, pre_transforms: Compose, out_dir:str="./infer_output") -> Compose:
-        """Compose transforms for postprocessing the prediction results."""
+    def post_process(self, pre_transforms: Compose, out_dir:str="./infer_output") -> Compose:
+        """Composes transforms for postprocessing the prediction results."""
 
         pred_key = self._pred_dataset_key
         return Compose([
@@ -124,30 +127,6 @@ class SpleenSegOperator(Operator):
         image_shape = image_data.shape
         print(image_shape)
         print(vars(image))
-        image_data_new = np.expand_dims(image_data, -1)
-        print(image_data_new.shape)
 
         # Dummy for now.
         return image
-
-
-def test():
-    data_path = "input"
-
-    files = []
-    loader = DICOMDataLoaderOperator()
-    loader._list_files(data_path, files)
-    study_list = loader._load_data(files)
-    series = study_list[0].get_all_series()[0]
-
-    dcm_to_vol_op = DICOMSeriesToVolumeOperator()
-    dcm_to_vol_op.prepare_series(series)
-    voxels = dcm_to_vol_op.generate_voxel_data(series)
-    metadata = dcm_to_vol_op.create_metadata(series)
-    image = dcm_to_vol_op.create_volumetric_image(voxels, metadata)
-
-    seg_op = SpleenSegOperator(testing=True)
-    seg_op.infer_and_save(image)
-
-if __name__ == "__main__":
-    test()

@@ -11,7 +11,17 @@
 
 import os
 
-from monai.deploy.core import DataPath, ExecutionContext, InputContext, IOType, Operator, OutputContext, input, output
+from monai.deploy.core import (
+    DataPath,
+    ExecutionContext,
+    InputContext,
+    IOType,
+    Operator,
+    OutputContext,
+    input,
+    output,
+    env
+)
 from monai.deploy.core.domain.dicom_series import DICOMSeries
 from monai.deploy.core.domain.dicom_study import DICOMStudy
 from monai.deploy.utils.importutil import optional_import
@@ -24,6 +34,7 @@ generate_uid, _ = optional_import("pydicom.uid", name="generate_uid")
 
 @input("dicom_files", DataPath, IOType.DISK)
 @output("dicom_study_list", DICOMStudy, IOType.IN_MEMORY)
+@env(pip_packages=["pydicom==2.2.0"])
 class DICOMDataLoaderOperator(Operator):
     """
     This operator loads a collection of DICOM Studies in memory

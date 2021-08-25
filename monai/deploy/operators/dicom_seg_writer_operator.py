@@ -9,20 +9,30 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Any, Dict, Optional, Union
 import os
 import logging
 import json
 import copy
 import numpy as np
 import datetime
-from pydicom import dcmread
-from pydicom.dataset import Dataset, FileDataset
-from pydicom.sequence import Sequence
-from pydicom.uid import generate_uid
-from pydicom.uid import ImplicitVRLittleEndian
 from random import randint
-import SimpleITK as sitk
+
+from monai.deploy.utils.importutil import optional_import
+
+dcmread, _ = optional_import("pydicom", name="dcmread")
+generate_uid, _ = optional_import("pydicom.uid", name="generate_uid")
+ImplicitVRLittleEndian, _ = optional_import("pydicom.uid", name="ImplicitVRLittleEndian")
+Dataset, _ = optional_import("pydicom.dataset", name="Dataset")
+FileDataset, _ = optional_import("pydicom.dataset", name="FileDataset")
+Sequence, _ = optional_import("pydicom.sequence", name="Sequence")
+sitk, _ = optional_import("SimpleITK")
+
+#from pydicom import dcmread
+#from pydicom.dataset import Dataset, FileDataset
+#from pydicom.sequence import Sequence
+#from pydicom.uid import generate_uid
+#from pydicom.uid import ImplicitVRLittleEndian
+#import SimpleITK as sitk
 
 from monai.deploy.core import (
     DataPath,
@@ -34,18 +44,18 @@ from monai.deploy.core import (
     OutputContext,
     input,
     output,
+    env
 )
 
 from monai.deploy.core.domain.dicom_series import DICOMSeries
 from monai.deploy.operators.dicom_data_loader_operator import DICOMDataLoaderOperator
 from monai.deploy.operators.dicom_series_to_volume_operator import DICOMSeriesToVolumeOperator
-# from monai.deploy.core.domain.image import Image
 
 #@input("seg_image", DataPath, IOType.DISK)
 @input("seg_image", Image, IOType.IN_MEMORY)
 @input("dicom_series", DICOMSeries, IOType.IN_MEMORY)
 @output("dicom_seg_instance", DataPath, IOType.DISK)
-
+@env(pip_packages=["pydicom == 2.2.0", "SimpleITK == 2.1.0"])
 class DICOMSegmentationWriterOperator(Operator):
     """
     This operator writes out a DICOM Segmentation Part 10 file to disk

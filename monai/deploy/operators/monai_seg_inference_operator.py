@@ -9,42 +9,22 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from abc import abstractmethod
-from monai.data.dataset import ArrayDataset
-from monai.deploy.core.domain import image
 from threading import Lock
 from typing import TYPE_CHECKING, Any, Dict, List, Sequence, Optional, Union
 import numpy as np
-import nibabel as nib
-from monai.deploy.utils.importutil import dist_module_path, optional_import
-from numpy.lib.type_check import imag
 
-# torch, _ = optional_import("torch", "1.5")
-# monai, _ = optional_import("monai", "0.6.0")
-import torch
-from torch.utils.data._utils.collate import np_str_obj_array_pattern
-from monai.data import Dataset, DataLoader, ImageReader, decollate_batch
-from monai.inferers import sliding_window_inference
-from monai.transforms import Transform, MapTransform, transform
-from monai.utils import ensure_tuple, ensure_tuple_rep
-from monai.utils import ImageMetaKey as Key
-from monai.config import DtypeLike, KeysCollection
-from monai.transforms import (
-    Activationsd,
-    AsDiscreted,
-    Compose,
-    EnsureChannelFirstd,
-    Invertd,
-    LoadImaged,
-    Spacingd,
-    Orientationd,
-    Resized,
-    SaveImaged,
-    ScaleIntensityRanged,
-    CropForegroundd,
-    ToTensord,
-    EnsureTyped,
-)
+from monai.deploy.utils.importutil import dist_module_path, optional_import
+
+torch, _ = optional_import("torch", "1.5")
+np_str_obj_array_pattern, _ = optional_import("torch.utils.data._utils.collate", name="np_str_obj_array_pattern")
+Dataset, _ = optional_import("monai.data", name="Dataset")
+DataLoader, _ = optional_import("monai.data", name="DataLoader")
+ImageReader, _ = optional_import("monai.data", name="ImageReader")
+decollate_batch, _ = optional_import("monai.data", name="decollate_batch")
+sliding_window_inference, _ = optional_import("monai.inferers", name="sliding_window_inference")
+ensure_tuple, _ = optional_import("monai.utils", name="ensure_tuple")
+Compose, _ = optional_import("monai.transforms", name="Compose")
+sliding_window_inference, _ = optional_import("monai.inferers", name="sliding_window_inference")
 
 from monai.deploy.exceptions import UnknownTypeError
 from monai.deploy.core import (
@@ -53,9 +33,9 @@ from monai.deploy.core import (
     OutputContext,
     IOType,
     Image,
-    Operator,
     input,
-    output
+    output,
+    env
 )
 
 from .inference_operator import InferenceOperator
@@ -64,24 +44,35 @@ __all__ = ["MonaiSegInferenceOperator", "InMemImageReader"]
 
 @input("image", Image, IOType.IN_MEMORY)
 @output("seg_image", Image, IOType.IN_MEMORY)
+@env(pip_packages=["monai==0.6.0", "torch>=1.5", "numpy>=1.17"])
 class MonaiSegInferenceOperator(InferenceOperator):
-    """The base segmentation operator using Monai transforms and inference.
+    """This segmentation operator uses Monai transforms and Sliding Window Inference.
 
     This operator preforms pre-transforms on a input image, inference
-    using given model, and post-transforms. The segmentation image is saved
+    using a given model, and post-transforms. The segmentation image is saved
     as a named Image object in memory.
 
     If specified in the post transforms, results may also be saved to disk.
+
     """
+    # For testing the app directly, the model should be at the following path.
+    MODEL_LOCAL_PATH = 'model/model.ts'
 
     def __init__(self,
         roi_size:Union[Sequence[int], int],
-        pre_transforms:Compose = None,
-        post_transforms:Compose = None,
+        pre_transforms:Compose,
+        post_transforms:Compose,
         *args,
-        **kwargs):
-        """Constructor of the operator.
-        """
+        **kwargs
+    ):
+        """Creates a instance of this class.
+
+        Args:
+            roi_size (Union[Sequence[int], int]): The tensor size used in inference.
+            pre_transforms (Compose): Monai Compose oject used for pre-transforms.
+            pre_transforms (Compose): Monai Compose oject used for pre-transforms.
+    """
+
         super().__init__()
         self._executing = False
         self._lock = Lock()
@@ -89,12 +80,21 @@ class MonaiSegInferenceOperator(InferenceOperator):
         self._pred_dataset_key = 'pred'
         self._input_image = None # Image will come in when compute is called.
         self._reader = None
-        self._roi_size = [i for i in roi_size]
+        self._roi_size = ensure_tuple(roi_size)
         self._pre_transform = pre_transforms
         self._post_transforms = post_transforms
 
     @property
+    def roi_size(self):
+        """The ROI size of tensors used in prediction."""
+        return self._roi_size
+    @roi_size.setter
+    def roi_size(self, roi_size:Union[Sequence[int], int]):
+         self._roi_size = ensure_tuple(roi_size)
+
+    @property
     def input_dataset_key(self):
+        """This is the input image key name used in dictionary based Monai pre-transforms."""
         return self._input_dataset_key
     @input_dataset_key.setter
     def input_dataset_key(self, val:str):
@@ -104,6 +104,7 @@ class MonaiSegInferenceOperator(InferenceOperator):
 
     @property
     def pred_dataset_key(self):
+        """This is the prediction key name used in dictionary based Monai post-transforms."""
         return self._pred_dataset_key
     @pred_dataset_key.setter
     def pred_dataset_key(self, val:str):
@@ -112,7 +113,7 @@ class MonaiSegInferenceOperator(InferenceOperator):
         self._pred_dataset_key = val
 
     def compute(self, input: InputContext, output: OutputContext, context: ExecutionContext):
-        """An abstract method that needs to be implemented by the user.
+        """Infers with the input image and save the predicted image to output
 
         Args:
             input (InputContext): An input context for the operator.
@@ -131,8 +132,6 @@ class MonaiSegInferenceOperator(InferenceOperator):
 
             img_name = "Img_in_Mem"
             try:
-                print("input_image.metadata")
-                print(vars(input_image.metadata()))
                 img_name = input_image.metadata().get["series_instance_uid", img_name]
             except Exception:  # Best effort
                 pass
@@ -161,7 +160,8 @@ class MonaiSegInferenceOperator(InferenceOperator):
                 print(f'Model path: {model.path}')
                 print(f'Model name (expected None): {model.name}')
             else:
-                model = torch.jit.load("/home/mqin/src/monai-app-sdk/examples/apps/model/segmentation_ct_spleen_pt_v1/1/model.pt")
+                print(f'Loading TorchScript model from: {MonaiSegInferenceOperator.MODEL_LOCAL_PATH}')
+                model = torch.jit.load(MonaiSegInferenceOperator.MODEL_LOCAL_PATH)
 
             dataset = Dataset(data=[{self._input_dataset_key:img_name}], transform=pre_transforms)
             dataloader = DataLoader(dataset, batch_size=1, shuffle=False, num_workers=4)
@@ -173,7 +173,7 @@ class MonaiSegInferenceOperator(InferenceOperator):
                     sw_batch_size=4
                     d[self._pred_dataset_key] = sliding_window_inference(
                         inputs=images,
-                        roi_size=self._roi_size,  #(160, 160, 160), #self._roi_size,
+                        roi_size=self._roi_size,
                         sw_batch_size=sw_batch_size,
                         overlap=0.5,
                         predictor=model
@@ -222,7 +222,7 @@ class MonaiSegInferenceOperator(InferenceOperator):
         raise NotImplementedError(
              f"Subclass {self.__class__.__name__} must implement this method.")
 
-    def predict(self, data:Any) -> Union[Image, Any]:
+    def predict(self, data:Any, *args, **kwargs) -> Union[Image, Any]:
         """Prdicts results using the models(s) with input tensors.
 
         This method must be overridden by a derived class.
@@ -234,12 +234,16 @@ class MonaiSegInferenceOperator(InferenceOperator):
             f"Subclass {self.__class__.__name__} must implement this method.")
 
 class InMemImageReader(ImageReader):
-    def __init__(self, input_image: Image, channel_dim: Optional[int] = None, series_uid: str = "", **kwargs):
+    """Loads the App SDK Image object from memory.
+
+    This is derived from Monai ImageReader. Instead of reading image from file system, this
+    class simply converts a in-memory SDK Image object to the expected formats from ImageReader.
+    """
+    def __init__(self, input_image: Image, channel_dim: Optional[int] = None, **kwargs):
         super().__init__()
         self.input_image = input_image
         self.kwargs = kwargs
         self.channel_dim = channel_dim
-        self.series_uid = series_uid
 
     def verify_suffix(self, filename: Union[Sequence[str], str]) -> bool:
         return True
@@ -247,7 +251,13 @@ class InMemImageReader(ImageReader):
     def read(self, data: Union[Sequence[str], str], **kwargs) -> Union[Sequence[Any], Any]:
         # Really does not have anything to do.
         return self.input_image.asnumpy()
+
     def get_data(self, input_image):
+        """Extracts data array and meta data from loaded image and return them.
+
+        This function returns two objects, first is numpy array of image data, second is dict of meta data.
+        It constructs `affine`, `original_affine`, and `spatial_shape` and stores them in meta dict.
+        A single image is loaded with a single set of metadata as of now."""
 
         img_array: List[np.ndarray] = []
         compatible_meta: Dict = {}
@@ -293,74 +303,7 @@ class InMemImageReader(ImageReader):
 
         return meta_dict
 
-
-# class LoadImageFromMem(Transform):
-
-#     def __init__(self, key:str, reader=None, image_only: bool = False, dtype: DtypeLike = np.float32, *args, **kwargs) -> None:
-#         """
-#         Args:
-#             image (Image): the Image instance already loaded and to be used for inference
-#             image_only: if True return only the image volume, otherwise return image data array and header dict.
-#             dtype: if not None convert the loaded image to this data type.
-#             args: additional parameters for reader if providing a reader name.
-#             kwargs: additional parameters for reader if providing a reader name.
-
-#         Note:
-#             - The transform returns an image data array if `image_only` is True,
-#               or a tuple of two elements containing the data array, and the meta data
-#               in a dictionary format otherwise.
-#         """
-
-#         self.key = key
-#         self.image_only = image_only
-#         self.dtype = dtype
-#         self.reader = reader
-
-#     def __call__(self, data: Any = None):
-#         """Load image and meta data from the parsed image data.
-
-#         Args:
-#             data (Any, optional): Input if any but not needed. Defaults to None.
-#         """
-#         img = self.reader.read(image)
-#         img_array, meta_data = self.reader.get_data(img)
-#         img_array = img_array.astype(self.dtype)
-
-#         if self.image_only:
-#             return img_array
-#         meta_data[Key.FILENAME_OR_OBJ] = ensure_tuple(self.key)
-#         # make sure all elements in metadata are little endian
-#         meta_data = switch_endianness(meta_data, "<")
-
-#         return img_array, meta_data
-
-# # Code reused from Monai since it is not exported
-# def switch_endianness(data, new="<"):
-#     """
-#     Convert the input `data` endianness to `new`.
-#     Args:
-#         data: input to be converted.
-#         new: the target endianness, currently support "<" or ">".
-#     """
-#     if isinstance(data, np.ndarray):
-#         # default to system endian
-#         sys_native = "<" if (sys.byteorder == "little") else ">"
-#         current_ = sys_native if data.dtype.byteorder not in ("<", ">") else data.dtype.byteorder
-#         if new not in ("<", ">"):
-#             raise NotImplementedError(f"Not implemented option new={new}.")
-#         if current_ != new:
-#             data = data.byteswap().newbyteorder(new)
-#     elif isinstance(data, tuple):
-#         data = tuple(switch_endianness(x, new) for x in data)
-#     elif isinstance(data, list):
-#         data = [switch_endianness(x, new) for x in data]
-#     elif isinstance(data, dict):
-#         data = {k: switch_endianness(v, new) for k, v in data.items()}
-#     elif not isinstance(data, (bool, str, float, int, type(None))):
-#         raise RuntimeError(f"Unknown type: {type(data).__name__}")
-#     return data
-
-# Monai code for the ImageReader
+# Reuse Monai code for the derived ImageReader
 def _copy_compatible_dict(from_dict: Dict, to_dict: Dict):
     if not isinstance(to_dict, dict):
         raise ValueError(f"to_dict must be a Dict, got {type(to_dict)}.")

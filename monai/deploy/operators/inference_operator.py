@@ -14,10 +14,9 @@ from __future__ import annotations
 import functools
 import uuid
 from abc import ABC, abstractmethod
-from typing import Any, TYPE_CHECKING, List, Optional, Type, Union
+from typing import Any, TYPE_CHECKING, Union
 
-from monai.deploy.exceptions import UnknownTypeError
-from monai.deploy.core import ExecutionContext, Image, InputContext, IOType, Operator, OutputContext, input, output
+from monai.deploy.core import ExecutionContext, Image, InputContext, Operator, OutputContext
 
 
 class InferenceOperator(Operator):
