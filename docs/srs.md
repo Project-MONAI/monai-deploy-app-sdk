@@ -682,10 +682,10 @@ The SDK shall support the following system configurations for a given target rel
 | Target Release | Supported System Configs |
 | -------------- | ------------------------ |
 | 0.1.0          | #1                       |
-| 0.2.0          | #1, #2                   |
-| 0.3.0          | TBD                      |
+| 0.2.0          | #1                       |
+| 0.3.0          | #1, #2, #3               |
 
-### System Config #1 (Desktop)
+### System Config #1 (Desktop x86-64)
 
 | Attribute                | Value                                                                                |
 | ------------------------ | ------------------------------------------------------------------------------------ |
@@ -700,7 +700,24 @@ The SDK shall support the following system configurations for a given target rel
 | CUDA Compute Capability  | 6.0 or larger (Pascal or newer, including Pascal, Volta, Turing and Ampere families) |
 | Python                   | Python 3.6+                                                                          |
 
-### System Config #2 (DGX-1)
+
+### System Config #2 (Desktop ARM64)
+
+| Attribute                | Value                                                                                |
+| ------------------------ | ------------------------------------------------------------------------------------ |
+| Operating System         | Ubuntu 18.06/20.04                                                                   |
+| Processor                | ARM64                                                                               |
+| Minimum System Memory    | 16 GB                                                                                |
+| Minimum GPU Memory       | 8 GB                                                                                 |
+| CUDA Toolkit             | v11.1+                                                                               |
+| NVIDIA Driver            | 455.23+                                                                              |
+| Docker CE                | 19.03.13+ ([2020-09-16](https://docs.docker.com/engine/release-notes/19.03/#190313)) |
+| NVIDIA Docker            | [v2.5.0+](https://github.com/NVIDIA/nvidia-docker/)                                  |
+| CUDA Compute Capability  | 6.0 or larger (Pascal or newer, including Pascal, Volta, Turing and Ampere families) |
+| Python                   | Python 3.6+                                                                          |
+
+
+### System Config #3 (DGX-1)
 
 | Attribute                | Value                                                                                |
 | ------------------------ | ------------------------------------------------------------------------------------ |
