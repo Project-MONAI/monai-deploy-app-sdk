@@ -41,7 +41,7 @@ from monai.deploy.operators.monai_seg_inference_operator import MonaiSegInferenc
 
 @input("image", Image, IOType.IN_MEMORY)
 @output("seg_image", Image, IOType.IN_MEMORY)
-@env(pip_packages=["monai==0.6.0", "torch>=1.5", "numpy>=1.17"])
+@env(pip_packages=["monai==0.6.0", "torch>=1.5", "numpy>=1.17", "nibabel"])
 class SpleenSegOperator(Operator):
     """Performs Spleen segmentation with 3D image converted from a DICOM CT series.
 
