@@ -23,7 +23,7 @@ def create_package_parser(subparser: _SubParsersAction, command: str, parents: L
 
     parser.add_argument("application", type=str, help="MONAI application path")
     parser.add_argument("--tag", "-t", required=True, type=str, help="MONAI application package tag")
-    parser.add_argument("--base", type=str, help="Base Application Image")
+    parser.add_argument("--base", "-b", type=str, help="Base Application Image")
     parser.add_argument("--working-dir", "-w", type=str, help="Directory mounted in container for Application")
     parser.add_argument("--input-dir", "-i", type=str, help="Directory mounted in container for Application Input")
     parser.add_argument("--output-dir", "-o", type=str, help="Directory mounted in container for Application Output")

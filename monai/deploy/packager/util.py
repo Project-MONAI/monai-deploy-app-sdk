@@ -24,10 +24,34 @@ from monai.deploy.packager.constants import DefaultValues
 from monai.deploy.packager.templates import Template
 from monai.deploy.utils.fileutil import checksum
 from monai.deploy.utils.importutil import dist_module_path, dist_requires, get_application
+from monai.deploy.utils.spinner import ProgressSpinner
 
 logger = logging.getLogger("app_packager")
 
 executor_url = "https://globalcdn.nuget.org/packages/monai.deploy.executor.0.1.0-prealpha.0.nupkg"
+
+
+def verify_base_image(base_image: str) -> str:
+    """Helper function which validates whether valid base image passed to Packager.
+    Additionally, this function provides the string identifier of the dockerfile
+    template to build MAP
+
+    Args:
+        base_image (str): potential base image to build MAP docker image
+
+    Returns:
+        str: returns string identifier of the dockerfile template to build MAP
+        if valid base image provided, returns empty string otherwise
+    """
+    valid_prefixes = {"nvcr.io/nvidia/cuda": "ubuntu",
+                      "nvcr.io/nvidia/pytorch": "pytorch"
+                      }
+
+    for prefix, template in valid_prefixes.items():
+        if prefix in base_image:
+            return template
+
+    return ""
 
 
 def initialize_args(args: Namespace) -> Dict:
@@ -45,7 +69,6 @@ def initialize_args(args: Namespace) -> Dict:
     processed_args["application"] = args.application
     processed_args["tag"] = args.tag
     processed_args["docker_file_name"] = DefaultValues.DOCKER_FILE_NAME
-    processed_args["base_image"] = args.base if args.base else DefaultValues.BASE_IMAGE
     processed_args["working_dir"] = args.working_dir if args.working_dir else DefaultValues.WORK_DIR
     processed_args["app_dir"] = "/opt/monai/app"
     processed_args["executor_dir"] = "/opt/monai/executor"
@@ -55,6 +78,19 @@ def initialize_args(args: Namespace) -> Dict:
     processed_args["api-version"] = DefaultValues.API_VERSION
     processed_args["timeout"] = args.timeout if args.timeout else DefaultValues.TIMEOUT
     processed_args["version"] = args.version if args.version else DefaultValues.VERSION
+
+    # Verify proper base image:
+    dockerfile_type = ""
+    if args.base:
+        dockerfile_type = verify_base_image(args.base)
+        if not dockerfile_type:
+            logger.error("Provided base image '{}' is not supported \n \
+                          Please provide a Cuda or Pytorch image from https://ngc.nvidia.com/ (nvcr.io/nvidia)"
+                         .format(args.base)
+                         )
+            exit()
+    processed_args["dockerfile_type"] = dockerfile_type if args.base else DefaultValues.DOCKERFILE_TYPE
+    processed_args["base_image"] = args.base if args.base else DefaultValues.BASE_IMAGE
 
     # Obtain SDK provide application values
     app_obj = get_application(args.application)
@@ -77,6 +113,7 @@ def build_image(args: dict, temp_dir: str):
     tag = args["tag"]
     docker_file_name = args["docker_file_name"]
     base_image = args["base_image"]
+    dockerfile_type = args["dockerfile_type"]
     working_dir = args["working_dir"]
     app_dir = args["app_dir"]
     executor_dir = args["executor_dir"]
@@ -153,7 +190,7 @@ def build_image(args: dict, temp_dir: str):
         "timeout": timeout,
         "working_dir": working_dir,
     }
-    docker_template_string = Template.get_template("pytorch").format(**template_params)
+    docker_template_string = Template.get_template(dockerfile_type).format(**template_params)
 
     # Write out dockerfile
     logger.debug(docker_template_string)
@@ -171,23 +208,13 @@ def build_image(args: dict, temp_dir: str):
     docker_build_cmd = ["docker", "build", "-f", docker_file_path, "-t", tag, temp_dir]
     proc = subprocess.Popen(docker_build_cmd, stdout=subprocess.PIPE)
 
-    def build_spinning_wheel():
-        while True:
-            for cursor in "|/-\\":
-                yield cursor
-
-    spinner = build_spinning_wheel()
-
-    print("Building MONAI Application Package... ")
+    spinner = ProgressSpinner("Building MONAI Application Package... ")
+    spinner.start()
 
     while proc.poll() is None:
-        if proc.stdout:
-            logger.debug(proc.stdout.readline().decode("utf-8"))
-        sys.stdout.write(next(spinner))
-        sys.stdout.flush()
-        sys.stdout.write("\b")
-        sys.stdout.write("\b")
+        logger.debug(proc.stdout.readline().decode("utf-8"))
 
+    spinner.stop()
     return_code = proc.returncode
 
     if return_code == 0:
