@@ -1,2 +1,4 @@
 from app import AISpleenSegApp
-AISpleenSegApp()
+
+if __name__ == '__main__':
+    AISpleenSegApp(do_run=True)
