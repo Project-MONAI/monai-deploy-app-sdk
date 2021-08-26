@@ -9,8 +9,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from __future__ import annotations
-
 import functools
 import uuid
 from abc import ABC, abstractmethod
@@ -56,7 +54,7 @@ class InferenceOperator(Operator):
         pass
 
     @abstractmethod
-    def predict(self, data:Any) -> Union(Image, Any):
+    def predict(self, data:Any) -> Union[Image, Any]:
         """Prdicts results using the models(s) with input tensors.
 
         This method must be overridden by a derived class.

@@ -71,7 +71,8 @@ class Application(ABC):
             runtime_env (Optional[RuntimeEnv]): The runtime environment to use.
             do_run (bool): Whether to run the application.
             path (Optional[Union[str, Path]]): The path to the application (Python file path).
-                This information is used for launching the application to get the package information.
+                This path is used for launching the application to get the package information from
+                `monai.deploy.utils.importutil.get_application` method.
         """
         # Setup app description
         if not self.name:
@@ -93,9 +94,12 @@ class Application(ABC):
             self.path = get_class_file_path(self.__class__)
 
         # Setup program arguments
-        if do_run:
+        if path is None:
             argv = sys.argv
         else:
+            # If `path` is specified, it means that it is called by
+            # monai.deploy.utils.importutil.get_application() to get the package info.
+            # In this case, we should not parse the arguments from the command line.
             argv = [sys.executable, str(self.path)]  # use default parameters
 
         # Parse the command line arguments
