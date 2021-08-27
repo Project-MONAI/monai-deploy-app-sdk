@@ -22,9 +22,11 @@ class ContainsString(str):
     def __eq__(self, other):
         return self in other
 
+
 class DoesntContainsString(str):
     def __eq__(self, other):
         return self not in other
+
 
 @contextmanager
 def not_raises(exception):
@@ -34,9 +36,7 @@ def not_raises(exception):
         raise pytest.fail(f"DID RAISE {exception}")
 
 
-@pytest.mark.parametrize("cmd, expected_returncode",
-                         [("my correct test command", 0),
-                          ("my errored test command", 125)])
+@pytest.mark.parametrize("cmd, expected_returncode", [("my correct test command", 0), ("my errored test command", 125)])
 @patch("subprocess.Popen")
 def test_run_cmd(mock_popen, cmd, expected_returncode):
     from monai.deploy.runner import utils
@@ -47,15 +47,15 @@ def test_run_cmd(mock_popen, cmd, expected_returncode):
 
     assert actual_returncode == expected_returncode
 
+
 @pytest.mark.parametrize("image_name", [lazy_fixture("sample_map_name")])
-@pytest.mark.parametrize("docker_images_output, image_present, image_pulled",
-                        [(lazy_fixture("sample_map_name"), True, 0),
-                        ("", False, 0),
-                        ("", False, 1)])
+@pytest.mark.parametrize(
+    "docker_images_output, image_present, image_pulled",
+    [(lazy_fixture("sample_map_name"), True, 0), ("", False, 0), ("", False, 1)],
+)
 @patch("subprocess.check_output")
 @patch("monai.deploy.runner.utils.run_cmd")
-def test_verify_image(mock_run_cmd, mock_check_output, image_name, docker_images_output,
-                      image_present, image_pulled):
+def test_verify_image(mock_run_cmd, mock_check_output, image_name, docker_images_output, image_present, image_pulled):
     from monai.deploy.runner import utils
 
     mock_run_cmd.return_value = image_pulled
