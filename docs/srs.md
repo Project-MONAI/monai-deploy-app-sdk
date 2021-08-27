@@ -677,7 +677,7 @@ MONAI Deploy App SDK 0.2.0
 
 ## [REQ] System Requirements
 
-The SDK shall support the following system configurations for a given target release of the SDK when installed using "pip". The details of the system configurations are mentioned below:
+The SDK shall support the following system configurations for a given target release of the SDK. The details of the system configurations are mentioned below:
 
 | Target Release | Supported System Configs |
 | -------------- | ------------------------ |
