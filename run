@@ -490,10 +490,10 @@ fi
 # Description template
 
 # Globals:
-#   MOPNAI_OS
-#   MOPNAI_TARGET
-#   MOPNAI_USER (used if MOPNAI_OS is "linux")
-#   MOPNAI_HOST (used if MOPNAI_OS is "linux")
+#   MONAI_OS
+#   MONAI_TARGET
+#   MONAI_USER (used if MONAI_OS is "linux")
+#   MONAI_HOST (used if MONAI_OS is "linux")
 # Arguments:
 #   Command line to execute
 # Returns:
