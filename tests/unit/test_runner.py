@@ -102,6 +102,47 @@ def test_run_app(mock_run_cmd, return_value, input_path, output_path, quiet, sam
 @pytest.mark.parametrize(
     "return_value, input_path, output_path, quiet",
     [
+        (0, lazy_fixture("faux_input_file_with_space"), Path("output with space/"), False),
+        (0, lazy_fixture("faux_input_folder_with_space"), Path("output with space/"), False),
+        (0, lazy_fixture("faux_input_file_with_space"), Path("output with space/"), True),
+        (0, lazy_fixture("faux_input_folder_with_space"), Path("output with space/"), True),
+        (125, lazy_fixture("faux_input_file_with_space"), Path("output with space/"), False),
+        (125, lazy_fixture("faux_input_folder_with_space"), Path("output with space/"), False),
+    ],
+)
+@patch("monai.deploy.runner.runner.run_cmd")
+def test_run_app_for_input_output_path_with_space(
+    mock_run_cmd, return_value, input_path, output_path, quiet, sample_map_name, faux_app_manifest
+):
+    from monai.deploy.runner import runner
+
+    mock_run_cmd.return_value = return_value
+    app_manifest = faux_app_manifest
+    expected_container_input = Path(app_manifest["input"]["path"])
+    expected_container_output = Path(app_manifest["output"]["path"])
+    expected_container_input /= app_manifest["working-directory"]
+    expected_container_output /= app_manifest["working-directory"]
+
+    returncode = runner.run_app(sample_map_name, input_path, output_path, app_manifest, quiet)
+    input_path_with_quotes = f'"{input_path.absolute()}"'
+    output_path_with_quotes = f'"{output_path.absolute()}"'
+
+    assert returncode == return_value
+    mock_run_cmd.assert_called_once_with(ContainsString(sample_map_name))
+    mock_run_cmd.assert_called_once_with(ContainsString(input_path_with_quotes))
+    mock_run_cmd.assert_called_once_with(ContainsString(expected_container_input))
+    mock_run_cmd.assert_called_once_with(ContainsString(output_path_with_quotes))
+    mock_run_cmd.assert_called_once_with(ContainsString(expected_container_output))
+    mock_run_cmd.assert_called_once_with(ContainsString("STDERR"))
+    if quiet:
+        mock_run_cmd.assert_called_once_with(DoesntContainsString("STDOUT"))
+    else:
+        mock_run_cmd.assert_called_once_with(ContainsString("STDOUT"))
+
+
+@pytest.mark.parametrize(
+    "return_value, input_path, output_path, quiet",
+    [
         (0, lazy_fixture("faux_input_file"), Path("output/"), False),
         (0, lazy_fixture("faux_input_folder"), Path("output/"), False),
         (0, lazy_fixture("faux_input_file"), Path("output/"), True),
@@ -111,7 +152,7 @@ def test_run_app(mock_run_cmd, return_value, input_path, output_path, quiet, sam
     ],
 )
 @patch("monai.deploy.runner.runner.run_cmd")
-def test_run_app_for_absolute_paths(
+def test_run_app_for_absolute_paths_in_app_manifest(
     mock_run_cmd, return_value, input_path, output_path, quiet, sample_map_name, faux_app_manifest_with_absolute_path
 ):
     from monai.deploy.runner import runner

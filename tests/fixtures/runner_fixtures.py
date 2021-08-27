@@ -32,9 +32,11 @@ def mock_manifest_export_dir(tmp_path_factory, faux_app_manifest, faux_pkg_manif
 def sample_map_name():
     yield "test/map/image/name:tag"
 
+
 @pytest.fixture(scope="session")
 def faux_app_manifest():
-    app_manifest = json.loads("""{
+    app_manifest = json.loads(
+        """{
         "command": "/usr/bin/python3 -u /opt/monai/app/main.py",
         "input": {
             "path": "input",
@@ -60,12 +62,15 @@ def faux_app_manifest():
         },
         "timeout": 600,
         "working-directory": "/var/monai"
-        }""")
+        }"""
+    )
     yield app_manifest
+
 
 @pytest.fixture(scope="session")
 def faux_pkg_manifest():
-    pkg_manifest = json.loads("""{
+    pkg_manifest = json.loads(
+        """{
         "sdk-version": "0.0.0",
         "models": [
             {
@@ -79,13 +84,16 @@ def faux_pkg_manifest():
             "memory": "4Gi"
         }
         }
-    """)
+    """
+    )
     yield pkg_manifest
+
 
 @pytest.fixture(scope="session")
 def faux_app_manifest_with_absolute_path():
     """App manifest with absolute input and output paths"""
-    app_manifest = json.loads("""{
+    app_manifest = json.loads(
+        """{
         "command": "/usr/bin/python3 -u /opt/monai/app/main.py",
         "input": {
             "path": "/input",
@@ -111,7 +119,8 @@ def faux_app_manifest_with_absolute_path():
         },
         "timeout": 600,
         "working-directory": "/var/monai"
-        }""")
+        }"""
+    )
     yield app_manifest
 
 
@@ -126,5 +135,20 @@ def faux_input_file(tmp_path_factory):
 @pytest.fixture(scope="session")
 def faux_input_folder(tmp_path_factory):
     input_dir = tmp_path_factory.mktemp("input")
+    input_folder = input_dir
+    yield input_folder
+
+
+@pytest.fixture(scope="session")
+def faux_input_file_with_space(tmp_path_factory):
+    input_dir = tmp_path_factory.mktemp("input with space")
+    input_file = input_dir / "input with space.jpg"
+    input_file.touch()
+    yield input_file
+
+
+@pytest.fixture(scope="session")
+def faux_input_folder_with_space(tmp_path_factory):
+    input_dir = tmp_path_factory.mktemp("input with space")
     input_folder = input_dir
     yield input_folder
