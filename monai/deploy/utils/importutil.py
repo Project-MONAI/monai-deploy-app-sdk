@@ -299,3 +299,7 @@ if __name__ == "__main__":
             sys.exit(0)
         else:
             sys.exit(1)
+    if len(argv) >= 3 and argv[1] == "get_package_info":
+        import json
+        app = get_application(argv[2])
+        print(json.dumps(app.get_package_info(argv[3] if len(argv) > 3 else ""), indent=2))
