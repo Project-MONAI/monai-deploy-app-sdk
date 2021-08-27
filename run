@@ -85,6 +85,12 @@ c_str() {
     local color=39
     local attr=0
     local text=""
+    local in_terminal=true
+    if [ "${1:-}" = "non-terminal" ]; then
+        in_terminal=false
+        shift
+    fi
+
     for i in "$@"; do
         case "$i" in
             r|R)
@@ -126,10 +132,12 @@ c_str() {
             *)
                 text="${text}$i"
         esac
-        if [ ${old_color} -ne ${color} ] || [ ${old_attr} -ne ${attr} ]; then
-            text="${text}\033[${attr};${color}m"
-            old_color=$color
-            old_attr=$attr
+        if [ "${in_terminal}" = "true" ]; then
+            if [ ${old_color} -ne ${color} ] || [ ${old_attr} -ne ${attr} ]; then
+                text="${text}\033[${attr};${color}m"
+                old_color=$color
+                old_attr=$attr
+            fi
         fi
     done
     /bin/echo -en "$text"
@@ -138,8 +146,14 @@ c_str() {
 c_echo() {
     local old_opt="$(shopt -op xtrace)" # save old xtrace option
     set +x # unset xtrace
-    local text="$(c_str "$@")"
-    /bin/echo -e "$text\033[0m"
+
+    if [ -t 1 ]; then
+        local text="$(c_str "$@")"
+        /bin/echo -e "$text\033[0m"
+    else
+        local text="$(c_str non-terminal "$@")"
+        /bin/echo -e "$text"
+    fi
     eval "${old_opt}" # restore old xtrace option
 }
 
