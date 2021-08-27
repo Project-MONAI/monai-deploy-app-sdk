@@ -13,6 +13,7 @@ from enum import Enum
 
 
 class IOType(Enum):
+    UNKNOWN = 0
     DISK = 1
     IN_MEMORY = 2
 

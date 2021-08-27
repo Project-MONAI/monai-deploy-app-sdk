@@ -15,7 +15,7 @@ import sys
 import warnings
 from importlib import import_module
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable, Dict, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Callable, Dict, Optional, Tuple, Type, Union
 
 import pkg_resources
 
@@ -23,7 +23,7 @@ if TYPE_CHECKING:
     from monai.deploy.core import Application
 
 
-def get_docstring(cls: type) -> str:
+def get_docstring(cls: Type) -> str:
     """Get docstring of a class.
 
     Tries to get docstring from class itself, from its __doc__.
@@ -31,7 +31,7 @@ def get_docstring(cls: type) -> str:
     If __doc__ is not available, it returns empty string.
 
     Args:
-        cls (type): class to get docstring from.
+        cls (Type): class to get docstring from.
 
     Returns:
         A docstring of the class.
@@ -43,11 +43,11 @@ def get_docstring(cls: type) -> str:
     return "\n".join([line.strip() for line in doc.split("\n")])
 
 
-def is_subclass(cls: type, class_or_tuple: Union[str, Tuple[str]]) -> bool:
+def is_subclass(cls: Type, class_or_tuple: Union[str, Tuple[str]]) -> bool:
     """Check if the given type is a subclass of a MONAI App SDK class.
 
     Args:
-        cls (type): A class to check.
+        cls (Type): A class to check.
         class_or_tuple (Union[str, Tuple[str]]): A class name or a tuple of class names.
 
     Returns:

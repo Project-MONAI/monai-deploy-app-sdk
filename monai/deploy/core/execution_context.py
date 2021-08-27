@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import TYPE_CHECKING, Optional, Type
+from typing import TYPE_CHECKING, Optional
 
 if TYPE_CHECKING:
     from .operator import Operator
@@ -22,7 +22,7 @@ from .models import Model
 class BaseExecutionContext:
     """A base execution context for the application."""
 
-    def __init__(self, datastore: Optional[Datastore] = None, models: Optional[Type[Model]] = None):
+    def __init__(self, datastore: Optional[Datastore] = None, models: Optional[Model] = None):
         if datastore is None:
             self._storage = MemoryDatastore()
         else:
