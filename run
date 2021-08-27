@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -30,14 +30,14 @@ init_globals() {
 # Get list of available commands from a given input file.
 #
 # Available commands and command summary are extracted by checking a pattern
-# "_desc() { echo '".
+# "_desc() { c_echo '".
 # Section title is extracted by checking a pattern "# Section: ".
 # This command is used for listing available commands in CLI.
 #
 # e.g.)
 #   "# Section: String/IO functions"
 #     => "# String/IO functions"
-#   "to_lower_desc() { echo 'Convert to lower case"
+#   "to_lower_desc() { c_echo 'Convert to lower case"
 #     => "to_lower ----------------- Convert to lower case"
 #
 # Arguments:
@@ -46,23 +46,32 @@ init_globals() {
 #   Print list of available commands from $1
 #######################################
 get_list_of_available_commands() {
+    local mode="color"
+    if [ "${1:-}" = "color" ]; then
+        mode="color"
+        shift
+    elif [ "${1:-}" = "nocolor" ]; then
+        mode="nocolor"
+        shift
+    fi
+
     local file_name="$1"
     if [ ! -e "$1" ]; then
         echo "$1 doesn't exist!"
     fi
 
     local line_str='--------------------------------'
-    local IFS= cmd_lines="$(IFS= cat "$1" | grep -E -e "^(([[:alpha:]_[:digit:]]+)_desc\(\)|# Section: )" | sed "s/_desc() *{ *echo '/ : /")"
+    local IFS= cmd_lines="$(IFS= cat "$1" | grep -E -e "^(([[:alpha:]_[:digit:]]+)_desc\(\)|# Section: )" | sed "s/_desc() *{ *c_echo '/ : /")"
     local line
     while IFS= read -r line; do
         local cmd=$(echo "$line" | cut -d":" -f1)
         local desc=$(echo "$line" | cut -d":" -f2-)
         if [ "$cmd" = "# Section" ]; then
-            c_echo B "${desc}"
+            c_echo ${mode} B "${desc}"
         else
             # there is no substring operation in 'sh' so use 'cut'
             local dash_line="$(echo "${line_str}" | cut -c ${#cmd}-)"  #  = "${line_str:${#cmd}}"
-             c_echo Y "   ${cmd}" w " ${dash_line} ${desc}"
+             c_echo ${mode} Y "   ${cmd}" w " ${dash_line} ${desc}"
         fi
         # use <<EOF, not '<<<"$cmd_lines"' to be executable in sh
     done <<EOF
@@ -85,9 +94,12 @@ c_str() {
     local color=39
     local attr=0
     local text=""
-    local in_terminal=true
-    if [ "${1:-}" = "non-terminal" ]; then
-        in_terminal=false
+    local mode="color"
+    if [ "${1:-}" = "color" ]; then
+        mode="color"
+        shift
+    elif [ "${1:-}" = "nocolor" ]; then
+        mode="nocolor"
         shift
     fi
 
@@ -132,7 +144,7 @@ c_str() {
             *)
                 text="${text}$i"
         esac
-        if [ "${in_terminal}" = "true" ]; then
+        if [ "${mode}" = "color" ]; then
             if [ ${old_color} -ne ${color} ] || [ ${old_attr} -ne ${attr} ]; then
                 text="${text}\033[${attr};${color}m"
                 old_color=$color
@@ -144,14 +156,28 @@ c_str() {
 }
 
 c_echo() {
+    # Select color/nocolor based on the first argument
+    local mode="color"
+    if [ "${1:-}" = "color" ]; then
+        mode="color"
+        shift
+    elif [ "${1:-}" = "nocolor" ]; then
+        mode="nocolor"
+        shift
+    else
+        if [ ! -t 1 ]; then
+            mode="nocolor"
+        fi
+    fi
+
     local old_opt="$(shopt -op xtrace)" # save old xtrace option
     set +x # unset xtrace
 
-    if [ -t 1 ]; then
-        local text="$(c_str "$@")"
+    if [ "${mode}" = "color" ]; then
+        local text="$(c_str color "$@")"
         /bin/echo -e "$text\033[0m"
     else
-        local text="$(c_str non-terminal "$@")"
+        local text="$(c_str nocolor "$@")"
         /bin/echo -e "$text"
     fi
     eval "${old_opt}" # restore old xtrace option
@@ -244,7 +270,7 @@ retry() {
 # Section: Inspect
 #==================================================================================
 
-get_package_info_desc() { echo 'Get package info from app(& model) path
+get_package_info_desc() { c_echo 'Get package info from app(& model) path
 
 Arguments:
   $1 - Application folder or file path
@@ -329,7 +355,7 @@ install_python_dev_deps_() {
     hash -r
 }
 
-setup_desc() { echo 'Setup development environment
+setup_desc() { c_echo 'Setup development environment
 '
 }
 setup() {
@@ -340,7 +366,7 @@ setup() {
 # Section: Test
 #==================================================================================
 
-test_desc() { echo 'Execute test cases
+test_desc() { c_echo 'Execute test cases
 
 Arguments:
   $1 - subcommand [all] (default: all)
@@ -448,7 +474,7 @@ print_usage() {
     echo_err
     c_echo_err W "Command List"
     c_echo_err Y "    help  " w "----------------------------  Print detailed description for a given argument (command name)"
-    echo_err "$(get_list_of_available_commands "${RUN_SCRIPT_FILE}" | my_cat_prefix " ")"
+    echo_err "$(get_list_of_available_commands color "${RUN_SCRIPT_FILE}" | my_cat_prefix " ")"
     echo_err
 }
 
