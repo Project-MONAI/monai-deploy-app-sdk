@@ -10,7 +10,7 @@
 # limitations under the License.
 
 import logging
-from monai.deploy.core import Application, env, resource
+from monai.deploy.core import Application, resource
 from monai.deploy.operators.dicom_data_loader_operator import DICOMDataLoaderOperator
 from monai.deploy.operators.dicom_series_selector_operator import DICOMSeriesSelectorOperator
 from monai.deploy.operators.dicom_series_to_volume_operator import DICOMSeriesToVolumeOperator

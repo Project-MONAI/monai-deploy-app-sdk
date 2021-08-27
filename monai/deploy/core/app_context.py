@@ -10,7 +10,7 @@
 # limitations under the License.
 
 from argparse import Namespace
-from typing import Optional, Type
+from typing import Optional
 
 from .resource import Resource
 from .runtime_env import RuntimeEnv
@@ -19,7 +19,7 @@ from .runtime_env import RuntimeEnv
 class AppContext:
     """A class to store the context of an application."""
 
-    def __init__(self, args: Namespace, runtime_env: Optional[Type[RuntimeEnv]] = None):
+    def __init__(self, args: Namespace, runtime_env: Optional[RuntimeEnv] = None):
         # Set the runtime environment
         self.runtime_env = runtime_env or RuntimeEnv()
 

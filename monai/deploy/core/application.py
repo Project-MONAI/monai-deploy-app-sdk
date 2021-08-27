@@ -57,7 +57,7 @@ class Application(ABC):
 
     def __init__(
         self,
-        runtime_env: Optional[Type[RuntimeEnv]] = None,
+        runtime_env: Optional[RuntimeEnv] = None,
         do_run: bool = False,
         path: Optional[Union[str, Path]] = None,
     ):

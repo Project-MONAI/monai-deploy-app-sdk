@@ -11,7 +11,7 @@
 
 import os.path
 from pathlib import Path
-from typing import Any, Dict, ItemsView, List, Optional, Tuple, Type
+from typing import Any, Dict, ItemsView, List, Tuple
 
 from monai.deploy.exceptions import ItemNotExistsError, UnknownTypeError
 
@@ -84,7 +84,7 @@ class Model:
         self._predictor = None
 
         # Add self to the list of models
-        self._items: Dict[str, Type[Model]] = {self.name: self}
+        self._items: Dict[str, Model] = {self.name: self}
 
     @property
     def predictor(self):
@@ -193,7 +193,7 @@ class Model:
 
         return model_list
 
-    def items(self) -> ItemsView[str, Type["Model"]]:
+    def items(self) -> ItemsView[str, "Model"]:
         """Return an ItemsView of models that this Model instance has.
 
         If this model represents a model repository, then an ItemsView of submodel objects is returned.

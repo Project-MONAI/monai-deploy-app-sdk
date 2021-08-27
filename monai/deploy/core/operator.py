@@ -11,12 +11,11 @@
 
 import uuid
 from abc import ABC, abstractmethod
-from typing import Type, Union
+from typing import Any, Optional, Type, Union
 
 from monai.deploy.exceptions import UnknownTypeError
 from monai.deploy.utils.importutil import is_subclass
 
-from .domain import Domain
 from .env import BaseEnv
 from .execution_context import ExecutionContext
 from .io_context import InputContext, OutputContext
@@ -75,12 +74,12 @@ class Operator(ABC):
     def __eq__(self, other):
         return self._uid == other._uid
 
-    def add_input(self, label: str, data_type: Type[Domain], storage_type: Union[int, IOType]):
+    def add_input(self, label: str, data_type: Type, storage_type: Union[int, IOType]):
         self._op_info.add_label(IO.INPUT, label)
         self._op_info.set_data_type(IO.INPUT, label, data_type)
         self._op_info.set_storage_type(IO.INPUT, label, storage_type)
 
-    def add_output(self, label: str, data_type: Type[Domain], storage_type: Union[int, IOType]):
+    def add_output(self, label: str, data_type: Type, storage_type: Union[int, IOType]):
         self._op_info.add_label(IO.OUTPUT, label)
         self._op_info.set_data_type(IO.OUTPUT, label, data_type)
         self._op_info.set_storage_type(IO.OUTPUT, label, storage_type)
@@ -164,12 +163,12 @@ class Operator(ABC):
         pass
 
 
-def input(label: str = "", data_type: Type[Domain] = None, storage_type: Union[int, IOType] = None):
+def input(label: str = "", data_type: Type = Any, storage_type: Union[int, IOType] = IOType.UNKNOWN):
     """A decorator that adds input specification to the operator.
 
     Args:
         label (str): A label for the input port.
-        data_type (Type[Domain]): A data type of the input.
+        data_type (Type): A data type of the input.
         storage_type (Union[int, IOType]): A storage type of the input.
 
     Returns:
@@ -195,13 +194,13 @@ def input(label: str = "", data_type: Type[Domain] = None, storage_type: Union[i
     return decorator
 
 
-def output(label: str = "", data_type: Type[Domain] = None, storage_type: Union[int, IOType] = None):
+def output(label: str = "", data_type: Type = Any, storage_type: Union[int, IOType] = IOType.UNKNOWN):
     """A decorator that adds output specification to the operator.
 
     Args:
-        label: A label for the output port.
-        data_type: A data type of the output.
-        storage_type: A storage type of the output.
+        label (str): A label for the output port.
+        data_type (Type): A data type of the output.
+        storage_type (Union[int, IOType]): A storage type of the output.
 
     Returns:
         A decorator that adds output specification to the operator.

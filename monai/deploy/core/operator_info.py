@@ -10,10 +10,9 @@
 # limitations under the License.
 
 from enum import Enum
-from typing import Type, Union
+from typing import Dict, Set, Type, Union
 
 from .domain.datapath import DataPath
-from .domain.domain import Domain
 from .io_type import IOType
 
 
@@ -30,9 +29,9 @@ class OperatorInfo:
 
     def __init__(self):
         # Initializing the attributes
-        self.labels = {IO.INPUT: set(), IO.OUTPUT: set()}
-        self.data_type = {IO.INPUT: {}, IO.OUTPUT: {}}
-        self.storage_type = {IO.INPUT: {}, IO.OUTPUT: {}}
+        self.labels: Dict[IO, Set] = {IO.INPUT: set(), IO.OUTPUT: set()}
+        self.data_type: Dict[IO, Dict[str, Type]] = {IO.INPUT: {}, IO.OUTPUT: {}}
+        self.storage_type: Dict[IO, Dict[str, IOType]] = {IO.INPUT: {}, IO.OUTPUT: {}}
 
     def ensure_valid(self):
         """Ensure that the operator info is valid.
@@ -53,18 +52,18 @@ class OperatorInfo:
         io_kind = IO(io_kind)
         return self.labels[io_kind]
 
-    def set_data_type(self, io_kind: IO, label: str, data_type: Type[Domain]):
+    def set_data_type(self, io_kind: IO, label: str, data_type: Type):
         io_kind = IO(io_kind)
         self.data_type[io_kind][label] = data_type
 
-    def get_data_type(self, io_kind: IO, label: str) -> Type[Domain]:
+    def get_data_type(self, io_kind: IO, label: str) -> Type:
         io_kind = IO(io_kind)
         return self.data_type[io_kind][label]
 
     def set_storage_type(self, io_kind: IO, label: str, storage_type: Union[int, IOType]):
         io_kind = IO(io_kind)
-        self.storage_type[io_kind][label] = storage_type
+        self.storage_type[io_kind][label] = IOType(storage_type)
 
-    def get_storage_type(self, io_kind: IO, label: str) -> Union[int, IOType]:
+    def get_storage_type(self, io_kind: IO, label: str) -> IOType:
         io_kind = IO(io_kind)
         return self.storage_type[io_kind][label]
