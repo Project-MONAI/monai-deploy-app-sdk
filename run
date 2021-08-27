@@ -414,6 +414,15 @@ parse_args() {
     shift
 
     ARGS=("$@")
+    # Check if the command has `--help` or `-h` and override the CMD
+    local arg
+    for arg in "${ARGS[@]}"; do
+        if [ "$arg" = "--help" ] || [ "$arg" = "-h" ]; then
+            ARGS=("$CMD")
+            CMD="help"
+            break
+        fi
+    done
 }
 
 print_usage() {
