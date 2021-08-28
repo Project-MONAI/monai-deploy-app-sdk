@@ -11,7 +11,7 @@
 
 import uuid
 from abc import ABC, abstractmethod
-from typing import Any, Optional, Type, Union
+from typing import Any, Type, Union
 
 from monai.deploy.exceptions import UnknownTypeError
 from monai.deploy.utils.importutil import is_subclass
@@ -85,12 +85,12 @@ class Operator(ABC):
         self._op_info.set_storage_type(IO.OUTPUT, label, storage_type)
 
     @property
-    def name(self):
+    def name(self) -> str:
         """Returns the name of this operator."""
         return self.__class__.__name__
 
     @property
-    def uid(self):
+    def uid(self) -> uuid.UUID:
         """Gives access to the UID of the operator.
 
         Returns:
@@ -99,7 +99,7 @@ class Operator(ABC):
         return self._uid
 
     @property
-    def op_info(self):
+    def op_info(self) -> OperatorInfo:
         """Retrieves the operator info.
 
         Args:
@@ -111,7 +111,7 @@ class Operator(ABC):
         return self._op_info
 
     @property
-    def env(self):
+    def env(self) -> "OperatorEnv":
         """Gives access to the environment.
 
         This sets a default value for the operator's environment if not set.
@@ -145,6 +145,59 @@ class Operator(ABC):
     @abstractmethod
     def compute(self, input: InputContext, output: OutputContext, context: ExecutionContext):
         """An abstract method that needs to be implemented by the user.
+
+        The original input and output paths from the CLI are available through
+        `context.input.get()` and `context.output.get()`. The type of the returned value is `DataPath`.
+
+        >>> context.input.get().path   # (Path) - The input path from the application's context
+        >>> context.output.get().path  # (Path) - The output path from the application's context
+
+        Both "input" and "output" (here, these are **not** referring to `input` and `output` arguments in compute()
+        method) are arguments passed to the application when the app is set to execute.
+        The input and output paths are in the context of the whole application, and are read only once the application
+        starts executing. Any operators in the application workflow graph can access the `context.input` and access
+        the input to the application.
+
+        `context.models.get("<model_name>")` returns a model instance and a null model would be returned
+        if model is not available.
+
+        If <model_name> is not specified and only one model exists, it returns that model.
+
+        >>> model = context.models.get()  # a model object that inherits Model class
+
+        >>> # Get a model instance if exists
+        >>> if model:  # if model is not a null model
+        >>>     print(model.items())
+        >>>     # model.path for accessing the model's path
+        >>>     # model.name for accessing the model's name
+        >>>     # result = model(input.get().asnumpy())
+
+        Similar way, `input.get("<input_label>")` returns the input data of the specified label for the operator.
+
+        If <input_label> is not specified and only one input exists, it returns that input.
+
+        >>> input.get()  # an input object that inherits a type specified by @input decorator of the operator.
+
+        If this operator is a leaf operator in the workflow graph, then the output path of the operator (the output
+        path in local machine that is specified by CLI) is available through `output.get().path`.
+        Otherwise, it is expected that the output of the operator is set through `output.set()` method.
+
+        For example, if the input and output data type are both `Image` objects, then the following logic is expected:
+
+        >>> data_in = input.get().asnumpy()  # get the input data as numpy array
+        >>> data_out = process(data_in)      # process the input data
+        >>> output.set(Image(data_out))      # set the output data
+
+        If the operator is a leaf operator in the workflow graph, you cannot call `output.set()` method.
+        Instead, you can use the destination path available by `output.get().path` to store output data and the
+        following logic is expected:
+
+        >>> output_folder = output.get().path                 # get the output path
+        >>> output_folder.mkdir(parents=True, exist_ok=True)  # create the output folder
+        >>> output_filename = "final_output.png"              # set the output filename
+        >>> output_path = output_folder / output_filename     # set the output path
+
+        >>> imsave(output_path, data_out)                     # save the output data
 
         Args:
             input (InputContext): An input context for the operator.

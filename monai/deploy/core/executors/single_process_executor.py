@@ -14,10 +14,12 @@ import os
 
 from colorama import Fore
 
-from monai.deploy.core.domain.datapath import DataPath
+from monai.deploy.core.domain.datapath import DataPath, NamedDataPath
 from monai.deploy.core.execution_context import BaseExecutionContext, ExecutionContext
 from monai.deploy.core.models import ModelFactory
 from monai.deploy.exceptions import IOMappingError
+from monai.deploy.core.operator_info import IO
+from monai.deploy.core.io_type import IOType
 
 from .executor import Executor
 
@@ -38,25 +40,45 @@ class SingleProcessExecutor(Executor):
         """
         app_context = self.app.context
         models = ModelFactory.create(app_context.model_path)
+        input_path = self.app.context.input_path
+        output_path = self.app.context.output_path
 
-        exec_context = BaseExecutionContext(self.datastore, models)
+        # Create execution context
+        # Currently, we only allow a single input/output path (with empty label: "").
+        # TODO(gigony): Supports multiple inputs/outputs (#87)
+        exec_context = BaseExecutionContext(
+            self.datastore,
+            input=NamedDataPath({"": DataPath(input_path, read_only=True)}),
+            output=NamedDataPath({"": DataPath(output_path, read_only=True)}),
+            models=models,
+        )
 
         g = self.app.graph
 
         for op in g.gen_worklist():
             op_exec_context = ExecutionContext(exec_context, op)
 
-            # Set source input if op is a root node
+            # Set source input for a label if op is a root node and (<data type>, <storage type>) == (DataPath, IOType.DISK)
             is_root = g.is_root(op)
             if is_root:
-                input_path = self.app.context.input_path
-                op_exec_context.input.set(DataPath(input_path))
+                input_op_info = op.op_info
+                input_labels = input_op_info.get_labels(IO.INPUT)
+                for input_label in input_labels:
+                    input_data_type = input_op_info.get_data_type(IO.INPUT, input_label)
+                    input_storage_type = input_op_info.get_storage_type(IO.INPUT, input_label)
+                    if issubclass(input_data_type, DataPath) and input_storage_type == IOType.DISK:
+                        op_exec_context.input_context.set(DataPath(input_path, read_only=True), input_label)
 
-            # Set destination output if op is a leaf node
+            # Set destination output for a label if op is a leaf node and (<data type>, <storage type>) == (DataPath, IOType.DISK)
             is_leaf = g.is_leaf(op)
             if is_leaf:
-                output_path = self.app.context.output_path
-                op_exec_context.output.set(DataPath(output_path))
+                output_op_info = op.op_info
+                output_labels = output_op_info.get_labels(IO.OUTPUT)
+                for output_label in output_labels:
+                    output_data_type = output_op_info.get_data_type(IO.OUTPUT, output_label)
+                    output_storage_type = output_op_info.get_storage_type(IO.OUTPUT, output_label)
+                    if issubclass(output_data_type, DataPath) and output_storage_type == IOType.DISK:
+                        op_exec_context.output_context.set(DataPath(output_path, read_only=True), output_label)
 
             # Execute pre_compute()
             print(Fore.BLUE + "Going to initiate execution of operator %s" % op.__class__.__name__ + Fore.RESET)
@@ -70,7 +92,7 @@ class SingleProcessExecutor(Executor):
                 + "(Process ID %s)" % os.getpid()
                 + Fore.RESET
             )
-            op.compute(op_exec_context.input, op_exec_context.output, op_exec_context)
+            op.compute(op_exec_context.input_context, op_exec_context.output_context, op_exec_context)
 
             # Execute post_compute()
             print(Fore.BLUE + "Done performing execution of operator %s\n" % op.__class__.__name__ + Fore.RESET)
@@ -90,6 +112,6 @@ class SingleProcessExecutor(Executor):
 
                 next_op_exec_context = ExecutionContext(exec_context, next_op)
                 for (out_label, in_labels) in io_map.items():
-                    output = op_exec_context.output.get(out_label)
+                    output = op_exec_context.output_context.get(out_label)
                     for in_label in in_labels:
-                        next_op_exec_context.input.set(output, in_label)
+                        next_op_exec_context.input_context.set(output, in_label)

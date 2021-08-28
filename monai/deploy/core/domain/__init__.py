@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .datapath import DataPath
+from .datapath import DataPath, NamedDataPath
 from .dicom_series import DICOMSeries
 from .dicom_sop_instance import DICOMSOPInstance
 from .dicom_study import DICOMStudy

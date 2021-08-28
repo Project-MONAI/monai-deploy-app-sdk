@@ -11,22 +11,43 @@
 
 from typing import TYPE_CHECKING, Optional
 
+from monai.deploy.core.domain.datapath import NamedDataPath
+
 if TYPE_CHECKING:
     from .operator import Operator
 
 from .datastores import Datastore, MemoryDatastore
+from .domain import NamedDataPath
 from .io_context import InputContext, OutputContext
 from .models import Model
 
 
 class BaseExecutionContext:
-    """A base execution context for the application."""
+    """A base execution context for the application.
 
-    def __init__(self, datastore: Optional[Datastore] = None, models: Optional[Model] = None):
+    BaseExecutionContext is responsible for storing the input and output data paths,
+    and the models.
+
+    Those pieces of information are used by the Operator (in `compute()` method) to perform the execution.
+
+    The input and output data paths from the application's context are available through
+    `context.input.get()` and `context.output.get()`.
+    """
+
+    def __init__(
+        self,
+        datastore: Optional[Datastore],
+        input: NamedDataPath,
+        output: NamedDataPath,
+        models: Optional[Model] = None,
+    ):
         if datastore is None:
             self._storage = MemoryDatastore()
         else:
             self._storage = datastore
+
+        self._input = input
+        self._output = output
 
         if models is None:
             self._models = Model("")  # set a null model
@@ -34,8 +55,16 @@ class BaseExecutionContext:
             self._models = models
 
     @property
-    def storage(self):
+    def storage(self) -> Datastore:
         return self._storage
+
+    @property
+    def input(self) -> NamedDataPath:
+        return self._input
+
+    @property
+    def output(self) -> NamedDataPath:
+        return self._output
 
     @property
     def models(self) -> Model:
@@ -46,7 +75,7 @@ class ExecutionContext(BaseExecutionContext):
     """An execution context for the operator."""
 
     def __init__(self, context: BaseExecutionContext, op: "Operator"):
-        super().__init__(context.storage, context.models)
+        super().__init__(context.storage, context.input, context.output, context.models)
         self._context = context
         self._op = op
         self._input_context = InputContext(self)
@@ -88,11 +117,11 @@ class ExecutionContext(BaseExecutionContext):
         return new_execution_index
 
     @property
-    def input(self):
+    def input_context(self):
         """Returns the input context for the operator."""
         return self._input_context
 
     @property
-    def output(self):
+    def output_context(self):
         """Returns the output context for the operator."""
         return self._output_context
