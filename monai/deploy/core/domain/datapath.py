@@ -12,13 +12,22 @@
 from pathlib import Path
 from typing import Dict, Optional, Union
 
+from monai.deploy.exceptions import IOMappingError, ItemNotExistsError
+
 from .domain import Domain
 
 
 class DataPath(Domain):
-    def __init__(self, path: Union[str, Path], metadata: Optional[Dict] = None):
+    def __init__(self, path: Union[str, Path], read_only: bool = False, metadata: Optional[Dict] = None):
+        """Initializes a DataPath object.
+
+        Args:
+            path (Union[str, Path]): Path to the data file/directory.
+            read_only (bool): True if the the file/directory path cannot be modified.
+        """
         super().__init__(metadata=metadata)
         self._path = Path(path)
+        self._read_only = read_only
 
     @property
     def path(self):
@@ -26,4 +35,35 @@ class DataPath(Domain):
 
     @path.setter
     def path(self, val):
+        if self._read_only:
+            raise IOMappingError("This DataPath is read-only.")
         self._path = Path(val)
+
+
+class NamedDataPath(Domain):
+    """A data path dictionary with name as key and data path as value.
+
+    This class is used to store data paths and the provided name of each data path is unique.
+
+    A data path for a name is accessible by calling the `get()` method with the name.
+
+    If only one data path is available and the name is not specified, the data path is returned.
+    """
+
+    def __init__(self, paths: Dict[str, DataPath], metadata: Optional[Dict] = None):
+        super().__init__(metadata=metadata)
+        self._paths = paths
+
+    def get(self, name: Optional[str] = "") -> DataPath:
+        if name not in self._paths:
+            if name == "" and len(self._paths) == 1:
+                return next(iter(self._paths.values()))
+            else:
+                raise IOMappingError(
+                    f"'{name}' is not a valid name. It should be one of ({', '.join(self._paths.keys())})."
+                )
+        else:
+            datapath = self._paths.get(name)
+            if not datapath:
+                raise ItemNotExistsError(f"A DataPath instance for '{name}' does not exist.")
+            return datapath

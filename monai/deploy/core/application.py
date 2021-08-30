@@ -65,7 +65,8 @@ class Application(ABC):
 
         It initializes the application's graph, the runtime environment and the application context.
 
-        if `do_run` is True, it would accept user's arguments from CLI and execute the application.
+        if `do_run` is True, it would accept user's arguments from the application's context and
+        execute the application.
 
         Args:
             runtime_env (Optional[RuntimeEnv]): The runtime environment to use.

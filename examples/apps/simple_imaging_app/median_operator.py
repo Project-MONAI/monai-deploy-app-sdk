@@ -47,6 +47,9 @@ class MedianOperator(MedianOperatorBase):
 
         from skimage.filters import median
 
+        # `context.input.get().path` (Path) is the file/folder path of the input data from the application's context.
+        # `context.output.get().path` (Path) is the file/folder path of the output data from the application's context.
+
         # `context.models.get(model_name)` returns a model instance
         #  (a null model would be returned if model is not available)
         # If model_name is not specified and only one model exists, it returns that model.
