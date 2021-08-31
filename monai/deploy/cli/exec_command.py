@@ -24,13 +24,17 @@ from monai.deploy.core.graphs.factory import GraphFactory
 def create_exec_parser(subparser: _SubParsersAction, command: str, parents: List[ArgumentParser]) -> ArgumentParser:
     # Intentionally use `argparse.HelpFormatter` instead of `argparse.ArgumentDefaultsHelpFormatter`.
     # Default values for those options are None and those would be filled by `RuntimeEnv` object later.
-    parser = subparser.add_parser(
-        command, formatter_class=argparse.HelpFormatter, parents=parents, add_help=False
-    )
+    parser = subparser.add_parser(command, formatter_class=argparse.HelpFormatter, parents=parents, add_help=False)
 
     parser.add_argument("--input", "-i", help="Path to input folder/file (default: input)")
     parser.add_argument("--output", "-o", help="Path to output folder/file (default: output)")
     parser.add_argument("--model", "-m", help="Path to model(s) folder/file (default: models)")
+    parser.add_argument(
+        "--workdir",
+        "-w",
+        type=str,
+        help="Path to workspace folder (default: A temporary '.monai_workdir' folder in the current folder)",
+    )
     parser.add_argument(
         "--graph",
         help=f"Graph engine (default: {GraphFactory.DEFAULT})",

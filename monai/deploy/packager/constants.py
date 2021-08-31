@@ -17,7 +17,7 @@ class DefaultValues:
     # TODO(KavinKrishnan): Decide a default image to use.
     # BASE_IMAGE = "nvcr.io/nvidia/cuda:11.1-runtime-ubuntu20.04"
     BASE_IMAGE = "nvcr.io/nvidia/pytorch:21.07-py3"
-    WORK_DIR = "/opt/monai/app"
+    WORK_DIR = "/var/monai"
     INPUT_DIR = "input"
     OUTPUT_DIR = "output"
     MODELS_DIR = "/opt/monai/models"
