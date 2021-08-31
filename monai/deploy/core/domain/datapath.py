@@ -26,8 +26,8 @@ class DataPath(Domain):
             read_only (bool): True if the the file/directory path cannot be modified.
         """
         super().__init__(metadata=metadata)
-        self._path = Path(path)
-        self._read_only = read_only
+        self._path: Path = Path(path)
+        self._read_only: bool = read_only
 
     @property
     def path(self):
@@ -38,6 +38,11 @@ class DataPath(Domain):
         if self._read_only:
             raise IOMappingError("This DataPath is read-only.")
         self._path = Path(val)
+
+    def to_absolute(self):
+        """Convert the internal representation of the path to an absolute path."""
+        if not self._path.is_absolute():
+            self._path = self._path.absolute()
 
 
 class NamedDataPath(Domain):

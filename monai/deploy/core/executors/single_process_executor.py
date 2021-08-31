@@ -11,17 +11,21 @@
 
 
 import os
+import shutil
+from pathlib import Path
 
 from colorama import Fore
 
 from monai.deploy.core.domain.datapath import DataPath, NamedDataPath
 from monai.deploy.core.execution_context import BaseExecutionContext, ExecutionContext
-from monai.deploy.core.models import ModelFactory
-from monai.deploy.exceptions import IOMappingError
-from monai.deploy.core.operator_info import IO
 from monai.deploy.core.io_type import IOType
+from monai.deploy.core.models import ModelFactory
+from monai.deploy.core.operator_info import IO
+from monai.deploy.exceptions import IOMappingError
 
 from .executor import Executor
+
+TEMP_WORKDIR = ".monai_workdir"  # working directory name used when no `workdir` is specified
 
 
 class SingleProcessExecutor(Executor):
@@ -40,8 +44,22 @@ class SingleProcessExecutor(Executor):
         """
         app_context = self.app.context
         models = ModelFactory.create(app_context.model_path)
-        input_path = self.app.context.input_path
-        output_path = self.app.context.output_path
+        # Take paths as absolute paths
+        input_path = os.path.abspath(self.app.context.input_path)
+        output_path = os.path.abspath(self.app.context.output_path)
+
+        # Store old pwd
+        old_pwd = os.getcwd()
+
+        # If workdir is not specified, create a temporary path (.monai_workdir)
+        if not self.app.context.workdir:
+            if os.path.exists(TEMP_WORKDIR):
+                shutil.rmtree(TEMP_WORKDIR)
+            os.mkdir(TEMP_WORKDIR)
+            workdir = os.path.abspath(TEMP_WORKDIR)
+        else:
+            # Absolute path of the working directory
+            workdir = os.path.abspath(self.app.context.workdir)
 
         # Create execution context
         # Currently, we only allow a single input/output path (with empty label: "").
@@ -80,6 +98,13 @@ class SingleProcessExecutor(Executor):
                     if issubclass(output_data_type, DataPath) and output_storage_type == IOType.DISK:
                         op_exec_context.output_context.set(DataPath(output_path, read_only=True), output_label)
 
+            # Change the current working directory to the working directory of the operator
+            #   op_output_folder == f"{workdir}/operators/{op.uid}/{op_exec_context.get_execution_index()}/{IO.OUTPUT}"
+            relative_output_path = Path(op_exec_context.output_context.get_group_path(IO.OUTPUT)).relative_to("/")
+            op_output_folder = str(Path(workdir, relative_output_path))
+            os.makedirs(op_output_folder, exist_ok=True)
+            os.chdir(op_output_folder)
+
             # Execute pre_compute()
             print(Fore.BLUE + "Going to initiate execution of operator %s" % op.__class__.__name__ + Fore.RESET)
             op.pre_compute()
@@ -89,7 +114,7 @@ class SingleProcessExecutor(Executor):
                 Fore.GREEN
                 + "Executing operator %s " % op.__class__.__name__
                 + Fore.YELLOW
-                + "(Process ID %s)" % os.getpid()
+                + "(Process ID: %s, Operator ID: %s)" % (os.getpid(), op.uid)
                 + Fore.RESET
             )
             op.compute(op_exec_context.input_context, op_exec_context.output_context, op_exec_context)
@@ -115,3 +140,11 @@ class SingleProcessExecutor(Executor):
                     output = op_exec_context.output_context.get(out_label)
                     for in_label in in_labels:
                         next_op_exec_context.input_context.set(output, in_label)
+
+        # Restore pwd
+        os.chdir(old_pwd)
+
+        # Remove a temporary workdir
+        old_pwd = os.getcwd()
+        if os.path.exists(TEMP_WORKDIR):
+            shutil.rmtree(TEMP_WORKDIR)

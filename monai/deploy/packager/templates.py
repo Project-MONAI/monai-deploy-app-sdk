@@ -54,6 +54,9 @@ COMMON_FOOTPRINT = """
     # Create bytecodes for monai and app's code. This would help speed up loading time a little bit.
     RUN python -m compileall -q -j 0 /home/monai/.local/lib/python3.8/site-packages/monai /opt/monai/app
 
+    # Set the working directory
+    WORKDIR {working_dir}
+
     ENTRYPOINT [ "/opt/monai/executor/monai-exec" ]
 """
 
@@ -72,6 +75,7 @@ UBUNTU_DOCKERFILE_TEMPLATE = (
     ENV TERM=xterm-256color
     ENV MONAI_INPUTPATH={full_input_path}
     ENV MONAI_OUTPUTPATH={full_output_path}
+    ENV MONAI_WORKDIR={working_dir}
     ENV MONAI_APPLICATION={app_dir}
     ENV MONAI_TIMEOUT={timeout}
 
@@ -108,6 +112,7 @@ PYTORCH_DOCKERFILE_TEMPLATE = (
     ENV TERM=xterm-256color
     ENV MONAI_INPUTPATH={full_input_path}
     ENV MONAI_OUTPUTPATH={full_output_path}
+    ENV MONAI_WORKDIR={working_dir}
     ENV MONAI_APPLICATION={app_dir}
     ENV MONAI_TIMEOUT={timeout}
 
@@ -206,7 +211,7 @@ DOCKERIGNORE_TEMPLATE = """
 TEMPLATE_MAP = {
     "ubuntu": UBUNTU_DOCKERFILE_TEMPLATE,
     "pytorch": PYTORCH_DOCKERFILE_TEMPLATE,
-    '.dockerignore' : DOCKERIGNORE_TEMPLATE
+    ".dockerignore": DOCKERIGNORE_TEMPLATE,
 }
 
 

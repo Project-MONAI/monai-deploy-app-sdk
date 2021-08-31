@@ -27,6 +27,7 @@ class AppContext:
         self.input_path = args.input or self.runtime_env.input
         self.output_path = args.output or self.runtime_env.output
         self.model_path = args.model or self.runtime_env.model
+        self.workdir = args.workdir or self.runtime_env.workdir
 
         # Set the backend engines
         self.graph = args.graph or self.runtime_env.graph

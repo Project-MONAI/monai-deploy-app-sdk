@@ -29,14 +29,16 @@ class RuntimeEnv(ABC):
         "input": ("MONAI_INPUTPATH", "input"),
         "output": ("MONAI_OUTPUTPATH", "output"),
         "model": ("MONAI_MODELPATH", "models"),
-        "graph": ("MONAI_GRAPH", GraphFactory.DEFAULT),
-        "datastore": ("MONAI_DATASTORE", DatastoreFactory.DEFAULT),
-        "executor": ("MONAI_EXECUTOR", ExecutorFactory.DEFAULT),
+        "workdir": ("MONAI_WORKDIR", ""),
+        "graph": ("MONAI_GRAPH", GraphFactory.DEFAULT),  # The 'MONAI_GRAPH' is not part of MAP spec.
+        "datastore": ("MONAI_DATASTORE", DatastoreFactory.DEFAULT),  # The 'MONAI_DATASTORE' is not part of MAP spec.
+        "executor": ("MONAI_EXECUTOR", ExecutorFactory.DEFAULT),  # The 'MONAI_EXECUTOR' is not part of MAP spec.
     }
 
     input: str = ""
     output: str = ""
     model: str = ""
+    workdir: str = ""
 
     def __init__(self, defaults: Dict[str, Tuple[str]] = None):
         if defaults is None:
