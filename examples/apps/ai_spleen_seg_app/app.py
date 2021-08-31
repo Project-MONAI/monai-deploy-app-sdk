@@ -47,8 +47,10 @@ class AISpleenSegApp(Application):
         study_loader_op = DICOMDataLoaderOperator()
         series_selector_op = DICOMSeriesSelectorOperator()
         series_to_vol_op = DICOMSeriesToVolumeOperator()
-        spleen_seg_op = SpleenSegOperator()  # This is the app specific operator.
-        dicom_seg_writer = DICOMSegmentationWriterOperator()
+        # Moel specific inference operator, supporting Monai transforms.
+        spleen_seg_op = SpleenSegOperator()
+        # Creates DICOM Seg writer with segment label name in a string list
+        dicom_seg_writer = DICOMSegmentationWriterOperator(seg_labels=["Spleen"])
 
         # Create the processing pipeline DAG, by specifying the upstream and downstream operators, and
         # ensuring the output from the former matches the input of the latter, in both name and type.

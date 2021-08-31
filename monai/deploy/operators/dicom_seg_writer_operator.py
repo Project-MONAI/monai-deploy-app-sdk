@@ -60,6 +60,39 @@ class DICOMSegmentationWriterOperator(Operator):
     # Suffix to add to file name to indicate DICOM Seg dcm file.
     DICOMSEG_SUFFIX = '-DICOMSEG'
 
+    def __init__(self, seg_labels: list = None, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        """Instantiates the DICOM Seg Writer instance with optional list of segment label strings.
+
+        A string can be used to represent a numberical value of a segment in the segmentation image.
+        As of now, integer values are supported for segment mask, and it is further required that the named
+        segment will start with 1 and increment sequencially if there are additional segments, while the
+        background is of value 0. The caller needs to pass in a string list, whose length corresponds
+        to the number of actual segments. The position index + 1 would be the corresponding segement's
+        numberical value.
+
+        For example, in the CT Spleen Segmentation application, the whole image backgound has a value
+        of 0, and the Spleen segment of value 1. This then only requires the caller to pass in a list
+        containing a single string, which is used as label for the Spleen in the DICOM Seg instance.
+
+        Note: this interface is subject to change. It is planned that a new oject will encapsulate the
+        segment label information, including label value, name, description etc.
+
+        Args:
+            seg_labels ([str]): The string name for each segment
+        """
+
+        self._seg_labels = ["SegmentLabel-default"]
+        if isinstance(seg_labels, str):
+            self._seg_labels = [seg_labels]
+        elif isinstance(seg_labels, list):
+            for label in seg_labels:
+                if not isinstance(label, str):
+                    raise ValueError(f"List of strings expected, but contains {label} of type {type(label)}.")
+            self._seg_labels = seg_labels
+        else:
+            raise ValueError(f"List of strings expected.")
+
     def compute(self, input: InputContext, output: OutputContext, context: ExecutionContext):
         dicom_series = input.get("dicom_series")
 
@@ -99,9 +132,10 @@ class DICOMSegmentationWriterOperator(Operator):
                 image,
                 dicom_dataset_list,
                 file_path,
-                self._get_label_list())  # TODO: get labels somewhere
+                self._seg_labels)
+            # TODO: get a class to encapsulate the seg label information.
 
-        # Test reading back
+            # Test reading back
             _ = self._read_from_dcm(file_path)
         except Exception as ex:
             print('DICOMSeg creation failed. Error:\n{}'.format(ex))
@@ -310,7 +344,7 @@ def create_multiframe_metadata(dicom_file, input_ds):
     dicomOutput.add_new(0x00080060, 'CS', 'SEG')  # Modality
     dicomOutput.add_new(0x0020000E, 'UI', segmentationSeriesInstanceUID)  # SeriesInstanceUID
     dicomOutput.add_new(0x00200011, 'IS', random_with_n_digits(4))  # SeriesNumber (randomized)
-    descr = "CAUTION: Research Use Only. NVIDIA Clara generated DICOM SEG"
+    descr = "CAUTION: Research Use Only. Monai Deploy App SDK generated DICOM SEG"
     if safe_get(input_ds, 0x0008103e):
         descr += " for " + safe_get(input_ds,0x0008103e)
     dicomOutput.add_new(0x0008103e, 'LO', descr )  # SeriesDescription
@@ -319,9 +353,9 @@ def create_multiframe_metadata(dicom_file, input_ds):
 
     # General Equipment module, only Manufacturer is Type 2, the rest Type 3
     dicomOutput.add_new(0x00181000, 'LO', '0000')  # DeviceSerialNumber
-    dicomOutput.add_new(0x00080070, 'LO', 'NVIDIA')  # Manufacturer
-    dicomOutput.add_new(0x00081090, 'LO', 'CLARA')  # ManufacturerModelName
-    dicomOutput.add_new(0x00181020, 'LO', '1')  # SoftwareVersions
+    dicomOutput.add_new(0x00080070, 'LO', 'Monai Deploy')  # Manufacturer
+    dicomOutput.add_new(0x00081090, 'LO', 'App SDK')  # ManufacturerModelName
+    dicomOutput.add_new(0x00181020, 'LO', '0.1')  # SoftwareVersions
 
     # SOP common, only SOPClassUID and SOPInstanceUID are Type 1
     dicomOutput.add_new(0x00200013, 'IS', 1)  # InstanceNumber
