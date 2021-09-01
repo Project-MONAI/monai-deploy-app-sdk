@@ -16,8 +16,10 @@ import copy
 import numpy as np
 import datetime
 from random import randint
+from typing import List, Union
 
 from monai.deploy.utils.importutil import optional_import
+from monai.deploy.utils.version import get_sdk_semver
 
 dcmread, _ = optional_import("pydicom", name="dcmread")
 generate_uid, _ = optional_import("pydicom.uid", name="generate_uid")
@@ -60,22 +62,22 @@ class DICOMSegmentationWriterOperator(Operator):
     # Suffix to add to file name to indicate DICOM Seg dcm file.
     DICOMSEG_SUFFIX = '-DICOMSEG'
 
-    def __init__(self, seg_labels: list = None, *args, **kwargs):
+    def __init__(self, seg_labels: Union[List[str], str] = None, *args, **kwargs):
         super().__init__(*args, **kwargs)
         """Instantiates the DICOM Seg Writer instance with optional list of segment label strings.
 
-        A string can be used to represent a numberical value of a segment in the segmentation image.
+        A string can be used instead of a numerical value for a segment in the segmentation image.
         As of now, integer values are supported for segment mask, and it is further required that the named
-        segment will start with 1 and increment sequencially if there are additional segments, while the
+        segment will start with 1 and increment sequentially if there are additional segments, while the
         background is of value 0. The caller needs to pass in a string list, whose length corresponds
-        to the number of actual segments. The position index + 1 would be the corresponding segement's
-        numberical value.
+        to the number of actual segments. The position index + 1 would be the corresponding segment's
+        numerical value.
 
-        For example, in the CT Spleen Segmentation application, the whole image backgound has a value
+        For example, in the CT Spleen Segmentation application, the whole image background has a value
         of 0, and the Spleen segment of value 1. This then only requires the caller to pass in a list
         containing a single string, which is used as label for the Spleen in the DICOM Seg instance.
 
-        Note: this interface is subject to change. It is planned that a new oject will encapsulate the
+        Note: this interface is subject to change. It is planned that a new object will encapsulate the
         segment label information, including label value, name, description etc.
 
         Args:
@@ -344,7 +346,7 @@ def create_multiframe_metadata(dicom_file, input_ds):
     dicomOutput.add_new(0x00080060, 'CS', 'SEG')  # Modality
     dicomOutput.add_new(0x0020000E, 'UI', segmentationSeriesInstanceUID)  # SeriesInstanceUID
     dicomOutput.add_new(0x00200011, 'IS', random_with_n_digits(4))  # SeriesNumber (randomized)
-    descr = "CAUTION: Research Use Only. Monai Deploy App SDK generated DICOM SEG"
+    descr = "CAUTION: Research Use Only. MONAI Deploy App SDK generated DICOM SEG"
     if safe_get(input_ds, 0x0008103e):
         descr += " for " + safe_get(input_ds,0x0008103e)
     dicomOutput.add_new(0x0008103e, 'LO', descr )  # SeriesDescription
@@ -353,9 +355,13 @@ def create_multiframe_metadata(dicom_file, input_ds):
 
     # General Equipment module, only Manufacturer is Type 2, the rest Type 3
     dicomOutput.add_new(0x00181000, 'LO', '0000')  # DeviceSerialNumber
-    dicomOutput.add_new(0x00080070, 'LO', 'Monai Deploy')  # Manufacturer
+    dicomOutput.add_new(0x00080070, 'LO', 'MONAI Deploy')  # Manufacturer
     dicomOutput.add_new(0x00081090, 'LO', 'App SDK')  # ManufacturerModelName
-    dicomOutput.add_new(0x00181020, 'LO', '0.1')  # SoftwareVersions
+    try:
+        version_str = get_sdk_semver()    # SDK Version
+    except Exception:
+        version_str = "0.1"    # Fall back to the initial version
+    dicomOutput.add_new(0x00181020, 'LO',  version_str) # SoftwareVersions
 
     # SOP common, only SOPClassUID and SOPInstanceUID are Type 1
     dicomOutput.add_new(0x00200013, 'IS', 1)  # InstanceNumber
