@@ -17,6 +17,7 @@ from monai.deploy.utils.spinner import ProgressSpinner
 
 logger = logging.getLogger(__name__)
 
+
 def valid_dir_path(path: str) -> Path:
     """Helper type checking and type converting method for ArgumentParser.add_argument
     to convert string input to pathlib.Path if the given path exists and it is a directory path.

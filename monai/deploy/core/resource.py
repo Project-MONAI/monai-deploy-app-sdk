@@ -79,7 +79,9 @@ class Resource:
             try:
                 self._memory = get_bytes(memory_limit)
             except Exception as e:
-                raise WrongValueError(f"Memory size specified in the application (via @resource) is not valid: {e.args[0]}")
+                raise WrongValueError(
+                    f"Memory size specified in the application (via @resource) is not valid: {e.args[0]}"
+                )
         elif type(memory_limit) == int:
             if self._memory is None:
                 self._memory = memory_limit
@@ -129,6 +131,7 @@ def resource(
                 builder(self)  # execute the original builder
 
             return self
+
         cls._builder = new_builder
         return cls
 

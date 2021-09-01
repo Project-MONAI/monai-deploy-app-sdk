@@ -227,12 +227,9 @@ class DICOMSeriesToVolumeOperator(Operator):
         y1 = ip1[1]
         z1 = ip1[2]
 
-
-
         xn = ipn[0]
         yn = ipn[1]
         zn = ipn[2]
-
 
         m1[0, 0] = rx * vr
         m1[0, 1] = cx * vc

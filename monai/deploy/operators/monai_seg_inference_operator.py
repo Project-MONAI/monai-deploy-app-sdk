@@ -33,6 +33,7 @@ from .inference_operator import InferenceOperator
 
 __all__ = ["MonaiSegInferenceOperator", "InMemImageReader"]
 
+
 @input("image", Image, IOType.IN_MEMORY)
 @output("seg_image", Image, IOType.IN_MEMORY)
 @env(pip_packages=["monai==0.6.0", "torch>=1.5", "numpy>=1.17"])
@@ -46,15 +47,12 @@ class MonaiSegInferenceOperator(InferenceOperator):
     If specified in the post transforms, results may also be saved to disk.
 
     """
-    # For testing the app directly, the model should be at the following path.
-    MODEL_LOCAL_PATH = 'model/model.ts'
 
-    def __init__(self,
-        roi_size: Union[Sequence[int], int],
-        pre_transforms: Compose,
-        post_transforms: Compose,
-        *args,
-        **kwargs
+    # For testing the app directly, the model should be at the following path.
+    MODEL_LOCAL_PATH = "model/model.ts"
+
+    def __init__(
+        self, roi_size: Union[Sequence[int], int], pre_transforms: Compose, post_transforms: Compose, *args, **kwargs
     ):
         """Creates a instance of this class.
 
@@ -62,14 +60,14 @@ class MonaiSegInferenceOperator(InferenceOperator):
             roi_size (Union[Sequence[int], int]): The tensor size used in inference.
             pre_transforms (Compose): Monai Compose oject used for pre-transforms.
             pre_transforms (Compose): Monai Compose oject used for pre-transforms.
-    """
+        """
 
         super().__init__()
         self._executing = False
         self._lock = Lock()
-        self._input_dataset_key = 'image'
-        self._pred_dataset_key = 'pred'
-        self._input_image = None # Image will come in when compute is called.
+        self._input_dataset_key = "image"
+        self._pred_dataset_key = "pred"
+        self._input_image = None  # Image will come in when compute is called.
         self._reader = None
         self._roi_size = ensure_tuple(roi_size)
         self._pre_transform = pre_transforms
@@ -79,16 +77,18 @@ class MonaiSegInferenceOperator(InferenceOperator):
     def roi_size(self):
         """The ROI size of tensors used in prediction."""
         return self._roi_size
+
     @roi_size.setter
     def roi_size(self, roi_size: Union[Sequence[int], int]):
-         self._roi_size = ensure_tuple(roi_size)
+        self._roi_size = ensure_tuple(roi_size)
 
     @property
     def input_dataset_key(self):
         """This is the input image key name used in dictionary based Monai pre-transforms."""
         return self._input_dataset_key
+
     @input_dataset_key.setter
-    def input_dataset_key(self, val:str):
+    def input_dataset_key(self, val: str):
         if not val or len(val) < 1:
             raise ValueError("Value cannot be None or blank.")
         self._input_dataset_key = val
@@ -97,8 +97,9 @@ class MonaiSegInferenceOperator(InferenceOperator):
     def pred_dataset_key(self):
         """This is the prediction key name used in dictionary based Monai post-transforms."""
         return self._pred_dataset_key
+
     @pred_dataset_key.setter
-    def pred_dataset_key(self, val:str):
+    def pred_dataset_key(self, val: str):
         if not val or len(val) < 1:
             raise ValueError("Value cannot be None or blank.")
         self._pred_dataset_key = val
@@ -119,7 +120,7 @@ class MonaiSegInferenceOperator(InferenceOperator):
         try:
             input_image = input.get("image")
             if not input_image:
-                raise ValueError('Input is None.')
+                raise ValueError("Input is None.")
 
             img_name = "Img_in_Mem"
             try:
@@ -131,14 +132,12 @@ class MonaiSegInferenceOperator(InferenceOperator):
             post_transforms = self._post_transforms
             self._reader = InMemImageReader(input_image)
 
-            pre_transforms = self._pre_transform if self._pre_transform else \
-                self.pre_process(self._reader)
+            pre_transforms = self._pre_transform if self._pre_transform else self.pre_process(self._reader)
 
             print("pre-transform:")
             print(vars(pre_transforms.flatten()))
 
-            post_transforms = self._post_transforms if self._post_transforms  else \
-                self.post_process(pre_transforms)
+            post_transforms = self._post_transforms if self._post_transforms else self.post_process(pre_transforms)
 
             print("post-transform:")
             print(vars(post_transforms.flatten()))
@@ -148,30 +147,30 @@ class MonaiSegInferenceOperator(InferenceOperator):
                 # `context.models.get(model_name)` returns a model instance if exists.
                 # If model_name is not specified and only one model exists, it returns that model.
                 model = context.models.get()
-                print(f'Model path: {model.path}')
-                print(f'Model name (expected None): {model.name}')
+                print(f"Model path: {model.path}")
+                print(f"Model name (expected None): {model.name}")
             else:
-                print(f'Loading TorchScript model from: {MonaiSegInferenceOperator.MODEL_LOCAL_PATH}')
+                print(f"Loading TorchScript model from: {MonaiSegInferenceOperator.MODEL_LOCAL_PATH}")
                 model = torch.jit.load(MonaiSegInferenceOperator.MODEL_LOCAL_PATH)
 
-            dataset = Dataset(data=[{self._input_dataset_key:img_name}], transform=pre_transforms)
+            dataset = Dataset(data=[{self._input_dataset_key: img_name}], transform=pre_transforms)
             dataloader = DataLoader(dataset, batch_size=1, shuffle=False, num_workers=4)
             device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
             with torch.no_grad():
                 for d in dataloader:
                     images = d[self._input_dataset_key].to(device)
-                    sw_batch_size=4
+                    sw_batch_size = 4
                     d[self._pred_dataset_key] = sliding_window_inference(
                         inputs=images,
                         roi_size=self._roi_size,
                         sw_batch_size=sw_batch_size,
                         overlap=0.5,
-                        predictor=model
+                        predictor=model,
                     )
                     d = [post_transforms(i) for i in decollate_batch(d)]
                     out_ndarray = d[0][self._pred_dataset_key].cpu().numpy()
-                    print(f'Post transformed ndarray shape: {out_ndarray.shape}')
+                    print(f"Post transformed ndarray shape: {out_ndarray.shape}")
                     # Need to squeeze out the channel dim fist
                     out_ndarray = np.squeeze(out_ndarray, 0)
                     # NOTE: The domain Image object simply contains a Arraylike obj as image as of now.
@@ -182,8 +181,8 @@ class MonaiSegInferenceOperator(InferenceOperator):
                     #       dim moved back to first, otherwise the seg ndarray would be flipped compared to
                     #       the DICOM pixel array, causing the DICOM Seg Writer generate flipped seg images.
                     out_ndarray = np.swapaxes(out_ndarray, 2, 0)
-                    print(f'Output Seg image numpy array shaped: {out_ndarray.shape}')
-                    print(f'Output Seg image pixel max value: {np.amax(out_ndarray)}')
+                    print(f"Output Seg image numpy array shaped: {out_ndarray.shape}")
+                    print(f"Output Seg image pixel max value: {np.amax(out_ndarray)}")
                     out_image = Image(out_ndarray)
                     output.set(out_image, "seg_image")
         finally:
@@ -199,10 +198,9 @@ class MonaiSegInferenceOperator(InferenceOperator):
         Raises:
             NotImplementedError: When the subclass does not override this method.
         """
-        raise NotImplementedError(
-             f"Subclass {self.__class__.__name__} must implement this method.")
+        raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
 
-    def post_process(self, pre_transforms: Compose, out_dir:str="./infer_out") -> Compose:
+    def post_process(self, pre_transforms: Compose, out_dir: str = "./infer_out") -> Compose:
         """Transform the prediction results from the model(s).
 
         This method must be overridden by a derived class.
@@ -210,10 +208,9 @@ class MonaiSegInferenceOperator(InferenceOperator):
         Raises:
             NotImplementedError: When the subclass does not override this method.
         """
-        raise NotImplementedError(
-             f"Subclass {self.__class__.__name__} must implement this method.")
+        raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
 
-    def predict(self, data:Any, *args, **kwargs) -> Union[Image, Any]:
+    def predict(self, data: Any, *args, **kwargs) -> Union[Image, Any]:
         """Prdicts results using the models(s) with input tensors.
 
         This method must be overridden by a derived class.
@@ -221,8 +218,8 @@ class MonaiSegInferenceOperator(InferenceOperator):
         Raises:
             NotImplementedError: When the subclass does not override this method.
         """
-        raise NotImplementedError(
-            f"Subclass {self.__class__.__name__} must implement this method.")
+        raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
+
 
 class InMemImageReader(ImageReader):
     """Loads the App SDK Image object from memory.
@@ -230,6 +227,7 @@ class InMemImageReader(ImageReader):
     This is derived from Monai ImageReader. Instead of reading image from file system, this
     class simply converts a in-memory SDK Image object to the expected formats from ImageReader.
     """
+
     def __init__(self, input_image: Image, channel_dim: Optional[int] = None, **kwargs):
         super().__init__()
         self.input_image = input_image
@@ -255,7 +253,7 @@ class InMemImageReader(ImageReader):
 
         for i in ensure_tuple(self.input_image):
             if not isinstance(i, Image):
-                raise TypeError('Only object of Image type is supported.')
+                raise TypeError("Only object of Image type is supported.")
             data = i.asnumpy()
             img_array.append(data)
             header = self._get_meta_dict(i)
@@ -278,14 +276,15 @@ class InMemImageReader(ImageReader):
         # So, for now have to get to the Image generator, namely DICOMSeriesToVolumeOperator, and
         # rely on its published metadata.
 
-
         # Recall that the column and row data for pydicom pixel_array had been switched, and the depth
         # is the last dim in DICOMSeriesToVolumeOperator
-        meta_dict["spacing"] = np.asarray([
-            img_meta_dict["col_pixel_spacing"],
-            img_meta_dict["row_pixel_spacing"],
-            img_meta_dict["depth_pixel_spacing"]
-        ])
+        meta_dict["spacing"] = np.asarray(
+            [
+                img_meta_dict["col_pixel_spacing"],
+                img_meta_dict["row_pixel_spacing"],
+                img_meta_dict["depth_pixel_spacing"],
+            ]
+        )
         meta_dict["original_affine"] = np.asarray(img_meta_dict["nifti_affine_transform"])
         meta_dict["affine"] = meta_dict["original_affine"]
         meta_dict["spatial_shape"] = np.asarray(img.asnumpy().shape)
@@ -293,6 +292,7 @@ class InMemImageReader(ImageReader):
         meta_dict["original_channel_dim"] = "no_channel"
 
         return meta_dict
+
 
 # Reuse Monai code for the derived ImageReader
 def _copy_compatible_dict(from_dict: Dict, to_dict: Dict):
@@ -317,6 +317,7 @@ def _copy_compatible_dict(from_dict: Dict, to_dict: Dict):
                 f"Got {from_dict[shape_key]} and {to_dict[shape_key]}."
             )
 
+
 def _stack_images(image_list: List, meta_dict: Dict):
     if len(image_list) <= 1:
         return image_list[0]
@@ -324,4 +325,3 @@ def _stack_images(image_list: List, meta_dict: Dict):
         raise RuntimeError("can not read a list of images which already have channel dimension.")
     meta_dict["original_channel_dim"] = 0
     return np.stack(image_list, axis=0)
-

@@ -11,7 +11,7 @@
 
 import uuid
 from abc import ABC, abstractmethod
-from typing import Any, Optional, Type, Union
+from typing import Optional, Type, Union
 
 from monai.deploy.exceptions import UnknownTypeError
 from monai.deploy.utils.importutil import is_subclass

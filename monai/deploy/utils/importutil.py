@@ -269,6 +269,7 @@ def dist_module_path(project_name: str) -> str:
         return str(dist.module_path)
     return ""
 
+
 def is_module_installed(project_name: str) -> bool:
     distributions: Dict = {v.key: v for v in pkg_resources.working_set}
     dist: Any = distributions.get(project_name)
@@ -276,6 +277,7 @@ def is_module_installed(project_name: str) -> bool:
         return True
     else:
         return False
+
 
 def dist_requires(project_name: str) -> List[str]:
     distributions: Dict = {v.key: v for v in pkg_resources.working_set}
@@ -316,6 +318,7 @@ if __name__ == "__main__":
             sys.exit(1)
     if len(argv) >= 3 and argv[1] == "get_package_info":
         import json
+
         app = get_application(argv[2])
         if app:
             print(json.dumps(app.get_package_info(argv[3] if len(argv) > 3 else ""), indent=2))

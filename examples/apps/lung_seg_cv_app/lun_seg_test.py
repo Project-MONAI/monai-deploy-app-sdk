@@ -136,9 +136,9 @@ def plt_3d(verts, faces):
 
     ax.set_xlim(0, max(x))
     ax.set_ylim(0, max(y))
-    ax.set_zlim(0, max(z))                #print("appending")
+    ax.set_zlim(0, max(z))  # print("appending")
 
-    img = img/std
+    img = img / std
     # Find the average pixel value near the lungs
     # to renormalize washed out images
     middle = img[int(col_size / 5) : int(col_size / 5 * 4), int(row_size / 5) : int(row_size / 5 * 4)]

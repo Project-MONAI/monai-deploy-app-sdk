@@ -213,7 +213,7 @@ class Application(ABC):
             io_map = {"": {""}}
 
         # Convert io_map's values to the set of strings.
-        io_maps : Dict[str, Set[str]] = io_map  # type: ignore
+        io_maps: Dict[str, Set[str]] = io_map  # type: ignore
         for k, v in io_map.items():
             if isinstance(v, str):
                 io_maps[k] = {v}
