@@ -13,8 +13,6 @@ import argparse
 import logging
 from pathlib import Path
 
-from monai.deploy.utils.spinner import ProgressSpinner
-
 logger = logging.getLogger(__name__)
 
 

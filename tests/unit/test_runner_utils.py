@@ -15,8 +15,6 @@ from unittest.mock import patch
 import pytest
 from pytest_lazyfixture import lazy_fixture
 
-from monai.deploy.runner.utils import run_cmd
-
 
 class ContainsString(str):
     def __eq__(self, other):
@@ -63,7 +61,7 @@ def test_verify_image(mock_run_cmd, mock_check_output, image_name, docker_images
 
     actual_response = utils.verify_image(image_name)
 
-    assert actual_response == image_present or (image_pulled is 0)
+    assert actual_response == image_present or (image_pulled == 0)
 
     if not image_present:
         mock_run_cmd.assert_called_once_with(ContainsString("docker pull"))
