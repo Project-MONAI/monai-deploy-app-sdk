@@ -81,7 +81,7 @@ class DICOMSegmentationWriterOperator(Operator):
         segment label information, including label value, name, description etc.
 
         Args:
-            seg_labels ([str]): The string name for each segment
+            seg_labels (List[str] or str): The string name for each segment
         """
 
         self._seg_labels = ["SegmentLabel-default"]
