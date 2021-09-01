@@ -11,7 +11,7 @@
 
 import uuid
 from abc import ABC, abstractmethod
-from typing import Any, Type, Union
+from typing import Any, Optional, Type, Union
 
 from monai.deploy.exceptions import UnknownTypeError
 from monai.deploy.utils.importutil import is_subclass
@@ -38,7 +38,7 @@ class Operator(ABC):
     # This is needed to identify Operator class across different environments (e.g. by `runpy.run_path()`).
     _class_id: str = "monai.operator"
 
-    _env: "OperatorEnv" = None
+    _env: Optional["OperatorEnv"] = None
 
     def __init__(self, *args, **kwargs):
         """Constructor of the base operator.
@@ -47,8 +47,8 @@ class Operator(ABC):
         to all inputs and outputs relavant for this operator.
         """
         super().__init__()
-        self._uid = uuid.uuid4()
-        self._op_info = OperatorInfo()
+        self._uid: uuid.UUID = uuid.uuid4()
+        self._op_info: OperatorInfo = OperatorInfo()
 
         # Execute the builder to set up the operator
         self._builder()
@@ -216,7 +216,7 @@ class Operator(ABC):
         pass
 
 
-def input(label: str = "", data_type: Type = Any, storage_type: Union[int, IOType] = IOType.UNKNOWN):
+def input(label: str = "", data_type: Type = object, storage_type: Union[int, IOType] = IOType.UNKNOWN):
     """A decorator that adds input specification to the operator.
 
     Args:
@@ -247,7 +247,7 @@ def input(label: str = "", data_type: Type = Any, storage_type: Union[int, IOTyp
     return decorator
 
 
-def output(label: str = "", data_type: Type = Any, storage_type: Union[int, IOType] = IOType.UNKNOWN):
+def output(label: str = "", data_type: Type = object, storage_type: Union[int, IOType] = IOType.UNKNOWN):
     """A decorator that adds output specification to the operator.
 
     Args:

@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -9,16 +9,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import logging
 from pathlib import Path
 
 from monai.deploy.core.models import ModelFactory
 
 from .model import Model
 
-import logging
-
-
 logger = logging.getLogger(__name__)
+
 
 class NamedModel(Model):
     """Represents named models in the model repository.
@@ -55,9 +54,9 @@ class NamedModel(Model):
 
         # Clear existing model item and fill model items
         self._items.clear()
-        path: Path = Path(path)
+        model_path: Path = Path(path)
 
-        for model_folder in path.iterdir():
+        for model_folder in model_path.iterdir():
             if model_folder.is_dir():
                 # Pick one file (assume that only one file exists in the folder)
                 model_file = next(model_folder.iterdir())
@@ -65,25 +64,28 @@ class NamedModel(Model):
                     # Recursive call to identify the model type
                     model = ModelFactory.create(str(model_file), model_folder.name)
                     # Add model to items only if the model's class is not 'Model'
-                    if model.__class__ != Model:
+                    if model and model.__class__ != Model:
                         self._items[model_folder.name] = model
 
     @classmethod
     def accept(cls, path: str):
-        path: Path = Path(path)
+        model_path: Path = Path(path)
 
         # 1) The path should be a folder path.
-        if not path.is_dir():
+        if not model_path.is_dir():
             return False, None
 
         # 2) The folder should contain only sub folders (model folders).
-        if not all((p.is_dir() for p in path.iterdir())):
+        if not all((p.is_dir() for p in model_path.iterdir())):
             return False, None
 
-        for model_folder in path.iterdir():
+        for model_folder in model_path.iterdir():
             # 3) Each model folder must contain only one model definition file or folder.
             if sum(1 for _ in model_folder.iterdir()) != 1:
-                logger.warning(f"Model repository '{model_folder}' contains more than one model definition file or folder so not treated as NamedModel.")
+                logger.warning(
+                    f"Model repository '{model_folder}' contains more than one model definition file or folder "
+                    "so not treated as NamedModel."
+                )
                 return False, None
 
         return True, cls.model_type

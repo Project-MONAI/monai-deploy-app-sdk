@@ -19,6 +19,7 @@ import tempfile
 from argparse import Namespace
 from typing import Dict
 
+from monai.deploy.exceptions import WrongValueError
 from monai.deploy.packager.constants import DefaultValues
 from monai.deploy.packager.templates import Template
 from monai.deploy.utils.fileutil import checksum
@@ -57,7 +58,10 @@ def initialize_args(args: Namespace) -> Dict:
 
     # Obtain SDK provide application values
     app_obj = get_application(args.application)
-    processed_args["application_info"] = app_obj.get_package_info(args.model)
+    if app_obj:
+        processed_args["application_info"] = app_obj.get_package_info(args.model)
+    else:
+        raise WrongValueError("Application from '{}' not found".format(args.application))
 
     return processed_args
 
@@ -177,7 +181,8 @@ def build_image(args: dict, temp_dir: str):
     print("Building MONAI Application Package... ")
 
     while proc.poll() is None:
-        logger.debug(proc.stdout.readline().decode("utf-8"))
+        if proc.stdout:
+            logger.debug(proc.stdout.readline().decode("utf-8"))
         sys.stdout.write(next(spinner))
         sys.stdout.flush()
         sys.stdout.write("\b")

@@ -11,33 +11,22 @@
 
 import logging
 
+from monai.deploy.core import ExecutionContext, Image, InputContext, IOType, Operator, OutputContext, env, input, output
+from monai.deploy.operators.monai_seg_inference_operator import InMemImageReader, MonaiSegInferenceOperator
 from monai.transforms import (
     Activationsd,
     AsDiscreted,
     Compose,
+    CropForegroundd,
     EnsureChannelFirstd,
     Invertd,
     LoadImaged,
-    Spacingd,
     SaveImaged,
     ScaleIntensityRanged,
-    CropForegroundd,
-    ToTensord
+    Spacingd,
+    ToTensord,
 )
 
-from monai.deploy.core import (
-    ExecutionContext,
-    Image,
-    InputContext,
-    IOType,
-    Operator,
-    OutputContext,
-    input,
-    output,
-    env
-)
-
-from monai.deploy.operators.monai_seg_inference_operator import MonaiSegInferenceOperator, InMemImageReader
 
 @input("image", Image, IOType.IN_MEMORY)
 @output("seg_image", Image, IOType.IN_MEMORY)

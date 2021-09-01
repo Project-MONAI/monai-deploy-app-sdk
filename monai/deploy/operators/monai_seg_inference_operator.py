@@ -10,10 +10,11 @@
 # limitations under the License.
 
 from threading import Lock
-from typing import TYPE_CHECKING, Any, Dict, List, Sequence, Optional, Union
+from typing import Any, Dict, List, Optional, Sequence, Union
+
 import numpy as np
 
-from monai.deploy.utils.importutil import dist_module_path, optional_import
+from monai.deploy.utils.importutil import optional_import
 
 torch, _ = optional_import("torch", "1.5")
 np_str_obj_array_pattern, _ = optional_import("torch.utils.data._utils.collate", name="np_str_obj_array_pattern")
@@ -26,17 +27,7 @@ ensure_tuple, _ = optional_import("monai.utils", name="ensure_tuple")
 Compose, _ = optional_import("monai.transforms", name="Compose")
 sliding_window_inference, _ = optional_import("monai.inferers", name="sliding_window_inference")
 
-from monai.deploy.exceptions import UnknownTypeError
-from monai.deploy.core import (
-    ExecutionContext,
-    InputContext,
-    OutputContext,
-    IOType,
-    Image,
-    input,
-    output,
-    env
-)
+from monai.deploy.core import ExecutionContext, Image, InputContext, IOType, OutputContext, env, input, output
 
 from .inference_operator import InferenceOperator
 

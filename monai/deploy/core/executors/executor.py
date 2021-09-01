@@ -10,7 +10,7 @@
 # limitations under the License.
 
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Dict, Optional
 
 if TYPE_CHECKING:
     from monai.deploy.core import Application
@@ -21,7 +21,7 @@ from monai.deploy.core.datastores import Datastore, DatastoreFactory
 class Executor(ABC):
     """This is the base class that enables execution of an application."""
 
-    def __init__(self, app: "Application", datastore: Optional[Datastore] = None):
+    def __init__(self, app: "Application", datastore: Optional[Datastore] = None, **kwargs: Dict):
         """Constructor of the class.
 
         Given an application it invokes the compose method on the app, which

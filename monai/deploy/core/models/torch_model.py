@@ -37,7 +37,7 @@ class TorchScriptModel(Model):
     model_type: str = "torch_script"
 
     @property
-    def predictor(self) -> "torch.nn.Module":
+    def predictor(self) -> "torch.nn.Module":  # type: ignore
         """Get the model's predictor (torch.nn.Module)
 
         If the predictor is not loaded, load it from the model file in evaluation mode.

@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -10,7 +10,7 @@
 # limitations under the License.
 
 from abc import ABC, abstractmethod
-from typing import Dict, Generator, Optional
+from typing import Dict, Generator, Optional, Set
 
 from monai.deploy.core.operator import Operator
 
@@ -24,24 +24,26 @@ class Graph(ABC):
         pass
 
     @abstractmethod
-    def add_flow(self, op_u: Operator, op_v: Operator, io_map: Dict[str, str]):
+    def add_flow(self, op_u: Operator, op_v: Operator, io_map: Dict[str, Set[str]]):
         """Add an edge to the graph.
 
         Args:
             op_u (Operator): A source operator.
             op_v (Operator): A destination operator.
-            io_map (Dict[str, str]): A dictionary of mapping from the source operator's label to the destination operator's label.
+            io_map (Dict[str, Set[str]]): A dictionary of mapping from the source operator's label to the destination
+                                          operator's label(s).
         """
         pass
 
     @abstractmethod
-    def get_io_map(self, op_u: Operator, op_v) -> Dict[str, str]:
+    def get_io_map(self, op_u: Operator, op_v) -> Dict[str, Set[str]]:
         """Get a mapping from the source operator's output label to the destination operator's input label.
         Args:
             op_u (Operator): A source operator.
             op_v (Operator): A destination operator.
         Returns:
-            A dictionary of mapping from the source operator's output label to the destination operator's input label.
+            A dictionary of mapping from the source operator's output label to the destination operator's
+            input label(s).
         """
         pass
 

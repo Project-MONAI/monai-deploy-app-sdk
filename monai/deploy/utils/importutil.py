@@ -15,7 +15,7 @@ import sys
 import warnings
 from importlib import import_module
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable, Dict, Optional, Tuple, Type, Union
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple, Type, Union
 
 import pkg_resources
 
@@ -82,7 +82,7 @@ def get_application(path: Union[str, Path]) -> Optional["Application"]:
     # Get the Application class from the module and return an instance of it
     for var in vars.keys():
         if not var.startswith("_"):  # skip private variables
-            app_cls = vars[var]
+            app_cls: Type[Application] = vars[var]
 
             if is_subclass(app_cls, Application._class_id):
                 if path.is_file():
@@ -269,8 +269,15 @@ def dist_module_path(project_name: str) -> str:
         return str(dist.module_path)
     return ""
 
+def is_module_installed(project_name: str) -> bool:
+    distributions: Dict = {v.key: v for v in pkg_resources.working_set}
+    dist: Any = distributions.get(project_name)
+    if dist:
+        return True
+    else:
+        return False
 
-def dist_requires(project_name: str) -> str:
+def dist_requires(project_name: str) -> List[str]:
     distributions: Dict = {v.key: v for v in pkg_resources.working_set}
     dist: Any = distributions.get(project_name)
     if hasattr(dist, "requires"):
@@ -279,6 +286,8 @@ def dist_requires(project_name: str) -> str:
 
 
 if __name__ == "__main__":
+    """Utility functions that can be used in the command line."""
+
     argv = sys.argv
     if len(argv) == 3 and argv[1] == "is_dist_editable":
         if is_dist_editable(argv[2]):
@@ -292,6 +301,12 @@ if __name__ == "__main__":
             sys.exit(0)
         else:
             sys.exit(1)
+    if len(argv) == 3 and argv[1] == "is_module_installed":
+        is_installed = is_module_installed(argv[2])
+        if is_installed:
+            sys.exit(0)
+        else:
+            sys.exit(1)
     if len(argv) == 3 and argv[1] == "dist_requires":
         requires = dist_requires(argv[2])
         if requires:
@@ -302,4 +317,5 @@ if __name__ == "__main__":
     if len(argv) >= 3 and argv[1] == "get_package_info":
         import json
         app = get_application(argv[2])
-        print(json.dumps(app.get_package_info(argv[3] if len(argv) > 3 else ""), indent=2))
+        if app:
+            print(json.dumps(app.get_package_info(argv[3] if len(argv) > 3 else ""), indent=2))

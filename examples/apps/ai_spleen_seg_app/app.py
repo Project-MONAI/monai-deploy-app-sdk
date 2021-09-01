@@ -10,12 +10,15 @@
 # limitations under the License.
 
 import logging
+
+from spleen_seg_operator import SpleenSegOperator
+
 from monai.deploy.core import Application, resource
 from monai.deploy.operators.dicom_data_loader_operator import DICOMDataLoaderOperator
+from monai.deploy.operators.dicom_seg_writer_operator import DICOMSegmentationWriterOperator
 from monai.deploy.operators.dicom_series_selector_operator import DICOMSeriesSelectorOperator
 from monai.deploy.operators.dicom_series_to_volume_operator import DICOMSeriesToVolumeOperator
-from monai.deploy.operators.dicom_seg_writer_operator import DICOMSegmentationWriterOperator
-from spleen_seg_operator import SpleenSegOperator
+
 
 @resource(cpu=1, gpu=1, memory="7Gi")
 # pip_packages can be a string that is a path(str) to requirements.txt file or a list of packages.

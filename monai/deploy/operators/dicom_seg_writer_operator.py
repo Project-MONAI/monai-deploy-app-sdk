@@ -9,14 +9,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import os
-import logging
-import json
 import copy
-import numpy as np
 import datetime
+import json
+import logging
+import os
 from random import randint
 from typing import List, Union
+
+import numpy as np
 
 from monai.deploy.utils.importutil import optional_import
 from monai.deploy.utils.version import get_sdk_semver
@@ -37,14 +38,14 @@ from monai.deploy.core import (
     IOType,
     Operator,
     OutputContext,
+    env,
     input,
     output,
-    env
 )
-
 from monai.deploy.core.domain.dicom_series import DICOMSeries
 from monai.deploy.operators.dicom_data_loader_operator import DICOMDataLoaderOperator
 from monai.deploy.operators.dicom_series_to_volume_operator import DICOMSeriesToVolumeOperator
+
 
 @input("seg_image", Image, IOType.IN_MEMORY)
 @input("dicom_series", DICOMSeries, IOType.IN_MEMORY)

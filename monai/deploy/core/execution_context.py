@@ -17,7 +17,6 @@ if TYPE_CHECKING:
     from .operator import Operator
 
 from .datastores import Datastore, MemoryDatastore
-from .domain import NamedDataPath
 from .io_context import InputContext, OutputContext
 from .models import Model
 
@@ -42,7 +41,7 @@ class BaseExecutionContext:
         models: Optional[Model] = None,
     ):
         if datastore is None:
-            self._storage = MemoryDatastore()
+            self._storage: Datastore = MemoryDatastore()
         else:
             self._storage = datastore
 

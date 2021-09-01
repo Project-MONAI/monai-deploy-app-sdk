@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -68,26 +68,26 @@ class TritonModel(Model):
 
         # Clear existing model item and fill model items
         self._items.clear()
-        path: Path = Path(path)
+        model_path: Path = Path(path)
 
-        for model_folder in path.iterdir():
+        for model_folder in model_path.iterdir():
             if model_folder.is_dir():
                 self._items[model_folder.name] = Model(str(model_folder), model_folder.name)
 
     @classmethod
     def accept(cls, path: str):
-        path: Path = Path(path)
+        model_path: Path = Path(path)
 
         # 1) The path should be a folder path.
-        if not path.is_dir():
+        if not model_path.is_dir():
             return False, None
 
         # 2) The directory should contain only sub folders (model folders).
-        if not all((p.is_dir() for p in path.iterdir())):
+        if not all((p.is_dir() for p in model_path.iterdir())):
             return False, None
 
         is_triton_model_repository = True
-        for model_folder in path.iterdir():
+        for model_folder in model_path.iterdir():
             # 3) Each model folder must contain a config.pbtxt file.
             if not (model_folder / "config.pbtxt").exists():
                 return False, None
