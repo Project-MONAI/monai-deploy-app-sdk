@@ -26,8 +26,10 @@ exclude = '''
     | build
     | dist
   )/
-  # also separately exclude a file named versioneer.py
-  | monai/deploy/_version.py
+  # also separately exclude a file named versioneer.py and _version.py
+  | versioneer.py
+  | .+/versioneer.py
+  | .+/_version.py
 )
 '''
 

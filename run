@@ -22,6 +22,8 @@ init_globals() {
     export TOP=$(git rev-parse --show-toplevel || $(dirname "${RUN_SCRIPT_FILE}"))
     MONAI_PY_EXE=${MONAI_PY_EXE:-"python3"}
     export MONAI_PY_EXE
+
+    DO_DRY_RUN="false"  # print commands but do not execute them. Used by run_command
 }
 
 ################################################################################
@@ -238,12 +240,18 @@ run_command() {
     local status=0
     local cmd="$*"
 
-    c_echo B "$(date -u '+%Y-%m-%d %H:%M:%S') " W "\$ " G "${cmd}"
+    if [ "${DO_DRY_RUN}" != "true" ]; then
+        c_echo B "$(date -u '+%Y-%m-%d %H:%M:%S') " W "\$ " G "${cmd}"
+    else
+        c_echo B "$(date -u '+%Y-%m-%d %H:%M:%S') " C "[dryrun] " W "\$ " G "${cmd}"
+    fi
 
     [ "$(echo -n "$@")" = "" ] && return 1 # return 1 if there is no command available
 
-    "$@"
-    status=$?
+    if [ "${DO_DRY_RUN}" != "true" ]; then
+        "$@"
+        status=$?
+    fi
 
     return $status
 }
@@ -292,7 +300,7 @@ get_package_info() {
 # Section: Build
 #==================================================================================
 
-install_python_dev_deps_() {
+install_python_dev_deps() {
     if [ -n "${VIRTUAL_ENV}" ] || [ -n "${CONDA_PREFIX}" ]; then
         run_command ${MONAI_PY_EXE} -m pip install -q -U setuptools pip wheel
         run_command ${MONAI_PY_EXE} -m pip install -q -r ${TOP}/requirements-dev.txt
@@ -361,12 +369,404 @@ setup_desc() { c_echo 'Setup development environment
 '
 }
 setup() {
-    install_python_dev_deps_
+    install_python_dev_deps
+}
+
+clean_desc() { c_echo 'Clean up temporary files and uninstall monai-app-sdk
+'
+}
+clean() {
+    c_echo W 'Cleaning up temporary files and run "' "${MONAI_PY_EXE}" ' setup.py develop --uninstall"...'
+
 }
 
 #==================================================================================
 # Section: Test
 #==================================================================================
+
+get_platform_name() {
+    ${MONAI_PY_EXE} -c "import platform; print(platform.system().lower())"
+}
+
+get_python_version() {
+    ${MONAI_PY_EXE} -c "from sys import version_info; print(f'{version_info.major}.{version_info.minor}')"
+}
+
+check_import() {
+    [ -z "${1:-}" ] && c_echo_err R "No module specified." && return 1
+
+    local module_name="${1:-}"
+    c_echo W "Checking import of module '" b "${module_name}" W "'..."
+    run_command ${MONAI_PY_EXE} -c "import ${1}"
+}
+
+is_module_installed() {
+    local module_name="${1:-}"
+    local result=0
+
+    [ -z "${module_name}" ] && c_echo_err R "No module name specified." && return 1
+
+    ${MONAI_PY_EXE} $TOP/monai/deploy/utils/importutil.py is_module_installed "${module_name}"
+    result=$?
+    return ${result}
+}
+
+# Edit 'setup.cfg' ([isort] section) if you want to skip formatting for particular files.
+isort_format() {
+    local command="${1:-}"
+    local result=0
+
+    local old_opt="$(shopt -op xtrace)" # save old xtrace option
+    set +e # unset error trap
+
+    if [ "${command}" = "fix" ]; then
+        c_echo W "Fixing import order..."
+    else
+        c_echo W "Checking import order..."
+    fi
+
+    # Ensure that the necessary packages for code format testing are installed
+    if ! is_module_installed isort; then
+        install_python_dev_deps
+    fi
+
+    run_command ${MONAI_PY_EXE} -m isort --version
+
+    if [ "${command}" = "fix" ]; then
+        run_command ${MONAI_PY_EXE} -m isort "${TOP}"
+    else
+        run_command ${MONAI_PY_EXE} -m isort --check "${TOP}"
+    fi
+    result=$?
+
+    if [ ${result} -ne 0 ]; then
+        c_echo_err R "isort check failed!"
+        c_echo_err W "Please run auto style fixes: " G "./run check --autofix"
+        exit ${result}
+    else
+        c_echo_err G "isort check passed!"
+    fi
+
+    eval "${old_opt}" # restore old xtrace option
+}
+
+# Edit 'pyproject.toml' ([tool.black] section) if you want to skip formatting for particular files.
+black_format() {
+    local command="${1:-}"
+    local result=0
+
+    local old_opt="$(shopt -op xtrace)" # save old xtrace option
+    set +e # unset error trap
+
+    if [ "${command}" = "fix" ]; then
+        c_echo W "Fixing styles using black..."
+    else
+        c_echo W "Checking styles using black..."
+    fi
+
+    # Ensure that the necessary packages for code format testing are installed
+    if ! is_module_installed black; then
+        install_python_dev_deps
+    fi
+
+    run_command ${MONAI_PY_EXE} -m black --version
+
+    if [ "${command}" = "fix" ]; then
+        run_command ${MONAI_PY_EXE} -m black "${TOP}"
+    else
+        run_command ${MONAI_PY_EXE} -m black --check "${TOP}"
+    fi
+    result=$?
+
+    if [ ${result} -ne 0 ]; then
+        c_echo_err R "black check failed!"
+        c_echo_err W "Please run auto style fixes: " G "./run check --autofix"
+        exit ${result}
+    else
+        c_echo_err G "black check passed!"
+    fi
+
+    eval "${old_opt}" # restore old xtrace option
+}
+
+# Edit 'setup.cfg' ([flake8] section) if you want to skip formatting for particular files.
+flake8_format() {
+    local command="${1:-}"
+    local result=0
+
+    local old_opt="$(shopt -op xtrace)" # save old xtrace option
+    set +e # unset error trap
+
+    c_echo W "Checking styles using flake8..."
+
+    # Ensure that the necessary packages for code format testing are installed
+    if ! is_module_installed flake8; then
+        install_python_dev_deps
+    fi
+
+    run_command ${MONAI_PY_EXE} -m flake8 --version
+
+    run_command ${MONAI_PY_EXE} -m flake8 "${TOP}" --count --statistics
+    result=$?
+
+    if [ ${result} -ne 0 ]; then
+        c_echo_err R "flake8 check failed!"
+        exit ${result}
+    else
+        c_echo_err G "flake8 check passed!"
+    fi
+
+    eval "${old_opt}" # restore old xtrace option
+}
+
+# Edit 'setup.cfg' ([pytype] section) if you want to skip formatting for particular files.
+# You can use '# type: ignore' to ignore a specific line in a file.
+pytype_format() {
+    local num_workers="${1:-$(nproc)}"
+    local result=0
+
+    local old_opt="$(shopt -op xtrace)" # save old xtrace option
+    set +e # unset error trap
+
+    c_echo W "Checking styles using pytype..."
+
+    local platform_name="$(get_platform_name)"
+
+    # Skip if it is MacOS
+    if [ "${platform_name}" = "darwin" ]; then
+        c_echo_err R "pytype does not work on MacOS (https://github.com/google/pytype/issues/661), skipping the checking."
+        return 0
+    fi
+
+    # Ensure that the necessary packages for code format testing are installed
+    if ! is_module_installed pytype; then
+        install_python_dev_deps
+    fi
+
+    run_command ${MONAI_PY_EXE} -m pytype --version
+
+    local python_version="$(get_python_version)"
+
+    pushd "${TOP}" > /dev/null
+    run_command ${MONAI_PY_EXE} -m pytype -j "${num_workers}" --python-version="${python_version}"
+    result=$?
+    popd > /dev/null
+
+    if [ ${result} -ne 0 ]; then
+        c_echo_err R "pytype check failed!"
+        exit ${result}
+    else
+        c_echo_err G "pytype check passed!"
+    fi
+
+    eval "${old_opt}" # restore old xtrace option
+}
+
+# Edit 'setup.cfg' ([mypy] section) if you want to skip formatting for particular files.
+# You can use '# type: ignore' to ignore a specific line in a file.
+mypy_format() {
+    local command="${1:-}"
+    local result=0
+
+    local old_opt="$(shopt -op xtrace)" # save old xtrace option
+    set +e # unset error trap
+
+    c_echo W "Checking styles using mypy..."
+
+    local platform_name="$(get_platform_name)"
+
+    # Ensure that the necessary packages for code format testing are installed
+    if ! is_module_installed mypy; then
+        install_python_dev_deps
+    fi
+
+    run_command ${MONAI_PY_EXE} -m mypy --version
+
+    local python_version="$(get_python_version)"
+    #MYPYPATH="${TOP}/monai/deploy"
+
+    # https://github.com/python/mypy/issues/8584: Redesign import handling
+    # https://github.com/python/mypy/issues/10172: Issue with `pip install -e .`
+    # - https://mypy.readthedocs.io/en/stable/command_line.html#cmdoption-mypy-explicit-package-bases
+    # - https://mypy.readthedocs.io/en/stable/running_mypy.html#mapping-paths-to-modules
+    #   - Using `--namespace-packages --explicit-package-bases` solves the issue with the current folder structure.
+    run_command ${MONAI_PY_EXE} -m mypy --namespace-packages --explicit-package-bases "${TOP}"
+    result=$?
+
+    if [ ${result} -ne 0 ]; then
+        c_echo_err R "mypy check failed!"
+        exit ${result}
+    else
+        c_echo_err G "mypy check passed!"
+    fi
+
+    eval "${old_opt}" # restore old xtrace option
+}
+
+check_desc() { c_echo 'Check code quality
+
+Examples:
+./run check -f                      # run coding style and static type checking.
+./run check --autofix               # run automatic code formatting using "isort" and "black".
+
+Code style check options:
+    --black           : perform "black" code format checks
+    --autofix         : format code using "isort" and "black"
+    --isort           : perform "isort" import sort checks
+    --flake8          : perform "flake8" code format checks
+
+Python type check options:
+    --pytype          : perform "pytype" static type checks
+    --mypy            : perform "mypy" static type checks
+    -j, --jobs        : number of parallel jobs to run "pytype" (default: ' $(nproc) ')
+
+Misc. options:
+    --dryrun          : display the commands to the screen without running
+    -f, --codeformat  : shorthand to run all code style and static analysis tests
+
+--------------------------------------------------------------------------------
+For bug reports and feature requests, please file an issue at:
+    https://github.com/Project-MONAI/monai-deploy-app-sdk/issues/new/choose
+
+To choose an alternative python executable, set the environmental variable, "MONAI_PY_EXE".
+'
+}
+check() {
+    local do_black_format="false"
+    local do_black_fix="false"
+    local do_isort_format="false"
+    local do_isort_fix="false"
+    local do_flake8_format="false"
+    local do_pytype_format="false"
+    local do_mypy_format="false"
+
+    local num_workers=$(nproc)
+
+    local arg
+
+    # parse arguments
+    while [ $# -gt 0 ]; do
+        arg="$1"
+
+        case ${arg} in
+            --dryrun)
+                DO_DRY_RUN="true"  # set to true to print commands to screen without running
+            ;;
+            -f|--codeformat)
+                do_black_format="true"
+                do_isort_format="true"
+                do_flake8_format="true"
+                do_pytype_format="true"
+                do_mypy_format="true"
+            ;;
+            --black)
+                do_black_format="true"
+            ;;
+            --autofix)
+                do_isort_fix="true"
+                do_black_fix="true"
+                do_isort_format="true"
+                do_black_format="true"
+            ;;
+            --isort)
+                do_isort_format="true"
+            ;;
+            --flake8)
+                do_flake8_format="true"
+            ;;
+            --pytype)
+                do_pytype_format="true"
+            ;;
+            --mypy)
+                do_mypy_format="true"
+            ;;
+            -j|--jobs)
+                num_workers=$2
+                shift
+            ;;
+            *)
+                c_echo_err R "Incorrect command is provided (invalid arg: " B "${arg}" R ")."
+                print_cmd_help_messages check
+            ;;
+        esac
+        shift
+    done
+
+    c_echo B "DO_DRY_RUN:" W " ${DO_DRY_RUN}"
+    c_echo B "do_black_format:" W " ${do_black_format}"
+    c_echo B "do_black_fix:" W " ${do_black_fix}"
+    c_echo B "do_isort_format:" W " ${do_isort_format}"
+    c_echo B "do_isort_fix:" W " ${do_isort_fix}"
+    c_echo B "do_flake8_format:" W " ${do_flake8_format}"
+    c_echo B "do_pytype_format:" W " ${do_pytype_format}"
+    c_echo B "do_mypy_format:" W " ${do_mypy_format}"
+
+    check_import "monai.deploy"
+
+    if [ "${do_isort_format}" = "true" ]; then
+        if [ "${do_isort_fix}" = "true" ]; then
+            isort_format "fix"
+        else
+            isort_format "check"
+        fi
+    fi
+
+    if [ "${do_black_format}" = "true" ]; then
+        if [ "${do_black_fix}" = "true" ]; then
+            black_format "fix"
+        else
+            black_format "check"
+        fi
+    fi
+
+    if [ "${do_flake8_format}" = "true" ]; then
+        flake8_format
+    fi
+
+    if [ "${do_pytype_format}" = "true" ]; then
+        pytype_format "${num_workers}"
+    fi
+
+    if [ "${do_mypy_format}" = "true" ]; then
+        mypy_format
+    fi
+}
+
+pytest_desc() { c_echo 'Run tests with pytest
+
+It executes the following command:
+
+  ' "${MONAI_PY_EXE}"' -m py.test --cache-clear -vv \
+      --cov=monai \
+      --junitxml="'"$TOP/junit-monai-app-sdk.xml"'" \
+      --cov-config="'"$TOP/.coveragerc"'" \
+      --cov-report=xml:"'"$TOP/monai-app-sdk-coverage.xml"'" \
+      --cov-report term \
+      "$@"
+
+Examples:
+  ./run pytest tests/unit
+
+Arguments:
+  $@ - arguments to pass to pytest
+'
+}
+pytest() {
+    local result=0
+
+    pushd $TOP > /dev/null
+    run_command ${MONAI_PY_EXE} -m py.test --cache-clear -vv \
+        --cov=monai \
+        --junitxml="$TOP/junit-monai-app-sdk.xml" \
+        --cov-config="$TOP/.coveragerc" \
+        --cov-report=xml:"$TOP/monai-app-sdk-coverage.xml" \
+        --cov-report term \
+        "$@"
+    result=$?
+    popd > /dev/null
+
+    return ${result}
+}
 
 test_desc() { c_echo 'Execute test cases
 
@@ -392,27 +792,28 @@ test_python() {
     local result=0
 
     local testsuite=""
+    local testsuite_unit="tests/unit"
+    local testsuite_integration="tests/integration"
     local testsuite_performance="tests/performance"
+    local testsuite_system="tests/system"
 
-    install_python_dev_deps_
+    install_python_dev_deps
 
     if [ "$test_type" = "all" ] || [ "$test_type" = "unit" ]; then
-        local testsuite="tests/unit"
+        local testsuite="${testsuite_unit}"
+    fi
+    if [ "$test_type" = "all" ] || [ "$test_type" = "integration" ]; then
+        local testsuite="${testsuite} ${testsuite_integration}"
     fi
     if [ "$test_type" = "all" ] || [ "$test_type" = "performance" ]; then
         testsuite="${testsuite} ${testsuite_performance}"
     fi
+    if [ "$test_type" = "all" ] || [ "$test_type" = "system" ]; then
+        testsuite="${testsuite} ${testsuite_system}"
+    fi
 
-    pushd $TOP > /dev/null
-    run_command py.test --cache-clear -vv \
-        --cov=monai \
-        --junitxml="$TOP/junit-monai-app-sdk.xml" \
-        --cov-config=$TOP/.coveragerc \
-        --cov-report=xml:"$TOP/monai-app-sdk-coverage.xml" \
-        --cov-report term \
-        ${testsuite}
+    pytest ${testsuite}
     result=$?
-    popd > /dev/null
 
     return $result
 }
@@ -440,7 +841,7 @@ parse_args() {
     do
         case "${option}" in
             y)
-                ALWAYS_YES=true;
+                ALWAYS_YES="true"
                 ;;
             h)
                 print_usage
