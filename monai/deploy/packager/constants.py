@@ -9,10 +9,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+
 class DefaultValues:
     """
     This class contains default values for various parameters.
     """
+
     DOCKER_FILE_NAME = "dockerfile"
     # TODO(KavinKrishnan): Decide a default image to use.
     # BASE_IMAGE = "nvcr.io/nvidia/cuda:11.1-runtime-ubuntu20.04"

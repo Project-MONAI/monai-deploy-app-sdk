@@ -13,9 +13,8 @@ import argparse
 import logging
 from pathlib import Path
 
-from monai.deploy.utils.spinner import ProgressSpinner
-
 logger = logging.getLogger(__name__)
+
 
 def valid_dir_path(path: str) -> Path:
     """Helper type checking and type converting method for ArgumentParser.add_argument

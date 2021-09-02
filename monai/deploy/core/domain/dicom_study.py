@@ -10,7 +10,6 @@
 # limitations under the License.
 
 
-from .dicom_series import DICOMSeries
 from .domain import Domain
 
 

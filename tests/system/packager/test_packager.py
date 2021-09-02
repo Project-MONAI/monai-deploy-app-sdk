@@ -36,23 +36,18 @@ def test_packager():
     test_params_values["command"] = "/usr/bin/python3 -u /opt/monai/app/main.py"
     test_params_values["pip-packages"] = []
     test_params_values["models"] = []
-    test_params_values["resource"] = {"cpu": 1,
-                                      "gpu": 2,
-                                      "memory": "4Gi"}
+    test_params_values["resource"] = {"cpu": 1, "gpu": 2, "memory": "4Gi"}
 
-    test_params_string = json.dumps(test_params_values, 
-                                    sort_keys=True,
-                                    indent=4,
-                                    separators=(',', ': '))
+    test_params_string = json.dumps(test_params_values, sort_keys=True, indent=4, separators=(",", ": "))
 
-    with open(test_params_file[1], 'w') as tmp_params:
+    with open(test_params_file[1], "w") as tmp_params:
         tmp_params.write(test_params_string)
 
     parser = argparse.ArgumentParser()
     args = parser.parse_args([])
-    args.application=test_app
-    args.tag=test_map_tag
-    args.params=test_params_file[1]
+    args.application = test_app
+    args.tag = test_map_tag
+    args.params = test_params_file[1]
     args.base = None
     args.working_dir = None
     args.input_dir = None

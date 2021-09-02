@@ -18,7 +18,6 @@ from monai.deploy.operators.png_converter_operator import PNGConverterOperator
 
 
 class App(Application):
-
     def compose(self):
         study_loader_op = DICOMDataLoaderOperator()
         series_selector_op = DICOMSeriesSelectorOperator()

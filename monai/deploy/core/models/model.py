@@ -138,10 +138,10 @@ class Model:
             path (str): A path to a model.
 
         Returns:
-            (True, <model_type>) if the path is a type of this model class, (False, None) otherwise.
+            (True, <model_type>) if the path is a type of this model class, (False, "") otherwise.
         """
         if not os.path.exists(path):
-            return False, None
+            return False, ""
         return True, cls.model_type
 
     def get(self, name: str = "") -> "Model":
@@ -176,7 +176,7 @@ class Model:
             else:
                 return self
 
-    def get_model_list(self) -> List[str]:
+    def get_model_list(self) -> List[Dict[str, str]]:
         """Return a list of models in the repository.
 
         If this model represents a model repository, then a list of model objects (name and path) is returned.

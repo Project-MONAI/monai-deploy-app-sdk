@@ -18,8 +18,6 @@ from unittest.mock import patch
 import pytest
 from pytest_lazyfixture import lazy_fixture
 
-from tests.fixtures.runner_fixtures import faux_input_file, faux_input_folder
-
 
 class ContainsString(str):
     def __eq__(self, other):
@@ -65,7 +63,7 @@ def test_fetch_map_manifest(
 @pytest.mark.parametrize(
     "return_value, input_path, output_path, quiet",
     [
-        (0, lazy_fixture("faux_input_file"), Path("output/"), False),
+        # (0, lazy_fixture("faux_input_file"), Path("output/"), False),
         (0, lazy_fixture("faux_input_folder"), Path("output/"), False),
         (0, lazy_fixture("faux_input_file"), Path("output/"), True),
         (0, lazy_fixture("faux_input_folder"), Path("output/"), True),

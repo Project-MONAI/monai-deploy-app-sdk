@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -17,6 +17,7 @@ import numpy as np
 from monai.deploy.core import ExecutionContext, Image, InputContext, IOType, Operator, OutputContext, input, output
 from monai.deploy.core.domain.dicom_series import DICOMSeries
 from monai.deploy.operators.dicom_data_loader_operator import DICOMDataLoaderOperator
+
 
 @input("dicom_series", DICOMSeries, IOType.IN_MEMORY)
 @output("image", Image, IOType.IN_MEMORY)
@@ -226,12 +227,9 @@ class DICOMSeriesToVolumeOperator(Operator):
         y1 = ip1[1]
         z1 = ip1[2]
 
-
-
         xn = ipn[0]
         yn = ipn[1]
         zn = ipn[2]
-
 
         m1[0, 0] = rx * vr
         m1[0, 1] = cx * vc

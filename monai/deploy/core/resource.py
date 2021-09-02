@@ -79,16 +79,17 @@ class Resource:
             try:
                 self._memory = get_bytes(memory_limit)
             except Exception as e:
-                raise WrongValueError(f"Memory size specified in the application (via @resource) is not valid: {e.args[0]}")
-        else:
-            if memory_limit is not None:
-                if self._memory is None:
-                    self._memory = memory_limit
-                else:
-                    raise ItemAlreadyExistsError(
-                        f"'memory' wouldn't be set to {memory_limit} because it is already set to {self._memory}"
-                        " by the runtime environment."
-                    )
+                raise WrongValueError(
+                    f"Memory size specified in the application (via @resource) is not valid: {e.args[0]}"
+                )
+        elif type(memory_limit) == int:
+            if self._memory is None:
+                self._memory = memory_limit
+            else:
+                raise ItemAlreadyExistsError(
+                    f"'memory' wouldn't be set to {memory_limit} because it is already set to {self._memory}"
+                    " by the runtime environment."
+                )
 
     def __str__(self):
         return "Resource(cpu={}, memory={}, gpu={})".format(self.cpu, self.memory, self.gpu)
@@ -130,6 +131,7 @@ def resource(
                 builder(self)  # execute the original builder
 
             return self
+
         cls._builder = new_builder
         return cls
 

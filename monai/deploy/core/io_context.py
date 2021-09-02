@@ -10,7 +10,7 @@
 # limitations under the License.
 
 from abc import ABC
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Set
 
 if TYPE_CHECKING:
     from .execution_context import ExecutionContext
@@ -33,7 +33,7 @@ class IOContext(ABC):
         self._execution_context: "ExecutionContext" = execution_context
         self._op: Operator = execution_context.op
         self._op_info: OperatorInfo = self._op.op_info
-        self._labels: str = self._op_info.get_labels(self._io_kind)
+        self._labels: Set[str] = self._op_info.get_labels(self._io_kind)
         self._storage: Datastore = execution_context.storage
 
     def get_default_label(self, label: str = "") -> str:

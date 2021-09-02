@@ -53,7 +53,7 @@ class Application(ABC):
     # This is needed to identify Application class across different environments (e.g. by `runpy.run_path()`).
     _class_id: str = "monai.application"
 
-    _env: "ApplicationEnv" = None
+    _env: Optional["ApplicationEnv"] = None
 
     def __init__(
         self,
@@ -179,7 +179,7 @@ class Application(ABC):
         self._graph.add_operator(operator)
 
     def add_flow(
-        self, upstream_op: Operator, downstream_op: Operator, io_map: Optional[Dict[str, Union[str, Set]]] = None
+        self, upstream_op: Operator, downstream_op: Operator, io_map: Optional[Dict[str, Union[str, Set[str]]]] = None
     ):
         """Adds a flow from upstream to downstream.
 
@@ -189,8 +189,8 @@ class Application(ABC):
         Args:
             upstream_op (Operator): An instance of the upstream operator of type Operator.
             downstream_op (Operator): An instance of the downstream operator of type Operator.
-            io_map (Optional[Dict[str, str]]): A dictionary of mapping from the source operator's label to the
-                                               destination operator's label.
+            io_map (Optional[Dict[str, Union[str, Set[str]]]]): A dictionary of mapping from the source operator's label
+                                                                 to the destination operator's label(s).
         """
 
         # Ensure that the upstream and downstream operators are valid
@@ -213,12 +213,13 @@ class Application(ABC):
             io_map = {"": {""}}
 
         # Convert io_map's values to the set of strings.
+        io_maps: Dict[str, Set[str]] = io_map  # type: ignore
         for k, v in io_map.items():
             if isinstance(v, str):
-                io_map[k] = {v}
+                io_maps[k] = {v}
 
         # Verify that the upstream & downstream operator have the input and output ports specified by the io_map
-        output_labels = list(io_map.keys())
+        output_labels = list(io_maps.keys())
 
         if len(op_output_labels) == 1 and len(output_labels) != 1:
             raise IOMappingError(
@@ -231,17 +232,17 @@ class Application(ABC):
             if output_label not in op_output_labels:
                 if len(op_output_labels) == 1 and len(output_labels) == 1 and output_label == "":
                     # Set the default output port label.
-                    io_map[next(iter(op_output_labels))] = io_map[output_label]
-                    del io_map[output_label]
+                    io_maps[next(iter(op_output_labels))] = io_maps[output_label]
+                    del io_maps[output_label]
                     break
                 raise IOMappingError(
                     f"The upstream operator({upstream_op.name}) has no output port with label '{output_label}'. "
                     f"It should be one of ({', '.join(op_output_labels)})."
                 )
 
-        output_labels = list(io_map.keys())  # re-evaluate output_labels
+        output_labels = list(io_maps.keys())  # re-evaluate output_labels
         for output_label in output_labels:
-            input_labels = io_map[output_label]
+            input_labels = io_maps[output_label]
 
             if len(op_input_labels) == 1 and len(input_labels) != 1:
                 raise IOMappingError(
@@ -262,7 +263,7 @@ class Application(ABC):
                         f"It should be one of ({', '.join(op_input_labels)})."
                     )
 
-        self._graph.add_flow(upstream_op, downstream_op, io_map)
+        self._graph.add_flow(upstream_op, downstream_op, io_maps)
 
     def get_package_info(self, model_path: Union[str, Path] = "") -> Dict:
         """Returns the package information of this application.

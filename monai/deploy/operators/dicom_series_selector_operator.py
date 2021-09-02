@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -11,19 +11,12 @@
 
 from typing import Dict
 
-from monai.deploy.core import (
-    ExecutionContext,
-    InputContext,
-    IOType,
-    Operator,
-    OutputContext,
-    input,
-    output,
-)
+from monai.deploy.core import ExecutionContext, InputContext, IOType, Operator, OutputContext, input, output
 from monai.deploy.core.domain.dicom_series import DICOMSeries
 from monai.deploy.core.domain.dicom_study import DICOMStudy
 from monai.deploy.exceptions import ItemNotExistsError
 from monai.deploy.operators.dicom_data_loader_operator import DICOMDataLoaderOperator
+
 
 @input("dicom_study_list", DICOMStudy, IOType.IN_MEMORY)
 @input("selection_rules", Dict, IOType.IN_MEMORY)

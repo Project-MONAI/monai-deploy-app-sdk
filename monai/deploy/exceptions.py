@@ -39,10 +39,12 @@ class UnknownTypeError(MONAIAppSdkError):
 
     pass
 
+
 class WrongValueError(MONAIAppSdkError):
     """Raises when wrong value is specified."""
 
     pass
+
 
 class UnsupportedOperationError(MONAIAppSdkError):
     """Raises when unsupported operation is requested."""

@@ -10,12 +10,15 @@
 # limitations under the License.
 
 import logging
+
+from spleen_seg_operator import SpleenSegOperator
+
 from monai.deploy.core import Application, resource
 from monai.deploy.operators.dicom_data_loader_operator import DICOMDataLoaderOperator
+from monai.deploy.operators.dicom_seg_writer_operator import DICOMSegmentationWriterOperator
 from monai.deploy.operators.dicom_series_selector_operator import DICOMSeriesSelectorOperator
 from monai.deploy.operators.dicom_series_to_volume_operator import DICOMSeriesToVolumeOperator
-from monai.deploy.operators.dicom_seg_writer_operator import DICOMSegmentationWriterOperator
-from spleen_seg_operator import SpleenSegOperator
+
 
 @resource(cpu=1, gpu=1, memory="7Gi")
 # pip_packages can be a string that is a path(str) to requirements.txt file or a list of packages.
@@ -27,22 +30,23 @@ class AISpleenSegApp(Application):
 
         super().__init__(*args, **kwargs)
 
-        self.logger.debug(f'App Path: {self.path}, \
+        self.logger.debug(
+            f"App Path: {self.path}, \
             Input: {self.context.input_path}, \
             Output: {self.context.output_path},\
-            Models: {self.context.model_path}'
+            Models: {self.context.model_path}"
         )
 
     def run(self):
         # This method calls the base class to run. Can be omitted if simply calling through.
-        self.logger.debug(f'Begin {self.run.__name__}')
+        self.logger.debug(f"Begin {self.run.__name__}")
         super().run()
-        self.logger.debug(f'End {self.run.__name__}')
+        self.logger.debug(f"End {self.run.__name__}")
 
     def compose(self):
         """Creates the app specific operators and chain them up in the processing DAG."""
 
-        self.logger.debug(f'Begin {self.compose.__name__}')
+        self.logger.debug(f"Begin {self.compose.__name__}")
         # Creates the custom operator(s) as well as SDK built-in operator(s).
         study_loader_op = DICOMDataLoaderOperator()
         series_selector_op = DICOMSeriesSelectorOperator()
@@ -61,7 +65,8 @@ class AISpleenSegApp(Application):
         self.add_flow(series_selector_op, dicom_seg_writer, {"dicom_series": "dicom_series"})
         self.add_flow(spleen_seg_op, dicom_seg_writer, {"seg_image": "seg_image"})
 
-        self.logger.debug(f'End {self.compose.__name__}')
+        self.logger.debug(f"End {self.compose.__name__}")
+
 
 if __name__ == "__main__":
     # Creates the app and test it standalone.

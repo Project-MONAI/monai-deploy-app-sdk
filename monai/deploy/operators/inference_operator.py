@@ -9,10 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import functools
-import uuid
-from abc import ABC, abstractmethod
-from typing import Any, TYPE_CHECKING, Union
+from abc import abstractmethod
+from typing import Any, Union
 
 from monai.deploy.core import ExecutionContext, Image, InputContext, Operator, OutputContext
 
@@ -25,8 +23,7 @@ class InferenceOperator(Operator):
     """
 
     def __init__(self, *args, **kwargs):
-        """Constructor of the operator.
-        """
+        """Constructor of the operator."""
         super().__init__()
 
     @abstractmethod
@@ -39,8 +36,7 @@ class InferenceOperator(Operator):
             NotImplementedError: When the subclass does not override this method.
         """
 
-        raise NotImplementedError(
-            f"Subclass {self.__class__.__name__} must implement this method.")
+        raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
 
     @abstractmethod
     def compute(self, input: InputContext, output: OutputContext, context: ExecutionContext):
@@ -54,7 +50,7 @@ class InferenceOperator(Operator):
         pass
 
     @abstractmethod
-    def predict(self, data:Any) -> Union[Image, Any]:
+    def predict(self, data: Any) -> Union[Image, Any]:
         """Prdicts results using the models(s) with input tensors.
 
         This method must be overridden by a derived class.
@@ -62,11 +58,10 @@ class InferenceOperator(Operator):
         Raises:
             NotImplementedError: When the subclass does not override this method.
         """
-        raise NotImplementedError(
-            f"Subclass {self.__class__.__name__} must implement this method.")
+        raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
 
     @abstractmethod
-    def post_process(self, data:Any) -> Union[Image, Any]:
+    def post_process(self, data: Any) -> Union[Image, Any]:
         """Transform the prediction results from the model(s).
 
         This method must be overridden by a derived class.
@@ -74,5 +69,4 @@ class InferenceOperator(Operator):
         Raises:
             NotImplementedError: When the subclass does not override this method.
         """
-        raise NotImplementedError(
-            f"Subclass {self.__class__.__name__} must implement this method.")
+        raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")

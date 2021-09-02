@@ -21,9 +21,9 @@ from monai.deploy.core import (
     IOType,
     Operator,
     OutputContext,
+    env,
     input,
     output,
-    env
 )
 from monai.deploy.operators.dicom_data_loader_operator import DICOMDataLoaderOperator
 from monai.deploy.operators.dicom_series_to_volume_operator import DICOMSeriesToVolumeOperator

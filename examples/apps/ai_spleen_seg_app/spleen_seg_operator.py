@@ -11,33 +11,22 @@
 
 import logging
 
+from monai.deploy.core import ExecutionContext, Image, InputContext, IOType, Operator, OutputContext, env, input, output
+from monai.deploy.operators.monai_seg_inference_operator import InMemImageReader, MonaiSegInferenceOperator
 from monai.transforms import (
     Activationsd,
     AsDiscreted,
     Compose,
+    CropForegroundd,
     EnsureChannelFirstd,
     Invertd,
     LoadImaged,
-    Spacingd,
     SaveImaged,
     ScaleIntensityRanged,
-    CropForegroundd,
-    ToTensord
+    Spacingd,
+    ToTensord,
 )
 
-from monai.deploy.core import (
-    ExecutionContext,
-    Image,
-    InputContext,
-    IOType,
-    Operator,
-    OutputContext,
-    input,
-    output,
-    env
-)
-
-from monai.deploy.operators.monai_seg_inference_operator import MonaiSegInferenceOperator, InMemImageReader
 
 @input("image", Image, IOType.IN_MEMORY)
 @output("seg_image", Image, IOType.IN_MEMORY)
@@ -51,7 +40,8 @@ class SpleenSegOperator(Operator):
     This derived reader is needed to parse the in memory image object, and return the expected data structure.
     Loading of the model, and predicting using in-proc PyTorch inference is done by MonaiSegInferenceOperator.
     """
-    def __init__(self, testing:bool =False):
+
+    def __init__(self, testing: bool = False):
         self.logger = logging.getLogger("{}.{}".format(__name__, type(self).__name__))
         super().__init__()
         self.testing = testing
@@ -62,7 +52,7 @@ class SpleenSegOperator(Operator):
 
         input_image = input.get("image")
         if not input_image:
-            raise ValueError('Input image is not found.')
+            raise ValueError("Input image is not found.")
 
         if self.testing:
             seg_image = self.infer_and_save(input_image)
@@ -75,9 +65,14 @@ class SpleenSegOperator(Operator):
 
             # Delegates inference and saving output to the built-in operator.
             infer_operator = MonaiSegInferenceOperator(
-                (160, 160, 160,),
+                (
+                    160,
+                    160,
+                    160,
+                ),
                 pre_transforms,
-                post_transforms)
+                post_transforms,
+            )
 
             # Setting the keys used in the dictironary based transforms may change.
             infer_operator.input_dataset_key = self._input_dataset_key
@@ -87,41 +82,37 @@ class SpleenSegOperator(Operator):
             infer_operator.compute(input, output, context)
 
     def pre_process(self, img_reader) -> Compose:
-        """Composes transforms for preprocessing input before predicting on a model.
-        """
+        """Composes transforms for preprocessing input before predicting on a model."""
 
         my_key = self._input_dataset_key
-        return Compose([
-            LoadImaged(keys=my_key, reader=img_reader),
-            EnsureChannelFirstd(keys=my_key),
-            Spacingd(keys=my_key, pixdim=[1.0, 1.0, 1.0], mode=["blinear"], align_corners=True),
-            ScaleIntensityRanged(keys=my_key, a_min=-57, a_max=164, b_min=0.0, b_max=1.0, clip=True),
-            CropForegroundd(keys=my_key, source_key=my_key),
-            ToTensord(keys=my_key)
-        ])
+        return Compose(
+            [
+                LoadImaged(keys=my_key, reader=img_reader),
+                EnsureChannelFirstd(keys=my_key),
+                Spacingd(keys=my_key, pixdim=[1.0, 1.0, 1.0], mode=["blinear"], align_corners=True),
+                ScaleIntensityRanged(keys=my_key, a_min=-57, a_max=164, b_min=0.0, b_max=1.0, clip=True),
+                CropForegroundd(keys=my_key, source_key=my_key),
+                ToTensord(keys=my_key),
+            ]
+        )
 
-    def post_process(self, pre_transforms: Compose, out_dir:str="./infer_output") -> Compose:
+    def post_process(self, pre_transforms: Compose, out_dir: str = "./infer_output") -> Compose:
         """Composes transforms for postprocessing the prediction results."""
 
         pred_key = self._pred_dataset_key
-        return Compose([
-            Activationsd(keys=pred_key, softmax=True),
-            AsDiscreted(keys=pred_key, argmax=True),
-            Invertd(
-                keys=pred_key,
-                transform = pre_transforms,
-                orig_keys=self._input_dataset_key,
-                nearest_interp=True
-            ),
-            SaveImaged(keys=pred_key,
-                output_dir=out_dir,
-                output_postfix="seg",
-                resample=False)
-        ])
+        return Compose(
+            [
+                Activationsd(keys=pred_key, softmax=True),
+                AsDiscreted(keys=pred_key, argmax=True),
+                Invertd(
+                    keys=pred_key, transform=pre_transforms, orig_keys=self._input_dataset_key, nearest_interp=True
+                ),
+                SaveImaged(keys=pred_key, output_dir=out_dir, output_postfix="seg", resample=False),
+            ]
+        )
 
     def infer_and_save(self, image):
-        """Prints out the image obj, and bounce it back, for testing only.
-        """
+        """Prints out the image obj, and bounce it back, for testing only."""
 
         image_data = image.asnumpy()
         image_shape = image_data.shape

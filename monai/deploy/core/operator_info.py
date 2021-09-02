@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -17,6 +17,7 @@ from .io_type import IOType
 
 
 class IO(Enum):
+    UNDEFINED = "undefined"
     INPUT = "input"
     OUTPUT = "output"
 
@@ -29,7 +30,7 @@ class OperatorInfo:
 
     def __init__(self):
         # Initializing the attributes
-        self.labels: Dict[IO, Set] = {IO.INPUT: set(), IO.OUTPUT: set()}
+        self.labels: Dict[IO, Set[str]] = {IO.INPUT: set(), IO.OUTPUT: set()}
         self.data_type: Dict[IO, Dict[str, Type]] = {IO.INPUT: {}, IO.OUTPUT: {}}
         self.storage_type: Dict[IO, Dict[str, IOType]] = {IO.INPUT: {}, IO.OUTPUT: {}}
 
@@ -44,26 +45,26 @@ class OperatorInfo:
                 self.data_type[kind][""] = DataPath
                 self.storage_type[kind][""] = IOType.DISK
 
-    def add_label(self, io_kind: IO, label: str):
+    def add_label(self, io_kind: Union[IO, str], label: str):
         io_kind = IO(io_kind)
         self.labels[io_kind].add(label)
 
-    def get_labels(self, io_kind: IO) -> str:
+    def get_labels(self, io_kind: Union[IO, str]) -> Set[str]:
         io_kind = IO(io_kind)
         return self.labels[io_kind]
 
-    def set_data_type(self, io_kind: IO, label: str, data_type: Type):
+    def set_data_type(self, io_kind: Union[IO, str], label: str, data_type: Type):
         io_kind = IO(io_kind)
         self.data_type[io_kind][label] = data_type
 
-    def get_data_type(self, io_kind: IO, label: str) -> Type:
+    def get_data_type(self, io_kind: Union[IO, str], label: str) -> Type:
         io_kind = IO(io_kind)
         return self.data_type[io_kind][label]
 
-    def set_storage_type(self, io_kind: IO, label: str, storage_type: Union[int, IOType]):
+    def set_storage_type(self, io_kind: Union[IO, str], label: str, storage_type: Union[int, IOType]):
         io_kind = IO(io_kind)
         self.storage_type[io_kind][label] = IOType(storage_type)
 
-    def get_storage_type(self, io_kind: IO, label: str) -> IOType:
+    def get_storage_type(self, io_kind: Union[IO, str], label: str) -> IOType:
         io_kind = IO(io_kind)
         return self.storage_type[io_kind][label]
