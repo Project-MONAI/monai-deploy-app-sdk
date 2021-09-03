@@ -15,9 +15,10 @@ import shutil
 import pytest
 
 
-@pytest.fixture(scope="session")
-def mock_manifest_export_dir(tmp_path_factory, faux_app_manifest, faux_pkg_manifest):
-    dataset_path = tmp_path_factory.mktemp("manifest_export_dir")
+@pytest.fixture(scope="function")
+def mock_manifest_export_dir(tmp_path, faux_app_manifest, faux_pkg_manifest):
+    dataset_path = tmp_path / "manifest_export_dir"
+    dataset_path.mkdir()
     with open((dataset_path / "app.json"), "w") as f:
         json.dump(faux_app_manifest, f)
     with open((dataset_path / "pkg.json"), "w") as f:
@@ -124,31 +125,39 @@ def faux_app_manifest_with_absolute_path():
     yield app_manifest
 
 
-@pytest.fixture(scope="session")
-def faux_input_file(tmp_path_factory):
-    input_dir = tmp_path_factory.mktemp("input")
+@pytest.fixture(scope="function")
+def faux_file(tmp_path):
+    input_dir = tmp_path / "input"
+    input_dir.mkdir()
     input_file = input_dir / "input.jpg"
     input_file.touch()
     yield input_file
 
 
-@pytest.fixture(scope="session")
-def faux_input_folder(tmp_path_factory):
-    input_dir = tmp_path_factory.mktemp("input")
-    input_folder = input_dir
-    yield input_folder
+@pytest.fixture(scope="function")
+def faux_folder(tmp_path):
+    input_dir = tmp_path / "input"
+    input_dir.mkdir()
+    yield input_dir
 
 
-@pytest.fixture(scope="session")
-def faux_input_file_with_space(tmp_path_factory):
-    input_dir = tmp_path_factory.mktemp("input with space")
+@pytest.fixture(scope="function")
+def faux_file_with_space(tmp_path):
+    input_dir = tmp_path / "input with space"
+    input_dir.mkdir()
     input_file = input_dir / "input with space.jpg"
     input_file.touch()
     yield input_file
 
 
-@pytest.fixture(scope="session")
-def faux_input_folder_with_space(tmp_path_factory):
-    input_dir = tmp_path_factory.mktemp("input with space")
-    input_folder = input_dir
-    yield input_folder
+@pytest.fixture(scope="function")
+def faux_folder_with_space(tmp_path):
+    input_dir = tmp_path / "input with space"
+    input_dir.mkdir()
+    yield input_dir
+
+
+@pytest.fixture(scope="function")
+def non_existent_file_path(tmp_path):
+    some_faux_path = tmp_path / "some" / "non" / "existent" / "path"
+    yield some_faux_path
