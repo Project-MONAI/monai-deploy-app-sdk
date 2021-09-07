@@ -19,6 +19,33 @@ logger = logging.getLogger(__name__)
 def valid_dir_path(path: str) -> Path:
     """Helper type checking and type converting method for ArgumentParser.add_argument
     to convert string input to pathlib.Path if the given path exists and it is a directory path.
+    If directory does not exist, create the directory and convert string input to pathlib.Path.
+
+    Args:
+        path: string input path
+
+    Returns:
+        If path exists and is a directory, return absolute path as a pathlib.Path object.
+
+        If path exists and is not a directory, raises argparse.ArgumentTypeError.
+
+        If path doesn't exist, create the directory and return absolute path as a pathlib.Path object.
+    """
+    dir_path = Path(path).absolute()
+    if dir_path.exists():
+        if dir_path.is_dir():
+            return dir_path
+        else:
+            raise argparse.ArgumentTypeError(f"Expected directory path: '{dir_path}' is not a directory")
+
+    # create directory
+    dir_path.mkdir(parents=True)
+    return dir_path
+
+
+def valid_existing_dir_path(path: str) -> Path:
+    """Helper type checking and type converting method for ArgumentParser.add_argument
+    to convert string input to pathlib.Path if the given path exists and it is a directory path.
 
     Args:
         path: string input path
@@ -28,9 +55,9 @@ def valid_dir_path(path: str) -> Path:
 
         If path doesn't exist or it is not a directory, raises argparse.ArgumentTypeError.
     """
-    dir_path = Path(path)
+    dir_path = Path(path).absolute()
     if dir_path.exists() and dir_path.is_dir():
-        return dir_path.absolute()
+        return dir_path
     raise argparse.ArgumentTypeError(f"No such directory: '{dir_path}'")
 
 
@@ -46,21 +73,8 @@ def valid_existing_path(path: str) -> Path:
 
         If path doesn't exist, raises argparse.ArgumentTypeError.
     """
-    file_path = Path(path)
+    file_path = Path(path).absolute()
     if file_path.exists():
-        return file_path.absolute()
+        return file_path
     raise argparse.ArgumentTypeError(f"No such file/folder: '{file_path}'")
 
-
-def valid_path(path: str) -> Path:
-    """Helper type checking and type converting method for ArgumentParser.add_argument
-    to convert string input to pathlib.Path.
-
-    Args:
-        path: string input path
-
-    Returns:
-        Return absolute path as a pathlib.Path object.
-    """
-    dir_path = Path(path)
-    return dir_path

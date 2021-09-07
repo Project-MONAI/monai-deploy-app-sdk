@@ -63,12 +63,12 @@ def test_fetch_map_manifest(
 @pytest.mark.parametrize(
     "return_value, input_path, output_path, quiet",
     [
-        # (0, lazy_fixture("faux_input_file"), Path("output/"), False),
-        (0, lazy_fixture("faux_input_folder"), Path("output/"), False),
-        (0, lazy_fixture("faux_input_file"), Path("output/"), True),
-        (0, lazy_fixture("faux_input_folder"), Path("output/"), True),
-        (125, lazy_fixture("faux_input_file"), Path("output/"), False),
-        (125, lazy_fixture("faux_input_folder"), Path("output/"), False),
+        (0, lazy_fixture("faux_file"), Path("output/"), False),
+        (0, lazy_fixture("faux_folder"), Path("output/"), False),
+        (0, lazy_fixture("faux_file"), Path("output/"), True),
+        (0, lazy_fixture("faux_folder"), Path("output/"), True),
+        (125, lazy_fixture("faux_file"), Path("output/"), False),
+        (125, lazy_fixture("faux_folder"), Path("output/"), False),
     ],
 )
 @patch("monai.deploy.runner.runner.run_cmd")
@@ -100,12 +100,12 @@ def test_run_app(mock_run_cmd, return_value, input_path, output_path, quiet, sam
 @pytest.mark.parametrize(
     "return_value, input_path, output_path, quiet",
     [
-        (0, lazy_fixture("faux_input_file_with_space"), Path("output with space/"), False),
-        (0, lazy_fixture("faux_input_folder_with_space"), Path("output with space/"), False),
-        (0, lazy_fixture("faux_input_file_with_space"), Path("output with space/"), True),
-        (0, lazy_fixture("faux_input_folder_with_space"), Path("output with space/"), True),
-        (125, lazy_fixture("faux_input_file_with_space"), Path("output with space/"), False),
-        (125, lazy_fixture("faux_input_folder_with_space"), Path("output with space/"), False),
+        (0, lazy_fixture("faux_file_with_space"), Path("output with space/"), False),
+        (0, lazy_fixture("faux_folder_with_space"), Path("output with space/"), False),
+        (0, lazy_fixture("faux_file_with_space"), Path("output with space/"), True),
+        (0, lazy_fixture("faux_folder_with_space"), Path("output with space/"), True),
+        (125, lazy_fixture("faux_file_with_space"), Path("output with space/"), False),
+        (125, lazy_fixture("faux_folder_with_space"), Path("output with space/"), False),
     ],
 )
 @patch("monai.deploy.runner.runner.run_cmd")
@@ -141,12 +141,12 @@ def test_run_app_for_input_output_path_with_space(
 @pytest.mark.parametrize(
     "return_value, input_path, output_path, quiet",
     [
-        (0, lazy_fixture("faux_input_file"), Path("output/"), False),
-        (0, lazy_fixture("faux_input_folder"), Path("output/"), False),
-        (0, lazy_fixture("faux_input_file"), Path("output/"), True),
-        (0, lazy_fixture("faux_input_folder"), Path("output/"), True),
-        (125, lazy_fixture("faux_input_file"), Path("output/"), False),
-        (125, lazy_fixture("faux_input_folder"), Path("output/"), False),
+        (0, lazy_fixture("faux_file"), Path("output/"), False),
+        (0, lazy_fixture("faux_folder"), Path("output/"), False),
+        (0, lazy_fixture("faux_file"), Path("output/"), True),
+        (0, lazy_fixture("faux_folder"), Path("output/"), True),
+        (125, lazy_fixture("faux_file"), Path("output/"), False),
+        (125, lazy_fixture("faux_folder"), Path("output/"), False),
     ],
 )
 @patch("monai.deploy.runner.runner.run_cmd")
