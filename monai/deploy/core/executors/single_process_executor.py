@@ -43,8 +43,8 @@ class SingleProcessExecutor(Executor):
         Executes the operators.
         """
         app_context = self.app.context
-        models = ModelFactory.create(app_context.model_path)
         # Take paths as absolute paths
+        models = ModelFactory.create(os.path.abspath(app_context.model_path))
         input_path = os.path.abspath(self.app.context.input_path)
         output_path = os.path.abspath(self.app.context.output_path)
 
