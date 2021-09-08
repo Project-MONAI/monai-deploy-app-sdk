@@ -320,6 +320,10 @@ install_python_dev_deps() {
         exit 1
     fi
 
+    install_edit_mode
+}
+
+install_edit_mode() {
     # Create a symlink to the virtual environment.
     # This solves an issue with separate package folders for 'monai' and 'monai-app-sdk' like below:
     # - 'monai': installed with 'pip install monai'

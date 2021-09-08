@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -24,6 +24,7 @@ class DataPath(Domain):
         Args:
             path (Union[str, Path]): Path to the data file/directory.
             read_only (bool): True if the the file/directory path cannot be modified.
+            metadata (Optional[Dict]): A metadata.
         """
         super().__init__(metadata=metadata)
         self._path: Path = Path(path)

@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -14,7 +14,14 @@ from typing import Dict, Optional
 
 
 class Domain(ABC):
+    """Domain Class."""
+
     def __init__(self, metadata: Optional[Dict] = None):
+        """Initialize a Domain object.
+
+        Args:
+            metadata (Optional[Dict]): A metadata.
+        """
         super().__init__()
 
         if metadata is not None:

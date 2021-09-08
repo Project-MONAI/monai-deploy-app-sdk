@@ -8,6 +8,16 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+"""
+.. autosummary::
+    :toctree: _autosummary
+
+    Model
+    ModelFactory
+    NamedModel
+    TorchScriptModel
+    TritonModel
+"""
 
 from .factory import ModelFactory
 from .model import Model

@@ -45,6 +45,11 @@ class Operator(ABC):
 
         It creates an instance of Data Store which holds on
         to all inputs and outputs relavant for this operator.
+
+        Args:
+            args: Arguments.
+            kwargs: Keyword arguments.
+
         """
         super().__init__()
         self._uid: uuid.UUID = uuid.uuid4()

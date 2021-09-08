@@ -12,6 +12,10 @@
 from abc import ABC
 from typing import TYPE_CHECKING, Any, Set
 
+# To avoid "Cannot resolve forward reference" error
+# : https://github.com/agronholm/sphinx-autodoc-typehints#dealing-with-circular-imports
+from . import execution_context
+
 if TYPE_CHECKING:
     from .execution_context import ExecutionContext
     from .operator import Operator
@@ -28,7 +32,7 @@ class IOContext(ABC):
 
     _io_kind = "undefined"
 
-    def __init__(self, execution_context: "ExecutionContext"):
+    def __init__(self, execution_context: "execution_context.ExecutionContext"):
         """Constructor for IOContext."""
         self._execution_context: "ExecutionContext" = execution_context
         self._op: Operator = execution_context.op
@@ -69,6 +73,7 @@ class IOContext(ABC):
 
         It uses a sub path ({self._io_kind}/{label}) to get the data.
         The final group path (key) would be:
+
             "/operators/{self._op.uid}/{execution_index}/{self._io_kind}/{label}"
         """
         label = self.get_default_label(label)
@@ -83,6 +88,7 @@ class IOContext(ABC):
 
         It uses a sub path ({self._io_kind}/{label}) to set the data.
         The final group path (key) would be:
+
             "/operators/{self._op.uid}/{execution_index}/{self._io_kind}/{label}"
         """
         label = self.get_default_label(label)
