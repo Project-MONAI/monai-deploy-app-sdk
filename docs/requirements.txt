@@ -1,0 +1,32 @@
+Sphinx==4.1.2
+sphinx-autobuild==2021.3.14
+myst-parser==0.15.2
+numpy==1.19.5
+matplotlib==3.3.4
+ipywidgets==7.6.4
+pandas==1.1.5
+nbclient==0.5.4
+myst-nb==0.13.0
+linkify-it-py==1.0.1  # https://myst-parser.readthedocs.io/en/latest/syntax/optional.html?highlight=linkify#linkify
+sphinx-togglebutton==0.2.3
+sphinx-copybutton==0.4.0
+sphinxcontrib-bibtex<2.0.0  # https://github.com/executablebooks/jupyter-book/issues/1137
+sphinxcontrib-spelling  # https://sphinxcontrib-spelling.readthedocs.io/en/latest/index.html
+sphinx-thebe==0.0.10
+sphinx-panels==0.6.0
+ablog==0.10.19
+docutils==0.16  # 0.17 causes error. https://github.com/executablebooks/MyST-Parser/issues/343
+pydata_sphinx_theme==0.6.3
+sphinxemoji==0.1.8
+scipy
+scikit-image
+plotly
+nibabel
+monai
+sphinx-autodoc-typehints==1.12.0
+sphinxcontrib-applehelp
+sphinxcontrib-devhelp
+sphinxcontrib-htmlhelp
+sphinxcontrib-jsmath
+sphinxcontrib-qthelp
+sphinxcontrib-serializinghtml
