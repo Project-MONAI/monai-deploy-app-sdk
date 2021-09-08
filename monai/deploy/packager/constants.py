@@ -16,8 +16,8 @@ class DefaultValues:
     """
 
     DOCKER_FILE_NAME = "dockerfile"
-    BASE_IMAGE = "nvcr.io/nvidia/pytorch:21.07-py3"
-    DOCKERFILE_TYPE = "pytorch"
+    BASE_IMAGE = "continuumio/miniconda3:4.9.2"
+    DOCKERFILE_TYPE = "conda"
     WORK_DIR = "/var/monai/"
     INPUT_DIR = "input"
     OUTPUT_DIR = "output"

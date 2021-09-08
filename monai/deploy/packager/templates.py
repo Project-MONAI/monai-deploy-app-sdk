@@ -127,6 +127,94 @@ PYTORCH_DOCKERFILE_TEMPLATE = (
     + COMMON_FOOTPRINT
 )
 
+CONDA_DOCKERFILE_TEMPLATE = (
+    """FROM {base_image}
+
+    # Install Base CUDA requirements
+    ENV NVARCH x86_64
+    ENV NVIDIA_REQUIRE_CUDA "cuda>=11.4 brand=tesla,driver>=418,driver<419 brand=tesla,driver>=440,driver<441 driver>=450"
+    ENV NV_CUDA_CUDART_VERSION 11.4.108-1
+    ENV NV_CUDA_COMPAT_PACKAGE cuda-compat-11-4
+    ENV NV_ML_REPO_ENABLED 1
+    ENV NV_ML_REPO_URL https://developer.download.nvidia.com/compute/machine-learning/repos/ubuntu1604/$NVARCH
+
+    RUN apt-get --allow-releaseinfo-change update && \
+        apt-get install -y --no-install-recommends \
+        apt-transport-https gnupg2 curl ca-certificates unzip && \
+        curl -fsSL https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2004/$NVARCH/7fa2af80.pub | apt-key add - && \
+        echo "deb https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2004/$NVARCH /" > /etc/apt/sources.list.d/cuda.list && \
+        if [ ! -z $NV_ML_REPO_ENABLED ]; then echo "deb $NV_ML_REPO_URL /" > /etc/apt/sources.list.d/nvidia-ml.list; fi && \
+        rm -rf /var/lib/apt/lists/*
+
+    RUN apt-get update && apt-get install -y --no-install-recommends \
+        cuda-cudart-11-4=$NV_CUDA_CUDART_VERSION \
+        $NV_CUDA_COMPAT_PACKAGE \
+        && ln -s cuda-11.4 /usr/local/cuda && \
+        rm -rf /var/lib/apt/lists/*
+
+    RUN echo "/usr/local/nvidia/lib" >> /etc/ld.so.conf.d/nvidia.conf \
+        && echo "/usr/local/nvidia/lib64" >> /etc/ld.so.conf.d/nvidia.conf
+
+    ENV PATH /usr/local/nvidia/bin:/usr/local/cuda/bin:$PATH
+    ENV LD_LIBRARY_PATH /usr/local/nvidia/lib:/usr/local/nvidia/lib64
+
+    ENV NVIDIA_VISIBLE_DEVICES all
+    ENV NVIDIA_DRIVER_CAPABILITIES compute,utility
+
+    # Install CUDA, NVTX, and other NVIDIA GPU utility packages
+    ENV NV_CUDA_LIB_VERSION 11.4.1-1
+    ENV NV_NVTX_VERSION 11.4.100-1
+    ENV NV_LIBNPP_VERSION 11.4.0.90-1
+    ENV NV_LIBCUSPARSE_VERSION 11.6.0.100-1
+
+    ENV NV_LIBCUBLAS_PACKAGE_NAME libcublas-11-4
+    ENV NV_LIBCUBLAS_VERSION 11.5.4.8-1
+    ENV NV_LIBCUBLAS_PACKAGE $NV_LIBCUBLAS_PACKAGE_NAME=$NV_LIBCUBLAS_VERSION
+
+    ENV NV_LIBNCCL_PACKAGE_NAME libnccl2
+    ENV NV_LIBNCCL_PACKAGE_VERSION 2.10.3-1
+    ENV NCCL_VERSION 2.10.3-1
+    ENV NV_LIBNCCL_PACKAGE $NV_LIBNCCL_PACKAGE_NAME=$NV_LIBNCCL_PACKAGE_VERSION+cuda11.4
+
+    RUN apt-get clean && apt-get update
+    RUN apt-get install gcc-11-base
+    RUN curl -sLO http://ftp.br.debian.org/debian/pool/main/g/gcc-11/libgcc-s1_11.2.0-4_amd64.deb && dpkg -i libgcc-s1_11.2.0-4_amd64.deb
+    
+    RUN apt-get update && \
+        apt-get install -y --no-install-recommends --fix-broken gcc-8 g++-8 && \
+        apt-get install -y --no-install-recommends --fix-broken \
+        cuda-libraries-11-4=$NV_CUDA_LIB_VERSION \
+        libnpp-11-4=$NV_LIBNPP_VERSION \
+        cuda-nvtx-11-4=$NV_NVTX_VERSION \
+        libcusparse-11-4=$NV_LIBCUSPARSE_VERSION \
+        $NV_LIBCUBLAS_PACKAGE \
+        $NV_LIBNCCL_PACKAGE \
+        && apt autoremove -y \
+        && rm -rf /var/lib/apt/lists/*
+
+    RUN apt-mark hold $NV_LIBCUBLAS_PACKAGE_NAME $
+
+    # Set MONAI package specific labels and variables
+    ARG MONAI_GID=1000
+    ARG MONAI_UID=1000
+
+    LABEL base="{base_image}"
+    LABEL tag="{tag}"
+    LABEL version="{app_version}"
+    LABEL sdk_version="{sdk_version}"
+
+    ENV DEBIAN_FRONTEND=noninteractive
+    ENV TERM=xterm-256color
+    ENV MONAI_INPUTPATH={full_input_path}
+    ENV MONAI_OUTPUTPATH={full_output_path}
+    ENV MONAI_WORKDIR={working_dir}
+    ENV MONAI_APPLICATION={app_dir}
+    ENV MONAI_TIMEOUT={timeout}
+     
+    """
+    + COMMON_FOOTPRINT
+)
+
 DOCKERIGNORE_TEMPLATE = """
 # Git
 **/.git
@@ -209,11 +297,11 @@ DOCKERIGNORE_TEMPLATE = """
 """
 
 TEMPLATE_MAP = {
+    "conda": CONDA_DOCKERFILE_TEMPLATE,
     "ubuntu": UBUNTU_DOCKERFILE_TEMPLATE,
     "pytorch": PYTORCH_DOCKERFILE_TEMPLATE,
     ".dockerignore": DOCKERIGNORE_TEMPLATE,
 }
-
 
 class Template:
     @staticmethod
