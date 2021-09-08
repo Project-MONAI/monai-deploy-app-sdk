@@ -127,6 +127,33 @@ MONAI APP SDK's code coverage report is available at [CodeCov](https://codecov.i
 
 #### Building the documentation
 
+MONAI's documentation is located at `docs/`.
+
+```bash
+./run gen_docs  # '-h' for help
+```
+
+The above command builds HTML documents in the `dist/docs` folder, they are used to automatically generate documents in [https://docs.monai.io](https://docs.monai.io).
+
+To test HTML docs locally with development server, execute below command:
+
+```bash
+./run gen_docs_dev  # '-h' for help
+```
+
+The above command launches a live server to build docs in runtime.
+
+Before submitting a pull request, it is recommended to:
+
+- edit the relevant `.md` files in [`docs/source`](./docs/source) accordingly.
+  - [The MyST Syntax Guide](https://myst-parser.readthedocs.io/en/v0.15.2_a/syntax/syntax.html)
+  - [Optional MyST Syntaxes](https://myst-parser.readthedocs.io/en/v0.15.2_a/syntax/optional.html)
+  - [MyST Syntax Reference](https://myst-parser.readthedocs.io/en/v0.15.2_a/syntax/reference.html)
+  - [MyST with Sphinx](https://myst-parser.readthedocs.io/en/v0.15.2_a/sphinx/index.html)
+- check the auto-generated documentation (by browsing the generated documents after executing `./run gen_docs_dev`)
+- build HTML documentation locally (`./run gen_docs`)
+- execute `./run gen_docs_dev` to clean temporary and final documents.
+
 #### Automatic code formatting
 
 #### Signing your work

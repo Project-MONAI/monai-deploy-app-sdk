@@ -316,7 +316,7 @@ install_python_dev_deps() {
         c_echo_err W "Please activate the virtual environment at " G "$TOP/.venv/dev" W " and execute the setup command again."
         c_echo_err
         c_echo_err G "  source $TOP/.venv/dev/bin/activate"
-        c_echo_err G "  $0 setup"
+        c_echo_err G "  $0 $CMD $ARGS"
         exit 1
     fi
 
@@ -831,6 +831,151 @@ test_python() {
 #==================================================================================
 # Section: Documentation
 #==================================================================================
+
+install_doc_requirements() {
+    if [ -n "${VIRTUAL_ENV}" ] || [ -n "${CONDA_PREFIX}" ]; then
+        run_command ${MONAI_PY_EXE} -m pip install -q -U setuptools pip wheel
+        run_command ${MONAI_PY_EXE} -m pip install -q -r ${TOP}/docs/requirements.txt
+        install_edit_mode
+    else
+        c_echo_err R "You must be in a virtual environment to install dependencies."
+        if [ ! -e "$TOP/.venv/dev/bin/python3" ]; then
+            c_echo_err W "Installing a virtual environment at " G "$TOP/.venv/dev" W " ..."
+            run_command ${MONAI_PY_EXE} -m venv "$TOP/.venv/dev"
+        fi
+
+        c_echo_err W "Please activate the virtual environment at " G "$TOP/.venv/dev" W " and execute the command again."
+        c_echo_err
+        c_echo_err G "  source $TOP/.venv/dev/bin/activate"
+        c_echo_err G "  $0 $CMD $ARGS"
+        exit 1
+    fi
+}
+
+gen_docs_desc() { c_echo 'Generate documents
+
+Generated docs would be avaialable at ${TOP}/dist/docs.
+
+Arguments:
+  $1 - output folder path (html docs)
+
+Returns:
+  None
+
+  Exit code:
+    exit code returned from generating document
+'
+}
+gen_docs() {
+    local output_folder=${1:-${TOP}/dist/docs}
+    local ret=0
+
+    # Install prerequisites
+    install_doc_requirements
+
+    # Remove existing files in dist/docs
+    run_command rm -rf ${output_folder}/*
+
+    # Copy notebook files to dist/docs/notebooks
+    run_command mkdir -p ${TOP}/docs/notebooks
+    run_command rm -rf ${TOP}/docs/notebooks/*
+    run_command mkdir -p ${TOP}/docs/notebooks/static_images
+    run_command cp -rf $(git ls-files ${TOP}/notebooks/*.ipynb) ${TOP}/docs/notebooks/
+    run_command cp -rf ${TOP}/notebooks/static_images/*.png ${TOP}/docs/notebooks/static_images/
+
+    c_echo W "Sphinx build html..."
+    sphinx-build -E -b html $TOP/docs/source ${output_folder}
+    ret=$?
+
+    if [ $ret -eq 0 ]; then
+        c_echo W "Sphinx linkcheck..."
+        sphinx-build -b linkcheck $TOP/docs/source ${output_folder}
+        ret=$?
+    fi
+
+    # Remove jupyter_execute folder explicitly until the issue is solved
+    #   https://github.com/executablebooks/MyST-NB/issues/129
+    rm -rf $(dirname ${output_folder})/jupyter_execute
+
+    return $ret
+}
+
+gen_docs_dev_desc() { c_echo 'Generate documents (with dev-server)
+
+Launch dev-server for sphinx.
+
+Generated docs would be avaialable at ${TOP}/dist/docs.
+
+Arguments:
+  -p <port> - port number
+  -h <host> - hostname to serve documentation on (default: 0.0.0.0)
+  -o <path> - output folder path (html docs)
+
+Returns:
+  None
+
+  Exit code:
+    exit code returned from generating document
+'
+}
+gen_docs_dev() {
+    local ret=0
+    local OPTIND
+    local output_folder=${TOP}/dist/docs
+    local port=$(get_unused_ports 1 9999 10010)
+    local host=0.0.0.0
+
+    while getopts 'p:h:o:' option;
+    do
+        case "${option}" in
+            p)
+                port="$OPTARG"
+                ;;
+            h)
+                host="$OPTARG"
+                ;;
+            o)
+                output_folder="$OPTARG"
+                ;;
+            *)
+                echo_err R "Invalid option!"
+                return 1
+        esac
+    done
+    shift $((OPTIND-1))
+
+    # Install prerequisites
+    install_doc_requirements
+
+    # Remove existing files in dist/docs
+    run_command rm -rf ${output_folder}/*
+
+    # Copy notebook files to dist/docs/notebooks
+    run_command mkdir -p ${TOP}/docs/notebooks
+    run_command rm -rf ${TOP}/docs/notebooks/*
+    run_command mkdir -p ${TOP}/docs/notebooks/static_images
+    run_command cp -rf $(git ls-files ${TOP}/notebooks/*.ipynb) ${TOP}/docs/notebooks/
+    run_command cp -rf ${TOP}/notebooks/static_images/*.png ${TOP}/docs/notebooks/static_images/
+
+    c_echo W "Sphinx build html..."
+    sphinx-build -E -b html $TOP/docs/source ${output_folder}
+    ret=$?
+
+    if [ $ret -eq 0 ]; then
+        c_echo W "Sphinx autobuild... Check " Y "http://localhost:${port}"
+        run_command sphinx-autobuild --host ${host} --port ${port} ${TOP}/docs/source ${output_folder}
+    fi
+}
+
+clean_docs_desc() { c_echo 'Clean up document-related files
+'
+}
+clean_docs() {
+    c_echo W 'Cleaning up document-related files...'
+    run_command rm -rf ${TOP}/docs/source/modules/_autosummary
+    run_command rm -rf ${TOP}/docs/notebooks
+    run_command rm -rf ${TOP}/dist/docs
+}
 
 #==================================================================================
 # Section: Release
