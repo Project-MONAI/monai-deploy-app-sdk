@@ -45,12 +45,6 @@ python examples/apps/simple_imaging_app/app.py -i examples/apps/simple_imaging_a
 monai-deploy package examples/apps/simple_imaging_app -t simple_app:latest -l DEBUG
 
 # Run the app with docker image and input file locally
-
-# NOTES:
-# For now, we need to make sure that the output folder is available, otherwise, it would cause a permission issue.
-# - https://github.com/Project-MONAI/monai-deploy-app-sdk/issues/67
-mkdir -p output
-
 monai-deploy run simple_app:latest examples/apps/simple_imaging_app/brain_mr_input.jpg output
 ```
 

@@ -133,3 +133,7 @@ output
 
 # Ignore .xml files (usually for coverage metrics files)
 *.xml
+
+# Sphinx temporary files
+docs/notebooks
+_autosummary

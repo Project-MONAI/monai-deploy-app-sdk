@@ -20,6 +20,8 @@ class TritonModel(Model):
     Triton Inference Server models are stored in a directory structure like this
     (https://github.com/triton-inference-server/server/blob/main/docs/model_repository.md):
 
+    ::
+
         <model-repository-path>/
             <model-name>/
             [config.pbtxt]
@@ -41,13 +43,18 @@ class TritonModel(Model):
 
     This class checks if the given path meets the folder structure of Triton:
 
-      1) The path should be a folder path.
-      2) The directory should contain only sub folders (model folders).
-      3) Each model folder must contain a config.pbtxt file.
-        3-1) A config.pbtxt file may contain model name.
-             In that case, model's name should match with the folder name.
-      4) Each model folder must include one or more folders having a positive integer value as name.
-        4-1) Each such folder must contain a folder or file whose file name (without extension) is 'model'.
+    1) The path should be a folder path.
+
+    2) The directory should contain only sub folders (model folders).
+
+    3) Each model folder must contain a config.pbtxt file.
+
+       a. A config.pbtxt file may contain model name.
+          In that case, model's name should match with the folder name.
+
+    4) Each model folder must include one or more folders having a positive integer value as name.
+
+       a. Each such folder must contain a folder or file whose file name (without extension) is 'model'.
 
     It currently doesn't identify which model version would be selected.
     Model items identified would have a folder path, not a specific model file path.

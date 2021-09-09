@@ -9,13 +9,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import TYPE_CHECKING, Optional
+from typing import Optional
 
 from monai.deploy.core.domain.datapath import NamedDataPath
 
-if TYPE_CHECKING:
-    from .operator import Operator
-
+# To avoid "Cannot resolve forward reference" error
+# : https://github.com/agronholm/sphinx-autodoc-typehints#dealing-with-circular-imports
+from . import operator
 from .datastores import Datastore, MemoryDatastore
 from .io_context import InputContext, OutputContext
 from .models import Model
@@ -73,7 +73,7 @@ class BaseExecutionContext:
 class ExecutionContext(BaseExecutionContext):
     """An execution context for the operator."""
 
-    def __init__(self, context: BaseExecutionContext, op: "Operator"):
+    def __init__(self, context: BaseExecutionContext, op: "operator.Operator"):
         super().__init__(context.storage, context.input, context.output, context.models)
         self._context = context
         self._op = op
