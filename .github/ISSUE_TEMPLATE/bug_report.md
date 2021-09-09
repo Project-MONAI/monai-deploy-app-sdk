@@ -1,7 +1,7 @@
 ---
 name: Bug report
 about: Create a bug report to help us improve MONAI Deploy Application SDK
-title: "[BUG]"
+title: "[BUG] "
 labels: bug
 assignees: ''
 

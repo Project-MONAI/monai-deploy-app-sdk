@@ -1,7 +1,7 @@
 ---
 name: Submit question
 about: Ask a general question about MONAI Deploy Application SDK
-title: "[QST]"
+title: "[QST] "
 labels: question
 assignees: ''
 

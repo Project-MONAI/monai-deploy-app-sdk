@@ -1,7 +1,7 @@
 ---
 name: Documentation request
 about: Report incorrect or needed documentation
-title: "[DOC]"
+title: "[DOC] "
 labels: documentation
 assignees: ''
 

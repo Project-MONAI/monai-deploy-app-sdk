@@ -1,7 +1,7 @@
 ---
 name: Feature request
 about: Suggest an idea for MONAI Deploy Application SDK
-title: "[FEA]"
+title: "[FEA] "
 labels: enhancement
 assignees: ''
 
