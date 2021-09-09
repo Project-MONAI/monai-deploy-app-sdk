@@ -302,7 +302,7 @@ get_package_info() {
 
 install_python_dev_deps() {
     if [ -n "${VIRTUAL_ENV}" ] || [ -n "${CONDA_PREFIX}" ]; then
-        run_command ${MONAI_PY_EXE} -m pip install -q -U setuptools pip wheel
+        run_command ${MONAI_PY_EXE} -m pip install -q -U setuptools pip wheel build
         run_command ${MONAI_PY_EXE} -m pip install -q -r ${TOP}/requirements-dev.txt
         run_command ${MONAI_PY_EXE} -m pip install -q -r ${TOP}/requirements-examples.txt
 
@@ -380,8 +380,49 @@ clean_desc() { c_echo 'Clean up temporary files and uninstall monai-deploy-app-s
 '
 }
 clean() {
-    c_echo W 'Cleaning up temporary files and run "' "${MONAI_PY_EXE}" ' setup.py develop --uninstall"...'
+    c_echo W 'Cleaning up temporary files and run "' "${MONAI_PY_EXE}" ' -m pip uninstall monai-deploy-app-sdk"...'
 
+    # Remove coverage history
+    run_command rm -f junit-monai-deploy-app-sdk.xml monai-deploy-app-sdk-coverage.xml
+
+    # Uninstall the development package
+    if [ -n "${VIRTUAL_ENV}" ] || [ -n "${CONDA_PREFIX}" ]; then
+        c_echo W "Uninstalling MONAI Deploy App SDK installation..."
+        run_command ${MONAI_PY_EXE} -m pip uninstall monai-deploy-app-sdk
+    fi
+
+    # Remove temporary files (in the directory of this script)
+    c_echo W "Removing temporary files in ${TOP}"
+    run_command find ${TOP}/monai -type f -name "*.py[co]" -delete
+    run_command find ${TOP}/monai -type f -name "*.so" -delete
+    run_command find ${TOP}/monai -type d -name "__pycache__" -delete
+
+    run_command find ${TOP} -depth -maxdepth 1 -type d -name "monai_deploy_app_sdk.egg-info" -exec rm -r "{}" +
+    run_command find ${TOP} -depth -maxdepth 1 -type d -name "build" -exec rm -r "{}" +
+    run_command find ${TOP} -depth -maxdepth 1 -type d -name "dist" -exec rm -r "{}" +
+    run_command find ${TOP} -depth -maxdepth 1 -type d -name ".mypy_cache" -exec rm -r "{}" +
+    run_command find ${TOP} -depth -maxdepth 1 -type d -name ".pytype" -exec rm -r "{}" +
+    run_command find ${TOP} -depth -maxdepth 1 -type d -name "__pycache__" -exec rm -r "{}" +
+}
+
+build_desc() { c_echo 'Build distribution package
+
+Build a distribution package for this SDK using
+"build" (https://pypa-build.readthedocs.io/en/stable/index.html).
+
+Arguements:
+  $1 - destination folder (default: ${TOP}/dist)
+'
+}
+build() {
+    local dest_path="${1:-${TOP}/dist}"
+    install_python_dev_deps
+
+    run_command rm -rf ${dest_path}/monai-deploy-app-sdk-*.gz ${dest_path}/monai_deploy_app_sdk-*.whl
+
+    # Somehow, 'build' package causes an issue without `PIP_NO_CACHE_DIR=off` at Python 3.6 (with pyenv)
+    # (https://github.com/pypa/pip/issues/2897)
+    PIP_NO_CACHE_DIR=off run_command ${MONAI_PY_EXE} -m build -o "${dest_path}"
 }
 
 #==================================================================================
@@ -834,7 +875,7 @@ test_python() {
 
 install_doc_requirements() {
     if [ -n "${VIRTUAL_ENV}" ] || [ -n "${CONDA_PREFIX}" ]; then
-        run_command ${MONAI_PY_EXE} -m pip install -q -U setuptools pip wheel
+        run_command ${MONAI_PY_EXE} -m pip install -q -U setuptools pip wheel build
         run_command ${MONAI_PY_EXE} -m pip install -q -r ${TOP}/docs/requirements.txt
         install_edit_mode
     else
@@ -981,6 +1022,74 @@ clean_docs() {
 # Section: Release
 #==================================================================================
 
+bump_version_desc() { c_echo 'Bump version
+
+Executes bump2version(https://github.com/c4urself/bump2version).
+`bump2version` package would be installed if not available.
+
+<part>
+  - major   : a non-negative integer
+  - minor   : a non-negative integer
+  - patch   : a non-negative integer
+  - release : "a", "b" or "rc"
+  - build   : a positive integer
+
+  e.g.)
+    0.1.0a1
+      major   : 0
+      minor   : 1
+      patch   : 0
+      release : a
+      build   : 1
+
+Examples:
+  ./run bump_version build    # 0.1.0a1 -> 0.1.0a2
+  ./run bump_version release  # 0.1.0a1 -> 0.1.0b1
+  ./run bump_version patch    # 0.1.0a1 -> 0.1.1
+  ./run bump_version minor    # 0.1.0a1 -> 0.2.0
+
+Arguments:
+  $1 - part (major, minor, patch, release, build)
+  $@ - additional arguments for bump2version
+
+Returns:
+  Outputs executed by bump2version
+
+  Exit code:
+    exit code returned from bump2version
+'
+}
+bump_version() {
+    local part=${1:-}
+    local ret=0
+
+    if ! command -v bump2version > /dev/null; then
+        c_echo G "bump2version" W " doesn't exists. Installing prerequisites..."
+        install_python_dev_deps
+    fi
+
+    pushd $TOP > /dev/null
+
+    case "$part" in
+        major|minor|patch|release|build)
+            local current_version="$(bump2version --dry-run --list --allow-dirty $part | grep -Po 'current_version=\K[\d\.]+((a|b|rc)\d+)?')"
+            local new_version="$(bump2version --dry-run --list --allow-dirty $part | grep -Po 'new_version=\K[\d\.]+((a|b|rc)\d+)?')"
+            c_echo W "current_version=" G "${current_version}"
+            c_echo W "new_version=" G "${new_version}"
+
+            bump2version "$@"
+            ret=$?
+            ;;
+        *)
+            bump2version "$@"
+            ret=$?
+            ;;
+    esac
+
+    popd > /dev/null
+
+    return $ret
+}
 
 #==================================================================================
 

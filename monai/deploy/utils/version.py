@@ -92,7 +92,7 @@ def get_sdk_semver():
         1.0.0+abc.5 -> 1.0.0+abc.5
         0.1.0a1+0.g8444606.dirty -> 0.1.0-a.1+g.8444606.dirty
 
-    Assumetion:
+    Assumption:
         <release> is always X.Y.Z format.
         <pre_l> is 'a|b|rc'.
         <pre_n> is a positive number.
