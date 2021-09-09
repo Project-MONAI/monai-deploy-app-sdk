@@ -81,6 +81,7 @@ class MonaiSegInferenceOperator(InferenceOperator):
         self._roi_size = ensure_tuple(roi_size)
         self._pre_transform = pre_transforms
         self._post_transforms = post_transforms
+        self._overlap = 0.5
 
     @property
     def roi_size(self):
@@ -112,6 +113,16 @@ class MonaiSegInferenceOperator(InferenceOperator):
         if not val or len(val) < 1:
             raise ValueError("Value cannot be None or blank.")
         self._pred_dataset_key = val
+
+    @property
+    def overlap(self):
+        """This is the overlap used during sliding window inference."""
+        return self.overlap
+    @overlap.setter
+    def overlap(self, val: float):
+        if val < 0 and val > 1:
+            raise ValueError("Overlap must be between 0 and 1.")
+        self.overlap = val
 
     def compute(self, input: InputContext, output: OutputContext, context: ExecutionContext):
         """Infers with the input image and save the predicted image to output
@@ -174,7 +185,7 @@ class MonaiSegInferenceOperator(InferenceOperator):
                         inputs=images,
                         roi_size=self._roi_size,
                         sw_batch_size=sw_batch_size,
-                        overlap=0.5,
+                        overlap=self._overlap,
                         predictor=model,
                     )
                     d = [post_transforms(i) for i in decollate_batch(d)]
