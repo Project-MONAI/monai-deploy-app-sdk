@@ -43,8 +43,8 @@ COMMON_FOOTPRINT = """
 
     RUN pip install --no-cache-dir --upgrade -r {map_requirements_path}
 
-    # Override monai-app-sdk module
-    COPY --chown=monai:monai ./monai-app-sdk /home/monai/.local/lib/python3.8/site-packages/monai/deploy/
+    # Override monai-deploy-app-sdk module
+    COPY --chown=monai:monai ./monai-deploy-app-sdk /home/monai/.local/lib/python3.8/site-packages/monai/deploy/
 
     COPY --chown=monai:monai ./map/app.json /etc/monai/
     COPY --chown=monai:monai ./map/pkg.json /etc/monai/

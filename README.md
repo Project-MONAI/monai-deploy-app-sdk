@@ -20,18 +20,18 @@ MONAI Deploy Application SDK offers a framework and associated tools to design, 
 
 ## Installation
 
-To install [the current release](https://pypi.org/project/monai-app-sdk/), you can simply run:
+To install [the current release](https://pypi.org/project/monai-deploy-app-sdk/), you can simply run:
 
 ```bash
-pip install monai-app-sdk  # NOTE: monai-app-sdk package is not available in PyPI for now.
+pip install monai-deploy-app-sdk  # NOTE: monai-deploy-app-sdk package is not available in PyPI for now.
 ```
 
 ## Getting Started
 
 ```bash
-pip install monai-app-sdk  # NOTE: monai-app-sdk package is not available in PyPI for now.
+pip install monai-deploy-app-sdk  # NOTE: monai-deploy-app-sdk package is not available in PyPI for now.
 
-# Clone monai-app-sdk repository for accessing examples.
+# Clone monai-deploy-app-sdk repository for accessing examples.
 git clone https://github.com/Project-MONAI/monai-deploy-app-sdk.git
 cd monai-deploy-app-sdk
 
@@ -79,5 +79,5 @@ Join the conversation on Twitter [@ProjectMONAI](https://twitter.com/ProjectMONA
 - Issue tracker: <https://github.com/Project-MONAI/monai-deploy-app-sdk/issues>
 - Wiki: <https://github.com/Project-MONAI/monai-deploy-app-sdk/wiki>
 - Test status: <https://github.com/Project-MONAI/monai-deploy-app-sdk/actions>
-- PyPI package: <https://pypi.org/project/monai-app-sdk>
-<!-- - Docker Hub: <https://hub.docker.com/r/projectmonai/monai-app-sdk> -->
+- PyPI package: <https://pypi.org/project/monai-deploy-app-sdk>
+<!-- - Docker Hub: <https://hub.docker.com/r/projectmonai/monai-deploy-app-sdk> -->
