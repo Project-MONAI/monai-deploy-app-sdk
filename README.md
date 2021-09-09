@@ -70,6 +70,8 @@ For guidance on making a contribution to MONAI Deploy Application SDK, see the [
 
 Join the conversation on Twitter [@ProjectMONAI](https://twitter.com/ProjectMONAI) or join our [Slack channel](https://forms.gle/QTxJq3hFictp31UM9).
 
+Ask and answer questions over on [MONAI Deploy App SDK's GitHub Discussions tab](https://github.com/Project-MONAI/monai-deploy-app-sdk/discussions).
+
 ## Links
 
 - Website: <https://monai.io>
