@@ -18,7 +18,7 @@ Follow this guide http://matthewrocklin.com/blog/work/2018/02/28/minimal-bug-rep
 -->
 
 **Expected behavior**
-<!-->
+<!--
 A clear and concise description of what you expected to happen.
 -->
 
