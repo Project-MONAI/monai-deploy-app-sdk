@@ -267,7 +267,7 @@ class InMemImageReader(ImageReader):
         Get the meta data of the image and convert to dict type.
 
         Args:
-            img: an Monai App Sdk Image object.
+            img: a MONAI Deploy App SDK Image object.
         """
         img_meta_dict = img.metadata()
         meta_dict = {key: img_meta_dict[key] for key in img_meta_dict.keys()}

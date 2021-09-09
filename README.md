@@ -2,9 +2,9 @@
 <img src="https://raw.githubusercontent.com/Project-MONAI/MONAI/dev/docs/images/MONAI-logo-color.png" width="50%" alt='project-monai'>
 </p>
 
-# MONAI Deploy Application SDK
+# MONAI Deploy App SDK
 
-MONAI Deploy Application SDK offers a framework and associated tools to design, verify and analyze the performance of AI-driven applications in the healthcare domain.
+MONAI Deploy App SDK offers a framework and associated tools to design, verify and analyze the performance of AI-driven applications in the healthcare domain.
 
 ## Features
 
@@ -64,7 +64,7 @@ For local development, please execute the following command:
 
 This will set up the development environment, installing necessary packages.
 
-For guidance on making a contribution to MONAI Deploy Application SDK, see the [contributing guidelines](CONTRIBUTING.md).
+For guidance on making a contribution to MONAI Deploy App SDK, see the [contributing guidelines](CONTRIBUTING.md).
 
 ## Community
 

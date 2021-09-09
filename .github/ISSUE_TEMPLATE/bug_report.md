@@ -1,6 +1,6 @@
 ---
 name: Bug report
-about: Create a bug report to help us improve MONAI Deploy Application SDK
+about: Create a bug report to help us improve MONAI Deploy App SDK
 title: "[BUG] "
 labels: bug
 assignees: ''
@@ -26,7 +26,7 @@ A clear and concise description of what you expected to happen.
 
 - OS/Platform:
 - Python Version:
-- Method of MONAI Deploy Application SDK install: [pip, conda, Docker, or from source]
+- Method of MONAI Deploy App SDK install: [pip, conda, Docker, or from source]
 - SDK Version:
 
 **Additional context**

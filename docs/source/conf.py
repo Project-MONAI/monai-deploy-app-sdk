@@ -20,7 +20,7 @@ print(sys.path)
 
 
 # -- Project information -----------------------------------------------------
-project = "MONAI Deploy Application SDK"
+project = "MONAI Deploy App SDK"
 copyright = "2021 MONAI Consortium"
 author = "MONAI Contributors"
 
