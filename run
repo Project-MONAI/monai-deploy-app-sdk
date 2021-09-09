@@ -380,7 +380,29 @@ clean_desc() { c_echo 'Clean up temporary files and uninstall monai-deploy-app-s
 '
 }
 clean() {
-    c_echo W 'Cleaning up temporary files and run "' "${MONAI_PY_EXE}" ' setup.py develop --uninstall"...'
+    c_echo W 'Cleaning up temporary files and run "' "${MONAI_PY_EXE}" ' -m pip uninstall monai-deploy-app-sdk"...'
+
+    # Remove coverage history
+    run_command rm -f junit-monai-deploy-app-sdk.xml monai-deploy-app-sdk-coverage.xml
+
+    # Uninstall the development package
+    if [ -n "${VIRTUAL_ENV}" ] || [ -n "${CONDA_PREFIX}" ]; then
+        c_echo W "Uninstalling MONAI Deploy App SDK installation..."
+        run_command ${MONAI_PY_EXE} -m pip uninstall monai-deploy-app-sdk
+    fi
+
+    # Remove temporary files (in the directory of this script)
+    c_echo W "Removing temporary files in ${TOP}"
+    run_command find ${TOP}/monai -type f -name "*.py[co]" -delete
+    run_command find ${TOP}/monai -type f -name "*.so" -delete
+    run_command find ${TOP}/monai -type d -name "__pycache__" -delete
+
+    run_command find ${TOP} -depth -maxdepth 1 -type d -name "monai_deploy_app_sdk.egg-info" -exec rm -r "{}" +
+    run_command find ${TOP} -depth -maxdepth 1 -type d -name "build" -exec rm -r "{}" +
+    run_command find ${TOP} -depth -maxdepth 1 -type d -name "dist" -exec rm -r "{}" +
+    run_command find ${TOP} -depth -maxdepth 1 -type d -name ".mypy_cache" -exec rm -r "{}" +
+    run_command find ${TOP} -depth -maxdepth 1 -type d -name ".pytype" -exec rm -r "{}" +
+    run_command find ${TOP} -depth -maxdepth 1 -type d -name "__pycache__" -exec rm -r "{}" +
 }
 
 build_desc() { c_echo 'Build distribution package
