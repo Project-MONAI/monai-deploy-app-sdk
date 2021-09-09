@@ -152,7 +152,7 @@ Before submitting a pull request, it is recommended to:
   - [MyST with Sphinx](https://myst-parser.readthedocs.io/en/v0.15.2_a/sphinx/index.html)
 - check the auto-generated documentation (by browsing the generated documents after executing `./run gen_docs_dev`)
 - build HTML documentation locally (`./run gen_docs`)
-- execute `./run gen_docs_dev` to clean temporary and final documents.
+- execute `./run clean_docs` to clean temporary and final documents.
 
 #### Automatic code formatting
 

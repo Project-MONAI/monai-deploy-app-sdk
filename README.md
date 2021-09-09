@@ -64,7 +64,7 @@ For local development, please execute the following command:
 
 This will set up the development environment, installing necessary packages.
 
-For guidance on making a contribution to MONAI Deploy App SDK, see the [contributing guidelines](CONTRIBUTING.md).
+For guidance on making a contribution to MONAI Deploy App SDK, see the [contributing guidelines](https://github.com/Project-MONAI/monai-deploy-app-sdk/blob/main/CONTRIBUTING.md).
 
 ## Community
 
