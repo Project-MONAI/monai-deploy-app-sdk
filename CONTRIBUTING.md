@@ -236,4 +236,4 @@ For string definition, [f-string](https://www.python.org/dev/peps/pep-0498/) is 
 ### Release a new version
 
 [github ci]: https://github.com/Project-MONAI/monai-deploy-app-sdk/actions
-[monai-app-sdk issue list]: https://github.com/Project-MONAI/monai-deploy-app-sdk/issues
+[monai-deploy-app-sdk issue list]: https://github.com/Project-MONAI/monai-deploy-app-sdk/issues

@@ -626,8 +626,8 @@ def segslice_from_mhd(dcm_output, seg_img, input_ds, num_labels):
 
 
 def test():
-    data_path = "/home/mqin/src/monai-app-sdk/examples/apps/ai_spleen_seg_app/input"
-    out_path = "/home/mqin/src/monai-app-sdk/examples/apps/ai_spleen_seg_app/output/dcm_seg_test.dcm"
+    data_path = "/home/mqin/src/monai-deploy-app-sdk/examples/apps/ai_spleen_seg_app/input"
+    out_path = "/home/mqin/src/monai-deploy-app-sdk/examples/apps/ai_spleen_seg_app/output/dcm_seg_test.dcm"
 
     files = []
     loader = DICOMDataLoaderOperator()

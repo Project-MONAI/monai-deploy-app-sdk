@@ -325,13 +325,13 @@ install_python_dev_deps() {
 
 install_edit_mode() {
     # Create a symlink to the virtual environment.
-    # This solves an issue with separate package folders for 'monai' and 'monai-app-sdk' like below:
+    # This solves an issue with separate package folders for 'monai' and 'monai-deploy-app-sdk' like below:
     # - 'monai': installed with 'pip install monai'
-    # - 'monai-app-sdk': installed with 'pip install -e .  # installed with development(edit) mode
+    # - 'monai-deploy-app-sdk': installed with 'pip install -e .  # installed with development(edit) mode
     local monai_package_path=$(${MONAI_PY_EXE} $TOP/monai/deploy/utils/importutil.py dist_module_path monai)
-    local sdk_package_path=$(${MONAI_PY_EXE} $TOP/monai/deploy/utils/importutil.py dist_module_path monai-app-sdk)
+    local sdk_package_path=$(${MONAI_PY_EXE} $TOP/monai/deploy/utils/importutil.py dist_module_path monai-deploy-app-sdk)
     local is_sdk_editable="false"
-    if ${MONAI_PY_EXE} $TOP/monai/deploy/utils/importutil.py is_dist_editable monai-app-sdk; then
+    if ${MONAI_PY_EXE} $TOP/monai/deploy/utils/importutil.py is_dist_editable monai-deploy-app-sdk; then
         is_sdk_editable="true"
     fi
 
@@ -340,24 +340,24 @@ install_edit_mode() {
     c_echo b "is_sdk_editable   : " Z "${is_sdk_editable}"
 
     if [ "${is_sdk_editable}" == "false" ]; then
-        c_echo W "Installing monai-app-sdk in edit mode..."
+        c_echo W "Installing monai-deploy-app-sdk in edit mode..."
         if [ -n "${VIRTUAL_ENV}" ] || [ -n "${CONDA_PREFIX}" ]; then
             run_command ${MONAI_PY_EXE} -m pip install -e .
         else
-            c_echo_err R "You must be in a virtual environment to install monai-app-sdk in edit mode."
+            c_echo_err R "You must be in a virtual environment to install monai-deploy-app-sdk in edit mode."
         fi
 
-        if ${MONAI_PY_EXE} $TOP/monai/deploy/utils/importutil.py is_dist_editable monai-app-sdk; then
+        if ${MONAI_PY_EXE} $TOP/monai/deploy/utils/importutil.py is_dist_editable monai-deploy-app-sdk; then
             is_sdk_editable="true"
         fi
 
-        sdk_package_path=$(${MONAI_PY_EXE} $TOP/monai/deploy/utils/importutil.py dist_module_path monai-app-sdk)
+        sdk_package_path=$(${MONAI_PY_EXE} $TOP/monai/deploy/utils/importutil.py dist_module_path monai-deploy-app-sdk)
         c_echo b "sdk_package_path  : " Z "${sdk_package_path}"
         c_echo b "is_sdk_editable   : " Z "${is_sdk_editable}"
     fi
 
     if [ "${is_sdk_editable}" = "false" ]; then
-        c_echo W "Installing monai-app-sdk in edit mode..."
+        c_echo W "Installing monai-deploy-app-sdk in edit mode..."
     fi
 
     if [ "$is_sdk_editable" = "true" ] && [ -n "${monai_package_path}" ] && [ ! -L ${monai_package_path}/monai/deploy ]; then
@@ -376,7 +376,7 @@ setup() {
     install_python_dev_deps
 }
 
-clean_desc() { c_echo 'Clean up temporary files and uninstall monai-app-sdk
+clean_desc() { c_echo 'Clean up temporary files and uninstall monai-deploy-app-sdk
 '
 }
 clean() {
@@ -742,9 +742,9 @@ It executes the following command:
 
   ' "${MONAI_PY_EXE}"' -m py.test --cache-clear -vv \
       --cov=monai \
-      --junitxml="'"$TOP/junit-monai-app-sdk.xml"'" \
+      --junitxml="'"$TOP/junit-monai-deploy-app-sdk.xml"'" \
       --cov-config="'"$TOP/.coveragerc"'" \
-      --cov-report=xml:"'"$TOP/monai-app-sdk-coverage.xml"'" \
+      --cov-report=xml:"'"$TOP/monai-deploy-app-sdk-coverage.xml"'" \
       --cov-report term \
       "$@"
 
@@ -761,9 +761,9 @@ pytest() {
     pushd $TOP > /dev/null
     run_command ${MONAI_PY_EXE} -m py.test --cache-clear -vv \
         --cov=monai \
-        --junitxml="$TOP/junit-monai-app-sdk.xml" \
+        --junitxml="$TOP/junit-monai-deploy-app-sdk.xml" \
         --cov-config="$TOP/.coveragerc" \
-        --cov-report=xml:"$TOP/monai-app-sdk-coverage.xml" \
+        --cov-report=xml:"$TOP/monai-deploy-app-sdk-coverage.xml" \
         --cov-report term \
         "$@"
     result=$?

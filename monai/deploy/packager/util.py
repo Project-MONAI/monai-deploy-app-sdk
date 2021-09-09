@@ -96,9 +96,9 @@ def build_image(args: dict, temp_dir: str):
     else:
         shutil.copytree(application_path, target_application_path)
 
-    # Copy monai-app-sdk module to temp directory (under 'monai-app-sdk' folder)
-    monai_app_sdk_path = os.path.join(dist_module_path("monai-app-sdk"), "monai", "deploy")
-    target_monai_app_sdk_path = os.path.join(temp_dir, "monai-app-sdk")
+    # Copy monai-deploy-app-sdk module to temp directory (under 'monai-deploy-app-sdk' folder)
+    monai_app_sdk_path = os.path.join(dist_module_path("monai-deploy-app-sdk"), "monai", "deploy")
+    target_monai_app_sdk_path = os.path.join(temp_dir, "monai-deploy-app-sdk")
     shutil.copytree(monai_app_sdk_path, target_monai_app_sdk_path)
 
     # Parse SDK provided values
@@ -108,7 +108,7 @@ def build_image(args: dict, temp_dir: str):
     pip_packages = args["application_info"]["pip-packages"]
 
     # Append required packages for SDK to pip_packages
-    monai_app_sdk_requires = dist_requires("monai-app-sdk")
+    monai_app_sdk_requires = dist_requires("monai-deploy-app-sdk")
     pip_packages.extend(monai_app_sdk_requires)
 
     pip_folder = os.path.join(temp_dir, "pip")
