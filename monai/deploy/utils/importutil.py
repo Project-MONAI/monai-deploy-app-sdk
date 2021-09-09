@@ -44,7 +44,7 @@ def get_docstring(cls: Type) -> str:
 
 
 def is_subclass(cls: Type, class_or_tuple: Union[str, Tuple[str]]) -> bool:
-    """Check if the given type is a subclass of a MONAI App SDK class.
+    """Check if the given type is a subclass of a MONAI Deploy App SDK class.
 
     Args:
         cls (Type): A class to check.

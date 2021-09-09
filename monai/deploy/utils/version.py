@@ -64,7 +64,7 @@ SEMVER_REGEX = re.compile(
 def get_sdk_semver():
     """Convert a version string to a semver string.
 
-    MONAI App SDK is a python package and its version is based on PEP-0440
+    MONAI Deploy App SDK is a python package and its version is based on PEP-0440
     (https://www.python.org/dev/peps/pep-0440/).
 
     e.g., 0.1.0a1, 1.0.0a2.dev456, 1.0+abc.5, 0.1.0a1+0.g8444606.dirty
@@ -74,9 +74,9 @@ def get_sdk_semver():
         [N!]N(.N)*[{a|b|rc}N][.postN][.devN]
 
     MONAI Application Package (MAP) requires a semver string to be used in.
-    The semver string is used to identify the version of the MONAI App SDK package.
+    The semver string is used to identify the version of the MONAI Deploy App SDK package.
 
-    This method converts the MONAI App SDK package version string to a semver string.
+    This method converts the MONAI Deploy App SDK package version string to a semver string.
 
     This uses a regular expression from the following link to parse the version string.
 

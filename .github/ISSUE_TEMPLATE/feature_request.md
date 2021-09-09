@@ -1,6 +1,6 @@
 ---
 name: Feature request
-about: Suggest an idea for MONAI Deploy Application SDK
+about: Suggest an idea for MONAI Deploy App SDK
 title: "[FEA] "
 labels: enhancement
 assignees: ''
@@ -9,7 +9,7 @@ assignees: ''
 
 **Is your feature request related to a problem? Please describe.**
 <!--
-A clear and concise description of what the problem is. Ex. I wish I could use MONAI Deploy Application SDK to do [...]
+A clear and concise description of what the problem is. Ex. I wish I could use MONAI Deploy App SDK to do [...]
 -->
 
 **Describe the solution you'd like**

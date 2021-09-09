@@ -1,4 +1,4 @@
-# MONAI Deploy Application SDK
+# MONAI Deploy App SDK
 
 ## Introduction
 
@@ -29,7 +29,7 @@ For each requirement, the following attributes have been specified:
 * **Requirement Body**: This is the text of the requirement which describes the goal and purpose behind the requirement
 * **Background**: Provides necessary background to understand the context of the requirements
 * **Verification Strategy**: A high-level plan on how to test this requirement at a system level
-* **Target Release**: Specifies which release of the MONAI App SDK this requirement is targeted for
+* **Target Release**: Specifies which release of the MONAI Deploy App SDK this requirement is targeted for
 
 ---
 
@@ -93,7 +93,7 @@ The SDK shall enable dependencies among upstream and downstream operators in an 
 
 ### Background
 
-Most healthcare application workflows involve multiple stages. Application developers need a way to organize functional units of AI-based inference apps. A DAG (Directed Acyclic Graph) is the core concept of MONAI App SDK, collecting Operators together, organized with dependencies and relationships to specify how they should run.
+Most healthcare application workflows involve multiple stages. Application developers need a way to organize functional units of AI-based inference apps. A DAG (Directed Acyclic Graph) is the core concept of MONAI Deploy App SDK, collecting Operators together, organized with dependencies and relationships to specify how they should run.
 
 ### Verification Strategy
 
@@ -311,7 +311,7 @@ The SDK shall allow integration of a Clara Train generated Medical Model ARchive
 
 ### Background
 
-MMAR defines the standard structure for storing artifacts (files) needed and produced by the model development workflow (training, validation, inference, etc.). The MMAR includes all the information about the model including configurations and scripts to provide a workspace to perform different model development tasks. In the context of the MONAI App SDK, the relevant usage of the MMAR is for the purpose of inference.
+MMAR defines the standard structure for storing artifacts (files) needed and produced by the model development workflow (training, validation, inference, etc.). The MMAR includes all the information about the model including configurations and scripts to provide a workspace to perform different model development tasks. In the context of the MONAI Deploy App SDK, the relevant usage of the MMAR is for the purpose of inference.
 
 ### Verification Strategy
 

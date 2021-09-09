@@ -17,11 +17,11 @@
 
 ## Introduction
 
-Welcome to Project MONAI Deploy Application SDK (MONAI App SDK)! We're excited you're here and want to contribute. This documentation is intended for individuals and institutions interested in contributing to MONAI App SDK. MONAI App SDK is an open-source project and, as such, its success relies on its community of contributors willing to keep improving it. Your contribution will be a valued addition to the code base; we simply ask that you read this page and understand our contribution process, whether you are a seasoned open-source contributor or whether you are a first-time contributor.
+Welcome to Project MONAI Deploy App SDK! We're excited you're here and want to contribute. This documentation is intended for individuals and institutions interested in contributing to MONAI Deploy App SDK. MONAI Deploy App SDK is an open-source project and, as such, its success relies on its community of contributors willing to keep improving it. Your contribution will be a valued addition to the code base; we simply ask that you read this page and understand our contribution process, whether you are a seasoned open-source contributor or whether you are a first-time contributor.
 
 ### Communicate with us
 
-We are happy to talk with you about your needs for MONAI App SDK and your ideas for contributing to the project. One way to do this is to create an issue discussing your thoughts. It might be that a very similar feature is under development or already exists, so an issue is a great starting point. If you are looking for an issue to resolve that will help Project MONAI App SDK, see the [*good first issue*](https://github.com/Project-MONAI/monai-deploy-app-sdk/labels/good%20first%20issue) and [*Contribution wanted*](https://github.com/Project-MONAI/monai-deploy-app-sdk/labels/Contribution%20wanted) labels.
+We are happy to talk with you about your needs for MONAI Deploy App SDK and your ideas for contributing to the project. One way to do this is to create an issue discussing your thoughts. It might be that a very similar feature is under development or already exists, so an issue is a great starting point. If you are looking for an issue to resolve that will help Project MONAI Deploy App SDK, see the [*good first issue*](https://github.com/Project-MONAI/monai-deploy-app-sdk/labels/good%20first%20issue) and [*Contribution wanted*](https://github.com/Project-MONAI/monai-deploy-app-sdk/labels/Contribution%20wanted) labels.
 
 ## The contribution process
 
@@ -29,11 +29,11 @@ _Pull request early_
 
 We encourage you to create pull requests early. It helps us track the contributions under development, whether they are ready to be merged or not. Change your pull request's title, to begin with `[WIP]` and/or [create a draft pull request](https://docs.github.com/en/github/collaborating-with-issues-and-pull-requests/about-pull-requests#draft-pull-requests) until it is ready for formal review.
 
-Please note that, as per PyTorch, MONAI App SDK uses American English spelling. This means classes and variables should be: normali**z**e, visuali**z**e, colo~~u~~r, etc.
+Please note that, as per PyTorch, MONAI Deploy App SDK uses American English spelling. This means classes and variables should be: normali**z**e, visuali**z**e, colo~~u~~r, etc.
 
 ### Preparing pull requests
 
-To ensure the code quality, MONAI App SDK relies on several linting tools ([flake8 and its plugins](https://gitlab.com/pycqa/flake8), [black](https://github.com/psf/black), [isort](https://github.com/timothycrosley/isort)),
+To ensure the code quality, MONAI Deploy App SDK relies on several linting tools ([flake8 and its plugins](https://gitlab.com/pycqa/flake8), [black](https://github.com/psf/black), [isort](https://github.com/timothycrosley/isort)),
 static type analysis tools ([mypy](https://github.com/python/mypy), [pytype](https://github.com/google/pytype)), as well as a set of unit/integration/system tests.
 
 This section highlights all the necessary preparation steps required before sending a pull request.
@@ -87,7 +87,7 @@ If you intend for any variables/functions/classes to be available outside of the
 
 #### Unit testing
 
-MONAI App SDK tests are located under `tests/` (it has `unit`/`integration`/`performance`/`system` subfolders.)
+MONAI Deploy App SDK tests are located under `tests/` (it has `unit`/`integration`/`performance`/`system` subfolders.)
 
 - The unit test's file name currently follows `test_[module_name].py` or `test_[module_name]_dist.py`.
 - The `test_[module_name]_dist.py` subset of unit tests requires a distributed environment to verify the module with distributed GPU-based computation.
@@ -120,10 +120,10 @@ or (for new features that would not break existing functionality):
 _If it's not tested, it's broken_
 
 All new functionality should be accompanied by an appropriate set of tests.
-MONAI App SDK functionality has plenty of unit tests from which you can draw inspiration,
+MONAI Deploy App SDK functionality has plenty of unit tests from which you can draw inspiration,
 and you can reach out to us if you are unsure of how to proceed with testing.
 
-MONAI APP SDK's code coverage report is available at [CodeCov](https://codecov.io/gh/Project-MONAI/monai-deploy-app-sdk).
+MONAI Deploy App SDK's code coverage report is available at [CodeCov](https://codecov.io/gh/Project-MONAI/monai-deploy-app-sdk).
 
 #### Building the documentation
 
@@ -152,7 +152,7 @@ Before submitting a pull request, it is recommended to:
   - [MyST with Sphinx](https://myst-parser.readthedocs.io/en/v0.15.2_a/sphinx/index.html)
 - check the auto-generated documentation (by browsing the generated documents after executing `./run gen_docs_dev`)
 - build HTML documentation locally (`./run gen_docs`)
-- execute `./run gen_docs_dev` to clean temporary and final documents.
+- execute `./run clean_docs` to clean temporary and final documents.
 
 #### Automatic code formatting
 
