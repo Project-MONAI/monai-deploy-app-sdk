@@ -23,13 +23,13 @@ MONAI Deploy Application SDK offers a framework and associated tools to design, 
 To install [the current release](https://pypi.org/project/monai-deploy-app-sdk/), you can simply run:
 
 ```bash
-pip install monai-deploy-app-sdk  # NOTE: monai-deploy-app-sdk package is not available in PyPI for now.
+pip install monai-deploy-app-sdk  # '--pre' to install a pre-release version.
 ```
 
 ## Getting Started
 
 ```bash
-pip install monai-deploy-app-sdk  # NOTE: monai-deploy-app-sdk package is not available in PyPI for now.
+pip install monai-deploy-app-sdk  # '--pre' to install a pre-release version.
 
 # Clone monai-deploy-app-sdk repository for accessing examples.
 git clone https://github.com/Project-MONAI/monai-deploy-app-sdk.git
