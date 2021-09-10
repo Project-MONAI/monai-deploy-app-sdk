@@ -10,6 +10,7 @@
 # limitations under the License.
 
 import logging
+from os import path
 
 from monai.deploy.core import ExecutionContext, Image, InputContext, IOType, Operator, OutputContext, env, input, output
 from monai.deploy.operators.monai_seg_inference_operator import InMemImageReader, MonaiSegInferenceOperator
@@ -32,19 +33,19 @@ from monai.transforms import (
 @output("seg_image", Image, IOType.IN_MEMORY)
 @env(pip_packages=["monai==0.6.0", "torch>=1.5", "numpy>=1.17", "nibabel"])
 class SpleenSegOperator(Operator):
-    """Performs Spleen segmentation with 3D image converted from a DICOM CT series.
+    """Performs Spleen segmentation with a 3D image converted from a DICOM CT series.
 
     This operator makes use of the App SDK MonaiSegInferenceOperator in a compsition approach.
-    It creates the pre-transforms as well as post-transforms with Monai dictionary based transforms.
-    Note that the App SDK InMemImageReader, derived from Monai ImageReader, is passed to LoadImaged.
+    It creates the pre-transforms as well as post-transforms with MONAI dictionary based transforms.
+    Note that the App SDK InMemImageReader, derived from MONAI ImageReader, is passed to LoadImaged.
     This derived reader is needed to parse the in memory image object, and return the expected data structure.
     Loading of the model, and predicting using in-proc PyTorch inference is done by MonaiSegInferenceOperator.
     """
 
-    def __init__(self, testing: bool = False):
+    def __init__(self):
+
         self.logger = logging.getLogger("{}.{}".format(__name__, type(self).__name__))
         super().__init__()
-        self.testing = testing
         self._input_dataset_key = "image"
         self._pred_dataset_key = "pred"
 
@@ -52,34 +53,35 @@ class SpleenSegOperator(Operator):
 
         input_image = input.get("image")
         if not input_image:
-            raise ValueError("Input image is not found.")
+            raise ValueError('Input image is not found.')
 
-        if self.testing:
-            seg_image = self.infer_and_save(input_image)
-            output.set(seg_image, "seg_image")
-        else:
-            # This operator gets an in-memory Image object, so a specialized ImageReader is needed.
-            self._reader = InMemImageReader(input_image)
-            pre_transforms = self.pre_process(self._reader)
-            post_transforms = self.post_process(pre_transforms)
+        # Get the output path from the execution context for saving file(s) to app output.
+        # Without using this path, operator would be saving files to its designated path, e.g.
+        # $PWD/.monai_workdir/operators/6048d75a-5de1-45b9-8bd1-2252f88827f2/0/output
+        output_path = context.output.get().path
 
-            # Delegates inference and saving output to the built-in operator.
-            infer_operator = MonaiSegInferenceOperator(
-                (
-                    160,
-                    160,
-                    160,
-                ),
-                pre_transforms,
-                post_transforms,
-            )
+        # This operator gets an in-memory Image object, so a specialized ImageReader is needed.
+        _reader = InMemImageReader(input_image)
+        pre_transforms = self.pre_process(_reader)
+        post_transforms = self.post_process(pre_transforms, path.join(output_path, "prediction_output"))
 
-            # Setting the keys used in the dictironary based transforms may change.
-            infer_operator.input_dataset_key = self._input_dataset_key
-            infer_operator.pred_dataset_key = self._pred_dataset_key
+        # Delegates inference and saving output to the built-in operator.
+        infer_operator = MonaiSegInferenceOperator(
+            (
+                160,
+                160,
+                160,
+            ),
+            pre_transforms,
+            post_transforms,
+        )
 
-            # Now let the built-in operator handles the work with the I/O spec and execution context.
-            infer_operator.compute(input, output, context)
+        # Setting the keys used in the dictironary based transforms may change.
+        infer_operator.input_dataset_key = self._input_dataset_key
+        infer_operator.pred_dataset_key = self._pred_dataset_key
+
+        # Now let the built-in operator handles the work with the I/O spec and execution context.
+        infer_operator.compute(input, output, context)
 
     def pre_process(self, img_reader) -> Compose:
         """Composes transforms for preprocessing input before predicting on a model."""
@@ -96,7 +98,7 @@ class SpleenSegOperator(Operator):
             ]
         )
 
-    def post_process(self, pre_transforms: Compose, out_dir: str = "./infer_output") -> Compose:
+    def post_process(self, pre_transforms: Compose, out_dir:str="infer_output") -> Compose:
         """Composes transforms for postprocessing the prediction results."""
 
         pred_key = self._pred_dataset_key
@@ -105,19 +107,8 @@ class SpleenSegOperator(Operator):
                 Activationsd(keys=pred_key, softmax=True),
                 AsDiscreted(keys=pred_key, argmax=True),
                 Invertd(
-                    keys=pred_key, transform=pre_transforms, orig_keys=self._input_dataset_key, nearest_interp=True
+                    keys=pred_key, transform = pre_transforms, orig_keys=self._input_dataset_key, nearest_interp=True
                 ),
-                SaveImaged(keys=pred_key, output_dir=out_dir, output_postfix="seg", resample=False),
+                SaveImaged(keys=pred_key, output_dir=out_dir, output_postfix="seg", resample=False)
             ]
         )
-
-    def infer_and_save(self, image):
-        """Prints out the image obj, and bounce it back, for testing only."""
-
-        image_data = image.asnumpy()
-        image_shape = image_data.shape
-        print(image_shape)
-        print(vars(image))
-
-        # Dummy for now.
-        return image
