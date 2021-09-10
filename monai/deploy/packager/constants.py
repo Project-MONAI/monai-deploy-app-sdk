@@ -16,13 +16,11 @@ class DefaultValues:
     """
 
     DOCKER_FILE_NAME = "dockerfile"
-    # TODO(KavinKrishnan): Decide a default image to use.
-    # BASE_IMAGE = "nvcr.io/nvidia/cuda:11.1-runtime-ubuntu20.04"
     BASE_IMAGE = "nvcr.io/nvidia/pytorch:21.07-py3"
-    WORK_DIR = "/var/monai"
+    DOCKERFILE_TYPE = "pytorch"
+    WORK_DIR = "/var/monai/"
     INPUT_DIR = "input"
     OUTPUT_DIR = "output"
     MODELS_DIR = "/opt/monai/models"
     API_VERSION = "0.1.0"
-    VERSION = "0.0.0"
     TIMEOUT = 0
