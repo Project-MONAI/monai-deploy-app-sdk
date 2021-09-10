@@ -20,7 +20,7 @@ class ProgressSpinner:
     """
 
     def __init__(self, message, delay=0.2):
-        self.spinner_symbols = itertools.cycle(["-", "/", "|", "\\"])
+        self.spinner_symbols = itertools.cycle(["-", "\\", "|", "/"])
         self.delay = delay
         self.stop_event = Event()
         self.spinner_visible = False
@@ -69,6 +69,8 @@ class ProgressSpinner:
         """
         Stop spinner process.
         """
+        sys.stdout.write("\b")
+        sys.stdout.write("Done")
         if sys.stdout.isatty():
             self.stop_event.set()
             self._remove_spinner(cleanup=True)

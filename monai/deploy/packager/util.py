@@ -24,18 +24,36 @@ from monai.deploy.packager.constants import DefaultValues
 from monai.deploy.packager.templates import Template
 from monai.deploy.utils.fileutil import checksum
 from monai.deploy.utils.importutil import dist_module_path, dist_requires, get_application
+from monai.deploy.utils.spinner import ProgressSpinner
 
 logger = logging.getLogger("app_packager")
 
 executor_url = "https://globalcdn.nuget.org/packages/monai.deploy.executor.0.1.0-prealpha.0.nupkg"
 
 
+def verify_base_image(base_image: str) -> str:
+    """Helper function which validates whether valid base image passed to Packager.
+    Additionally, this function provides the string identifier of the dockerfile
+    template to build MAP
+    Args:
+        base_image (str): potential base image to build MAP docker image
+    Returns:
+        str: returns string identifier of the dockerfile template to build MAP
+        if valid base image provided, returns empty string otherwise
+    """
+    valid_prefixes = {"nvcr.io/nvidia/cuda": "ubuntu", "nvcr.io/nvidia/pytorch": "pytorch"}
+
+    for prefix, template in valid_prefixes.items():
+        if prefix in base_image:
+            return template
+
+    return ""
+
+
 def initialize_args(args: Namespace) -> Dict:
     """Processes and formats input arguements for Packager
-
     Args:
         args (Namespace): Input arguements for Packager from CLI
-
     Returns:
         Dict: Processed set of input arguements for Packager
     """
@@ -45,16 +63,49 @@ def initialize_args(args: Namespace) -> Dict:
     processed_args["application"] = args.application
     processed_args["tag"] = args.tag
     processed_args["docker_file_name"] = DefaultValues.DOCKER_FILE_NAME
-    processed_args["base_image"] = args.base if args.base else DefaultValues.BASE_IMAGE
     processed_args["working_dir"] = args.working_dir if args.working_dir else DefaultValues.WORK_DIR
     processed_args["app_dir"] = "/opt/monai/app"
     processed_args["executor_dir"] = "/opt/monai/executor"
     processed_args["input_dir"] = args.input if args.input_dir else DefaultValues.INPUT_DIR
     processed_args["output_dir"] = args.output if args.output_dir else DefaultValues.OUTPUT_DIR
     processed_args["models_dir"] = args.models if args.models_dir else DefaultValues.MODELS_DIR
-    processed_args["api-version"] = DefaultValues.API_VERSION
+    processed_args["no_cache"] = args.no_cache
     processed_args["timeout"] = args.timeout if args.timeout else DefaultValues.TIMEOUT
-    processed_args["version"] = args.version if args.version else DefaultValues.VERSION
+    processed_args["api-version"] = DefaultValues.API_VERSION
+    processed_args["requirements"] = ""
+
+    if args.requirements:
+        if not args.requirements.endswith(".txt"):
+            logger.error(
+                f"Improper path to requirements.txt provided: {args.requirements}, defaulting to sdk provided values"
+            )
+        else:
+            processed_args["requirements"] = args.requirements
+
+    # Verify proper base image:
+    dockerfile_type = ""
+
+    if args.base:
+        dockerfile_type = verify_base_image(args.base)
+        if not dockerfile_type:
+            logger.error(
+                "Provided base image '{}' is not supported \n \
+                          Please provide a Cuda or Pytorch image from https://ngc.nvidia.com/ (nvcr.io/nvidia)".format(
+                    args.base
+                )
+            )
+            sys.exit(1)
+
+    processed_args["dockerfile_type"] = dockerfile_type if args.base else DefaultValues.DOCKERFILE_TYPE
+
+    base_image = ""
+    if args.base:
+        base_image = args.base
+    elif os.getenv("MONAI_BASEIMAGE"):
+        base_image = os.getenv("MONAI_BASEIMAGE")
+    else:
+        base_image = DefaultValues.BASE_IMAGE
+    processed_args["base_image"] = base_image
 
     # Obtain SDK provide application values
     app_obj = get_application(args.application)
@@ -63,12 +114,14 @@ def initialize_args(args: Namespace) -> Dict:
     else:
         raise WrongValueError("Application from '{}' not found".format(args.application))
 
+    # Use version number if provided through CLI, otherwise use value provided by SDK
+    processed_args["version"] = args.version if args.version else processed_args["application_info"]["app-version"]
+
     return processed_args
 
 
 def build_image(args: dict, temp_dir: str):
     """Creates dockerfile and builds MONAI Application Package (MAP) image
-
     Args:
         args (dict): Input arguements for Packager
         temp_dir (str): Temporary directory to build MAP
@@ -77,6 +130,7 @@ def build_image(args: dict, temp_dir: str):
     tag = args["tag"]
     docker_file_name = args["docker_file_name"]
     base_image = args["base_image"]
+    dockerfile_type = args["dockerfile_type"]
     working_dir = args["working_dir"]
     app_dir = args["app_dir"]
     executor_dir = args["executor_dir"]
@@ -87,6 +141,9 @@ def build_image(args: dict, temp_dir: str):
     models_dir = args["models_dir"]
     timeout = args["timeout"]
     application_path = args["application"]
+    local_requirements_file = args["requirements"]
+    no_cache = args["no_cache"]
+    app_version = args["version"]
 
     # Copy application files to temp directory (under 'app' folder)
     target_application_path = os.path.join(temp_dir, "app")
@@ -96,13 +153,12 @@ def build_image(args: dict, temp_dir: str):
     else:
         shutil.copytree(application_path, target_application_path)
 
-    # Copy monai-deploy-app-sdk module to temp directory (under 'monai-deploy-app-sdk' folder)
+    # Copy monai-app-sdk module to temp directory (under 'monai-deploy-app-sdk' folder)
     monai_app_sdk_path = os.path.join(dist_module_path("monai-deploy-app-sdk"), "monai", "deploy")
     target_monai_app_sdk_path = os.path.join(temp_dir, "monai-deploy-app-sdk")
     shutil.copytree(monai_app_sdk_path, target_monai_app_sdk_path)
 
     # Parse SDK provided values
-    app_version = args["application_info"]["app-version"]
     sdk_version = args["application_info"]["sdk-version"]
     local_models = args["application_info"]["models"]
     pip_packages = args["application_info"]["pip-packages"]
@@ -115,7 +171,13 @@ def build_image(args: dict, temp_dir: str):
     os.makedirs(pip_folder, exist_ok=True)
     pip_requirements_path = os.path.join(pip_folder, "requirements.txt")
     with open(pip_requirements_path, "w") as requirements_file:
-        requirements_file.writelines("\n".join(pip_packages))
+        # Use local requirements.txt packages if provided, otherwise use sdk provided packages
+        if local_requirements_file:
+            with open(local_requirements_file, "r") as lr:
+                for line in lr:
+                    requirements_file.write(line)
+        else:
+            requirements_file.writelines("\n".join(pip_packages))
     map_requirements_path = "/tmp/requirements.txt"
 
     # Copy model files to temp directory (under 'model' folder)
@@ -153,7 +215,7 @@ def build_image(args: dict, temp_dir: str):
         "timeout": timeout,
         "working_dir": working_dir,
     }
-    docker_template_string = Template.get_template("pytorch").format(**template_params)
+    docker_template_string = Template.get_template(dockerfile_type).format(**template_params)
 
     # Write out dockerfile
     logger.debug(docker_template_string)
@@ -169,34 +231,25 @@ def build_image(args: dict, temp_dir: str):
 
     # Build dockerfile into an MAP image
     docker_build_cmd = ["docker", "build", "-f", docker_file_path, "-t", tag, temp_dir]
+    if no_cache:
+        docker_build_cmd.append("--no-cache")
     proc = subprocess.Popen(docker_build_cmd, stdout=subprocess.PIPE)
 
-    def build_spinning_wheel():
-        while True:
-            for cursor in "|/-\\":
-                yield cursor
-
-    spinner = build_spinning_wheel()
-
-    print("Building MONAI Application Package... ")
+    spinner = ProgressSpinner("Building MONAI Application Package... ")
+    spinner.start()
 
     while proc.poll() is None:
-        if proc.stdout:
-            logger.debug(proc.stdout.readline().decode("utf-8"))
-        sys.stdout.write(next(spinner))
-        sys.stdout.flush()
-        sys.stdout.write("\b")
-        sys.stdout.write("\b")
+        logger.debug(proc.stdout.readline().decode("utf-8"))
 
+    spinner.stop()
     return_code = proc.returncode
 
     if return_code == 0:
-        print(f"Successfully built {tag}")
+        logger.info(f"Successfully built {tag}")
 
 
 def create_app_manifest(args: Dict, temp_dir: str):
     """Creates Application manifest .json file
-
     Args:
         args (Dict): Input arguements for Packager
         temp_dir (str): Temporary directory to build MAP
@@ -237,7 +290,6 @@ def create_app_manifest(args: Dict, temp_dir: str):
 
 def create_package_manifest(args: Dict, temp_dir: str):
     """Creates package manifest .json file
-
     Args:
         args (Dict): Input arguements for Packager
         temp_dir (str): Temporary directory to build MAP
@@ -284,7 +336,6 @@ def create_package_manifest(args: Dict, temp_dir: str):
 def package_application(args: Namespace):
     """Driver function for invoking all functions for creating and
     building the MONAI Application package image
-
     Args:
         args (Namespace): Input arguements for Packager from CLI
     """
