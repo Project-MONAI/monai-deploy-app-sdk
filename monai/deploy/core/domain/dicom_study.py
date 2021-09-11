@@ -10,6 +10,8 @@
 # limitations under the License.
 
 
+from typing import Any
+
 from .domain import Domain
 
 
@@ -24,6 +26,12 @@ class DICOMStudy(Domain):
         self._study_instance_uid = study_instance_uid
         self._series_dict = {}
 
+        self._study_id: Any = None
+        self._study_date: Any = None
+        self._study_time: Any = None
+        self._study_description: Any = None
+        self._accession_number: Any = None
+
     def get_study_instance_uid(self):
         return self._study_instance_uid
 
@@ -35,43 +43,43 @@ class DICOMStudy(Domain):
 
     @property
     def study_id(self):
-        return self.__study_id
+        return self._study_id
 
     @study_id.setter
     def study_id(self, val):
-        self.__study_id = val
+        self._study_id = val
 
     @property
     def study_date(self):
-        return self.__study_date
+        return self._study_date
 
     @study_date.setter
     def study_date(self, val):
-        self.__study_date = val
+        self._study_date = val
 
     @property
     def study_time(self):
-        return self.__study_time
+        return self._study_time
 
     @study_time.setter
     def study_time(self, val):
-        self.__study_time = val
+        self._study_time = val
 
     @property
     def study_description(self):
-        return self.__study_description
+        return self._study_description
 
     @study_description.setter
     def study_description(self, val):
-        self.__study_description = val
+        self._study_description = val
 
     @property
     def accession_number(self):
-        return self.__accession_number
+        return self._accession_number
 
     @accession_number.setter
     def accession_number(self, val):
-        self.__accession_number = val
+        self._accession_number = val
 
     def __str__(self):
         result = "---------------" + "\n"

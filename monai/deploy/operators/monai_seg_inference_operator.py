@@ -20,11 +20,15 @@ torch, _ = optional_import("torch", "1.5")
 np_str_obj_array_pattern, _ = optional_import("torch.utils.data._utils.collate", name="np_str_obj_array_pattern")
 Dataset, _ = optional_import("monai.data", name="Dataset")
 DataLoader, _ = optional_import("monai.data", name="DataLoader")
-ImageReader, _ = optional_import("monai.data", name="ImageReader")
+ImageReader_, _ = optional_import("monai.data", name="ImageReader")
+# Dynamic class is not handled so make it Any for now: https://github.com/python/mypy/issues/2477
+ImageReader: Any = ImageReader_
 decollate_batch, _ = optional_import("monai.data", name="decollate_batch")
 sliding_window_inference, _ = optional_import("monai.inferers", name="sliding_window_inference")
 ensure_tuple, _ = optional_import("monai.utils", name="ensure_tuple")
-Compose, _ = optional_import("monai.transforms", name="Compose")
+Compose_, _ = optional_import("monai.transforms", name="Compose")
+# Dynamic class is not handled so make it Any for now: https://github.com/python/mypy/issues/2477
+Compose: Any = Compose_
 sliding_window_inference, _ = optional_import("monai.inferers", name="sliding_window_inference")
 
 from monai.deploy.core import ExecutionContext, Image, InputContext, IOType, OutputContext, env, input, output
@@ -52,7 +56,12 @@ class MonaiSegInferenceOperator(InferenceOperator):
     MODEL_LOCAL_PATH = "model/model.ts"
 
     def __init__(
-        self, roi_size: Union[Sequence[int], int], pre_transforms: Compose, post_transforms: Compose, *args, **kwargs
+        self,
+        roi_size: Union[Sequence[int], int],
+        pre_transforms: Compose,
+        post_transforms: Compose,
+        *args,
+        **kwargs,
     ):
         """Creates a instance of this class.
 
@@ -68,7 +77,7 @@ class MonaiSegInferenceOperator(InferenceOperator):
         self._input_dataset_key = "image"
         self._pred_dataset_key = "pred"
         self._input_image = None  # Image will come in when compute is called.
-        self._reader = None
+        self._reader: Any = None
         self._roi_size = ensure_tuple(roi_size)
         self._pre_transform = pre_transforms
         self._post_transforms = post_transforms
@@ -128,8 +137,8 @@ class MonaiSegInferenceOperator(InferenceOperator):
             except Exception:  # Best effort
                 pass
 
-            pre_transforms = self._pre_transform
-            post_transforms = self._post_transforms
+            pre_transforms: Compose = self._pre_transform
+            post_transforms: Compose = self._post_transforms
             self._reader = InMemImageReader(input_image)
 
             pre_transforms = self._pre_transform if self._pre_transform else self.pre_process(self._reader)
@@ -148,13 +157,13 @@ class MonaiSegInferenceOperator(InferenceOperator):
                 # If model_name is not specified and only one model exists, it returns that model.
                 model = context.models.get()
                 print(f"Model path: {model.path}")
-                print(f"Model name (expected None): {model.name}")
+                print(f"Model name: {model.name}")
             else:
                 print(f"Loading TorchScript model from: {MonaiSegInferenceOperator.MODEL_LOCAL_PATH}")
                 model = torch.jit.load(MonaiSegInferenceOperator.MODEL_LOCAL_PATH)
 
             dataset = Dataset(data=[{self._input_dataset_key: img_name}], transform=pre_transforms)
-            dataloader = DataLoader(dataset, batch_size=1, shuffle=False, num_workers=4)
+            dataloader = DataLoader(dataset, batch_size=1, shuffle=False, num_workers=1)
             device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
             with torch.no_grad():
@@ -190,7 +199,7 @@ class MonaiSegInferenceOperator(InferenceOperator):
             with self._lock:
                 self._executing = False
 
-    def pre_process(self, img_reader) -> Compose:
+    def pre_process(self, img_reader) -> Union[Any, Image, Compose]:
         """Transforms input before being used for predicting on a model.
 
         This method must be overridden by a derived class.
@@ -200,7 +209,7 @@ class MonaiSegInferenceOperator(InferenceOperator):
         """
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
 
-    def post_process(self, pre_transforms: Compose, out_dir: str = "./infer_out") -> Compose:
+    def post_process(self, pre_transforms: Compose, out_dir: str = "./infer_out") -> Union[Any, Image, Compose]:
         """Transform the prediction results from the model(s).
 
         This method must be overridden by a derived class.
@@ -269,7 +278,7 @@ class InMemImageReader(ImageReader):
         Args:
             img: a MONAI Deploy App SDK Image object.
         """
-        img_meta_dict = img.metadata()
+        img_meta_dict: Dict = img.metadata()
         meta_dict = {key: img_meta_dict[key] for key in img_meta_dict.keys()}
 
         # Will have to derive some key metadata as the SDK Image lacks the necessary interfaces.
