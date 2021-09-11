@@ -10,8 +10,6 @@
 # limitations under the License.
 
 
-from typing import Any
-
 from .domain import Domain
 
 
@@ -26,11 +24,13 @@ class DICOMStudy(Domain):
         self._study_instance_uid = study_instance_uid
         self._series_dict = {}
 
-        self._study_id: Any = None
-        self._study_date: Any = None
-        self._study_time: Any = None
-        self._study_description: Any = None
-        self._accession_number: Any = None
+        # Do not set attributes in advance to save memory
+
+        # self._study_id: Any = None
+        # self._study_date: Any = None
+        # self._study_time: Any = None
+        # self._study_description: Any = None
+        # self._accession_number: Any = None
 
     def get_study_instance_uid(self):
         return self._study_instance_uid
@@ -43,7 +43,7 @@ class DICOMStudy(Domain):
 
     @property
     def study_id(self):
-        return self._study_id
+        return getattr(self, "_study_id", None)
 
     @study_id.setter
     def study_id(self, val):
@@ -51,7 +51,7 @@ class DICOMStudy(Domain):
 
     @property
     def study_date(self):
-        return self._study_date
+        return getattr(self, "_study_date", None)
 
     @study_date.setter
     def study_date(self, val):
@@ -59,7 +59,7 @@ class DICOMStudy(Domain):
 
     @property
     def study_time(self):
-        return self._study_time
+        return getattr(self, "_study_time", None)
 
     @study_time.setter
     def study_time(self, val):
@@ -67,7 +67,7 @@ class DICOMStudy(Domain):
 
     @property
     def study_description(self):
-        return self._study_description
+        return getattr(self, "_study_description", None)
 
     @study_description.setter
     def study_description(self, val):
@@ -75,7 +75,7 @@ class DICOMStudy(Domain):
 
     @property
     def accession_number(self):
-        return self._accession_number
+        return getattr(self, "_accession_number", None)
 
     @accession_number.setter
     def accession_number(self, val):
@@ -84,23 +84,24 @@ class DICOMStudy(Domain):
     def __str__(self):
         result = "---------------" + "\n"
 
-        study_instance_uid_attr = "Study Instance UID: " + self._study_instance_uid + "\n"
-        result += study_instance_uid_attr
-
-        study_id_attr = "Study ID: " + self.study_id + "\n"
-        result += study_id_attr
-
-        study_date_attr = "Study Date: " + self.study_date + "\n"
-        result += study_date_attr
-
-        study_time_attr = "Study Time: " + self.study_time + "\n"
-        result += study_time_attr
-
-        study_desc_attr = "Study Description: " + self.study_description + "\n"
-        result += study_desc_attr
-
-        accession_num_attr = "Accession Number: " + self.accession_number + "\n"
-        result += accession_num_attr
+        if self._study_instance_uid is not None:
+            study_instance_uid_attr = "Study Instance UID: " + self._study_instance_uid + "\n"
+            result += study_instance_uid_attr
+        if self.study_id is not None:
+            study_id_attr = "Study ID: " + self.study_id + "\n"
+            result += study_id_attr
+        if self.study_date is not None:
+            study_date_attr = "Study Date: " + self.study_date + "\n"
+            result += study_date_attr
+        if self.study_time is not None:
+            study_time_attr = "Study Time: " + self.study_time + "\n"
+            result += study_time_attr
+        if self.study_description is not None:
+            study_desc_attr = "Study Description: " + self.study_description + "\n"
+            result += study_desc_attr
+        if self.accession_number is not None:
+            accession_num_attr = "Accession Number: " + self.accession_number + "\n"
+            result += accession_num_attr
 
         result += "---------------" + "\n"
 

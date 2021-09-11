@@ -287,65 +287,41 @@ class DICOMSeriesToVolumeOperator(Operator):
         metadata = {}
         metadata["series_instance_uid"] = series.get_series_instance_uid()
 
-        try:
+        if series.series_date is not None:
             metadata["series_date"] = series.series_date
-        except AttributeError:
-            pass
 
-        try:
+        if series.series_time is not None:
             metadata["series_time"] = series.series_time
-        except AttributeError:
-            pass
 
-        try:
+        if series.modality is not None:
             metadata["modality"] = series.modality
-        except AttributeError:
-            pass
 
-        try:
+        if series.series_description is not None:
             metadata["series_description"] = series.series_description
-        except AttributeError:
-            pass
 
-        try:
+        if series.row_pixel_spacing is not None:
             metadata["row_pixel_spacing"] = series.row_pixel_spacing
-        except AttributeError:
-            pass
 
-        try:
+        if series.col_pixel_spacing is not None:
             metadata["col_pixel_spacing"] = series.col_pixel_spacing
-        except AttributeError:
-            pass
 
-        try:
+        if series.depth_pixel_spacing is not None:
             metadata["depth_pixel_spacing"] = series.depth_pixel_spacing
-        except AttributeError:
-            pass
 
-        try:
+        if series.row_direction_cosine is not None:
             metadata["row_direction_cosine"] = series.row_direction_cosine
-        except AttributeError:
-            pass
 
-        try:
+        if series.col_direction_cosine is not None:
             metadata["col_direction_cosine"] = series.col_direction_cosine
-        except AttributeError:
-            pass
 
-        try:
+        if series.depth_direction_cosine is not None:
             metadata["depth_direction_cosine"] = series.depth_direction_cosine
-        except AttributeError:
-            pass
 
-        try:
+        if series.dicom_affine_transform is not None:
             metadata["dicom_affine_transform"] = series.dicom_affine_transform
-        except AttributeError:
-            pass
 
-        try:
+        if series.nifti_affine_transform is not None:
             metadata["nifti_affine_transform"] = series.nifti_affine_transform
-        except AttributeError:
-            pass
 
         return metadata
 
