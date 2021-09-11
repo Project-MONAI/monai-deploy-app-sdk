@@ -15,7 +15,7 @@ import json
 import logging
 import os
 from random import randint
-from typing import List, Union
+from typing import List, Optional, Union
 
 import numpy as np
 
@@ -63,7 +63,7 @@ class DICOMSegmentationWriterOperator(Operator):
     # Suffix to add to file name to indicate DICOM Seg dcm file.
     DICOMSEG_SUFFIX = "-DICOMSEG"
 
-    def __init__(self, seg_labels: Union[List[str], str] = None, *args, **kwargs):
+    def __init__(self, seg_labels: Optional[Union[List[str], str]] = None, *args, **kwargs):
         super().__init__(*args, **kwargs)
         """Instantiates the DICOM Seg Writer instance with optional list of segment label strings.
 
@@ -82,7 +82,7 @@ class DICOMSegmentationWriterOperator(Operator):
         segment label information, including label value, name, description etc.
 
         Args:
-            seg_labels (List[str] or str): The string name for each segment
+            seg_labels: The string name for each segment
         """
 
         self._seg_labels = ["SegmentLabel-default"]
@@ -94,7 +94,7 @@ class DICOMSegmentationWriterOperator(Operator):
                     raise ValueError(f"List of strings expected, but contains {label} of type {type(label)}.")
             self._seg_labels = seg_labels
         else:
-            raise ValueError(f"List of strings expected.")
+            raise ValueError("List of strings expected.")
 
     def compute(self, input: InputContext, output: OutputContext, context: ExecutionContext):
         dicom_series = input.get("dicom_series")
@@ -370,7 +370,7 @@ def create_multiframe_metadata(dicom_file, input_ds):
     dicomOutput.add_new(0x00080013, "TM", currentTime)  # InstanceCreationTime
 
     # General Image module.
-    dicomOutput.add_new(0x00080008, "CS", ["DERIVED", "PRIMARY"])  #  ImageType
+    dicomOutput.add_new(0x00080008, "CS", ["DERIVED", "PRIMARY"])  # ImageType
     dicomOutput.add_new(0x00200020, "CS", "")  # PatientOrientation, forced empty
     # Set content date/time
     dicomOutput.ContentDate = currentDate
@@ -415,7 +415,7 @@ def create_label_segments(dcm_output, seg_labels):
         segment.add_new(0x00620009, "LO", "AI Organ Segmentation")  # SegmentAlgorithmName
         segment.SegmentAlgorithmType = "AUTOMATIC"  # SegmentAlgorithmType
         segment.add_new(0x0062000D, "US", [128, 174, 128])  # RecommendedDisplayCIELabValue
-        ## create SegmentedPropertyCategoryCodeSequence
+        # Create SegmentedPropertyCategoryCodeSequence
         segmentedPropertyCategoryCodeSequence = Sequence()
         segmentedPropertyCategoryCodeSequenceDS = Dataset()
         segmentedPropertyCategoryCodeSequenceDS.add_new(0x00080100, "SH", "T-D0050")  # CodeValue
@@ -423,7 +423,7 @@ def create_label_segments(dcm_output, seg_labels):
         segmentedPropertyCategoryCodeSequenceDS.add_new(0x00080104, "LO", "Anatomical Structure")  # CodeMeaning
         segmentedPropertyCategoryCodeSequence.append(segmentedPropertyCategoryCodeSequenceDS)
         segment.SegmentedPropertyCategoryCodeSequence = segmentedPropertyCategoryCodeSequence
-        ## create SegmentedPropertyTypeCodeSequence
+        # Create SegmentedPropertyTypeCodeSequence
         segmentedPropertyTypeCodeSequence = Sequence()
         segmentedPropertyTypeCodeSequenceDS = Dataset()
         segmentedPropertyTypeCodeSequenceDS.add_new(0x00080100, "SH", "T-D0050")  # CodeValue
@@ -458,17 +458,17 @@ def create_frame_meta(input_ds, label, ref_instances, dimIdxVal, instance_num):
     ############################
     # CREATE METADATA
     ############################
-    ##### create DerivationImageSequence within Per-frame Functional Groups sequence
+    # Create DerivationImageSequence within Per-frame Functional Groups sequence
     derivationImageSequence = Sequence()
     derivationImage = Dataset()
-    ### create SourceImageSequence within DerivationImageSequence
+    # Create SourceImageSequence within DerivationImageSequence
     sourceImageSequence = Sequence()
     sourceImage = Dataset()
     # TODO if CT multi-frame
     # sourceImage.add_new(0x00081160, 'IS', inputFrameCounter + 1) # Referenced Frame Number
     sourceImage.add_new(0x00081150, "UI", sourceInstanceSOPClass)  # ReferencedSOPClassUID
     sourceImage.add_new(0x00081155, "UI", sop_inst_uid)  # ReferencedSOPInstanceUID
-    ## create PurposeOfReferenceCodeSequence within SourceImageSequence
+    # Create PurposeOfReferenceCodeSequence within SourceImageSequence
     purposeOfReferenceCodeSequence = Sequence()
     purposeOfReferenceCode = Dataset()
     purposeOfReferenceCode.add_new(0x00080100, "SH", "121322")  # CodeValue
@@ -477,7 +477,7 @@ def create_frame_meta(input_ds, label, ref_instances, dimIdxVal, instance_num):
     purposeOfReferenceCodeSequence.append(purposeOfReferenceCode)
     sourceImage.add_new(0x0040A170, "SQ", purposeOfReferenceCodeSequence)  # PurposeOfReferenceCodeSequence
     sourceImageSequence.append(sourceImage)  # AEH Beck commentout
-    ### create DerivationCodeSequence within DerivationImageSequence
+    # Create DerivationCodeSequence within DerivationImageSequence
     derivationCodeSequence = Sequence()
     derivationCode = Dataset()
     derivationCode.add_new(0x00080100, "SH", "113076")  # CodeValue
@@ -488,25 +488,25 @@ def create_frame_meta(input_ds, label, ref_instances, dimIdxVal, instance_num):
     derivationImage.add_new(0x00082112, "SQ", sourceImageSequence)  # SourceImageSequence
     derivationImageSequence.append(derivationImage)
     frame_ds.add_new(0x00089124, "SQ", derivationImageSequence)  # DerivationImageSequence
-    ##### create FrameContentSequence within Per-frame Functional Groups sequence
+    # Create FrameContentSequence within Per-frame Functional Groups sequence
     frameContent = Sequence()
     dimensionIndexValues = Dataset()
     dimensionIndexValues.add_new(0x00209157, "UL", [dimIdxVal, instance_num])  # DimensionIndexValues
     frameContent.append(dimensionIndexValues)
     frame_ds.add_new(0x00209111, "SQ", frameContent)  # FrameContentSequence
-    ##### create PlanePositionSequence within Per-frame Functional Groups sequence
+    # Create PlanePositionSequence within Per-frame Functional Groups sequence
     planePositionSequence = Sequence()
     imagePositionPatient = Dataset()
     imagePositionPatient.add_new(0x00200032, "DS", safe_get(input_ds, 0x00200032))  # ImagePositionPatient
     planePositionSequence.append(imagePositionPatient)
     frame_ds.add_new(0x00209113, "SQ", planePositionSequence)  # PlanePositionSequence
-    ##### create PlaneOrientationSequence within Per-frame Functional Groups sequence
+    # Create PlaneOrientationSequence within Per-frame Functional Groups sequence
     planeOrientationSequence = Sequence()
     imageOrientationPatient = Dataset()
     imageOrientationPatient.add_new(0x00200037, "DS", safe_get(input_ds, 0x00200037))  # ImageOrientationPatient
     planeOrientationSequence.append(imageOrientationPatient)
     frame_ds.add_new(0x00209116, "SQ", planeOrientationSequence)  # PlaneOrientationSequence
-    ##### create SegmentIdentificationSequence within Per-frame Functional Groups sequence
+    # Create SegmentIdentificationSequence within Per-frame Functional Groups sequence
     segmentIdentificationSequence = Sequence()
     referencedSegmentNumber = Dataset()
     # TODO lop over label and only get pixel with that value
@@ -527,7 +527,7 @@ def set_pixel_meta(dicomOutput, input_ds):
     dicomOutput.PixelRepresentation = 0
     # dicomOutput.PixelRepresentation = input_ds.PixelRepresentation
     dicomOutput.SamplesPerPixel = 1
-    dicomOutput.ImageType = "DERIVED\PRIMARY"
+    dicomOutput.ImageType = "DERIVED\\PRIMARY"
     dicomOutput.ContentLabel = "SEGMENTATION"
     dicomOutput.ContentDescription = ""
     dicomOutput.ContentCreatorName = ""
@@ -598,7 +598,7 @@ def segslice_from_mhd(dcm_output, seg_img, input_ds, num_labels):
 
     dcm_output.get(0x00081115)[0].add_new(0x0008114A, "SQ", referenceInstances)  # ReferencedInstanceSequence
 
-    ##### create shared  Functional Groups sequence
+    # Create shared Functional Groups sequence
     sharedFunctionalGroups = Sequence()
     sharedFunctionalGroupsDS = Dataset()
 

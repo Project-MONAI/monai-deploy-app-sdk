@@ -29,5 +29,5 @@ class Domain(ABC):
         else:
             self._metadata = {}
 
-    def metadata(self) -> Optional[Dict]:
+    def metadata(self) -> Dict:
         return self._metadata

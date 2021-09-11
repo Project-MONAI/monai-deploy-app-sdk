@@ -9,8 +9,22 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from typing import Any
 
-from main import main  # type: ignore # for pytype
+from typing_extensions import Protocol
 
-if __name__ == "__main__":
-    main()
+ComposeInterface = Any
+# Using Proptocol causes the type checker to complain on the following line:
+# https://github.com/Project-MONAI/monai-deploy-app-sdk/blob/e7543e45657398347619cc9e5de4b53e69dbbfdb/examples/apps/
+# ai_spleen_seg_app/spleen_seg_operator.py#L108
+#
+# class ComposeInterface(Protocol):
+#     def flatten(self):
+#         ...
+#
+#     def __call__(self, _input):
+#         ...
+
+
+class ImageReaderInterface(Protocol):
+    pass

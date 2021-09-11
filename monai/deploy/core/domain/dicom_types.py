@@ -9,8 +9,29 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from typing import Any, TypeVar
 
-from main import main  # type: ignore # for pytype
+from typing_extensions import Protocol
 
-if __name__ == "__main__":
-    main()
+
+class TagTypeInterface(Protocol):
+    pass
+
+
+class DatasetInterface(Protocol):
+    pass
+
+
+class DataElementInterface(Protocol):
+    pass
+
+
+SopInstance_KT = TypeVar("SopInstance_KT", int, slice, TagTypeInterface)
+SopInstance_VT = TypeVar("SopInstance_VT", DatasetInterface, DataElementInterface)
+
+
+class SopInstanceInterface(Protocol):
+    pixel_array: Any
+
+    def __getitem__(self, key: SopInstance_KT) -> SopInstance_VT:
+        ...

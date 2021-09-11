@@ -12,6 +12,7 @@
 import logging
 
 from monai.deploy.core import ExecutionContext, Image, InputContext, IOType, Operator, OutputContext, env, input, output
+from monai.deploy.core.domain.monai_types import ComposeInterface
 from monai.deploy.operators.monai_seg_inference_operator import InMemImageReader, MonaiSegInferenceOperator
 from monai.transforms import (
     Activationsd,
@@ -81,7 +82,7 @@ class SpleenSegOperator(Operator):
             # Now let the built-in operator handles the work with the I/O spec and execution context.
             infer_operator.compute(input, output, context)
 
-    def pre_process(self, img_reader) -> Compose:
+    def pre_process(self, img_reader) -> ComposeInterface:
         """Composes transforms for preprocessing input before predicting on a model."""
 
         my_key = self._input_dataset_key
@@ -96,7 +97,7 @@ class SpleenSegOperator(Operator):
             ]
         )
 
-    def post_process(self, pre_transforms: Compose, out_dir: str = "./infer_output") -> Compose:
+    def post_process(self, pre_transforms: ComposeInterface, out_dir: str = "./infer_output") -> ComposeInterface:
         """Composes transforms for postprocessing the prediction results."""
 
         pred_key = self._pred_dataset_key

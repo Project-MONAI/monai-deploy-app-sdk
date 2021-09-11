@@ -10,6 +10,7 @@
 # limitations under the License.
 
 import os
+from typing import List
 
 from monai.deploy.core import (
     DataPath,
@@ -48,13 +49,13 @@ class DICOMDataLoaderOperator(Operator):
         It groups them by a collection of studies where each study contains one or more series.
         This method returns a set of studies.
         """
-        files = []
+        files: List[str] = []
         input_path = input.get().path
         self._list_files(input_path, files)
         dicom_study_list = self._load_data(files)
         output.set(dicom_study_list)
 
-    def _list_files(self, path, files):
+    def _list_files(self, path, files: List[str]):
         """Collects fully qualified names of all files recurvisely given a directory path.
 
         Args:
@@ -68,7 +69,7 @@ class DICOMDataLoaderOperator(Operator):
             else:
                 files.append(item)
 
-    def _load_data(self, files):
+    def _load_data(self, files: List[str]):
         """Provides a list of DICOM Studies given a list of fully qualified file names.
 
         Args:

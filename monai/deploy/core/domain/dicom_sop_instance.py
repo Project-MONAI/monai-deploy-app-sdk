@@ -9,21 +9,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Union
+from typing import Generic
 
 from monai.deploy.utils.importutil import optional_import
 
+from .dicom_types import SopInstance_KT, SopInstance_VT, SopInstanceInterface
 from .domain import Domain
 
 DataElement, _ = optional_import("pydicom", name="DataElement")
 Dataset, _ = optional_import("pydicom", name="Dataset")
-Tag, _ = optional_import("pydicom.tag", name="Tag")
-BaseTag, _ = optional_import("pydicom.tag", name="BaseTag")
-tag_in_exception, _ = optional_import("pydicom.tag", name="tag_in_exception")
-TagType, _ = optional_import("pydicom.tag", name="TagType")
+TagType, _ = optional_import("pydicom.tag")
 
 
-class DICOMSOPInstance(Domain):
+# Ignore type for Generic: https://github.com/google/pytype/issues/704
+class DICOMSOPInstance(Domain, Generic[SopInstance_KT, SopInstance_VT]):  # type: ignore
     """This class representes a SOP Instance.
 
     An attribute can be looked up with a slice ([group_number, element number]).
@@ -31,12 +30,12 @@ class DICOMSOPInstance(Domain):
 
     def __init__(self, native_sop):
         super().__init__(None)
-        self._sop = native_sop
+        self._sop: SopInstanceInterface = native_sop
 
     def get_native_sop_instance(self):
         return self._sop
 
-    def __getitem__(self, key: Union[int, slice, "TagType"]) -> Union["Dataset", "DataElement"]:
+    def __getitem__(self, key: SopInstance_KT) -> SopInstance_VT:
         return self._sop.__getitem__(key)
 
     def get_pixel_array(self):
