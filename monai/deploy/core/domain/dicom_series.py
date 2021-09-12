@@ -21,6 +21,25 @@ class DICOMSeries(Domain):
         self._series_instance_uid = series_instance_uid
         self._sop_instances = []
 
+        # Do not set attributes in advance to save memory
+
+        # self._series_date: Any = None
+        # self._series_time: Any = None
+        # self._modality: Any = None
+        # self._series_description: Any = None
+        # self._body_part_examined: Any = None
+        # self._patient_position: Any = None
+        # self._series_number: Any = None
+        # self._laterality: Any = None
+        # self._row_pixel_spacing: Any = None
+        # self._col_pixel_spacing: Any = None
+        # self._depth_pixel_spacing: Any = None
+        # self._row_direction_cosine: Any = None
+        # self._col_direction_cosine: Any = None
+        # self._depth_direction_cosine: Any = None
+        # self._dicom_affine_transform: Any = None
+        # self._nifti_affine_transform: Any = None
+
     def get_series_instance_uid(self):
         return self._series_instance_uid
 
@@ -33,131 +52,131 @@ class DICOMSeries(Domain):
 
     @property
     def series_date(self):
-        return self.__series_date
+        return getattr(self, "_series_date", None)
 
     @series_date.setter
     def series_date(self, val):
-        self.__series_date = val
+        self._series_date = val
 
     @property
     def series_time(self):
-        return self.__series_time
+        return getattr(self, "_series_time", None)
 
     @series_time.setter
     def series_time(self, val):
-        self.__series_time = val
+        self._series_time = val
 
     @property
     def modality(self):
-        return self.__modality
+        return getattr(self, "_modality", None)
 
     @modality.setter
     def modality(self, val):
-        self.__modality = val
+        self._modality = val
 
     @property
     def series_description(self):
-        return self.__series_description
+        return getattr(self, "_series_description", None)
 
     @series_description.setter
     def series_description(self, val):
-        self.__series_description = val
+        self._series_description = val
 
     @property
     def body_part_examined(self):
-        return self.__body_part_examined
+        return getattr(self, "_body_part_examined", None)
 
     @body_part_examined.setter
     def body_part_examined(self, val):
-        self.__body_part_examined = val
+        self._body_part_examined = val
 
     @property
     def patient_position(self):
-        return self.__patient_position
+        return getattr(self, "_patient_position", None)
 
     @patient_position.setter
     def patient_position(self, val):
-        self.__patient_position = val
+        self._patient_position = val
 
     @property
     def series_number(self):
-        return self.__series_number
+        return getattr(self, "_series_number", None)
 
     @series_number.setter
     def series_number(self, val):
-        self.__series_number = val
+        self._series_number = val
 
     @property
     def laterality(self):
-        return self.__laterality
+        return getattr(self, "_laterality", None)
 
     @laterality.setter
     def laterality(self, val):
-        self.__laterality = val
+        self._laterality = val
 
     @property
     def row_pixel_spacing(self):
-        return self.__row_pixel_spacing
+        return getattr(self, "_row_pixel_spacing", None)
 
     @row_pixel_spacing.setter
     def row_pixel_spacing(self, val):
-        self.__row_pixel_spacing = val
+        self._row_pixel_spacing = val
 
     @property
     def col_pixel_spacing(self):
-        return self.__col_pixel_spacing
+        return getattr(self, "_col_pixel_spacing", None)
 
     @col_pixel_spacing.setter
     def col_pixel_spacing(self, val):
-        self.__col_pixel_spacing = val
+        self._col_pixel_spacing = val
 
     @property
     def depth_pixel_spacing(self):
-        return self.__depth_pixel_spacing
+        return getattr(self, "_depth_pixel_spacing", None)
 
     @depth_pixel_spacing.setter
     def depth_pixel_spacing(self, val):
-        self.__depth_pixel_spacing = val
+        self._depth_pixel_spacing = val
 
     @property
     def row_direction_cosine(self):
-        return self.__row_direction_cosine
+        return getattr(self, "_row_direction_cosine", None)
 
     @row_direction_cosine.setter
     def row_direction_cosine(self, val):
-        self.__row_direction_cosine = val
+        self._row_direction_cosine = val
 
     @property
     def col_direction_cosine(self):
-        return self.__col_direction_cosine
+        return getattr(self, "_col_direction_cosine", None)
 
     @col_direction_cosine.setter
     def col_direction_cosine(self, val):
-        self.__col_direction_cosine = val
+        self._col_direction_cosine = val
 
     @property
     def depth_direction_cosine(self):
-        return self.__depth_direction_cosine
+        return getattr(self, "_depth_direction_cosine", None)
 
     @depth_direction_cosine.setter
     def depth_direction_cosine(self, val):
-        self.__depth_direction_cosine = val
+        self._depth_direction_cosine = val
 
     @property
     def dicom_affine_transform(self):
-        return self.__dicom_affine_transform
+        return getattr(self, "_dicom_affine_transform", None)
 
     @dicom_affine_transform.setter
     def dicom_affine_transform(self, val):
-        self.__dicom_affine_transform = val
+        self._dicom_affine_transform = val
 
     @property
     def nifti_affine_transform(self):
-        return self.__nifti_affine_transform
+        return getattr(self, "_nifti_affine_transform", None)
 
     @nifti_affine_transform.setter
     def nifti_affine_transform(self, val):
-        self.__nifti_affine_transform = val
+        self._nifti_affine_transform = val
 
     def __str__(self):
         result = "---------------" + "\n"
@@ -165,83 +184,56 @@ class DICOMSeries(Domain):
         series_instance_uid_attr = "Series Instance UID: " + self._series_instance_uid + "\n"
         result += series_instance_uid_attr
 
-        try:
-            num_sop_instances = "Num SOP Instances: " + str(len(self._sop_instances)) + "\n"
-            result += num_sop_instances
-        except AttributeError:
-            pass
+        num_sop_instances = "Num SOP Instances: " + str(len(self._sop_instances)) + "\n"
+        result += num_sop_instances
 
-        try:
+        if self.series_date is not None:
             series_date_attr = "Series Date: " + self.series_date + "\n"
             result += series_date_attr
-        except AttributeError:
-            pass
 
-        try:
+        if self.series_time is not None:
             series_time_attr = "Series Time: " + self.series_time + "\n"
             result += series_time_attr
-        except AttributeError:
-            pass
 
-        try:
+        if self.modality is not None:
             modality_attr = "Modality: " + self.modality + "\n"
             result += modality_attr
-        except AttributeError:
-            pass
 
-        try:
+        if self.series_description is not None:
             series_desc_attr = "Series Description: " + self.series_description + "\n"
             result += series_desc_attr
-        except AttributeError:
-            pass
 
-        try:
+        if self.row_pixel_spacing is not None:
             row_pixel_spacing_attr = "Row Pixel Spacing: " + str(self.row_pixel_spacing) + "\n"
             result += row_pixel_spacing_attr
-        except AttributeError:
-            pass
 
-        try:
+        if self.col_pixel_spacing is not None:
             col_pixel_spacing_attr = "Column Pixel Spacing: " + str(self.col_pixel_spacing) + "\n"
             result += col_pixel_spacing_attr
-        except AttributeError:
-            pass
 
-        try:
+        if self.depth_pixel_spacing is not None:
             depth_pixel_spacing_attr = "Depth Pixel Spacing: " + str(self.depth_pixel_spacing) + "\n"
             result += depth_pixel_spacing_attr
-        except AttributeError:
-            pass
 
-        try:
+        if self.row_direction_cosine is not None:
             row_direction_cosine_attr = "Row Direction Cosine: " + str(self.row_direction_cosine) + "\n"
             result += row_direction_cosine_attr
-        except AttributeError:
-            pass
 
-        try:
+        if self.col_direction_cosine is not None:
             col_direction_cosine_attr = "Column Direction Cosine: " + str(self.col_direction_cosine) + "\n"
             result += col_direction_cosine_attr
-        except AttributeError:
-            pass
 
-        try:
+        if self.depth_direction_cosine is not None:
             depth_direction_cosine_attr = "Depth Direction Cosine: " + str(self.depth_direction_cosine) + "\n"
             result += depth_direction_cosine_attr
-        except AttributeError:
-            pass
 
-        try:
+        if self.dicom_affine_transform is not None:
             dicom_affine_transform_attr = "DICOM affine transform: " + "\n" + str(self.dicom_affine_transform) + "\n"
             result += dicom_affine_transform_attr
-        except AttributeError:
-            pass
 
-        try:
+        if self.nifti_affine_transform is not None:
             nifti_affine_transform_attr = "NIFTI affine transform: " + "\n" + str(self.nifti_affine_transform) + "\n"
             result += nifti_affine_transform_attr
-        except AttributeError:
-            pass
 
         result += "---------------" + "\n"
 

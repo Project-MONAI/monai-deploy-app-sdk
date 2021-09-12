@@ -10,7 +10,7 @@
 # limitations under the License.
 
 
-from main import main
+from main import main  # type: ignore # for pytype
 
 if __name__ == "__main__":
     main()

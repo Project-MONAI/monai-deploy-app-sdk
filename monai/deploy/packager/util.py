@@ -98,13 +98,12 @@ def initialize_args(args: Namespace) -> Dict:
 
     processed_args["dockerfile_type"] = dockerfile_type if args.base else DefaultValues.DOCKERFILE_TYPE
 
-    base_image = ""
+    base_image = DefaultValues.BASE_IMAGE
     if args.base:
         base_image = args.base
-    elif os.getenv("MONAI_BASEIMAGE"):
-        base_image = os.getenv("MONAI_BASEIMAGE")
     else:
-        base_image = DefaultValues.BASE_IMAGE
+        base_image = os.getenv("MONAI_BASEIMAGE", DefaultValues.BASE_IMAGE)
+
     processed_args["base_image"] = base_image
 
     # Obtain SDK provide application values
@@ -239,7 +238,8 @@ def build_image(args: dict, temp_dir: str):
     spinner.start()
 
     while proc.poll() is None:
-        logger.debug(proc.stdout.readline().decode("utf-8"))
+        if proc.stdout:
+            logger.debug(proc.stdout.readline().decode("utf-8"))
 
     spinner.stop()
     return_code = proc.returncode

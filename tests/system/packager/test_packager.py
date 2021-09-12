@@ -23,5 +23,5 @@ def test_packager():
     monai_deploy(args)
 
     # Delete MONAI application package image
-    docker_rmi_cmd= ["docker", "rmi", "-f", test_map_tag]
+    docker_rmi_cmd = ["docker", "rmi", "-f", test_map_tag]
     subprocess.Popen(docker_rmi_cmd)

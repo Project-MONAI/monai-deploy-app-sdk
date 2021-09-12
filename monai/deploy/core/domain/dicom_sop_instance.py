@@ -9,18 +9,21 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Union
+from typing import Any, Union
 
 from monai.deploy.utils.importutil import optional_import
 
 from .domain import Domain
 
-DataElement, _ = optional_import("pydicom", name="DataElement")
-Dataset, _ = optional_import("pydicom", name="Dataset")
-Tag, _ = optional_import("pydicom.tag", name="Tag")
-BaseTag, _ = optional_import("pydicom.tag", name="BaseTag")
-tag_in_exception, _ = optional_import("pydicom.tag", name="tag_in_exception")
-TagType, _ = optional_import("pydicom.tag", name="TagType")
+DataElement_, _ = optional_import("pydicom", name="DataElement")
+# Dynamic class is not handled so make it Any for now: https://github.com/python/mypy/issues/2477
+DataElement: Any = DataElement_
+Dataset_, _ = optional_import("pydicom", name="Dataset")
+# Dynamic class is not handled so make it Any for now: https://github.com/python/mypy/issues/2477
+Dataset: Any = Dataset_
+TagType_, _ = optional_import("pydicom.tag", name="TagType")
+# Dynamic class is not handled so make it Any for now: https://github.com/python/mypy/issues/2477
+TagType: Any = TagType_
 
 
 class DICOMSOPInstance(Domain):
@@ -31,12 +34,12 @@ class DICOMSOPInstance(Domain):
 
     def __init__(self, native_sop):
         super().__init__(None)
-        self._sop = native_sop
+        self._sop: Any = native_sop
 
     def get_native_sop_instance(self):
         return self._sop
 
-    def __getitem__(self, key: Union[int, slice, "TagType"]) -> Union["Dataset", "DataElement"]:
+    def __getitem__(self, key: Union[int, slice, TagType]) -> Union[Dataset, DataElement]:
         return self._sop.__getitem__(key)
 
     def get_pixel_array(self):
