@@ -53,7 +53,7 @@ class SpleenSegOperator(Operator):
 
         input_image = input.get("image")
         if not input_image:
-            raise ValueError('Input image is not found.')
+            raise ValueError("Input image is not found.")
 
         # Get the output path from the execution context for saving file(s) to app output.
         # Without using this path, operator would be saving files to its designated path, e.g.
@@ -98,7 +98,7 @@ class SpleenSegOperator(Operator):
             ]
         )
 
-    def post_process(self, pre_transforms: Compose, out_dir:str="infer_output") -> Compose:
+    def post_process(self, pre_transforms: Compose, out_dir: str = "./prediction_output") -> Compose:
         """Composes transforms for postprocessing the prediction results."""
 
         pred_key = self._pred_dataset_key
@@ -107,8 +107,8 @@ class SpleenSegOperator(Operator):
                 Activationsd(keys=pred_key, softmax=True),
                 AsDiscreted(keys=pred_key, argmax=True),
                 Invertd(
-                    keys=pred_key, transform = pre_transforms, orig_keys=self._input_dataset_key, nearest_interp=True
+                    keys=pred_key, transform=pre_transforms, orig_keys=self._input_dataset_key, nearest_interp=True
                 ),
-                SaveImaged(keys=pred_key, output_dir=out_dir, output_postfix="seg", resample=False)
+                SaveImaged(keys=pred_key, output_dir=out_dir, output_postfix="seg", resample=False),
             ]
         )

@@ -26,27 +26,19 @@ from monai.deploy.operators.dicom_series_to_volume_operator import DICOMSeriesTo
 class AISpleenSegApp(Application):
     def __init__(self, *args, **kwargs):
         """Creates an application instance."""
-        self.logger = logging.getLogger("{}.{}".format(__name__, type(self).__name__))
-
+        self._logger = logging.getLogger("{}.{}".format(__name__, type(self).__name__))
         super().__init__(*args, **kwargs)
-
-        self.logger.debug(
-            f"App Path: {self.path}, \
-            Input: {self.context.input_path}, \
-            Output: {self.context.output_path},\
-            Models: {self.context.model_path}"
-        )
 
     def run(self):
         # This method calls the base class to run. Can be omitted if simply calling through.
-        self.logger.debug(f"Begin {self.run.__name__}")
+        self._logger.debug(f"Begin {self.run.__name__}")
         super().run()
-        self.logger.debug(f"End {self.run.__name__}")
+        self._logger.debug(f"End {self.run.__name__}")
 
     def compose(self):
         """Creates the app specific operators and chain them up in the processing DAG."""
 
-        self.logger.debug(f"Begin {self.compose.__name__}")
+        self._logger.debug(f"Begin {self.compose.__name__}")
         # Creates the custom operator(s) as well as SDK built-in operator(s).
         study_loader_op = DICOMDataLoaderOperator()
         series_selector_op = DICOMSeriesSelectorOperator()
@@ -54,9 +46,9 @@ class AISpleenSegApp(Application):
         # Model specific inference operator, supporting MONAI transforms.
         spleen_seg_op = SpleenSegOperator()
         # Creates DICOM Seg writer with segment label name in a string list
-        dicom_seg_writer = DICOMSegmentationWriterOperator(seg_labels="Spleen")
+        dicom_seg_writer = DICOMSegmentationWriterOperator(seg_labels=["Spleen"])
 
-        # Create the processing pipeline DAG, by specifying the upstream and downstream operators, and
+        # Create the processing pipeline, by specifying the upstream and downstream operators, and
         # ensuring the output from the former matches the input of the latter, in both name and type.
         self.add_flow(study_loader_op, series_selector_op, {"dicom_study_list": "dicom_study_list"})
         self.add_flow(series_selector_op, series_to_vol_op, {"dicom_series": "dicom_series"})
@@ -65,14 +57,16 @@ class AISpleenSegApp(Application):
         self.add_flow(series_selector_op, dicom_seg_writer, {"dicom_series": "dicom_series"})
         self.add_flow(spleen_seg_op, dicom_seg_writer, {"seg_image": "seg_image"})
 
-        self.logger.debug(f"End {self.compose.__name__}")
+        self._logger.debug(f"End {self.compose.__name__}")
 
 
 if __name__ == "__main__":
-    # Creates the app and test it standalone.
-    # Model file is expected to be at: model/model.ts
-    # Input DICOM CT series is expected to be in: input/
-    # Output of DICOM Seg instance is to be in: output/
+    # Creates the app and test it standalone. When running is this mode, please note the following:
+    #     -m <model file>, for model file path
+    #     -i <DICOM folder>, for input DICOM CT series folder
+    #     -o <output folder>, for the output folder, default $PWD/output
+    # e.g.
+    #     python3 app.py -i input -m model/model.ts
     #
     logging.basicConfig(level=logging.DEBUG)
     app_instance = AISpleenSegApp()  # Optional params' defaults are fine.

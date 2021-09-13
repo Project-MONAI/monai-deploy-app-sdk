@@ -42,14 +42,13 @@ __all__ = ["MonaiSegInferenceOperator", "InMemImageReader"]
 @output("seg_image", Image, IOType.IN_MEMORY)
 @env(pip_packages=["monai==0.6.0", "torch>=1.5", "numpy>=1.17"])
 class MonaiSegInferenceOperator(InferenceOperator):
-    """This segmentation operator uses Monai transforms and Sliding Window Inference.
+    """This segmentation operator uses MONAI transforms and Sliding Window Inference.
 
     This operator preforms pre-transforms on a input image, inference
     using a given model, and post-transforms. The segmentation image is saved
     as a named Image object in memory.
 
     If specified in the post transforms, results may also be saved to disk.
-
     """
 
     # For testing the app directly, the model should be at the following path.
@@ -60,6 +59,7 @@ class MonaiSegInferenceOperator(InferenceOperator):
         roi_size: Union[Sequence[int], int],
         pre_transforms: Compose,
         post_transforms: Compose,
+        overlap: float = 0.5,
         *args,
         **kwargs,
     ):
@@ -67,8 +67,9 @@ class MonaiSegInferenceOperator(InferenceOperator):
 
         Args:
             roi_size (Union[Sequence[int], int]): The tensor size used in inference.
-            pre_transforms (Compose): Monai Compose oject used for pre-transforms.
-            pre_transforms (Compose): Monai Compose oject used for pre-transforms.
+            pre_transforms (Compose): MONAI Compose oject used for pre-transforms.
+            post_transforms (Compose): MONAI Compose oject used for post-transforms.
+            overlap (float): The overlap used in sliding window inference.
         """
 
         super().__init__()
@@ -81,7 +82,7 @@ class MonaiSegInferenceOperator(InferenceOperator):
         self._roi_size = ensure_tuple(roi_size)
         self._pre_transform = pre_transforms
         self._post_transforms = post_transforms
-        self._overlap = 0.5
+        self.overlap = overlap
 
     @property
     def roi_size(self):
@@ -94,7 +95,7 @@ class MonaiSegInferenceOperator(InferenceOperator):
 
     @property
     def input_dataset_key(self):
-        """This is the input image key name used in dictionary based Monai pre-transforms."""
+        """This is the input image key name used in dictionary based MONAI pre-transforms."""
         return self._input_dataset_key
 
     @input_dataset_key.setter
@@ -105,7 +106,7 @@ class MonaiSegInferenceOperator(InferenceOperator):
 
     @property
     def pred_dataset_key(self):
-        """This is the prediction key name used in dictionary based Monai post-transforms."""
+        """This is the prediction key name used in dictionary based MONAI post-transforms."""
         return self._pred_dataset_key
 
     @pred_dataset_key.setter
@@ -116,13 +117,14 @@ class MonaiSegInferenceOperator(InferenceOperator):
 
     @property
     def overlap(self):
-        """This is the overlap used during sliding window inference."""
-        return self.overlap
+        """This is the overlap used during sliding window inference"""
+        return self._overlap
+
     @overlap.setter
     def overlap(self, val: float):
         if val < 0 and val > 1:
             raise ValueError("Overlap must be between 0 and 1.")
-        self.overlap = val
+        self._overlap = val
 
     def compute(self, input: InputContext, output: OutputContext, context: ExecutionContext):
         """Infers with the input image and save the predicted image to output
@@ -142,7 +144,7 @@ class MonaiSegInferenceOperator(InferenceOperator):
             if not input_image:
                 raise ValueError("Input is None.")
 
-            img_name = "Img_in_Mem"
+            img_name = "Img_in_context"
             try:
                 img_name = input_image.metadata().get["series_instance_uid", img_name]
             except Exception:  # Best effort
@@ -153,22 +155,13 @@ class MonaiSegInferenceOperator(InferenceOperator):
             self._reader = InMemImageReader(input_image)
 
             pre_transforms = self._pre_transform if self._pre_transform else self.pre_process(self._reader)
-
-            print("pre-transform:")
-            print(vars(pre_transforms.flatten()))
-
             post_transforms = self._post_transforms if self._post_transforms else self.post_process(pre_transforms)
-
-            print("post-transform:")
-            print(vars(post_transforms.flatten()))
 
             model = None
             if context.models:
                 # `context.models.get(model_name)` returns a model instance if exists.
                 # If model_name is not specified and only one model exists, it returns that model.
                 model = context.models.get()
-                print(f"Model path: {model.path}")
-                print(f"Model name: {model.name}")
             else:
                 print(f"Loading TorchScript model from: {MonaiSegInferenceOperator.MODEL_LOCAL_PATH}")
                 model = torch.jit.load(MonaiSegInferenceOperator.MODEL_LOCAL_PATH)
@@ -185,12 +178,11 @@ class MonaiSegInferenceOperator(InferenceOperator):
                         inputs=images,
                         roi_size=self._roi_size,
                         sw_batch_size=sw_batch_size,
-                        overlap=self._overlap,
+                        overlap=self.overlap,
                         predictor=model,
                     )
                     d = [post_transforms(i) for i in decollate_batch(d)]
                     out_ndarray = d[0][self._pred_dataset_key].cpu().numpy()
-                    print(f"Post transformed ndarray shape: {out_ndarray.shape}")
                     # Need to squeeze out the channel dim fist
                     out_ndarray = np.squeeze(out_ndarray, 0)
                     # NOTE: The domain Image object simply contains a Arraylike obj as image as of now.
@@ -221,7 +213,7 @@ class MonaiSegInferenceOperator(InferenceOperator):
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
 
     def post_process(self, pre_transforms: Compose, out_dir: str = "./infer_out") -> Union[Any, Image, Compose]:
-        """Transform the prediction results from the model(s).
+        """Transforms the prediction results from the model(s).
 
         This method must be overridden by a derived class.
 
@@ -242,9 +234,9 @@ class MonaiSegInferenceOperator(InferenceOperator):
 
 
 class InMemImageReader(ImageReader):
-    """Loads the App SDK Image object from memory.
+    """Converts the App SDK Image object from memory.
 
-    This is derived from Monai ImageReader. Instead of reading image from file system, this
+    This is derived from MONAI ImageReader. Instead of reading image from file system, this
     class simply converts a in-memory SDK Image object to the expected formats from ImageReader.
     """
 
@@ -284,10 +276,10 @@ class InMemImageReader(ImageReader):
 
     def _get_meta_dict(self, img: Image) -> Dict:
         """
-        Get the meta data of the image and convert to dict type.
+        Gets the metadata of the image and converts to dict type.
 
         Args:
-            img: a MONAI Deploy App SDK Image object.
+            img: A SDK Image object.
         """
         img_meta_dict: Dict = img.metadata()
         meta_dict = {key: img_meta_dict[key] for key in img_meta_dict.keys()}
@@ -314,7 +306,7 @@ class InMemImageReader(ImageReader):
         return meta_dict
 
 
-# Reuse Monai code for the derived ImageReader
+# Reuse MONAI code for the derived ImageReader
 def _copy_compatible_dict(from_dict: Dict, to_dict: Dict):
     if not isinstance(to_dict, dict):
         raise ValueError(f"to_dict must be a Dict, got {type(to_dict)}.")
