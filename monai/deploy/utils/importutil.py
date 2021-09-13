@@ -96,9 +96,28 @@ def get_application(path: Union[str, Path]) -> Optional["Application"]:
     return None
 
 
-def get_class_file_path(cls) -> Path:
-    """Get the file path of a class."""
-    return Path(inspect.getfile(cls))
+def get_class_file_path(cls: Type) -> Path:
+    """Get the file path of a class.
+
+    If file path is not available, it tries to get the internal class name used in IPython(starting with <ipython-...>).
+
+    Args:
+        cls (Type): A class to get file path from.
+
+    Returns:
+        A file path of the class.
+    """
+
+    try:
+        return Path(inspect.getfile(cls))
+    except TypeError:
+        # If in IPython shell, use inspect.stack() to get the caller's file path
+        stack = inspect.stack()
+        for frame in stack:
+            if frame.filename.startswith("<ipython-"):
+                return Path(frame.filename)
+        # If not in IPython shell, re-raise the error
+        raise
 
 
 ######################################################################################
