@@ -122,7 +122,7 @@ class MonaiSegInferenceOperator(InferenceOperator):
 
     @overlap.setter
     def overlap(self, val: float):
-        if val < 0 and val > 1:
+        if val < 0 or val > 1:
             raise ValueError("Overlap must be between 0 and 1.")
         self._overlap = val
 
