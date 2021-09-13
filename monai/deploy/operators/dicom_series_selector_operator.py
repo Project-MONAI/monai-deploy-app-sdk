@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Dict
+from typing import Dict, List
 
 from monai.deploy.core import ExecutionContext, InputContext, IOType, Operator, OutputContext, input, output
 from monai.deploy.core.domain.dicom_series import DICOMSeries
@@ -18,7 +18,7 @@ from monai.deploy.exceptions import ItemNotExistsError
 from monai.deploy.operators.dicom_data_loader_operator import DICOMDataLoaderOperator
 
 
-@input("dicom_study_list", DICOMStudy, IOType.IN_MEMORY)
+@input("dicom_study_list", List[DICOMStudy], IOType.IN_MEMORY)
 @input("selection_rules", Dict, IOType.IN_MEMORY)
 @output("dicom_series", DICOMSeries, IOType.IN_MEMORY)
 class DICOMSeriesSelectorOperator(Operator):
