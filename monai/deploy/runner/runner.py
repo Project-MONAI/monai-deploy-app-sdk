@@ -140,9 +140,11 @@ def dependency_verification(map_name: str) -> bool:
     return True
 
 
-def nvidia_docker_dependency_verification(pkg_info: dict) -> bool:
-    """Checks if gpu has been requested by the application.
-    If yes, verifies if nvidia-docker is installed.
+def pkg_specific_dependency_verification(pkg_info: dict) -> bool:
+    """Checks for any package specific dependencies.
+
+    Currently it verifies the following dependencies:
+    * If gpu has been requested by the application, verify that nvidia-docker is installed.
 
     Args:
         pkg_info: package manifest as a python dict
@@ -182,8 +184,7 @@ def main(args: argparse.Namespace):
         logger.error("ERROR: Failed to fetch MAP manifest. Aborting...")
         sys.exit(1)
 
-    # If gpus are requested, verify if nvidia-docker is installed
-    if not nvidia_docker_dependency_verification(pkg_info):
+    if not pkg_specific_dependency_verification(pkg_info):
         logger.error("Aborting...")
         sys.exit(1)
 

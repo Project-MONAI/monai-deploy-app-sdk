@@ -268,13 +268,13 @@ def test_dependency_verification(
     [argparse.Namespace(map=lazy_fixture("sample_map_name"), input="input", output="output", quiet=False)],
 )
 @patch("monai.deploy.runner.runner.run_app")
-@patch("monai.deploy.runner.runner.nvidia_docker_dependency_verification")
+@patch("monai.deploy.runner.runner.pkg_specific_dependency_verification")
 @patch("monai.deploy.runner.runner.fetch_map_manifest")
 @patch("monai.deploy.runner.runner.dependency_verification")
 def test_main(
     mock_dependency_verification,
     mock_fetch_map_manifest,
-    mock_nvidia_docker_dependency_verification,
+    mock_pkg_specific_dependency_verification,
     mock_run_app,
     dependency_verification_return,
     fetch_map_manifest_return,
@@ -285,7 +285,7 @@ def test_main(
 
     mock_dependency_verification.return_value = dependency_verification_return
     mock_fetch_map_manifest.return_value = fetch_map_manifest_return
-    mock_nvidia_docker_dependency_verification.return_value = True
+    mock_pkg_specific_dependency_verification.return_value = True
     mock_run_app.return_value = run_app_return
 
     with not_raises(SystemExit) as _:
@@ -293,7 +293,7 @@ def test_main(
 
 
 @pytest.mark.parametrize(
-    "dependency_verification_return, fetch_map_manifest_return, nvidia_docker_dependency_verification_return, run_app_return",
+    "dependency_verification_return, fetch_map_manifest_return, pkg_specific_dependency_verification_return, run_app_return",
     [
         (True, (lazy_fixture("faux_app_manifest"), lazy_fixture("faux_pkg_manifest"), 0), False, 0),
         (True, (lazy_fixture("faux_app_manifest"), lazy_fixture("faux_pkg_manifest"), 0), True, 125),
@@ -308,17 +308,17 @@ def test_main(
     [argparse.Namespace(map=lazy_fixture("sample_map_name"), input="input", output="output", quiet=False)],
 )
 @patch("monai.deploy.runner.runner.run_app")
-@patch("monai.deploy.runner.runner.nvidia_docker_dependency_verification")
+@patch("monai.deploy.runner.runner.pkg_specific_dependency_verification")
 @patch("monai.deploy.runner.runner.fetch_map_manifest")
 @patch("monai.deploy.runner.runner.dependency_verification")
 def test_main_error_conditions(
     mock_dependency_verification,
     mock_fetch_map_manifest,
-    mock_nvidia_docker_dependency_verification,
+    mock_pkg_specific_dependency_verification,
     mock_run_app,
     dependency_verification_return,
     fetch_map_manifest_return,
-    nvidia_docker_dependency_verification_return,
+    pkg_specific_dependency_verification_return,
     run_app_return,
     parsed_args,
 ):
@@ -326,7 +326,7 @@ def test_main_error_conditions(
 
     mock_dependency_verification.return_value = dependency_verification_return
     mock_fetch_map_manifest.return_value = fetch_map_manifest_return
-    mock_nvidia_docker_dependency_verification.return_value = nvidia_docker_dependency_verification_return
+    mock_pkg_specific_dependency_verification.return_value = pkg_specific_dependency_verification_return
     mock_run_app.return_value = run_app_return
 
     with pytest.raises(SystemExit) as wrapped_error:
