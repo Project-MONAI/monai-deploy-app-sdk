@@ -10,7 +10,7 @@
 # limitations under the License.
 
 import logging
-from argparse import HelpFormatter, ArgumentParser, Namespace, _SubParsersAction
+from argparse import ArgumentParser, HelpFormatter, Namespace, _SubParsersAction
 from typing import List
 
 from monai.deploy.runner import runner
@@ -20,9 +20,7 @@ logger = logging.getLogger("app_runner")
 
 
 def create_run_parser(subparser: _SubParsersAction, command: str, parents: List[ArgumentParser]) -> ArgumentParser:
-    parser = subparser.add_parser(
-        command, formatter_class=HelpFormatter, parents=parents, add_help=False
-    )
+    parser = subparser.add_parser(command, formatter_class=HelpFormatter, parents=parents, add_help=False)
 
     parser.add_argument("map", metavar="<map-image[:tag]>", help="MAP image name")
 

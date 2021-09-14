@@ -75,7 +75,9 @@ def test_fetch_map_manifest(
     ],
 )
 @patch("monai.deploy.runner.runner.run_cmd")
-def test_run_app_without_gpu_request(mock_run_cmd, return_value, input_path, output_path, quiet, sample_map_name, faux_app_manifest, faux_pkg_manifest):
+def test_run_app_without_gpu_request(
+    mock_run_cmd, return_value, input_path, output_path, quiet, sample_map_name, faux_app_manifest, faux_pkg_manifest
+):
     from monai.deploy.runner import runner
 
     mock_run_cmd.return_value = return_value
@@ -113,7 +115,16 @@ def test_run_app_without_gpu_request(mock_run_cmd, return_value, input_path, out
     ],
 )
 @patch("monai.deploy.runner.runner.run_cmd")
-def test_run_app_with_gpu_request(mock_run_cmd, return_value, input_path, output_path, quiet, sample_map_name, faux_app_manifest, faux_pkg_manifest_with_gpu):
+def test_run_app_with_gpu_request(
+    mock_run_cmd,
+    return_value,
+    input_path,
+    output_path,
+    quiet,
+    sample_map_name,
+    faux_app_manifest,
+    faux_pkg_manifest_with_gpu,
+):
     from monai.deploy.runner import runner
 
     mock_run_cmd.return_value = return_value
@@ -123,7 +134,9 @@ def test_run_app_with_gpu_request(mock_run_cmd, return_value, input_path, output
     expected_container_input /= app_manifest["working-directory"]
     expected_container_output /= app_manifest["working-directory"]
 
-    returncode = runner.run_app(sample_map_name, input_path, output_path, app_manifest, faux_pkg_manifest_with_gpu, quiet)
+    returncode = runner.run_app(
+        sample_map_name, input_path, output_path, app_manifest, faux_pkg_manifest_with_gpu, quiet
+    )
 
     assert returncode == return_value
     mock_run_cmd.assert_called_once_with(ContainsString("nvidia-docker run"))
@@ -193,7 +206,14 @@ def test_run_app_for_input_output_path_with_space(
 )
 @patch("monai.deploy.runner.runner.run_cmd")
 def test_run_app_for_absolute_paths_in_app_manifest(
-    mock_run_cmd, return_value, input_path, output_path, quiet, sample_map_name, faux_app_manifest_with_absolute_path, faux_pkg_manifest
+    mock_run_cmd,
+    return_value,
+    input_path,
+    output_path,
+    quiet,
+    sample_map_name,
+    faux_app_manifest_with_absolute_path,
+    faux_pkg_manifest,
 ):
     from monai.deploy.runner import runner
 
@@ -262,6 +282,7 @@ def test_main(
     parsed_args,
 ):
     from monai.deploy.runner import runner
+
     mock_dependency_verification.return_value = dependency_verification_return
     mock_fetch_map_manifest.return_value = fetch_map_manifest_return
     mock_nvidia_docker_dependency_verification.return_value = True

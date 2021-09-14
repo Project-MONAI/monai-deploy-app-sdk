@@ -174,22 +174,22 @@ def main(args: argparse.Namespace):
     """
     if not dependency_verification(args.map):
         logger.error("Aborting...")
-        sys.exit()
+        sys.exit(1)
 
     # Fetch application manifest from MAP
     app_info, pkg_info, returncode = fetch_map_manifest(args.map)
     if returncode != 0:
         logger.error("ERROR: Failed to fetch MAP manifest. Aborting...")
-        sys.exit()
+        sys.exit(1)
 
     # If gpus are requested, verify if nvidia-docker is installed
     if not nvidia_docker_dependency_verification(pkg_info):
         logger.error("Aborting...")
-        sys.exit()
+        sys.exit(1)
 
     # Run MONAI Application
     returncode = run_app(args.map, args.input, args.output, app_info, pkg_info, quiet=args.quiet)
 
     if returncode != 0:
         logger.error('\nERROR: MONAI Application "%s" failed.', args.map)
-        sys.exit()
+        sys.exit(1)
