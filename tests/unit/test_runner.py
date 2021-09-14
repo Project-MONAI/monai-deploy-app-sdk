@@ -41,7 +41,7 @@ def not_raises(exception):
 @patch("monai.deploy.runner.runner.run_cmd")
 @patch("tempfile.TemporaryDirectory")
 def test_fetch_map_manifest(
-    tempdir, mock_run_cmd, return_value, sample_map_name, faux_app_manifest, mock_manifest_export_dir
+    tempdir, mock_run_cmd, return_value, sample_map_name, faux_app_manifest, faux_pkg_manifest, mock_manifest_export_dir
 ):
     from monai.deploy.runner import runner
 
@@ -49,13 +49,16 @@ def test_fetch_map_manifest(
     mock_run_cmd.return_value = return_value
 
     expected_app_manifest = {}
+    expected_pkg_manifest = {}
     if return_value == 0:
         expected_app_manifest = faux_app_manifest
+        expected_pkg_manifest = faux_pkg_manifest
 
-    actual_app_manifest, returncode = runner.fetch_map_manifest(sample_map_name)
+    actual_app_manifest, actual_pkg_manifest, returncode = runner.fetch_map_manifest(sample_map_name)
 
     assert returncode == return_value
     TestCase().assertDictEqual(actual_app_manifest, expected_app_manifest)
+    TestCase().assertDictEqual(actual_pkg_manifest, expected_pkg_manifest)
     mock_run_cmd.assert_called_once_with(ContainsString(sample_map_name))
     mock_run_cmd.assert_called_once_with(ContainsString(mock_manifest_export_dir))
 
@@ -72,7 +75,9 @@ def test_fetch_map_manifest(
     ],
 )
 @patch("monai.deploy.runner.runner.run_cmd")
-def test_run_app(mock_run_cmd, return_value, input_path, output_path, quiet, sample_map_name, faux_app_manifest):
+def test_run_app_without_gpu_request(
+    mock_run_cmd, return_value, input_path, output_path, quiet, sample_map_name, faux_app_manifest, faux_pkg_manifest
+):
     from monai.deploy.runner import runner
 
     mock_run_cmd.return_value = return_value
@@ -82,9 +87,59 @@ def test_run_app(mock_run_cmd, return_value, input_path, output_path, quiet, sam
     expected_container_input /= app_manifest["working-directory"]
     expected_container_output /= app_manifest["working-directory"]
 
-    returncode = runner.run_app(sample_map_name, input_path, output_path, app_manifest, quiet)
+    returncode = runner.run_app(sample_map_name, input_path, output_path, app_manifest, faux_pkg_manifest, quiet)
 
     assert returncode == return_value
+    mock_run_cmd.assert_called_once_with(ContainsString("docker run"))
+    mock_run_cmd.assert_called_once_with(ContainsString(sample_map_name))
+    mock_run_cmd.assert_called_once_with(ContainsString(input_path))
+    mock_run_cmd.assert_called_once_with(ContainsString(expected_container_input))
+    mock_run_cmd.assert_called_once_with(ContainsString(output_path))
+    mock_run_cmd.assert_called_once_with(ContainsString(expected_container_output))
+    mock_run_cmd.assert_called_once_with(ContainsString("STDERR"))
+    if quiet:
+        mock_run_cmd.assert_called_once_with(DoesntContainsString("STDOUT"))
+    else:
+        mock_run_cmd.assert_called_once_with(ContainsString("STDOUT"))
+
+
+@pytest.mark.parametrize(
+    "return_value, input_path, output_path, quiet",
+    [
+        (0, lazy_fixture("faux_file"), Path("output/"), False),
+        (0, lazy_fixture("faux_folder"), Path("output/"), False),
+        (0, lazy_fixture("faux_file"), Path("output/"), True),
+        (0, lazy_fixture("faux_folder"), Path("output/"), True),
+        (125, lazy_fixture("faux_file"), Path("output/"), False),
+        (125, lazy_fixture("faux_folder"), Path("output/"), False),
+    ],
+)
+@patch("monai.deploy.runner.runner.run_cmd")
+def test_run_app_with_gpu_request(
+    mock_run_cmd,
+    return_value,
+    input_path,
+    output_path,
+    quiet,
+    sample_map_name,
+    faux_app_manifest,
+    faux_pkg_manifest_with_gpu,
+):
+    from monai.deploy.runner import runner
+
+    mock_run_cmd.return_value = return_value
+    app_manifest = faux_app_manifest
+    expected_container_input = Path(app_manifest["input"]["path"])
+    expected_container_output = Path(app_manifest["output"]["path"])
+    expected_container_input /= app_manifest["working-directory"]
+    expected_container_output /= app_manifest["working-directory"]
+
+    returncode = runner.run_app(
+        sample_map_name, input_path, output_path, app_manifest, faux_pkg_manifest_with_gpu, quiet
+    )
+
+    assert returncode == return_value
+    mock_run_cmd.assert_called_once_with(ContainsString("nvidia-docker run"))
     mock_run_cmd.assert_called_once_with(ContainsString(sample_map_name))
     mock_run_cmd.assert_called_once_with(ContainsString(input_path))
     mock_run_cmd.assert_called_once_with(ContainsString(expected_container_input))
@@ -110,7 +165,7 @@ def test_run_app(mock_run_cmd, return_value, input_path, output_path, quiet, sam
 )
 @patch("monai.deploy.runner.runner.run_cmd")
 def test_run_app_for_input_output_path_with_space(
-    mock_run_cmd, return_value, input_path, output_path, quiet, sample_map_name, faux_app_manifest
+    mock_run_cmd, return_value, input_path, output_path, quiet, sample_map_name, faux_app_manifest, faux_pkg_manifest
 ):
     from monai.deploy.runner import runner
 
@@ -121,7 +176,7 @@ def test_run_app_for_input_output_path_with_space(
     expected_container_input /= app_manifest["working-directory"]
     expected_container_output /= app_manifest["working-directory"]
 
-    returncode = runner.run_app(sample_map_name, input_path, output_path, app_manifest, quiet)
+    returncode = runner.run_app(sample_map_name, input_path, output_path, app_manifest, faux_pkg_manifest, quiet)
     input_path_with_quotes = f'"{input_path.absolute()}"'
     output_path_with_quotes = f'"{output_path.absolute()}"'
 
@@ -151,7 +206,14 @@ def test_run_app_for_input_output_path_with_space(
 )
 @patch("monai.deploy.runner.runner.run_cmd")
 def test_run_app_for_absolute_paths_in_app_manifest(
-    mock_run_cmd, return_value, input_path, output_path, quiet, sample_map_name, faux_app_manifest_with_absolute_path
+    mock_run_cmd,
+    return_value,
+    input_path,
+    output_path,
+    quiet,
+    sample_map_name,
+    faux_app_manifest_with_absolute_path,
+    faux_pkg_manifest,
 ):
     from monai.deploy.runner import runner
 
@@ -160,7 +222,7 @@ def test_run_app_for_absolute_paths_in_app_manifest(
     expected_container_input = Path(app_manifest["input"]["path"])
     expected_container_output = Path(app_manifest["output"]["path"])
 
-    returncode = runner.run_app(sample_map_name, input_path, output_path, app_manifest, quiet)
+    returncode = runner.run_app(sample_map_name, input_path, output_path, app_manifest, faux_pkg_manifest, quiet)
 
     assert returncode == return_value
     mock_run_cmd.assert_called_once_with(ContainsString(sample_map_name))
@@ -199,18 +261,20 @@ def test_dependency_verification(
 
 @pytest.mark.parametrize(
     "dependency_verification_return, fetch_map_manifest_return, run_app_return",
-    [(True, (lazy_fixture("faux_app_manifest"), 0), 0)],
+    [(True, (lazy_fixture("faux_app_manifest"), lazy_fixture("faux_pkg_manifest"), 0), 0)],
 )
 @pytest.mark.parametrize(
     "parsed_args",
     [argparse.Namespace(map=lazy_fixture("sample_map_name"), input="input", output="output", quiet=False)],
 )
 @patch("monai.deploy.runner.runner.run_app")
+@patch("monai.deploy.runner.runner.pkg_specific_dependency_verification")
 @patch("monai.deploy.runner.runner.fetch_map_manifest")
 @patch("monai.deploy.runner.runner.dependency_verification")
 def test_main(
     mock_dependency_verification,
     mock_fetch_map_manifest,
+    mock_pkg_specific_dependency_verification,
     mock_run_app,
     dependency_verification_return,
     fetch_map_manifest_return,
@@ -221,6 +285,7 @@ def test_main(
 
     mock_dependency_verification.return_value = dependency_verification_return
     mock_fetch_map_manifest.return_value = fetch_map_manifest_return
+    mock_pkg_specific_dependency_verification.return_value = True
     mock_run_app.return_value = run_app_return
 
     with not_raises(SystemExit) as _:
@@ -228,13 +293,14 @@ def test_main(
 
 
 @pytest.mark.parametrize(
-    "dependency_verification_return, fetch_map_manifest_return, run_app_return",
+    "dependency_verification_return, fetch_map_manifest_return, pkg_specific_dependency_verification_return, run_app_return",
     [
-        (True, (lazy_fixture("faux_app_manifest"), 0), 125),
-        (True, ({}, 125), 0),
-        (False, ({}, 125), 125),
-        (False, (lazy_fixture("faux_app_manifest"), 0), 0),
-        (False, (lazy_fixture("faux_app_manifest"), 0), 125),
+        (True, (lazy_fixture("faux_app_manifest"), lazy_fixture("faux_pkg_manifest"), 0), False, 0),
+        (True, (lazy_fixture("faux_app_manifest"), lazy_fixture("faux_pkg_manifest"), 0), True, 125),
+        (True, ({}, {}, 125), True, 0),
+        (False, ({}, {}, 125), True, 125),
+        (False, (lazy_fixture("faux_app_manifest"), lazy_fixture("faux_pkg_manifest"), 0), True, 0),
+        (False, (lazy_fixture("faux_app_manifest"), lazy_fixture("faux_pkg_manifest"), 0), True, 125),
     ],
 )
 @pytest.mark.parametrize(
@@ -242,14 +308,17 @@ def test_main(
     [argparse.Namespace(map=lazy_fixture("sample_map_name"), input="input", output="output", quiet=False)],
 )
 @patch("monai.deploy.runner.runner.run_app")
+@patch("monai.deploy.runner.runner.pkg_specific_dependency_verification")
 @patch("monai.deploy.runner.runner.fetch_map_manifest")
 @patch("monai.deploy.runner.runner.dependency_verification")
 def test_main_error_conditions(
     mock_dependency_verification,
     mock_fetch_map_manifest,
+    mock_pkg_specific_dependency_verification,
     mock_run_app,
     dependency_verification_return,
     fetch_map_manifest_return,
+    pkg_specific_dependency_verification_return,
     run_app_return,
     parsed_args,
 ):
@@ -257,6 +326,7 @@ def test_main_error_conditions(
 
     mock_dependency_verification.return_value = dependency_verification_return
     mock_fetch_map_manifest.return_value = fetch_map_manifest_return
+    mock_pkg_specific_dependency_verification.return_value = pkg_specific_dependency_verification_return
     mock_run_app.return_value = run_app_return
 
     with pytest.raises(SystemExit) as wrapped_error:

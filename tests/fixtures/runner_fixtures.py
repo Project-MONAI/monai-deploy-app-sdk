@@ -69,6 +69,28 @@ def faux_app_manifest():
 
 
 @pytest.fixture(scope="session")
+def faux_pkg_manifest_with_gpu():
+    pkg_manifest = json.loads(
+        """{
+        "sdk-version": "0.0.0",
+        "models": [
+            {
+            "name": "spleen-segmentation",
+            "path": "/var/opt/monai/models/spleen_model/data.ts"
+            }
+        ],
+        "resources": {
+            "cpu": 1,
+            "gpu": 1,
+            "memory": "4Gi"
+        }
+        }
+    """
+    )
+    yield pkg_manifest
+
+
+@pytest.fixture(scope="session")
 def faux_pkg_manifest():
     pkg_manifest = json.loads(
         """{
@@ -79,9 +101,8 @@ def faux_pkg_manifest():
             "path": "/var/opt/monai/models/spleen_model/data.ts"
             }
         ],
-        "resource": {
+        "resources": {
             "cpu": 1,
-            "gpu": 1,
             "memory": "4Gi"
         }
         }
