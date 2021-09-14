@@ -16,12 +16,13 @@ from monai.deploy.core import ExecutionContext, Image, InputContext, IOType, Ope
 from monai.deploy.operators.monai_seg_inference_operator import InMemImageReader, MonaiSegInferenceOperator
 from monai.transforms import (
     Activationsd,
+    AddChanneld,
     AsDiscreted,
     Compose,
     CropForegroundd,
-    EnsureChannelFirstd,
     Invertd,
     LoadImaged,
+    Orientationd,
     SaveImaged,
     ScaleIntensityRanged,
     Spacingd,
@@ -32,8 +33,8 @@ from monai.transforms import (
 @input("image", Image, IOType.IN_MEMORY)
 @output("seg_image", Image, IOType.IN_MEMORY)
 @env(pip_packages=["monai==0.6.0", "torch>=1.5", "numpy>=1.17", "nibabel"])
-class SpleenSegOperator(Operator):
-    """Performs Spleen segmentation with a 3D image converted from a DICOM CT series.
+class UnetrSegOperator(Operator):
+    """Performs multi-organ segmentation using UNETR model with an image converted from a DICOM CT series.
 
     This operator makes use of the App SDK MonaiSegInferenceOperator in a compsition approach.
     It creates the pre-transforms as well as post-transforms with MONAI dictionary based transforms.
@@ -68,9 +69,9 @@ class SpleenSegOperator(Operator):
         # Delegates inference and saving output to the built-in operator.
         infer_operator = MonaiSegInferenceOperator(
             (
-                160,
-                160,
-                160,
+                96,
+                96,
+                96,
             ),
             pre_transforms,
             post_transforms,
@@ -90,11 +91,12 @@ class SpleenSegOperator(Operator):
         return Compose(
             [
                 LoadImaged(keys=my_key, reader=img_reader),
-                EnsureChannelFirstd(keys=my_key),
-                Spacingd(keys=my_key, pixdim=[1.0, 1.0, 1.0], mode=["blinear"], align_corners=True),
-                ScaleIntensityRanged(keys=my_key, a_min=-57, a_max=164, b_min=0.0, b_max=1.0, clip=True),
-                CropForegroundd(keys=my_key, source_key=my_key),
-                ToTensord(keys=my_key),
+                AddChanneld(keys=my_key),
+                Spacingd(keys=my_key, pixdim=(1.5, 1.5, 2.0), mode=("bilinear")),
+                Orientationd(keys=my_key, axcodes="RAS"),
+                ScaleIntensityRanged(my_key, a_min=-175, a_max=250, b_min=0.0, b_max=1.0, clip=True),
+                CropForegroundd(my_key, source_key=my_key),
+                ToTensord(my_key),
             ]
         )
 
