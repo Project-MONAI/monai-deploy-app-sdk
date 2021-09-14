@@ -391,6 +391,23 @@ clean() {
         run_command ${MONAI_PY_EXE} -m pip uninstall monai-deploy-app-sdk
     fi
 
+    local monai_package_path=$(${MONAI_PY_EXE} $TOP/monai/deploy/utils/importutil.py dist_module_path monai)
+    local sdk_package_path=$(${MONAI_PY_EXE} $TOP/monai/deploy/utils/importutil.py dist_module_path monai-deploy-app-sdk)
+    local is_sdk_editable="false"
+
+    if ${MONAI_PY_EXE} $TOP/monai/deploy/utils/importutil.py is_dist_editable monai-deploy-app-sdk; then
+        is_sdk_editable="true"
+    fi
+
+    c_echo b "monai_package_path: " Z "${monai_package_path}"
+    c_echo b "sdk_package_path  : " Z "${sdk_package_path}"
+    c_echo b "is_sdk_editable   : " Z "${is_sdk_editable}"
+
+    if [ "$is_sdk_editable" = "false" ] && [ -n "${monai_package_path}" ] && [ -L ${monai_package_path}/monai/deploy ]; then
+        c_echo W "Deleting a symbolic link at " b "'${monai_package_path}/monai/deploy'... "
+        run_command rm ${monai_package_path}/monai/deploy
+    fi
+
     # Remove temporary files (in the directory of this script)
     c_echo W "Removing temporary files in ${TOP}"
     run_command find ${TOP}/monai -type f -name "*.py[co]" -delete
