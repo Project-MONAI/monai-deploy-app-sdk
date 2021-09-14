@@ -23,7 +23,7 @@ from monai.deploy.runner.utils import run_cmd, verify_image
 logger = logging.getLogger("app_runner")
 
 
-def fetch_map_manifest(map_name: str) -> Tuple[dict, int]:
+def fetch_map_manifest(map_name: str) -> Tuple[dict, dict, int]:
     """
     Execute MONAI Application Package and fetch application manifest.
 
@@ -31,7 +31,8 @@ def fetch_map_manifest(map_name: str) -> Tuple[dict, int]:
         map_name: MAP image name.
 
     Returns:
-        app_info: application manifest as a python dict.
+        app_info: application manifest as a python dict
+        pkg_info: package manifest as a python dict
         returncode: command return code
     """
     logger.info("\nReading MONAI App Package manifest...")
@@ -41,7 +42,7 @@ def fetch_map_manifest(map_name: str) -> Tuple[dict, int]:
 
         returncode = run_cmd(cmd)
         if returncode != 0:
-            return {}, returncode
+            return {}, {}, returncode
 
         app_json = Path(f"{info_dir}/app.json")
         pkg_json = Path(f"{info_dir}/pkg.json")
@@ -55,10 +56,11 @@ def fetch_map_manifest(map_name: str) -> Tuple[dict, int]:
         logger.debug("----------------------------------------------\n")
 
         app_info = json.loads(app_json.read_text())
-        return app_info, returncode
+        pkg_info = json.loads(pkg_json.read_text())
+        return app_info, pkg_info, returncode
 
 
-def run_app(map_name: str, input_path: Path, output_path: Path, app_info: dict, quiet: bool) -> int:
+def run_app(map_name: str, input_path: Path, output_path: Path, app_info: dict, pkg_info: dict, quiet: bool) -> int:
     """
     Executes the MONAI Application.
 
@@ -67,12 +69,18 @@ def run_app(map_name: str, input_path: Path, output_path: Path, app_info: dict, 
         input_path: input file/directory path
         output_path: output directory path
         app_info: application manifest dictionary
+        pkg_info: package manifest dictionary
         quiet: boolean flag indicating quiet mode
 
     Returns:
         returncode: command returncode
     """
     cmd = "docker run --rm -a STDERR"
+
+    # Use nvidia-docker if GPU resources are requested
+    requested_gpus = pkg_info.get("resources", {}).get("gpu", 0)
+    if requested_gpus > 0:
+        cmd = "nvidia-docker run --rm -a STDERR"
 
     if not quiet:
         cmd += " -a STDOUT"
@@ -109,7 +117,7 @@ def dependency_verification(map_name: str) -> bool:
     """Check if all the dependencies are installed or not.
 
     Args:
-        None.
+        map_name: MONAI Application Package
 
     Returns:
         True if all dependencies are satisfied, otherwise False.
@@ -132,6 +140,28 @@ def dependency_verification(map_name: str) -> bool:
     return True
 
 
+def nvidia_docker_dependency_verification(pkg_info: dict) -> bool:
+    """Checks if gpu has been requested by the application.
+    If yes, verifies if nvidia-docker is installed.
+
+    Args:
+        pkg_info: package manifest as a python dict
+
+    Returns:
+        True if all dependencies are satisfied, otherwise False.
+    """
+    requested_gpus = pkg_info.get("resources", {}).get("gpu", 0)
+    if requested_gpus > 0:
+        # check for nvidia-docker
+        prog = "nvidia-docker"
+        logger.info('--> Verifying if "%s" is installed...\n', prog)
+        if not shutil.which(prog):
+            logger.error('ERROR: "%s" not installed, please install nvidia-docker.', prog)
+            return False
+
+    return True
+
+
 def main(args: argparse.Namespace):
     """
     Main entry function for MONAI Application Runner.
@@ -147,13 +177,18 @@ def main(args: argparse.Namespace):
         sys.exit()
 
     # Fetch application manifest from MAP
-    app_info, returncode = fetch_map_manifest(args.map)
+    app_info, pkg_info, returncode = fetch_map_manifest(args.map)
     if returncode != 0:
         logger.error("ERROR: Failed to fetch MAP manifest. Aborting...")
         sys.exit()
 
+    # If gpus are requested, verify if nvidia-docker is installed
+    if not nvidia_docker_dependency_verification(pkg_info):
+        logger.error("Aborting...")
+        sys.exit()
+
     # Run MONAI Application
-    returncode = run_app(args.map, args.input, args.output, app_info, quiet=args.quiet)
+    returncode = run_app(args.map, args.input, args.output, app_info, pkg_info, quiet=args.quiet)
 
     if returncode != 0:
         logger.error('\nERROR: MONAI Application "%s" failed.', args.map)
