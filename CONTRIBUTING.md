@@ -31,6 +31,14 @@ We encourage you to create pull requests early. It helps us track the contributi
 
 Please note that, as per PyTorch, MONAI Deploy App SDK uses American English spelling. This means classes and variables should be: normali**z**e, visuali**z**e, colo~~u~~r, etc.
 
+For local development, please execute the following command:
+
+```bash
+./run setup
+```
+
+This will set up the development environment, installing necessary packages.
+
 ### Preparing pull requests
 
 To ensure the code quality, MONAI Deploy App SDK relies on several linting tools ([flake8 and its plugins](https://gitlab.com/pycqa/flake8), [black](https://github.com/psf/black), [isort](https://github.com/timothycrosley/isort)),
