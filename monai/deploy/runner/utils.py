@@ -16,6 +16,18 @@ import subprocess
 logger = logging.getLogger("app_runner")
 
 
+def get_requested_gpus(pkg_info: dict) -> int:
+    """Gets requested number of gpus in the package manifest
+
+    Args:
+        pkg_info: package manifest as a python dict
+
+    Returns:
+        int: requested number of gpus in the package manifest
+    """
+    return pkg_info.get("resources", {}).get("gpu", 0)
+
+
 def run_cmd(cmd: str) -> int:
     """
     Executes command and return the returncode of the executed command.

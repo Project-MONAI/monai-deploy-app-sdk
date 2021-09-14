@@ -18,7 +18,7 @@ import tempfile
 from pathlib import Path
 from typing import Tuple
 
-from monai.deploy.runner.utils import run_cmd, verify_image
+from monai.deploy.runner.utils import get_requested_gpus, run_cmd, verify_image
 
 logger = logging.getLogger("app_runner")
 
@@ -78,7 +78,7 @@ def run_app(map_name: str, input_path: Path, output_path: Path, app_info: dict, 
     cmd = "docker run --rm -a STDERR"
 
     # Use nvidia-docker if GPU resources are requested
-    requested_gpus = pkg_info.get("resources", {}).get("gpu", 0)
+    requested_gpus = get_requested_gpus(pkg_info)
     if requested_gpus > 0:
         cmd = "nvidia-docker run --rm -a STDERR"
 
@@ -152,7 +152,7 @@ def pkg_specific_dependency_verification(pkg_info: dict) -> bool:
     Returns:
         True if all dependencies are satisfied, otherwise False.
     """
-    requested_gpus = pkg_info.get("resources", {}).get("gpu", 0)
+    requested_gpus = get_requested_gpus(pkg_info)
     if requested_gpus > 0:
         # check for nvidia-docker
         prog = "nvidia-docker"
@@ -175,17 +175,18 @@ def main(args: argparse.Namespace):
         None
     """
     if not dependency_verification(args.map):
-        logger.error("Aborting...")
+        logger.error("Execution Aborted")
         sys.exit(1)
 
     # Fetch application manifest from MAP
     app_info, pkg_info, returncode = fetch_map_manifest(args.map)
     if returncode != 0:
-        logger.error("ERROR: Failed to fetch MAP manifest. Aborting...")
+        logger.error("ERROR: Failed to fetch MAP manifest.")
+        logger.error("Execution Aborted")
         sys.exit(1)
 
     if not pkg_specific_dependency_verification(pkg_info):
-        logger.error("Aborting...")
+        logger.error("Execution Aborted")
         sys.exit(1)
 
     # Run MONAI Application
