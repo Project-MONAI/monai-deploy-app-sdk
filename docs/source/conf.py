@@ -140,7 +140,7 @@ html_sidebars = {
     "index": ["search-field", "sidebar-quicklinks", "sidebar-nav-bs"],
     "**": ["search-field", "sidebar-nav-bs"],
 }
-pygments_style = "sphinx"
+pygments_style = "monokai"
 
 
 # -- Options for pydata-sphinx-theme -------------------------------------------------

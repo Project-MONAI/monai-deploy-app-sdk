@@ -7,27 +7,80 @@ https://pydata-sphinx-theme.readthedocs.io/en/latest/user_guide/customizing.html
 body {
     font-family: "Roboto", sans-serif;
 }
+
 .wy-menu-vertical p.caption {
     color: #7cccc7;
 }
+
 * {
     font-variant-ligatures: none;
 }
+
 .autoclasstoc td {
     padding: 0.2rem;
     line-height: normal;
 }
-dl.field-list > dt {
+
+dl.field-list>dt {
     word-break: normal;
 }
-
-
 
 h5.card-header {
     margin-top: 0px;
     margin-bottom: 0px;
 }
+
 h5.card-header::before {
     height: 0px;
     margin-top: 0px;
 }
+
+
+/* Customize styles */
+
+:root {
+    --pst-color-inline-code: 232, 62, 140;
+    --pst-font-size-h1: 32px;
+    --pst-font-size-h2: 26px;
+    --pst-font-size-h3: 21px;
+    --pst-font-size-h4: 18px;
+    --pst-font-size-h5: 16px;
+    --pst-font-size-h6: 14px;
+}
+
+
+/* Customize headings */
+
+.heading-style,
+h1 {
+    font-family: Content-font, Roboto, sans-serif;
+    font-weight: 500;
+    line-height: 1.5;
+}
+
+/* Code Highlight */
+div[class^="highlight"] pre {
+    color: rgb(248, 248, 242);
+    background-color: rgb(35, 50, 74);
+    border: 0px;
+    box-shadow: none;
+}
+
+/* Left bar color for cells in Jupyter Notebook */
+div.cell div.cell_input {
+    border-left-color: rgb(93, 193, 183)
+}
+
+/* .highlight-bash pre {
+    color: rgb(248, 248, 242);
+    background-color: rgb(35, 50, 74);
+    border: 0px;
+    box-shadow: none;
+}
+
+.highlight-default pre {
+    color: rgb(248, 248, 242);
+    background-color: rgb(35, 50, 74);
+    border: 0px;
+    box-shadow: none;
+} */
