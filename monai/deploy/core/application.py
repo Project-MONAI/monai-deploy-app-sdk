@@ -94,19 +94,26 @@ class Application(ABC):
         else:
             self.path = get_class_file_path(self.__class__)
 
-        # Setup program arguments
-        if path is None:
-            argv = sys.argv
+        # Set the runtime environment
+        if str(self.path).startswith("<ipython-"):
+            self.in_ipython = True
         else:
+            self.in_ipython = False
+
+        # Setup program arguments
+        if path is not None or self.in_ipython:
             # If `path` is specified, it means that it is called by
             # monai.deploy.utils.importutil.get_application() to get the package info.
-            # In this case, we should not parse the arguments from the command line.
+            # If `self.in_ipython` is True, it means that it is called by ipython environment.
+            # In both cases, we should not parse the arguments from the command line.
             argv = [sys.executable, str(self.path)]  # use default parameters
+        else:
+            argv = sys.argv
 
         # Parse the command line arguments
         args = parse_args(argv, default_command="exec")
 
-        context = AppContext(args, runtime_env)
+        context = AppContext(args.__dict__, runtime_env)
 
         self._context: AppContext = context
 
@@ -119,11 +126,7 @@ class Application(ABC):
         self.compose()
 
         if do_run:
-            # Set up logging (try to load `LOG_CONFIG_FILENAME` in the application folder)
-            # and run the application
-            app_log_config_path = self.path.parent / LOG_CONFIG_FILENAME
-            set_up_logging(args.log_level, config_path=app_log_config_path)
-            self.run()
+            self.run(log_level=args.log_level)
 
     @classmethod
     def __subclasshook__(cls, c: Type) -> bool:
@@ -316,10 +319,116 @@ class Application(ABC):
             "pip-packages": pip_requirement_list,
         }
 
-    def run(self):
-        datastore = DatastoreFactory.create(self.context.datastore)
-        executor = ExecutorFactory.create(self.context.executor, {"app": self, "datastore": datastore})
-        executor.run()
+    def run(
+        self,
+        log_level: Optional[str] = None,
+        input: Optional[str] = None,
+        output: Optional[str] = None,
+        model: Optional[str] = None,
+        workdir: Optional[str] = None,
+        datastore: Optional[str] = None,
+        executor: Optional[str] = None,
+    ) -> None:
+        """Runs the application.
+
+        This method accepts `log_level` to set the log level of the application.
+
+        Other arguments are used to specify the `input`, `output`, `model`, `workdir`, `datastore`, and `executor`.
+        (Cannot set `graph` because it is set and used by the constructor.)
+
+        If those arguments are not specified, values in the application context will be used.
+
+        This method is useful when you want to interactively run the application inside IPython (Jupyter Notebook).
+
+        For example, you can run the following code in a notebook:
+
+        >>> from pathlib import Path
+        >>> from monai.deploy.core import (
+        >>>     Application,
+        >>>     DataPath,
+        >>>     ExecutionContext,
+        >>>     InputContext,
+        >>>     IOType,
+        >>>     Operator,
+        >>>     OutputContext,
+        >>>     input,
+        >>>     output,
+        >>>     resource,
+        >>> )
+        >>>
+        >>> @input("path", DataPath, IOType.DISK)
+        >>> @output("path", DataPath, IOType.DISK)
+        >>> class FirstOperator(Operator):
+        >>>     def compute(self, input: InputContext, output: OutputContext, context: ExecutionContext):
+        >>>         print(f"First Operator. input:{input.get().path}, model:{context.models.get().path}")
+        >>>         output_path = Path("output_first.txt")
+        >>>         output_path.write_text("first output\\n")
+        >>>         output.set(DataPath(output_path))
+        >>>
+        >>> @input("path", DataPath, IOType.DISK)
+        >>> @output("path", DataPath, IOType.DISK)
+        >>> class SecondOperator(Operator):
+        >>>     def compute(self, input: InputContext, output: OutputContext, context: ExecutionContext):
+        >>>         print(f"First Operator. output:{output.get().path}, model:{context.models.get().path}")
+        >>>         # The leaf operators can only read output DataPath and should not set output DataPath.
+        >>>         output_path = output.get().path / "output_second.txt"
+        >>>         output_path.write_text("second output\\n")
+        >>>
+        >>> class App(Application):
+        >>>     def compose(self):
+        >>>         first_op = FirstOperator()
+        >>>         second_op = SecondOperator()
+        >>>
+        >>>         self.add_flow(first_op, second_op)
+        >>>
+        >>> if __name__ == "__main__":
+        >>>     App(do_run=True)
+
+        >>> app = App()
+        >>> app.run(input="inp", output="out", model="model.pt")
+
+        >>> !ls out
+
+        Args:
+            log_level (Optional[str]): A log level.
+            input (Optional[str]): An input data path.
+            output (Optional[str]): An output data path.
+            model (Optional[str]): A model path.
+            workdir (Optional[str]): A working directory path.
+            datastore (Optional[str]): A datastore path.
+            executor (Optional[str]): An executor name.
+        """
+        # Set arguments
+        args = {}
+        if input is not None:
+            args["input"] = input
+        if output is not None:
+            args["output"] = output
+        if model is not None:
+            args["model"] = model
+        if workdir is not None:
+            args["workdir"] = workdir
+        if datastore is not None:
+            args["datastore"] = datastore
+        if executor is not None:
+            args["executor"] = executor
+
+        # If no arguments are specified and if runtime is in IPython, do not run the application.
+        if len(args) == 0 and self.in_ipython:
+            return
+
+        # Update app context
+        app_context = self.context
+        app_context.update(args)
+
+        # Set up logging (try to load `LOG_CONFIG_FILENAME` in the application folder)
+        # and run the application
+        app_log_config_path = self.path.parent / LOG_CONFIG_FILENAME
+        set_up_logging(log_level, config_path=app_log_config_path)
+
+        datastore_obj = DatastoreFactory.create(app_context.datastore)
+        executor_obj = ExecutorFactory.create(app_context.executor, {"app": self, "datastore": datastore_obj})
+        executor_obj.run()
 
     @abstractmethod
     def compose(self):
