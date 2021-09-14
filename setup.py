@@ -9,9 +9,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import site
+import sys
+
 from setuptools import find_namespace_packages, setup
 
 import versioneer
+
+# Workaround for editable installs with system's Python venv.
+#   error: can't create or remove files in install directory
+# (https://github.com/pypa/pip/issues/7953#issuecomment-645133255)
+site.ENABLE_USER_SITE = "--user" in sys.argv[1:]
 
 setup(
     version=versioneer.get_version(),
