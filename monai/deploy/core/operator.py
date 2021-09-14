@@ -197,10 +197,8 @@ class Operator(ABC):
         Instead, you can use the destination path available by `output.get().path` to store output data and the
         following logic is expected:
 
-        >>> output_folder = output.get().path                 # get the output path
-        >>> output_folder.mkdir(parents=True, exist_ok=True)  # create the output folder
-        >>> output_filename = "final_output.png"              # set the output filename
-        >>> output_path = output_folder / output_filename     # set the output path
+        >>> output_folder = output.get().path                 # get the output folder path
+        >>> output_path = output_folder / "final_output.png"  # get the output file path
 
         >>> imsave(output_path, data_out)                     # save the output data
 

@@ -34,17 +34,11 @@ class SobelOperator(Operator):
     """
 
     def compute(self, input: InputContext, output: OutputContext, context: ExecutionContext):
-        """Performs computation for this operator.
-
-        The input for this operator is hardcoded for now.
-        In near future this will be changed where the input is provided via
-        inversion of control mecchanism.
-        """
         from skimage import filters, io
 
         input_path = input.get().path
 
-        data_in = io.imread(input_path)
+        data_in = io.imread(input_path)[:, :, :3]  # discard alpha channel if exists
         data_out = filters.sobel(data_in)
 
         output.set(Image(data_out))

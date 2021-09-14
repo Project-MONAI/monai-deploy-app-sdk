@@ -2,7 +2,6 @@
 
 ```{toctree}
 :glob:
-:hidden:
 :maxdepth: 2
 
 overview

@@ -61,26 +61,47 @@ h1 {
 /* Code Highlight */
 div[class^="highlight"] pre {
     color: rgb(248, 248, 242);
-    background-color: rgb(35, 50, 74);
+    background-color: rgb(41, 44, 46);
     border: 0px;
     box-shadow: none;
+}
+div.highlight{
+    border-radius: 5px;
+}
+div.highlight pre {
+    border-radius: 5px;
+}
+div.cell div.cell_input div.highlight {
+    border-radius: 0px;
+}
+
+/* Code Block Caption */
+div.code-block-caption {
+    font-weight: bold;
+    font-style: italic;
+}
+
+/* Code Line Highlight */
+.highlight .hll {
+    background-color: rgb(133, 132, 24);
 }
 
 /* Left bar color for cells in Jupyter Notebook */
 div.cell div.cell_input {
-    border-left-color: rgb(93, 193, 183)
+    border-left-color: rgb(127, 218, 255)
 }
 
-/* .highlight-bash pre {
-    color: rgb(248, 248, 242);
-    background-color: rgb(35, 50, 74);
-    border: 0px;
-    box-shadow: none;
+/* Code highlight in source code view */
+.viewcode-block:target {
+    background-color: #382927;
 }
 
-.highlight-default pre {
-    color: rgb(248, 248, 242);
-    background-color: rgb(35, 50, 74);
-    border: 0px;
-    box-shadow: none;
-} */
+/* Backquote */
+blockquote {
+    background-color: rgb(129 252 255 / 30%);
+    border-left: 8px solid rgb(127, 218, 255);
+    padding: 15px 30px 15px 15px;
+}
+blockquote p {
+    margin-bottom: 0px;
+}
