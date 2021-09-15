@@ -342,7 +342,7 @@ install_edit_mode() {
     if [ "${is_sdk_editable}" == "false" ]; then
         c_echo W "Installing monai-deploy-app-sdk in edit mode..."
         if [ -n "${VIRTUAL_ENV}" ] || [ -n "${CONDA_PREFIX}" ]; then
-            run_command ${MONAI_PY_EXE} -m pip install -e .
+            run_command ${MONAI_PY_EXE} -m pip install -e ${TOP}
         else
             c_echo_err R "You must be in a virtual environment to install monai-deploy-app-sdk in edit mode."
         fi
@@ -910,6 +910,17 @@ install_doc_requirements() {
     fi
 }
 
+setup_gen_docs() {
+    local output_folder=${1:-${TOP}/dist/docs}
+
+    # Remove existing files in dist/docs
+    run_command rm -rf ${output_folder}/*
+
+    # Symbolic link notebooks folder from 'docs/source/notebooks' to 'notebooks'
+    run_command rm -rf ${TOP}/docs/source/notebooks
+    run_command ln -sfn ${TOP}/notebooks ${TOP}/docs/source/notebooks
+}
+
 gen_docs_desc() { c_echo 'Generate documents
 
 Generated docs would be avaialable at ${TOP}/dist/docs.
@@ -931,12 +942,7 @@ gen_docs() {
     # Install prerequisites
     install_doc_requirements
 
-    # Remove existing files in dist/docs
-    run_command rm -rf ${output_folder}/*
-
-    # Symbolic link notebooks folder from 'docs/source/notebooks' to 'notebooks'
-    run_command rm -rf ${TOP}/docs/source/notebooks
-    run_command ln -sfn ${TOP}/notebooks ${TOP}/docs/source/notebooks
+    setup_gen_docs ${output_folder}
 
     c_echo W "Sphinx build html..."
     sphinx-build -E -b html $TOP/docs/source ${output_folder}
@@ -1002,12 +1008,7 @@ gen_docs_dev() {
     # Install prerequisites
     install_doc_requirements
 
-    # Remove existing files in dist/docs
-    run_command rm -rf ${output_folder}/*
-
-    # Symbolic link notebooks folder from 'docs/source/notebooks' to 'notebooks'
-    run_command rm -rf ${TOP}/docs/source/notebooks
-    run_command ln -sfn ${TOP}/notebooks ${TOP}/docs/source/notebooks
+    setup_gen_docs ${output_folder}
 
     c_echo W "Sphinx build html..."
     sphinx-build -E -b html $TOP/docs/source ${output_folder}
