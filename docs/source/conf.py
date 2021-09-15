@@ -34,8 +34,7 @@ version = re.sub(r"(a|b|r)\d+.*", "", short_version)
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
 # This pattern also affects html_static_path and html_extra_path.
-exclude_patterns = []  # type: ignore
-
+exclude_patterns = ["_build"]  # type: ignore
 
 # -- General configuration ---------------------------------------------------
 
@@ -67,12 +66,17 @@ extensions = [
     # https://myst-parser.readthedocs.io/en/latest/sphinx/use.html#automatically-create-targets-for-section-headers
     # "sphinx.ext.autosectionlabel",  <== don't need anymore from v0.13.0
     "sphinx_autodoc_typehints",
+    "sphinxcontrib.mermaid",
 ]
 
 autoclass_content = "both"
 add_module_names = True
 source_encoding = "utf-8"
-autosectionlabel_prefix_document = True
+# Prefix document path to section labels, to use:
+# `path/to/file:heading` instead of just `heading`
+# (https://www.sphinx-doc.org/en/master/usage/extensions/autosectionlabel.html)
+# autosectionlabel_prefix_document = True
+# autosectionlabel_maxdepth = 4
 napoleon_use_param = True
 napoleon_include_init_with_doc = True
 set_type_checking_flag = True
@@ -140,7 +144,7 @@ html_sidebars = {
     "index": ["search-field", "sidebar-quicklinks", "sidebar-nav-bs"],
     "**": ["search-field", "sidebar-nav-bs"],
 }
-pygments_style = "sphinx"
+pygments_style = "monokai"
 
 
 # -- Options for pydata-sphinx-theme -------------------------------------------------
@@ -182,14 +186,14 @@ myst_enable_extensions = [
     "dollarmath",
     "html_admonition",
     "html_image",
-    "linkify",
+    # "linkify",  # disable linkify to not confuse with the file name such as `app.py`
     "replacements",
     # "smartquotes",
     "substitution",
     "tasklist",
 ]
 # https://myst-parser.readthedocs.io/en/latest/syntax/optional.html#syntax-header-anchors
-myst_heading_anchors = 2
+myst_heading_anchors = 4
 
 
 # -- Options for myst-nb -------------------------------------------------

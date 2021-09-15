@@ -934,12 +934,9 @@ gen_docs() {
     # Remove existing files in dist/docs
     run_command rm -rf ${output_folder}/*
 
-    # Copy notebook files to dist/docs/notebooks
-    run_command mkdir -p ${TOP}/docs/notebooks
-    run_command rm -rf ${TOP}/docs/notebooks/*
-    run_command mkdir -p ${TOP}/docs/notebooks/static_images
-    run_command cp -rf $(git ls-files ${TOP}/notebooks/*.ipynb) ${TOP}/docs/notebooks/
-    run_command cp -rf ${TOP}/notebooks/static_images/*.png ${TOP}/docs/notebooks/static_images/
+    # Symbolic link notebooks folder from 'docs/source/notebooks' to 'notebooks'
+    run_command rm -rf ${TOP}/docs/source/notebooks
+    run_command ln -sfn ${TOP}/notebooks ${TOP}/docs/source/notebooks
 
     c_echo W "Sphinx build html..."
     sphinx-build -E -b html $TOP/docs/source ${output_folder}
@@ -980,7 +977,7 @@ gen_docs_dev() {
     local ret=0
     local OPTIND
     local output_folder=${TOP}/dist/docs
-    local port=$(get_unused_ports 1 9999 10010)
+    local port=$(get_unused_ports 1 10001 10010)
     local host=0.0.0.0
 
     while getopts 'p:h:o:' option;
@@ -1008,12 +1005,9 @@ gen_docs_dev() {
     # Remove existing files in dist/docs
     run_command rm -rf ${output_folder}/*
 
-    # Copy notebook files to dist/docs/notebooks
-    run_command mkdir -p ${TOP}/docs/notebooks
-    run_command rm -rf ${TOP}/docs/notebooks/*
-    run_command mkdir -p ${TOP}/docs/notebooks/static_images
-    run_command cp -rf $(git ls-files ${TOP}/notebooks/*.ipynb) ${TOP}/docs/notebooks/
-    run_command cp -rf ${TOP}/notebooks/static_images/*.png ${TOP}/docs/notebooks/static_images/
+    # Symbolic link notebooks folder from 'docs/source/notebooks' to 'notebooks'
+    run_command rm -rf ${TOP}/docs/source/notebooks
+    run_command ln -sfn ${TOP}/notebooks ${TOP}/docs/source/notebooks
 
     c_echo W "Sphinx build html..."
     sphinx-build -E -b html $TOP/docs/source ${output_folder}

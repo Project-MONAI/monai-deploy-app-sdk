@@ -41,7 +41,5 @@ class GaussianOperator(Operator):
         data_out = gaussian(data_in, sigma=0.2)
 
         output_folder = output.get().path
-        output_folder.mkdir(parents=True, exist_ok=True)
-        output_filename = "final_output.png"
-        output_path = output_folder / output_filename
+        output_path = output_folder / "final_output.png"
         imsave(output_path, data_out)

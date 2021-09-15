@@ -32,6 +32,7 @@ class DataPath(Domain):
 
     @property
     def path(self):
+        """Returns the path of the data file/directory."""
         return self._path
 
     @path.setter

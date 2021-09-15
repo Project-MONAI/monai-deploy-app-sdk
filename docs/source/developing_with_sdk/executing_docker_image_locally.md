@@ -1,1 +1,0 @@
-# Executing Docker image locally
