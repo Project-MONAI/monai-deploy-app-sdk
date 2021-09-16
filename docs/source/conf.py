@@ -4,13 +4,33 @@
 # list see the documentation:
 # https://www.sphinx-doc.org/en/master/usage/configuration.html
 
+# -- Handle ReadTheDocs.org build -------------------------------------------
+import os
+
+# on_rtd is whether we are on readthedocs.org
+on_rtd = os.environ.get("READTHEDOCS", None) == "True"
+if on_rtd:
+    READTHEDOCS_PROJECT = os.environ.get("READTHEDOCS_PROJECT", "monai-deploy-app-sdk")
+    READTHEDOCS_VERSION = os.environ.get("READTHEDOCS_VERSION", "latest")
+    import subprocess
+
+    subprocess.call(
+        "/bin/bash -c 'source /home/docs/checkouts/readthedocs.org/user_builds/"
+        f"{READTHEDOCS_PROJECT}/envs/{READTHEDOCS_VERSION}/bin/activate; ../../run setup'",
+        shell=True,
+    )
+    subprocess.call(
+        "/bin/bash -c 'source /home/docs/checkouts/readthedocs.org/user_builds/"
+        f"{READTHEDOCS_PROJECT}/envs/{READTHEDOCS_VERSION}/bin/activate; ../../run setup_gen_docs'",
+        shell=True,
+    )
+
 # -- Path setup --------------------------------------------------------------
 
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 #
-import os
 import re
 import sys
 
