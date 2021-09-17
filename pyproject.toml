@@ -25,6 +25,8 @@ exclude = '''
     | buck-out
     | build
     | dist
+    | docs/source/notebooks
+    | notebooks
   )/
   # also separately exclude a file named versioneer.py and _version.py
   | versioneer.py

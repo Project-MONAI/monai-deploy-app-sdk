@@ -34,7 +34,7 @@ Please note that, as per PyTorch, MONAI Deploy App SDK uses American English spe
 For local development, please execute the following command:
 
 ```bash
-./run setup
+./run setup  # '-h' for help
 ```
 
 This will set up the development environment, installing necessary packages.
@@ -54,7 +54,7 @@ To collaborate efficiently, please read through this section and follow them.
 
 #### Checking the coding style
 
-Coding style is checked and enforced by flake8, black, and isort, using [a flake8 configuration](./setup.cfg) similar to [PyTorch's](https://github.com/pytorch/pytorch/blob/master/.flake8).
+Coding style is checked and enforced by flake8, black, and isort, using [a flake8 configuration](https://github.com/Project-MONAI/monai-deploy-app-sdk/blob/main/setup.cfg) similar to [PyTorch's](https://github.com/pytorch/pytorch/blob/master/.flake8).
 Before submitting a pull request, we recommend that all linting should pass, by running the following command locally:
 
 ```bash
@@ -102,7 +102,7 @@ MONAI Deploy App SDK tests are located under `tests/` (it has `unit`/`integratio
 - The integration test's file name follows `test_[workflow_name].py`.
 
 A bash script (`run`) is provided to run all tests locally.
-Please run ``./run test -h`` to see all options.
+Please run `./run test -h` to see all options.
 
 To run a particular test, for example, `tests/unit/test_sizeutil.py`:
 
@@ -153,11 +153,17 @@ The above command launches a live server to build docs in runtime.
 
 Before submitting a pull request, it is recommended to:
 
-- edit the relevant `.md` files in [`docs/source`](./docs/source) accordingly.
+- edit the relevant `.md`/`.ipynb` files in [`docs/source`](https://github.com/Project-MONAI/monai-deploy-app-sdk/tree/main/docs/source) and [`notebooks/tutorials`](https://github.com/Project-MONAI/monai-deploy-app-sdk/tree/main/notebooks/tutorials) accordingly.
   - [The MyST Syntax Guide](https://myst-parser.readthedocs.io/en/v0.15.2_a/syntax/syntax.html)
   - [Optional MyST Syntaxes](https://myst-parser.readthedocs.io/en/v0.15.2_a/syntax/optional.html)
   - [MyST Syntax Reference](https://myst-parser.readthedocs.io/en/v0.15.2_a/syntax/reference.html)
   - [MyST with Sphinx](https://myst-parser.readthedocs.io/en/v0.15.2_a/sphinx/index.html)
+  - [MyST-NB User Guide](https://myst-nb.readthedocs.io/en/latest/)
+- For Diagram, we use [sphinxcontrib-mermaid](https://sphinxcontrib-mermaid-demo.readthedocs.io/en/latest/).
+  - [Mermaid syntax](https://mermaid-js.github.io/mermaid/#/)
+  - We use [`classDiagram`](https://mermaid-js.github.io/mermaid/#/classDiagram) to visualize Operator (as a class) with multiple input/output labels (input attributes as fields, output attributes as methods) and connections between operators (as an edge label).
+- Please check [#124](https://github.com/Project-MONAI/monai-deploy-app-sdk/pull/124) for the detailed instruction.
+
 - check the auto-generated documentation (by browsing the generated documents after executing `./run gen_docs_dev`)
 - build HTML documentation locally (`./run gen_docs`)
 - execute `./run clean_docs` to clean temporary and final documents.
@@ -228,18 +234,26 @@ By making a contribution to this project, I certify that:
 #### Utility functions
 
 MONAI provides a set of generic utility functions and frequently used routines.
-These are located in [``monai/deploy/utils``](./monai/deploy/utils/).
+These are located in [`monai/deploy/utils`](https://github.com/Project-MONAI/monai-deploy-app-sdk/tree/main/monai/deploy/utils).
 Users are encouraged to use these common routines to improve code readability and reduce code maintenance burdens.
 
 For string definition, [f-string](https://www.python.org/dev/peps/pep-0498/) is recommended to use over `%-print` and `format-print` from python 3.6. So please try to use `f-string` if you need to define any string object.
 
 ### Submitting pull requests
 
+TBD
+
 ## The code reviewing process
+
+TBD
 
 ### Reviewing pull requests
 
+TBD
+
 ## Admin tasks
+
+TBD
 
 ### Release a new version
 
