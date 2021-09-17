@@ -192,7 +192,7 @@ class MonaiSegInferenceOperator(InferenceOperator):
                     #       the resultant ndarray for each slice needs to be transposed back, and the depth
                     #       dim moved back to first, otherwise the seg ndarray would be flipped compared to
                     #       the DICOM pixel array, causing the DICOM Seg Writer generate flipped seg images.
-                    out_ndarray = np.swapaxes(out_ndarray, 2, 0)
+                    out_ndarray = np.swapaxes(out_ndarray, 2, 0).astype(np.uint8)
                     print(f"Output Seg image numpy array shaped: {out_ndarray.shape}")
                     print(f"Output Seg image pixel max value: {np.amax(out_ndarray)}")
                     out_image = Image(out_ndarray)

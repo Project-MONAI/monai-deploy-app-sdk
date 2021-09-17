@@ -521,7 +521,7 @@ def set_pixel_meta(dicomOutput, input_ds):
 
     dicomOutput.Rows = input_ds.Rows
     dicomOutput.Columns = input_ds.Columns
-    dicomOutput.BitsAllocated = 1  # add_new(0x00280100, 'US', 8) # Bits allocated
+    dicomOutput.BitsAllocated = 8  # add_new(0x00280100, 'US', 8) # Bits allocated
     dicomOutput.BitsStored = 1
     dicomOutput.HighBit = 0
     dicomOutput.PixelRepresentation = 0
@@ -576,7 +576,7 @@ def segslice_from_mhd(dcm_output, seg_img, input_ds, num_labels):
             frame_meta = create_frame_meta(input_ds[img_slice], label, referenceInstances, dimIdxVal, img_slice)
 
             out_frames.append(frame_meta)
-            logging.info(
+            logging.debug(
                 "img slice {}, label {}, frame {}, img pos {}".format(
                     img_slice, label, out_frame_counter, safe_get(input_ds[img_slice], 0x00200032)
                 )
