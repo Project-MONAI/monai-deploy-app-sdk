@@ -915,6 +915,8 @@ setup_gen_docs() {
 
     # Remove existing files in dist/docs
     run_command rm -rf ${output_folder}/*
+    # Remove existing _autosummary folder
+    run command rm -rf ${TOP}/docs/source/modules/_autosummary
 
     # Symbolic link notebooks folder from 'docs/source/notebooks' to 'notebooks'
     run_command rm -rf ${TOP}/docs/source/notebooks

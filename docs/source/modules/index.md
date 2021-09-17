@@ -32,3 +32,27 @@ operators
 :hidden:
 models
 ```
+
+## Graphs
+
+```{toctree}
+:maxdepth: 2
+:hidden:
+graphs
+```
+
+## Executors
+
+```{toctree}
+:maxdepth: 2
+:hidden:
+executors
+```
+
+## Datastores
+
+```{toctree}
+:maxdepth: 2
+:hidden:
+datastores
+```

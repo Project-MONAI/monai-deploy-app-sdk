@@ -18,10 +18,10 @@
     input
     output
     resource
+    IOType
     ExecutionContext
     InputContext
     OutputContext
-    IOType
 """
 
 from .application import Application
