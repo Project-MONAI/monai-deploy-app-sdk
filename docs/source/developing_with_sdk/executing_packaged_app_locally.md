@@ -21,7 +21,7 @@ positional arguments:
   <output>              Output data directory path
 
 optional arguments:
-  -h, --help            show this help message and exit
+  -h, --help            Show this help message and exit
   -l {DEBUG,INFO,WARN,ERROR,CRITICAL}, --log-level {DEBUG,INFO,WARN,ERROR,CRITICAL}
                         Set the logging level (default: INFO)
   -q, --quiet           Suppress the STDOUT and print only STDERR from the application (default: False)
@@ -57,14 +57,14 @@ After you have written your application using MONAI Application SDK and have pac
 
 Given the following information.
 
-* MAP name and tag : `monaispleen:latest`
-* Input folder  : `./spleen_input`
-* Output folder : `./spleen_output`
+* MAP name and tag : `my_app:latest`
+* Input folder  : `./input`
+* Output folder : `./output`
 
 ### Launching the application
 
 ```bash
-monai-deploy run monaispleen:latest spleen_input spleen_output
+monai-deploy run my_app:latest input output
 ```
 
 Output:
@@ -73,10 +73,10 @@ Output:
 Checking dependencies...
 --> Verifying if "docker" is installed...
 
---> Verifying if "monaispleen:latest" is available...
+--> Verifying if "my_app:latest" is available...
 
-Checking for MAP "monaispleen:latest" locally
-"monaispleen:latest" found.
+Checking for MAP "my_app:latest" locally
+"my_app:latest" found.
 
 Reading MONAI App Package manifest...
 INFO:__main__:Operator started: 2021-09-10 21:53:25.363
@@ -92,10 +92,11 @@ continued...
 If you only want to run your application such that the STDOUT is suppressed and only STDERR from the application is printed, try using `--quiet` flag.
 
 ```bash
-monai-deploy run --quiet monaispleen:latest spleen_input spleen_output
+monai-deploy run --quiet my_app:latest input output
 ```
 
 :::{note}
+
 * Currently MAR does not validate all resources specified in the MAP manifest.
 * If `gpu` is specified (>0), it executes `nvidia-docker` instead of `docker` internally to make sure that GPU is available inside the container.
 :::

@@ -41,7 +41,7 @@ pip install scikit-image
 # Execute the app locally
 python examples/apps/simple_imaging_app/app.py -i examples/apps/simple_imaging_app/brain_mr_input.jpg -o output
 
-# Package app (creating MAP docker image), using `-l DEBUG` option to see progress.
+# Package app (creating MAP Docker image), using `-l DEBUG` option to see progress.
 monai-deploy package examples/apps/simple_imaging_app -t simple_app:latest -l DEBUG
 
 # Run the app with docker image and input file locally

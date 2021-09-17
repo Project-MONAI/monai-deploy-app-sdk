@@ -27,7 +27,7 @@ def create_exec_parser(subparser: _SubParsersAction, command: str, parents: List
     parser = subparser.add_parser(command, formatter_class=argparse.HelpFormatter, parents=parents, add_help=False)
 
     parser.add_argument("--input", "-i", help="Path to input folder/file (default: input)")
-    parser.add_argument("--output", "-o", help="Path to output folder/file (default: output)")
+    parser.add_argument("--output", "-o", help="Path to output folder (default: output)")
     parser.add_argument("--model", "-m", help="Path to model(s) folder/file (default: models)")
     parser.add_argument(
         "--workdir",
@@ -37,17 +37,17 @@ def create_exec_parser(subparser: _SubParsersAction, command: str, parents: List
     )
     parser.add_argument(
         "--graph",
-        help=f"Graph engine (default: {GraphFactory.DEFAULT})",
+        help=f"Set Graph engine (default: {GraphFactory.DEFAULT})",
         choices=GraphFactory.NAMES,
     )
     parser.add_argument(
         "--datastore",
-        help=f"Datastore (default: {DatastoreFactory.DEFAULT})",
+        help=f"Set Datastore (default: {DatastoreFactory.DEFAULT})",
         choices=DatastoreFactory.NAMES,
     )
     parser.add_argument(
         "--executor",
-        help=f"Executor (default: {ExecutorFactory.DEFAULT})",
+        help=f"Set Executor (default: {ExecutorFactory.DEFAULT})",
         choices=ExecutorFactory.NAMES,
     )
     parser.add_argument("remaining", nargs="*")
