@@ -10,18 +10,17 @@
 # limitations under the License.
 
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Dict, Optional
+from typing import Dict, Optional
 
-if TYPE_CHECKING:
-    from monai.deploy.core import Application
-
+# https://github.com/agronholm/sphinx-autodoc-typehints#dealing-with-circular-imports
+from monai.deploy.core import application
 from monai.deploy.core.datastores import Datastore, DatastoreFactory
 
 
 class Executor(ABC):
     """This is the base class that enables execution of an application."""
 
-    def __init__(self, app: "Application", datastore: Optional[Datastore] = None, **kwargs: Dict):
+    def __init__(self, app: "application.Application", datastore: Optional[Datastore] = None, **kwargs: Dict):
         """Constructor of the class.
 
         Given an application it invokes the compose method on the app, which
@@ -38,7 +37,7 @@ class Executor(ABC):
             self._datastore = DatastoreFactory.create(DatastoreFactory.DEFAULT)
 
     @property
-    def app(self) -> "Application":
+    def app(self) -> "application.Application":
         """Returns the application that is executed by the executor."""
         return self._app
 

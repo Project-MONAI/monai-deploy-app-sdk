@@ -25,7 +25,8 @@ def get_requested_gpus(pkg_info: dict) -> int:
     Returns:
         int: requested number of gpus in the package manifest
     """
-    return pkg_info.get("resources", {}).get("gpu", 0)
+    num_gpu: int = pkg_info.get("resources", {}).get("gpu", 0)
+    return num_gpu
 
 
 def run_cmd(cmd: str) -> int:

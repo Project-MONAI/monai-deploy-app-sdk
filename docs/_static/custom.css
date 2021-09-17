@@ -105,3 +105,10 @@ blockquote {
 blockquote p {
     margin-bottom: 0px;
 }
+
+/* Mermaid
+to avoid the lable text being cut off
+*/
+.edgeTerminals {
+    font-size: 9px !important;
+}

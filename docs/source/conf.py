@@ -213,7 +213,7 @@ myst_enable_extensions = [
     "tasklist",
 ]
 # https://myst-parser.readthedocs.io/en/latest/syntax/optional.html#syntax-header-anchors
-myst_heading_anchors = 4
+myst_heading_anchors = 5
 
 
 # -- Options for myst-nb -------------------------------------------------

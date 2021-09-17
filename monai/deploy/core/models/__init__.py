@@ -12,8 +12,8 @@
 .. autosummary::
     :toctree: _autosummary
 
-    Model
     ModelFactory
+    Model
     NamedModel
     TorchScriptModel
     TritonModel

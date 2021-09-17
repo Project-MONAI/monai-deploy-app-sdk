@@ -52,7 +52,7 @@ monai-deploy run simple_app:latest examples/apps/simple_imaging_app/brain_mr_inp
 
 [Examples](https://github.com/Project-MONAI/monai-deploy-app-sdk/tree/main/examples) and [notebook tutorials](https://github.com/Project-MONAI/monai-deploy-app-sdk/tree/main/notebooks) are located at [Project-MONAI/monai-deploy-app-sdk](https://github.com/Project-MONAI/monai-deploy-app-sdk).
 
-Technical documentation is available at [docs.monai.io](https://docs.monai.io).
+Technical documentation is available at [docs.monai.io](https://docs.monai.io/projects/monai-deploy-app-sdk/en/latest/).
 
 ## Contributing
 
@@ -69,7 +69,7 @@ Ask and answer questions over on [MONAI Deploy App SDK's GitHub Discussions tab]
 ## Links
 
 - Website: <https://monai.io>
-- API documentation: <https://docs.monai.io/projects/deploy>
+- API documentation: <https://docs.monai.io/projects/monai-deploy-app-sdk>
 - Code: <https://github.com/Project-MONAI/monai-deploy-app-sdk>
 - Project tracker: <https://github.com/Project-MONAI/monai-deploy-app-sdk/projects>
 - Issue tracker: <https://github.com/Project-MONAI/monai-deploy-app-sdk/issues>
