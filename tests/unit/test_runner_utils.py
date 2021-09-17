@@ -30,8 +30,8 @@ class DoesntContainsString(str):
 def not_raises(exception):
     try:
         yield
-    except exception:
-        raise pytest.fail(f"DID RAISE {exception}")
+    except exception as err:
+        raise pytest.fail(f"DID RAISE {exception}") from err
 
 
 @pytest.mark.parametrize("cmd, expected_returncode", [("my correct test command", 0), ("my errored test command", 125)])

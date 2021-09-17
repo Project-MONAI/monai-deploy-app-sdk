@@ -110,11 +110,11 @@ class IOContext(ABC):
             data_type = self._op_info.get_data_type(self._io_kind, label)
             try:
                 check_type("value", value, data_type)
-            except TypeError:
+            except TypeError as err:
                 raise IOMappingError(
                     f"The data type of '{label}' in the {self._io_kind} of '{self._op}' is {data_type}, but the value"
                     f" to set is the data type of {type(value)}."
-                )
+                ) from err
 
             storage.put(key, value)
 

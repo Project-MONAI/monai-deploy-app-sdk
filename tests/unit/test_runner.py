@@ -33,8 +33,8 @@ class DoesntContainsString(str):
 def not_raises(exception):
     try:
         yield
-    except exception:
-        raise pytest.fail(f"DID RAISE {exception}")
+    except exception as err:
+        raise pytest.fail(f"DID RAISE {exception}") from err
 
 
 @pytest.mark.parametrize("return_value", [0, 125])

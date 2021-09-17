@@ -78,10 +78,10 @@ class Resource:
         if type(memory_limit) == str:
             try:
                 self._memory = get_bytes(memory_limit)
-            except Exception as e:
+            except Exception as err:
                 raise WrongValueError(
-                    f"Memory size specified in the application (via @resource) is not valid: {e.args[0]}"
-                )
+                    f"Memory size specified in the application (via @resource) is not valid: {err.args[0]}"
+                ) from err
         elif type(memory_limit) == int:
             if self._memory is None:
                 self._memory = memory_limit
@@ -124,8 +124,8 @@ def resource(
             # Execute (this) outer decorator first so decorators are executed in order
             try:
                 self.context.resource.set_resource_limits(cpu, memory, gpu)
-            except ItemAlreadyExistsError as e:
-                raise ItemAlreadyExistsError(f"In @resource decorator at {self.name}, {e.args[0]}")
+            except ItemAlreadyExistsError as err:
+                raise ItemAlreadyExistsError(f"In @resource decorator at {self.name}, {err.args[0]}") from err
 
             if builder:
                 builder(self)  # execute the original builder
