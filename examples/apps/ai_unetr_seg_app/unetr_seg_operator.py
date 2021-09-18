@@ -28,7 +28,7 @@ from monai.transforms import (
     Spacingd,
     ToTensord,
 )
-
+from numpy import uint8
 
 @input("image", Image, IOType.IN_MEMORY)
 @output("seg_image", Image, IOType.IN_MEMORY)
@@ -111,6 +111,6 @@ class UnetrSegOperator(Operator):
                 Invertd(
                     keys=pred_key, transform=pre_transforms, orig_keys=self._input_dataset_key, nearest_interp=True
                 ),
-                SaveImaged(keys=pred_key, output_dir=out_dir, output_postfix="seg", resample=False),
+                SaveImaged(keys=pred_key, output_dir=out_dir, output_postfix="seg", output_dtype=uint8, resample=False),
             ]
         )
