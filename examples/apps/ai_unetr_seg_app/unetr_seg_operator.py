@@ -12,6 +12,8 @@
 import logging
 from os import path
 
+from numpy import uint8
+
 from monai.deploy.core import ExecutionContext, Image, InputContext, IOType, Operator, OutputContext, env, input, output
 from monai.deploy.operators.monai_seg_inference_operator import InMemImageReader, MonaiSegInferenceOperator
 from monai.transforms import (
@@ -28,7 +30,7 @@ from monai.transforms import (
     Spacingd,
     ToTensord,
 )
-from numpy import uint8
+
 
 @input("image", Image, IOType.IN_MEMORY)
 @output("seg_image", Image, IOType.IN_MEMORY)
