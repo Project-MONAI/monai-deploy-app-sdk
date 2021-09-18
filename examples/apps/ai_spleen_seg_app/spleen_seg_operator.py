@@ -12,6 +12,8 @@
 import logging
 from os import path
 
+from numpy import uint8
+
 from monai.deploy.core import ExecutionContext, Image, InputContext, IOType, Operator, OutputContext, env, input, output
 from monai.deploy.operators.monai_seg_inference_operator import InMemImageReader, MonaiSegInferenceOperator
 from monai.transforms import (
@@ -109,6 +111,6 @@ class SpleenSegOperator(Operator):
                 Invertd(
                     keys=pred_key, transform=pre_transforms, orig_keys=self._input_dataset_key, nearest_interp=True
                 ),
-                SaveImaged(keys=pred_key, output_dir=out_dir, output_postfix="seg", resample=False),
+                SaveImaged(keys=pred_key, output_dir=out_dir, output_postfix="seg", output_dtype=uint8, resample=False),
             ]
         )
