@@ -92,7 +92,7 @@ class MedNISTClassifierOperator(Operator):
             json.dump(result, fp)
 
 
-@resource(cpu=1, memory="1Gi")
+@resource(cpu=1, gpu=1, memory="1Gi")
 class App(Application):
     """Application class for the MedNIST classifier."""
 
