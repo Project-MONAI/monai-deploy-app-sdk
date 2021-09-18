@@ -12,7 +12,9 @@
 from typing import Any, Dict, Optional, Union
 
 try:
-    from numpy.typing import ArrayLike  # type: ignore
+    from numpy.typing import _ArrayLike  # type: ignore
+
+    ArrayLike: Any = _ArrayLike
 except ImportError:
     ArrayLike = Any
 
