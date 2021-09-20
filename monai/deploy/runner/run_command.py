@@ -25,7 +25,7 @@ def create_run_parser(subparser: _SubParsersAction, command: str, parents: List[
     parser.add_argument("map", metavar="<map-image[:tag]>", help="MAP image name")
 
     parser.add_argument(
-        "input", metavar="<input>", type=argparse_types.valid_existing_path, help="Input data directory path"
+        "input", metavar="<input>", type=argparse_types.valid_dir_path, help="Input data directory path"
     )
 
     parser.add_argument(
