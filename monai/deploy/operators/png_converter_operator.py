@@ -13,18 +13,8 @@
 from os import makedirs
 from os.path import join
 
-from monai.deploy.core import (
-    DataPath,
-    ExecutionContext,
-    Image,
-    InputContext,
-    IOType,
-    Operator,
-    OutputContext,
-    env,
-    input,
-    output,
-)
+import monai.deploy.core as md
+from monai.deploy.core import DataPath, ExecutionContext, Image, InputContext, IOType, Operator, OutputContext
 from monai.deploy.operators.dicom_data_loader_operator import DICOMDataLoaderOperator
 from monai.deploy.operators.dicom_series_to_volume_operator import DICOMSeriesToVolumeOperator
 from monai.deploy.utils.importutil import optional_import
@@ -32,19 +22,19 @@ from monai.deploy.utils.importutil import optional_import
 PILImage, _ = optional_import("PIL", name="Image")
 
 
-@input("image", Image, IOType.IN_MEMORY)
-@output("image", DataPath, IOType.DISK)
-@env(pip_packages=["Pillow >= 8.0.0"])
+@md.input("image", Image, IOType.IN_MEMORY)
+@md.output("image", DataPath, IOType.DISK)
+@md.env(pip_packages=["Pillow >= 8.0.0"])
 class PNGConverterOperator(Operator):
     """
     This operator writes out a 3D Volumtric Image to disk in a slice by slice manner
     """
 
-    def compute(self, input: InputContext, output: OutputContext, context: ExecutionContext):
-        input = input.get("image")
-        output_dir = output.get().path
+    def compute(self, op_input: InputContext, op_output: OutputContext, context: ExecutionContext):
+        input_path = op_input.get("image")
+        output_dir = op_output.get().path
         output_dir.mkdir(parents=True, exist_ok=True)
-        self.convert_and_save(input, output_dir)
+        self.convert_and_save(input_path, output_dir)
 
     def convert_and_save(self, image, path):
         """

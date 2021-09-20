@@ -12,17 +12,8 @@
 import os
 from typing import List
 
-from monai.deploy.core import (
-    DataPath,
-    ExecutionContext,
-    InputContext,
-    IOType,
-    Operator,
-    OutputContext,
-    env,
-    input,
-    output,
-)
+import monai.deploy.core as md
+from monai.deploy.core import DataPath, ExecutionContext, InputContext, IOType, Operator, OutputContext
 from monai.deploy.core.domain.dicom_series import DICOMSeries
 from monai.deploy.core.domain.dicom_study import DICOMStudy
 from monai.deploy.utils.importutil import optional_import
@@ -33,16 +24,16 @@ FileSet, _ = optional_import("pydicom.fileset", name="FileSet")
 generate_uid, _ = optional_import("pydicom.uid", name="generate_uid")
 
 
-@input("dicom_files", DataPath, IOType.DISK)
-@output("dicom_study_list", List[DICOMStudy], IOType.IN_MEMORY)
-@env(pip_packages=["pydicom >= 1.4.2"])
+@md.input("dicom_files", DataPath, IOType.DISK)
+@md.output("dicom_study_list", List[DICOMStudy], IOType.IN_MEMORY)
+@md.env(pip_packages=["pydicom >= 1.4.2"])
 class DICOMDataLoaderOperator(Operator):
     """
     This operator loads a collection of DICOM Studies in memory
     given a directory which contains a list of SOP Instances.
     """
 
-    def compute(self, input: InputContext, output: OutputContext, context: ExecutionContext):
+    def compute(self, op_input: InputContext, op_output: OutputContext, context: ExecutionContext):
         """Performs computation for this operator.
 
         It scans through the input directory for all SOP instances.
@@ -50,10 +41,10 @@ class DICOMDataLoaderOperator(Operator):
         This method returns a set of studies.
         """
         files: List[str] = []
-        input_path = input.get().path
+        input_path = op_input.get().path
         self._list_files(input_path, files)
         dicom_study_list = self._load_data(files)
-        output.set(dicom_study_list)
+        op_output.set(dicom_study_list)
 
     def _list_files(self, path, files: List[str]):
         """Collects fully qualified names of all files recurvisely given a directory path.

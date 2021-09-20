@@ -148,7 +148,7 @@ class Operator(ABC):
         pass
 
     @abstractmethod
-    def compute(self, input: InputContext, output: OutputContext, context: ExecutionContext):
+    def compute(self, op_input: InputContext, op_output: OutputContext, context: ExecutionContext):
         """An abstract method that needs to be implemented by the user.
 
         The original input and output paths from the CLI are available through
@@ -157,8 +157,7 @@ class Operator(ABC):
         >>> context.input.get().path   # (Path) - The input path from the application's context
         >>> context.output.get().path  # (Path) - The output path from the application's context
 
-        Both "input" and "output" (here, these are **not** referring to `input` and `output` arguments in compute()
-        method) are arguments passed to the application when the app is set to execute.
+        Both "input" and "output" are arguments passed to the application when the app is set to execute.
         The input and output paths are in the context of the whole application, and are read only once the application
         starts executing. Any operators in the application workflow graph can access the `context.input` and access
         the input to the application.
@@ -175,36 +174,36 @@ class Operator(ABC):
         >>>     print(model.items())
         >>>     # model.path for accessing the model's path
         >>>     # model.name for accessing the model's name
-        >>>     # result = model(input.get().asnumpy())
+        >>>     # result = model(op_input.get().asnumpy())
 
-        Similar way, `input.get("<input_label>")` returns the input data of the specified label for the operator.
+        Similar way, `op_input.get("<input_label>")` returns the input data of the specified label for the operator.
 
         If <input_label> is not specified and only one input exists, it returns that input.
 
-        >>> input.get()  # an input object that inherits a type specified by @input decorator of the operator.
+        >>> op_input.get()  # an input object that inherits a type specified by @input decorator of the operator.
 
         If this operator is a leaf operator in the workflow graph, then the output path of the operator (the output
-        path in local machine that is specified by CLI) is available through `output.get().path`.
-        Otherwise, it is expected that the output of the operator is set through `output.set()` method.
+        path in local machine that is specified by CLI) is available through `op_output.get().path`.
+        Otherwise, it is expected that the output of the operator is set through `op_output.set()` method.
 
         For example, if the input and output data type are both `Image` objects, then the following logic is expected:
 
-        >>> data_in = input.get().asnumpy()  # get the input data as numpy array
-        >>> data_out = process(data_in)      # process the input data
-        >>> output.set(Image(data_out))      # set the output data
+        >>> data_in = op_input.get().asnumpy()  # get the input data as numpy array
+        >>> data_out = process(data_in)         # process the input data
+        >>> op_output.set(Image(data_out))      # set the output data
 
-        If the operator is a leaf operator in the workflow graph, you cannot call `output.set()` method.
-        Instead, you can use the destination path available by `output.get().path` to store output data and the
+        If the operator is a leaf operator in the workflow graph, you cannot call `op_output.set()` method.
+        Instead, you can use the destination path available by `op_output.get().path` to store output data and the
         following logic is expected:
 
-        >>> output_folder = output.get().path                 # get the output folder path
-        >>> output_path = output_folder / "final_output.png"  # get the output file path
+        >>> output_folder = op_output.get().path                 # get the output folder path
+        >>> output_path = output_folder / "final_output.png"     # get the output file path
 
-        >>> imsave(output_path, data_out)                     # save the output data
+        >>> imsave(output_path, data_out)                        # save the output data
 
         Args:
-            input (InputContext): An input context for the operator.
-            output (OutputContext): An output context for the operator.
+            op_input (InputContext): An input context for the operator.
+            op_output (OutputContext): An output context for the operator.
             context (ExecutionContext): An execution context for the operator.
         """
         pass

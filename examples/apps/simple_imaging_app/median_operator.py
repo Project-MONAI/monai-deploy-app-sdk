@@ -9,14 +9,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from monai.deploy.core import ExecutionContext, Image, InputContext, IOType, Operator, OutputContext, input, output
+import monai.deploy.core as md
+from monai.deploy.core import ExecutionContext, Image, InputContext, IOType, Operator, OutputContext
 
 
-@input("image", Image, IOType.IN_MEMORY)
-@output("image", Image, IOType.IN_MEMORY)
+@md.input("image", Image, IOType.IN_MEMORY)
+@md.output("image", Image, IOType.IN_MEMORY)
 # If `pip_packages` is specified, the definition will be aggregated with the package dependency list of other
 # operators and the application in packaging time.
-# @env(pip_packages=["scikit-image >= 0.17.2"])
+# @md.env(pip_packages=["scikit-image >= 0.17.2"])
 class MedianOperatorBase(Operator):
     """This Operator implements a noise reduction.
 
@@ -29,7 +30,7 @@ class MedianOperatorBase(Operator):
         super().__init__()
         # Do something
 
-    def compute(self, input: InputContext, output: OutputContext, context: ExecutionContext):
+    def compute(self, op_input: InputContext, op_output: OutputContext, context: ExecutionContext):
         print("Executing base operator...")
 
 
@@ -41,9 +42,9 @@ class MedianOperator(MedianOperatorBase):
         super().__init__()
         # Do something
 
-    def compute(self, input: InputContext, output: OutputContext, context: ExecutionContext):
+    def compute(self, op_input: InputContext, op_output: OutputContext, context: ExecutionContext):
         # Execute the base operator's compute method.
-        super().compute(input, output, context)
+        super().compute(op_input, op_output, context)
 
         from skimage.filters import median
 
@@ -61,6 +62,6 @@ class MedianOperator(MedianOperatorBase):
             # # model.name for accessing the model's name
             # result = model(input.get().asnumpy())
 
-        data_in = input.get().asnumpy()
+        data_in = op_input.get().asnumpy()
         data_out = median(data_in)
-        output.set(Image(data_out))
+        op_output.set(Image(data_out))

@@ -30,27 +30,17 @@ FileDataset, _ = optional_import("pydicom.dataset", name="FileDataset")
 Sequence, _ = optional_import("pydicom.sequence", name="Sequence")
 sitk, _ = optional_import("SimpleITK")
 
-from monai.deploy.core import (
-    DataPath,
-    ExecutionContext,
-    Image,
-    InputContext,
-    IOType,
-    Operator,
-    OutputContext,
-    env,
-    input,
-    output,
-)
+import monai.deploy.core as md
+from monai.deploy.core import DataPath, ExecutionContext, Image, InputContext, IOType, Operator, OutputContext
 from monai.deploy.core.domain.dicom_series import DICOMSeries
 from monai.deploy.operators.dicom_data_loader_operator import DICOMDataLoaderOperator
 from monai.deploy.operators.dicom_series_to_volume_operator import DICOMSeriesToVolumeOperator
 
 
-@input("seg_image", Image, IOType.IN_MEMORY)
-@input("dicom_series", DICOMSeries, IOType.IN_MEMORY)
-@output("dicom_seg_instance", DataPath, IOType.DISK)
-@env(pip_packages=["pydicom >= 1.4.2", "SimpleITK >= 2.0.0"])
+@md.input("seg_image", Image, IOType.IN_MEMORY)
+@md.input("dicom_series", DICOMSeries, IOType.IN_MEMORY)
+@md.output("dicom_seg_instance", DataPath, IOType.DISK)
+@md.env(pip_packages=["pydicom >= 1.4.2", "SimpleITK >= 2.0.0"])
 class DICOMSegmentationWriterOperator(Operator):
     """
     This operator writes out a DICOM Segmentation Part 10 file to disk
@@ -96,17 +86,17 @@ class DICOMSegmentationWriterOperator(Operator):
         else:
             raise ValueError("List of strings expected.")
 
-    def compute(self, input: InputContext, output: OutputContext, context: ExecutionContext):
-        dicom_series = input.get("dicom_series")
+    def compute(self, op_input: InputContext, op_output: OutputContext, context: ExecutionContext):
+        dicom_series = op_input.get("dicom_series")
 
         # Get the seg image in numpy
         seg_image_numpy = None
         input_path = "dicom_seg"
-        seg_image = input.get("seg_image")
+        seg_image = op_input.get("seg_image")
         if isinstance(seg_image, Image):
             seg_image_numpy = seg_image.asnumpy()
         elif isinstance(seg_image, DataPath):
-            input_path = input.get("segmentation_image").path
+            input_path = op_input.get("segmentation_image").path
             input_path, _ = self.select_input_file(input_path)
             seg_image_numpy = self._image_file_to_numpy(input_path)
         else:
@@ -114,7 +104,7 @@ class DICOMSegmentationWriterOperator(Operator):
             raise ValueError("seg_image is not Image or DataPath")
 
         # Create the output path for created DICOM Seg instance
-        output_dir = output.get().path
+        output_dir = op_output.get().path
         output_dir.mkdir(parents=True, exist_ok=True)
         output_filename = "{0}{1}{2}".format(
             os.path.splitext(os.path.basename(input_path))[0],

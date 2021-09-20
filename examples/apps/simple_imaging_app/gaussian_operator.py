@@ -9,37 +9,28 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from monai.deploy.core import (
-    DataPath,
-    ExecutionContext,
-    Image,
-    InputContext,
-    IOType,
-    Operator,
-    OutputContext,
-    input,
-    output,
-)
+import monai.deploy.core as md
+from monai.deploy.core import DataPath, ExecutionContext, Image, InputContext, IOType, Operator, OutputContext
 
 
-@input("image", Image, IOType.IN_MEMORY)
-@output("image", DataPath, IOType.DISK)
+@md.input("image", Image, IOType.IN_MEMORY)
+@md.output("image", DataPath, IOType.DISK)
 # If `pip_packages` is specified, the definition will be aggregated with the package dependency list of other
 # operators and the application in packaging time.
-# @env(pip_packages=["scikit-image >= 0.17.2"])
+# @md.env(pip_packages=["scikit-image >= 0.17.2"])
 class GaussianOperator(Operator):
     """This Operator implements a smoothening based on Gaussian.
 
     It ingests a single input and provides a single output.
     """
 
-    def compute(self, input: InputContext, output: OutputContext, context: ExecutionContext):
+    def compute(self, op_input: InputContext, op_output: OutputContext, context: ExecutionContext):
         from skimage.filters import gaussian
         from skimage.io import imsave
 
-        data_in = input.get().asnumpy()
+        data_in = op_input.get().asnumpy()
         data_out = gaussian(data_in, sigma=0.2)
 
-        output_folder = output.get().path
+        output_folder = op_output.get().path
         output_path = output_folder / "final_output.png"
         imsave(output_path, data_out)

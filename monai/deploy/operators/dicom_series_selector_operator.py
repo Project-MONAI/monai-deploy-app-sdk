@@ -11,16 +11,17 @@
 
 from typing import Dict, List
 
-from monai.deploy.core import ExecutionContext, InputContext, IOType, Operator, OutputContext, input, output
+import monai.deploy.core as md
+from monai.deploy.core import ExecutionContext, InputContext, IOType, Operator, OutputContext
 from monai.deploy.core.domain.dicom_series import DICOMSeries
 from monai.deploy.core.domain.dicom_study import DICOMStudy
 from monai.deploy.exceptions import ItemNotExistsError
 from monai.deploy.operators.dicom_data_loader_operator import DICOMDataLoaderOperator
 
 
-@input("dicom_study_list", List[DICOMStudy], IOType.IN_MEMORY)
-@input("selection_rules", Dict, IOType.IN_MEMORY)
-@output("dicom_series", DICOMSeries, IOType.IN_MEMORY)
+@md.input("dicom_study_list", List[DICOMStudy], IOType.IN_MEMORY)
+@md.input("selection_rules", Dict, IOType.IN_MEMORY)
+@md.output("dicom_series", DICOMSeries, IOType.IN_MEMORY)
 class DICOMSeriesSelectorOperator(Operator):
     """This operator filters out a list of DICOM Series given some selection rules.
 
@@ -29,13 +30,13 @@ class DICOMSeriesSelectorOperator(Operator):
     When implemented it will honor the selection rules expressed in a dictionary format.
     """
 
-    def compute(self, input: InputContext, output: OutputContext, context: ExecutionContext):
+    def compute(self, op_input: InputContext, op_output: OutputContext, context: ExecutionContext):
         """Performs computation for this operator."""
         try:
-            dicom_study_list = input.get("dicom_study_list")
-            # selection_rules = input.get("selection_rules")
+            dicom_study_list = op_input.get("dicom_study_list")
+            # selection_rules = op_input.get("selection_rules")
             dicom_series_list = self.filter(None, dicom_study_list)
-            output.set(dicom_series_list, "dicom_series")
+            op_output.set(dicom_series_list, "dicom_series")
         except ItemNotExistsError:
             pass
 
