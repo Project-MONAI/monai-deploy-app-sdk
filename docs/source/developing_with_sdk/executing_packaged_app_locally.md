@@ -17,7 +17,7 @@ usage: monai-deploy run [-h] [-l {DEBUG,INFO,WARN,ERROR,CRITICAL}] [-q] <map-ima
 
 positional arguments:
   <map-image[:tag]>     MAP image name
-  <input>               Input data path
+  <input>               Input data directory path
   <output>              Output data directory path
 
 optional arguments:
@@ -40,14 +40,14 @@ monai-deploy run <container-image-name>[:tag] <input> <output> [-q|--quiet]
 | Name     | Format                           | Description                                                   |
 | -------- | -------------------------------- | ------------------------------------------------------------- |
 | MAP      | `container-image-name[:tag]`     | MAP container image name with or without image tag.           |
-| input    | file or directory path           | Local file or folder that contains input dataset for the MAP. |
-| output   | path                             | Local path to store output from the executing MAP.            |
+| input    | directory path                   | Local folder path that contains input dataset for the MAP.    |
+| output   | directory path                   | Local folder path to store output from the executing MAP.     |
 
 #### Optional arguments
 
 | Name                | Shorthand  | Default    | Description                                                       |
 | ------------------- | ---------- | ---------- | --------------------------------------------------------------    |
-| quiet               | -q         | False      | Suppress the STDOUT and print only STDERR from the application    |
+| quiet               | -q         | False      | Suppress the STDOUT and print only STDERR from the application.   |
 
 ## Example
 

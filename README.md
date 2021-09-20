@@ -44,8 +44,12 @@ python examples/apps/simple_imaging_app/app.py -i examples/apps/simple_imaging_a
 # Package app (creating MAP Docker image), using `-l DEBUG` option to see progress.
 monai-deploy package examples/apps/simple_imaging_app -t simple_app:latest -l DEBUG
 
-# Run the app with docker image and input file locally
-monai-deploy run simple_app:latest examples/apps/simple_imaging_app/brain_mr_input.jpg output
+# Run the app with docker image and an input file locally
+## Copy a test input file to 'input' folder
+mkdir -p input && rm -rf input/*
+cp examples/apps/simple_imaging_app/brain_mr_input.jpg input/
+## Launch the app
+monai-deploy run simple_app:latest input output
 ```
 
 [MedNIST demo](TBD) is available on Colab.
