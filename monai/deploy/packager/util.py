@@ -36,7 +36,7 @@ def verify_base_image(base_image: str) -> str:
     Additionally, this function provides the string identifier of the dockerfile
     template to build MAP
     Args:
-        base_image (str): potential base image to build MAP docker image
+        base_image (str): potential base image to build MAP Docker image
     Returns:
         str: returns string identifier of the dockerfile template to build MAP
         if valid base image provided, returns empty string otherwise

@@ -39,6 +39,8 @@ class LoadPILOperator(Operator):
         from PIL import Image as PILImage
 
         input_path = input.get().path
+        if input_path.is_dir():
+            input_path = next(input_path.glob("*.*"))  # take the first file
 
         image = PILImage.open(input_path)
         image = image.convert("L")  # convert to greyscale image

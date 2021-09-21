@@ -37,6 +37,8 @@ class SobelOperator(Operator):
         from skimage import filters, io
 
         input_path = input.get().path
+        if input_path.is_dir():
+            input_path = next(input_path.glob("*.*"))  # take the first file
 
         data_in = io.imread(input_path)[:, :, :3]  # discard alpha channel if exists
         data_out = filters.sobel(data_in)
