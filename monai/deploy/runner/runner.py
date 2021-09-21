@@ -66,7 +66,7 @@ def run_app(map_name: str, input_path: Path, output_path: Path, app_info: dict, 
 
     Args:
         map_name: MONAI Application Package
-        input_path: input file/directory path
+        input_path: input directory path
         output_path: output directory path
         app_info: application manifest dictionary
         pkg_info: package manifest dictionary
@@ -92,9 +92,6 @@ def run_app(map_name: str, input_path: Path, output_path: Path, app_info: dict, 
 
     if not map_output.is_absolute():
         map_output = app_info["working-directory"] / map_output
-
-    if input_path.is_file():
-        map_input = map_input / input_path.name
 
     cmd += f' -e MONAI_INPUTPATH="{map_input}"'
     cmd += f' -e MONAI_OUTPUTPATH="{map_output}"'
