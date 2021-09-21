@@ -15,15 +15,15 @@ from monai.deploy.utils.importutil import optional_import
 
 from .domain import Domain
 
-DataElement_, _ = optional_import("pydicom", name="DataElement")
+DataElement_, dataelement_ok_ = optional_import("pydicom", name="DataElement")
 # Dynamic class is not handled so make it Any for now: https://github.com/python/mypy/issues/2477
-DataElement: Any = DataElement_
-Dataset_, _ = optional_import("pydicom", name="Dataset")
+DataElement: Any = DataElement_ if dataelement_ok_ else Any
+Dataset_, dataset_ok_ = optional_import("pydicom", name="Dataset")
 # Dynamic class is not handled so make it Any for now: https://github.com/python/mypy/issues/2477
-Dataset: Any = Dataset_
-TagType_, _ = optional_import("pydicom.tag", name="TagType")
+Dataset: Any = Dataset_ if dataset_ok_ else Any
+TagType_, tagtype_ok_ = optional_import("pydicom.tag", name="TagType")
 # Dynamic class is not handled so make it Any for now: https://github.com/python/mypy/issues/2477
-TagType: Any = TagType_
+TagType: Any = TagType_ if tagtype_ok_ else Any
 
 
 class DICOMSOPInstance(Domain):
