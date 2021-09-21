@@ -82,3 +82,4 @@ def verify_image(image: str) -> bool:
         return _pull_image(image)
 
     return True
+

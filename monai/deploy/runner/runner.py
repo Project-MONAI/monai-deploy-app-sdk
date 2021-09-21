@@ -98,6 +98,17 @@ def run_app(map_name: str, input_path: Path, output_path: Path, app_info: dict, 
     # TODO(bhatt-piyush): Handle model environment correctly (maybe solved by fixing 'monai-exec')
     cmd += " -e MONAI_MODELPATH=/opt/monai/models"
 
+    shm_size = pkg_info.get("resources", {}).get("shared-memory", None)
+    if shm_size:
+        if "Gi" in shm_size:
+            shm_size.replace("Gi", "g")
+        elif "Mi" in shm_size:
+            shm_size.replace("Mi", "m")
+        else:
+            logger.error('\nERROR: Invalid unit of shared memory: "%s"', shm_size)
+            return 1
+        cmd += f" --shm-size={shm_size}"
+
     map_command = app_info["command"]
     # TODO(bhatt-piyush): Fix 'monai-exec' to work correctly.
     cmd += ' -v "{}":"{}" -v "{}":"{}" --shm-size=1g --entrypoint "/bin/bash" "{}" -c "{}"'.format(

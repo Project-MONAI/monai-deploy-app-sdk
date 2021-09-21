@@ -109,6 +109,48 @@ def test_run_app_without_gpu_request(
     ],
 )
 @patch("monai.deploy.runner.runner.run_cmd")
+def test_run_app_with_shared_memory(
+    mock_run_cmd, return_value, input_path, output_path, quiet, sample_map_name, faux_app_manifest, faux_pkg_manifest_with_shm
+):
+    from monai.deploy.runner import runner
+
+    mock_run_cmd.return_value = return_value
+    app_manifest = faux_app_manifest
+    expected_container_input = Path(app_manifest["input"]["path"])
+    expected_container_output = Path(app_manifest["output"]["path"])
+    expected_container_input /= app_manifest["working-directory"]
+    expected_container_output /= app_manifest["working-directory"]
+
+    returncode = runner.run_app(sample_map_name, input_path, output_path, app_manifest, faux_pkg_manifest_with_shm, quiet)
+
+    assert returncode == return_value
+    mock_run_cmd.assert_called_once_with(ContainsString("docker run"))
+    mock_run_cmd.assert_called_once_with(ContainsString(sample_map_name))
+    mock_run_cmd.assert_called_once_with(ContainsString(input_path))
+    mock_run_cmd.assert_called_once_with(ContainsString(expected_container_input))
+    mock_run_cmd.assert_called_once_with(ContainsString(output_path))
+    mock_run_cmd.assert_called_once_with(ContainsString(expected_container_output))
+    mock_run_cmd.assert_called_once_with(ContainsString("STDERR"))
+    if quiet:
+        mock_run_cmd.assert_called_once_with(DoesntContainsString("STDOUT"))
+    else:
+        mock_run_cmd.assert_called_once_with(ContainsString("STDOUT"))
+
+    shm = faux_pkg_manifest_with_shm["resources"]["shared-memory"]
+    shm.replace("Gi", "g")
+    shm.replace("Mi", "m")
+    mock_run_cmd.assert_called_once_with(ContainsString(f"--shm-size={shm}"))
+
+
+@pytest.mark.parametrize(
+    "return_value, input_path, output_path, quiet",
+    [
+        (0, lazy_fixture("faux_folder"), Path("output/"), False),
+        (0, lazy_fixture("faux_folder"), Path("output/"), True),
+        (125, lazy_fixture("faux_folder"), Path("output/"), False),
+    ],
+)
+@patch("monai.deploy.runner.runner.run_cmd")
 def test_run_app_with_gpu_request(
     mock_run_cmd,
     return_value,
