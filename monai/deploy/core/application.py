@@ -343,6 +343,7 @@ class Application(ABC):
         For example, you can run the following code in a notebook:
 
         >>> from pathlib import Path
+        >>> import monai.deploy.core as md
         >>> from monai.deploy.core import (
         >>>     Application,
         >>>     DataPath,
@@ -351,27 +352,24 @@ class Application(ABC):
         >>>     IOType,
         >>>     Operator,
         >>>     OutputContext,
-        >>>     input,
-        >>>     output,
-        >>>     resource,
         >>> )
         >>>
-        >>> @input("path", DataPath, IOType.DISK)
-        >>> @output("path", DataPath, IOType.DISK)
+        >>> @md.input("path", DataPath, IOType.DISK)
+        >>> @md.output("path", DataPath, IOType.DISK)
         >>> class FirstOperator(Operator):
-        >>>     def compute(self, input: InputContext, output: OutputContext, context: ExecutionContext):
-        >>>         print(f"First Operator. input:{input.get().path}, model:{context.models.get().path}")
+        >>>     def compute(self, op_input: InputContext, op_output: OutputContext, context: ExecutionContext):
+        >>>         print(f"First Operator. input:{op_input.get().path}, model:{context.models.get().path}")
         >>>         output_path = Path("output_first.txt")
         >>>         output_path.write_text("first output\\n")
         >>>         output.set(DataPath(output_path))
         >>>
-        >>> @input("path", DataPath, IOType.DISK)
-        >>> @output("path", DataPath, IOType.DISK)
+        >>> @md.input("path", DataPath, IOType.DISK)
+        >>> @md.output("path", DataPath, IOType.DISK)
         >>> class SecondOperator(Operator):
-        >>>     def compute(self, input: InputContext, output: OutputContext, context: ExecutionContext):
-        >>>         print(f"First Operator. output:{output.get().path}, model:{context.models.get().path}")
+        >>>     def compute(self, op_input: InputContext, op_output: OutputContext, context: ExecutionContext):
+        >>>         print(f"First Operator. output:{op_output.get().path}, model:{context.models.get().path}")
         >>>         # The leaf operators can only read output DataPath and should not set output DataPath.
-        >>>         output_path = output.get().path / "output_second.txt"
+        >>>         output_path = op_output.get().path / "output_second.txt"
         >>>         output_path.write_text("second output\\n")
         >>>
         >>> class App(Application):

@@ -14,28 +14,29 @@ import math
 
 import numpy as np
 
-from monai.deploy.core import ExecutionContext, Image, InputContext, IOType, Operator, OutputContext, input, output
+import monai.deploy.core as md
+from monai.deploy.core import ExecutionContext, Image, InputContext, IOType, Operator, OutputContext
 from monai.deploy.core.domain.dicom_series import DICOMSeries
 from monai.deploy.operators.dicom_data_loader_operator import DICOMDataLoaderOperator
 
 
-@input("dicom_series", DICOMSeries, IOType.IN_MEMORY)
-@output("image", Image, IOType.IN_MEMORY)
+@md.input("dicom_series", DICOMSeries, IOType.IN_MEMORY)
+@md.output("image", Image, IOType.IN_MEMORY)
 class DICOMSeriesToVolumeOperator(Operator):
     """This operator converts an instance of DICOMSeries into an Image object.
 
     The loaded Image Object can be used for further processing via other operators.
     """
 
-    def compute(self, input: InputContext, output: OutputContext, context: ExecutionContext):
+    def compute(self, op_input: InputContext, op_output: OutputContext, context: ExecutionContext):
         """Extracts the pixel data from a DICOM Series and other attributes to for an instance of Image object"""
-        dicom_series = input.get()
+        dicom_series = op_input.get()
         self.prepare_series(dicom_series)
         metadata = self.create_metadata(dicom_series)
 
         voxel_data = self.generate_voxel_data(dicom_series)
         image = self.create_volumetric_image(voxel_data, metadata)
-        output.set(image, "image")
+        op_output.set(image, "image")
 
     def generate_voxel_data(self, series):
         """Applies rescale slope and rescale intercept to the pixels.

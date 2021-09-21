@@ -39,12 +39,12 @@ class InferenceOperator(Operator):
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
 
     @abstractmethod
-    def compute(self, input: InputContext, output: OutputContext, context: ExecutionContext):
+    def compute(self, op_input: InputContext, op_output: OutputContext, context: ExecutionContext):
         """An abstract method that needs to be implemented by the user.
 
         Args:
-            input (InputContext): An input context for the operator.
-            output (OutputContext): An output context for the operator.
+            op_input (InputContext): An input context for the operator.
+            op_output (OutputContext): An output context for the operator.
             context (ExecutionContext): An execution context for the operator.
         """
         pass

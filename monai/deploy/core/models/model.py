@@ -43,18 +43,18 @@ class Model:
     call(`__call__`) the model directly.
 
     >>> class MyOperator(Operator):
-    >>>     def compute(self, input: InputContext, output: OutputContext, context: ExecutionContext):
+    >>>     def compute(self, op_input: InputContext, op_output: OutputContext, context: ExecutionContext):
     >>>         model = context.models.get()
-    >>>         result = model(input.get().asnumpy())
+    >>>         result = model(op_input.get().asnumpy())
 
     If you want to load a model file manually, please set 'predictor' attribute to a loaded model object.
 
     >>> class MyOperator(Operator):
-    >>>     def compute(self, input: InputContext, output: OutputContext, context: ExecutionContext):
+    >>>     def compute(self, op_input: InputContext, op_output: OutputContext, context: ExecutionContext):
     >>>         import torch
     >>>         model = context.models.get()
     >>>         model.predictor = torch.jit.load(model.path, map_location="cpu").eval()
-    >>>         result = model(input.get().asnumpy())
+    >>>         result = model(op_input.get().asnumpy())
 
     Supported model types can be registered using static 'register' method.
     """

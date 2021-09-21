@@ -9,6 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import monai.deploy.core as md
 from monai.deploy.core import (
     Application,
     DataPath,
@@ -18,27 +19,23 @@ from monai.deploy.core import (
     IOType,
     Operator,
     OutputContext,
-    env,
-    input,
-    output,
-    resource,
 )
 from monai.transforms import AddChannel, Compose, EnsureType, ScaleIntensity
 
 MEDNIST_CLASSES = ["AbdomenCT", "BreastMRI", "CXR", "ChestCT", "Hand", "HeadCT"]
 
 
-@input("image", DataPath, IOType.DISK)
-@output("image", Image, IOType.IN_MEMORY)
-@env(pip_packages=["pillow"])
+@md.input("image", DataPath, IOType.DISK)
+@md.output("image", Image, IOType.IN_MEMORY)
+@md.env(pip_packages=["pillow"])
 class LoadPILOperator(Operator):
     """Load image from the given input (DataPath) and set numpy array to the output (Image)."""
 
-    def compute(self, input: InputContext, output: OutputContext, context: ExecutionContext):
+    def compute(self, op_input: InputContext, op_output: OutputContext, context: ExecutionContext):
         import numpy as np
         from PIL import Image as PILImage
 
-        input_path = input.get().path
+        input_path = op_input.get().path
         if input_path.is_dir():
             input_path = next(input_path.glob("*.*"))  # take the first file
 
@@ -47,12 +44,12 @@ class LoadPILOperator(Operator):
         image_arr = np.asarray(image)
 
         output_image = Image(image_arr)  # create Image domain object with a numpy array
-        output.set(output_image)
+        op_output.set(output_image)
 
 
-@input("image", Image, IOType.IN_MEMORY)
-@output("output", DataPath, IOType.DISK)
-@env(pip_packages=["monai"])
+@md.input("image", Image, IOType.IN_MEMORY)
+@md.output("output", DataPath, IOType.DISK)
+@md.env(pip_packages=["monai"])
 class MedNISTClassifierOperator(Operator):
     """Classifies the given image and returns the class name."""
 
@@ -60,12 +57,12 @@ class MedNISTClassifierOperator(Operator):
     def transform(self):
         return Compose([AddChannel(), ScaleIntensity(), EnsureType()])
 
-    def compute(self, input: InputContext, output: OutputContext, context: ExecutionContext):
+    def compute(self, op_input: InputContext, op_output: OutputContext, context: ExecutionContext):
         import json
 
         import torch
 
-        img = input.get().asnumpy()  # (64, 64), uint8
+        img = op_input.get().asnumpy()  # (64, 64), uint8
         image_tensor = self.transform(img)  # (1, 64, 64), torch.float64
         image_tensor = image_tensor[None].float()  # (1, 1, 64, 64), torch.float32
 
@@ -85,7 +82,7 @@ class MedNISTClassifierOperator(Operator):
         print(result)
 
         # Get output (folder) path and create the folder if not exists
-        output_folder = output.get().path
+        output_folder = op_output.get().path
         output_folder.mkdir(parents=True, exist_ok=True)
 
         # Write result to "output.json"
@@ -94,7 +91,7 @@ class MedNISTClassifierOperator(Operator):
             json.dump(result, fp)
 
 
-@resource(cpu=1, gpu=1, memory="1Gi")
+@md.resource(cpu=1, gpu=1, memory="1Gi")
 class App(Application):
     """Application class for the MedNIST classifier."""
 

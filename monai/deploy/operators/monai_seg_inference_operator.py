@@ -31,16 +31,17 @@ Compose_, _ = optional_import("monai.transforms", name="Compose")
 Compose: Any = Compose_
 sliding_window_inference, _ = optional_import("monai.inferers", name="sliding_window_inference")
 
-from monai.deploy.core import ExecutionContext, Image, InputContext, IOType, OutputContext, env, input, output
+import monai.deploy.core as md
+from monai.deploy.core import ExecutionContext, Image, InputContext, IOType, OutputContext
 
 from .inference_operator import InferenceOperator
 
 __all__ = ["MonaiSegInferenceOperator", "InMemImageReader"]
 
 
-@input("image", Image, IOType.IN_MEMORY)
-@output("seg_image", Image, IOType.IN_MEMORY)
-@env(pip_packages=["monai==0.6.0", "torch>=1.5", "numpy>=1.17"])
+@md.input("image", Image, IOType.IN_MEMORY)
+@md.output("seg_image", Image, IOType.IN_MEMORY)
+@md.env(pip_packages=["monai==0.6.0", "torch>=1.5", "numpy>=1.17"])
 class MonaiSegInferenceOperator(InferenceOperator):
     """This segmentation operator uses MONAI transforms and Sliding Window Inference.
 
@@ -126,12 +127,12 @@ class MonaiSegInferenceOperator(InferenceOperator):
             raise ValueError("Overlap must be between 0 and 1.")
         self._overlap = val
 
-    def compute(self, input: InputContext, output: OutputContext, context: ExecutionContext):
+    def compute(self, op_input: InputContext, op_output: OutputContext, context: ExecutionContext):
         """Infers with the input image and save the predicted image to output
 
         Args:
-            input (InputContext): An input context for the operator.
-            output (OutputContext): An output context for the operator.
+            op_input (InputContext): An input context for the operator.
+            op_output (OutputContext): An output context for the operator.
             context (ExecutionContext): An execution context for the operator.
         """
         with self._lock:
@@ -140,7 +141,7 @@ class MonaiSegInferenceOperator(InferenceOperator):
             else:
                 self._executing = True
         try:
-            input_image = input.get("image")
+            input_image = op_input.get("image")
             if not input_image:
                 raise ValueError("Input is None.")
 
@@ -196,7 +197,7 @@ class MonaiSegInferenceOperator(InferenceOperator):
                     print(f"Output Seg image numpy array shaped: {out_ndarray.shape}")
                     print(f"Output Seg image pixel max value: {np.amax(out_ndarray)}")
                     out_image = Image(out_ndarray)
-                    output.set(out_image, "seg_image")
+                    op_output.set(out_image, "seg_image")
         finally:
             # Reset state on completing this method execution.
             with self._lock:

@@ -14,7 +14,8 @@ from os import path
 
 from numpy import uint8
 
-from monai.deploy.core import ExecutionContext, Image, InputContext, IOType, Operator, OutputContext, env, input, output
+import monai.deploy.core as md
+from monai.deploy.core import ExecutionContext, Image, InputContext, IOType, Operator, OutputContext
 from monai.deploy.operators.monai_seg_inference_operator import InMemImageReader, MonaiSegInferenceOperator
 from monai.transforms import (
     Activationsd,
@@ -32,9 +33,9 @@ from monai.transforms import (
 )
 
 
-@input("image", Image, IOType.IN_MEMORY)
-@output("seg_image", Image, IOType.IN_MEMORY)
-@env(pip_packages=["monai==0.6.0", "torch>=1.5", "numpy>=1.17", "nibabel"])
+@md.input("image", Image, IOType.IN_MEMORY)
+@md.output("seg_image", Image, IOType.IN_MEMORY)
+@md.env(pip_packages=["monai==0.6.0", "torch>=1.5", "numpy>=1.17", "nibabel"])
 class UnetrSegOperator(Operator):
     """Performs multi-organ segmentation using UNETR model with an image converted from a DICOM CT series.
 
@@ -52,9 +53,9 @@ class UnetrSegOperator(Operator):
         self._input_dataset_key = "image"
         self._pred_dataset_key = "pred"
 
-    def compute(self, input: InputContext, output: OutputContext, context: ExecutionContext):
+    def compute(self, op_input: InputContext, op_output: OutputContext, context: ExecutionContext):
 
-        input_image = input.get("image")
+        input_image = op_input.get("image")
         if not input_image:
             raise ValueError("Input image is not found.")
 
@@ -84,7 +85,7 @@ class UnetrSegOperator(Operator):
         infer_operator.pred_dataset_key = self._pred_dataset_key
 
         # Now let the built-in operator handles the work with the I/O spec and execution context.
-        infer_operator.compute(input, output, context)
+        infer_operator.compute(op_input, op_output, context)
 
     def pre_process(self, img_reader) -> Compose:
         """Composes transforms for preprocessing input before predicting on a model."""
