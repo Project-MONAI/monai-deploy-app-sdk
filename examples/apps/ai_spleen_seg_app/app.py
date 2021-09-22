@@ -29,10 +29,10 @@ class AISpleenSegApp(Application):
         self._logger = logging.getLogger("{}.{}".format(__name__, type(self).__name__))
         super().__init__(*args, **kwargs)
 
-    def run(self):
+    def run(self, *args, **kwargs):
         # This method calls the base class to run. Can be omitted if simply calling through.
         self._logger.debug(f"Begin {self.run.__name__}")
-        super().run()
+        super().run(*args, **kwargs)
         self._logger.debug(f"End {self.run.__name__}")
 
     def compose(self):
