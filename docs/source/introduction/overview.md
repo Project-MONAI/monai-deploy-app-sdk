@@ -1,6 +1,7 @@
 # Overview
 
 The MONAI Deploy Application SDK offers a framework and associated tools to design, verify and analyze the performance of AI-driven applications in the healthcare domain.
+
 It contains the following elements:
 
 - Pythonic framework for app development

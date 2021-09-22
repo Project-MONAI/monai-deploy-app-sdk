@@ -82,7 +82,7 @@ def get_bytes(size: Union[str, int]) -> int:
     return int(parsed_size * BYTES_UNIT[parsed_unit])
 
 
-def convert_bytes(bytes: int, unit: str = "Mi") -> Union[str, int]:
+def convert_bytes(num_bytes: int, unit: str = "Mi") -> Union[str, int]:
     """Converts a number of bytes to a string representation.
 
     By default, the output is in MiB('Mi') format.
@@ -96,7 +96,7 @@ def convert_bytes(bytes: int, unit: str = "Mi") -> Union[str, int]:
           convert_bytes(int(1024 * 1024), "kib") == "1024kib"
 
     Args:
-        bytes (int): A number of bytes to be converted.
+        num_bytes (int): A number of bytes to be converted.
         unit (str): A unit to be used for the output string.
 
     Returns:
@@ -108,16 +108,16 @@ def convert_bytes(bytes: int, unit: str = "Mi") -> Union[str, int]:
         TypeError: If the input number of bytes is not an integer.
     """
 
-    if not isinstance(bytes, int):
+    if not isinstance(num_bytes, int):
         raise TypeError("Size must be an integer.")
-    if bytes < 0:
+    if num_bytes < 0:
         raise ValueError("Negative size not allowed.")
 
     unit_lowered = unit.lower()
     if unit_lowered not in BYTES_UNIT:
         raise ValueError(f"Invalid unit ('{unit}').")
 
-    converted = float(bytes) / BYTES_UNIT[unit_lowered] * 10
+    converted = float(num_bytes) / BYTES_UNIT[unit_lowered] * 10
 
     if unit_lowered == "b":
         return int(converted) // 10  # return as integer
