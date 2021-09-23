@@ -13,3 +13,18 @@ If you have installed MONAI Deploy App SDK previously, you can upgrade to the la
 ```bash
 pip install --upgrade monai-deploy-app-sdk
 ```
+
+:::{note}
+For packaging your application, [MONAI Application Packager](/developing_with_sdk/packaging_app) and [MONAI Application Runner (MAR)](/developing_with_sdk/executing_packaged_app_locally) requires NVIDIA Docker installed:
+
+<https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html#docker>
+
+Currently, `nvcr.io/nvidia/pytorch:21.07-py3` base Docker image is used by [MONAI Application Packager](/developing_with_sdk/packaging_app) by default.
+
+The image size is large so please pull the image in advance to save time.
+
+```bash
+docker pull nvcr.io/nvidia/pytorch:21.07-py3
+```
+
+:::

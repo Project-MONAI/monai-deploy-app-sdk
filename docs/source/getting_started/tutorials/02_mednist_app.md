@@ -19,9 +19,12 @@ jupyter-lab
 ../../notebooks/tutorials/02_mednist_app.ipynb
 ```
 
-```{link-button} ../../_static/notebooks/tutorials/02_mednist_app.ipynb
-:text: Download 02_mednist_app.ipynb
-:classes: btn-outline-primary col-md-6
+```{raw} html
+<p style="text-align: center;">
+    <a class="sphinx-bs btn text-wrap btn-outline-primary col-md-6 reference external" href="../../_static/notebooks/tutorials/02_mednist_app.ipynb">
+        <span>Download 02_mednist_app.ipynb</span>
+    </a>
+</p>
 ```
 
 ## Executing from Jupyter Notebook (Using a Prebuilt Model)
@@ -32,9 +35,18 @@ jupyter-lab
 ../../notebooks/tutorials/02_mednist_app-prebuilt.ipynb
 ```
 
-```{link-button} ../../_static/notebooks/tutorials/02_mednist_app-prebuilt.ipynb
-:text: Download 02_mednist_app-prebuilt.ipynb
-:classes: btn-outline-primary btn-block col-md-6
+```{raw} html
+<div style="text-align: center;">
+    <iframe width="560" height="315" src="https://www.youtube.com/embed/WwjilJFHuU4" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+</div>
+```
+
+```{raw} html
+<p style="text-align: center;">
+    <a class="sphinx-bs btn text-wrap btn-outline-primary col-md-6 reference external" href="../../_static/notebooks/tutorials/02_mednist_app-prebuilt.ipynb">
+        <span>Download 02_mednist_app-prebuilt.ipynb</span>
+    </a>
+</p>
 ```
 
 ## Executing from Shell
