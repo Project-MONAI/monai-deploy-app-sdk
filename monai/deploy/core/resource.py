@@ -103,9 +103,10 @@ def resource(
     """A decorator that adds an resource requirement to the application.
 
     Args:
-        cpu (int): A number of CPU cores required.
-        memory (int): A size of memory required (in bytes).
-        gpu (int): A number of GPUs required.
+        cpu: A number of CPU cores required.
+        memory: A string or integer representation of bytes to be converted.
+                (eg. "0.3 Gib", "3mb", "1024", 65536)
+        gpu: A number of GPUs required.
 
     Returns:
         A decorator that adds an resource requirement to the application.

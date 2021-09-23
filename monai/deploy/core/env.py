@@ -58,8 +58,7 @@ def env(pip_packages: Optional[Union[str, List[str]]] = None):
     """A decorator that adds an environment specification to either Operator or Application.
 
     Args:
-        pip_packages Optional[Union[str, List[str]]]: A string that is a path to requirements.txt file
-                                                      or a list of packages to install.
+        pip_packages: A string that is a path to requirements.txt file or a list of packages to install.
 
     Returns:
         A decorator that adds an environment specification to either Operator or Application.

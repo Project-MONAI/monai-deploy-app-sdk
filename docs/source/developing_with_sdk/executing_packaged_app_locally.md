@@ -1,8 +1,8 @@
 # Executing packaged app locally
 
-The MONAI Application Runner (MAR) is a command-line utility that allows users to run and test their MONAI Application Package (MAP) locally. MAR is developed to make the running and testing of MAPs locally an easy process for developers and scientists by abstracting away the need to understand the internal details of the MAP. MAR allows the users to specify input and output paths on the local file system which it maps to the input and output of MAP during execution.
+**The MONAI Application Runner (MAR)** is a command-line utility that allows users to run and test their [MONAI Application Package (MAP)](https://github.com/Project-MONAI/monai-deploy/blob/main/guidelines/monai-application-package.md) locally. MAR is developed to make the running and testing of MAPs locally an easy process for developers and scientists by abstracting away the need to understand the internal details of the MAP. MAR allows the users to specify input and output paths on the local file system which it maps to the input and output of MAP during execution.
 
-## Setting up
+## Setting Up
 
 MONAI Application Runner comes as a part of the MONAI Deploy CLI and can be accessed as a `run` subcommand to the CLI. You can see the help message for MAR using the following command:
 

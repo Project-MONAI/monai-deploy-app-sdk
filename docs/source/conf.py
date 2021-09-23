@@ -49,7 +49,7 @@ from monai.deploy import __version__ as MONAI_APP_SDK_VERSION  # noqa: E402
 
 short_version = MONAI_APP_SDK_VERSION.split("+")[0]
 release = short_version
-version = re.sub(r"(a|b|r)\d+.*", "", short_version)
+version = re.sub(r"(a|b|rc)\d+.*", "", short_version)
 
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
@@ -124,7 +124,7 @@ html_theme = "pydata_sphinx_theme"
 html_theme_options = {
     "logo_link": "https://monai.io",
     "external_links": [
-        {"url": "https://github.com/Project-MONAI/monai-deploy-app-sdk/issues/new", "name": "SUBMIT ISSUE"}
+        {"url": "https://github.com/Project-MONAI/monai-deploy-app-sdk/issues/new/choose", "name": "SUBMIT ISSUE"}
     ],
     "icon_links": [
         {

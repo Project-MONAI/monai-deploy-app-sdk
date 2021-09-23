@@ -921,6 +921,9 @@ setup_gen_docs() {
     # Symbolic link notebooks folder from 'docs/source/notebooks' to 'notebooks'
     run_command rm -rf ${TOP}/docs/source/notebooks
     run_command ln -sfn ${TOP}/notebooks ${TOP}/docs/source/notebooks
+    # Symbolic link notebooks folder from 'docs/source/notebooks' to '_static/notebooks'
+    run_command rm -rf ${TOP}/docs/_static/notebooks
+    run_command ln -sfn ${TOP}/notebooks ${TOP}/docs/_static/notebooks
 }
 
 gen_docs_desc() { c_echo 'Generate documents

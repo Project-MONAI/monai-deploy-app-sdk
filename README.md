@@ -52,11 +52,9 @@ cp examples/apps/simple_imaging_app/brain_mr_input.jpg input/
 monai-deploy run simple_app:latest input output
 ```
 
-[MedNIST demo](TBD) is available on Colab.
-
 [Examples](https://github.com/Project-MONAI/monai-deploy-app-sdk/tree/main/examples) and [notebook tutorials](https://github.com/Project-MONAI/monai-deploy-app-sdk/tree/main/notebooks) are located at [Project-MONAI/monai-deploy-app-sdk](https://github.com/Project-MONAI/monai-deploy-app-sdk).
 
-Technical documentation is available at [docs.monai.io](https://docs.monai.io/projects/monai-deploy-app-sdk/en/latest/).
+User guide is available at [docs.monai.io](https://docs.monai.io/projects/monai-deploy-app-sdk/en/latest/).
 
 ## Contributing
 
@@ -80,4 +78,3 @@ Ask and answer questions over on [MONAI Deploy App SDK's GitHub Discussions tab]
 - Wiki: <https://github.com/Project-MONAI/monai-deploy-app-sdk/wiki>
 - Test status: <https://github.com/Project-MONAI/monai-deploy-app-sdk/actions>
 - PyPI package: <https://pypi.org/project/monai-deploy-app-sdk>
-<!-- - Docker Hub: <https://hub.docker.com/r/projectmonai/monai-deploy-app-sdk> -->

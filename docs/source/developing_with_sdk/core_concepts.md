@@ -55,7 +55,7 @@ graph TD
     click App "./creating_application_class.html" "Go to the document" _self
     click ExecApp "./executing_app_locally.html" "Go to the document" _self
 ```
-<!-- In the above caption text, it uses unicode blank characters('⠀⠀') in front of the text to align to center (somehow, it is mis-aligned little bit) -->
+<!-- In the above caption text, it uses Unicode blank characters('⠀⠀') in front of the text to align to center (somehow, it is misaligned little bit) -->
 
 First, you will need to design the workflow of your application that defines [Operator](/modules/_autosummary/monai.deploy.core.Operator)s (tasks) and flows among them. Once the workflow is designed, you can start implementing operator classes for those that you cannot use existing operators as they are. Then implement an [Application](/modules/_autosummary/monai.deploy.core.Application) class to make a workflow graph with the operators.
 
@@ -80,6 +80,6 @@ graph TD
     click ExecPackage "./executing_packaged_app_locally.html" "Go to the document" _self
     click DeployPackage "./deploying_to_the_remote_server.html" "Go to the document" _self
 ```
-<!-- In the above caption text, it uses unicode blank characters('⠀⠀') in front of the text to align to center (somehow, it is mis-aligned little bit) -->
+<!-- In the above caption text, it uses Unicode blank characters('⠀⠀') in front of the text to align to center (somehow, it is misaligned little bit) -->
 
-After your application is tested and verified well and you feel you made a great application :), it's the time to package your application, test locally, and deploy to the remote server.
+After your application is tested and verified well and you feel you made a great application :), it's time to package your application, test locally, and deploy it to the remote server.

@@ -192,7 +192,8 @@ class Operator(ABC):
         >>> data_out = process(data_in)         # process the input data
         >>> op_output.set(Image(data_out))      # set the output data
 
-        If the operator is a leaf operator in the workflow graph, you cannot call `op_output.set()` method.
+        If the operator is a leaf operator in the workflow graph and the operator output's
+        `(<data type>, <storage type>) == (DataPath, DISK)`, you cannot call `op_output.set()` method.
         Instead, you can use the destination path available by `op_output.get().path` to store output data and the
         following logic is expected:
 
