@@ -19,9 +19,18 @@ jupyter-lab
 ../../notebooks/tutorials/01_simple_app.ipynb
 ```
 
+<!-- It is not centered with {link-button} ...
 ```{link-button} ../../_static/notebooks/tutorials/01_simple_app.ipynb
 :text: Download 01_simple_app.ipynb
 :classes: btn-outline-primary col-md-6
+``` -->
+
+```{raw} html
+<p style="text-align: center;">
+    <a class="sphinx-bs btn text-wrap btn-outline-primary col-md-6 reference external" href="../../_static/notebooks/tutorials/01_simple_app.ipynb">
+        <span>Download 01_simple_app.ipynb</span>
+    </a>
+</p>
 ```
 
 ## Executing from Shell
