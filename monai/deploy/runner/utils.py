@@ -10,7 +10,6 @@
 # limitations under the License.
 
 import logging
-import shlex
 import subprocess
 
 logger = logging.getLogger("app_runner")
@@ -41,8 +40,7 @@ def run_cmd(cmd: str) -> int:
     Returns:
         output: child process returncode after the command has been executed.
     """
-    args = shlex.split(cmd)
-    proc = subprocess.Popen(args, universal_newlines=True)
+    proc = subprocess.Popen(cmd, universal_newlines=True, shell=True)
     return proc.wait()
 
 
