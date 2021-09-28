@@ -12,6 +12,7 @@
 import argparse
 import json
 import logging
+import posixpath
 import shutil
 import sys
 import tempfile
@@ -85,13 +86,14 @@ def run_app(map_name: str, input_path: Path, output_path: Path, app_info: dict, 
     if not quiet:
         cmd += " -a STDOUT"
 
-    map_input = Path(app_info["input"]["path"])
-    map_output = Path(app_info["output"]["path"])
-    if not map_input.is_absolute():
-        map_input = app_info["working-directory"] / map_input
+    # Use POSIX path for input and output paths as local paths are mounted to those paths in the container.
+    map_input = Path(app_info["input"]["path"]).as_posix()
+    map_output = Path(app_info["output"]["path"]).as_posix()
+    if not posixpath.isabs(map_input):
+        map_input = posixpath.join(app_info["working-directory"], map_input)
 
-    if not map_output.is_absolute():
-        map_output = app_info["working-directory"] / map_output
+    if not posixpath.isabs(map_output):
+        map_output = posixpath.join(app_info["working-directory"], map_output)
 
     cmd += f' -e MONAI_INPUTPATH="{map_input}"'
     cmd += f' -e MONAI_OUTPUTPATH="{map_output}"'
