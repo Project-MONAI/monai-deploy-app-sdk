@@ -44,7 +44,7 @@ class PNGConverterOperator(Operator):
         image_data = image.asnumpy()
         image_shape = image_data.shape
 
-        num_images = image_shape[0]
+        num_images = image_shape[2]
 
         for i in range(0, num_images):
             input_data = image_data[:, :, i]
