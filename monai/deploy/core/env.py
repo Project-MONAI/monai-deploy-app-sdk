@@ -76,7 +76,10 @@ def env(pip_packages: Optional[Union[str, List[str]]] = None):
         elif issubclass(cls, Application):
             environment = ApplicationEnv(pip_packages=pip_packages)
         else:
-            raise UnknownTypeError(f"@env decorator cannot be specified for {cls}.")
+            raise UnknownTypeError(
+                f"@env decorator cannot be specified for {cls}. Please check if {cls} inherits either 'Operator' or"
+                f" 'Application' class and implements all abstract methods"
+            )
 
         cls._env = environment
 

@@ -19,6 +19,7 @@
     InferenceOperator
     MonaiSegInferenceOperator
     PNGConverterOperator
+    RemoteDockerOperator
 """
 
 from .dicom_data_loader_operator import DICOMDataLoaderOperator
@@ -28,3 +29,4 @@ from .dicom_series_to_volume_operator import DICOMSeriesToVolumeOperator
 from .inference_operator import InferenceOperator
 from .monai_seg_inference_operator import MonaiSegInferenceOperator
 from .png_converter_operator import PNGConverterOperator
+from .remotes import RemoteDockerOperator

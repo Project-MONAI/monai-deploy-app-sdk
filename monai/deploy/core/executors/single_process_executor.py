@@ -72,6 +72,7 @@ class SingleProcessExecutor(Executor):
             self.datastore,
             input=NamedDataPath({"": DataPath(input_path, read_only=True)}),
             output=NamedDataPath({"": DataPath(output_path, read_only=True)}),
+            workdir=workdir,
             models=models,
         )
 

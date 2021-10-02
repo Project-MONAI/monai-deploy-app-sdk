@@ -10,7 +10,7 @@
 # limitations under the License.
 
 from abc import ABC
-from typing import TYPE_CHECKING, Any, Set
+from typing import TYPE_CHECKING, Any, Set, Type
 
 from typeguard import check_type
 
@@ -41,6 +41,9 @@ class IOContext(ABC):
         self._op_info: OperatorInfo = self._op.op_info
         self._labels: Set[str] = self._op_info.get_labels(self._io_kind)
         self._storage: Datastore = execution_context.storage
+
+    def __len__(self):
+        return len(self._labels)
 
     def get_default_label(self, label: str = "") -> str:
         """Get a default label for IO context."""
@@ -82,7 +85,7 @@ class IOContext(ABC):
         key = self.get_group_path(f"{self._io_kind}/{label}")
         storage = self._storage
         if not storage.exists(key):
-            raise ItemNotExistsError(f"'{key}' does not exist.")
+            return None
         return storage.get(key)
 
     def set(self, value: Any, label: str = ""):
@@ -117,6 +120,29 @@ class IOContext(ABC):
                 ) from err
 
             storage.put(key, value)
+
+    def get_data_type(self, label: str = "") -> Type:
+        return self._op_info.get_data_type(self._io_kind, label)
+
+    def get_storage_type(self, label: str = "") -> Type:
+        return self._op_info.get_storage_type(self._io_kind, label)
+
+    @property
+    def op(self):
+        """Returns the operator."""
+        return self._op
+
+    @property
+    def op_info(self) -> "OperatorInfo":
+        """Retrieves the operator info.
+
+        Args:
+
+        Returns:
+            An instance of OperatorInfo.
+
+        """
+        return self._op_info
 
 
 class InputContext(IOContext):

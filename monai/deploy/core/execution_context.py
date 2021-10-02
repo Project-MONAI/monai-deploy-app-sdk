@@ -9,6 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from pathlib import Path
 from typing import Optional
 
 from monai.deploy.core.domain.datapath import NamedDataPath
@@ -38,6 +39,7 @@ class BaseExecutionContext:
         datastore: Optional[Datastore],
         input: NamedDataPath,
         output: NamedDataPath,
+        workdir: Path,
         models: Optional[Model] = None,
     ):
         if datastore is None:
@@ -45,8 +47,9 @@ class BaseExecutionContext:
         else:
             self._storage = datastore
 
-        self._input = input
-        self._output = output
+        self._input: NamedDataPath = input
+        self._output: NamedDataPath = output
+        self._workdir: Path = workdir
 
         if models is None:
             self._models = Model("")  # set a null model
@@ -66,6 +69,10 @@ class BaseExecutionContext:
         return self._output
 
     @property
+    def workdir(self) -> Path:
+        return self._workdir
+
+    @property
     def models(self) -> Model:
         return self._models
 
@@ -74,7 +81,13 @@ class ExecutionContext(BaseExecutionContext):
     """An execution context for the operator."""
 
     def __init__(self, context: BaseExecutionContext, op: "operator.Operator"):
-        super().__init__(context.storage, context.input, context.output, context.models)
+        super().__init__(
+            datastore=context.storage,
+            input=context.input,
+            output=context.output,
+            workdir=context.workdir,
+            models=context.models,
+        )
         self._context = context
         self._op = op
         self._input_context = InputContext(self)
@@ -82,6 +95,7 @@ class ExecutionContext(BaseExecutionContext):
 
     @property
     def op(self):
+        """Returns the operator."""
         return self._op
 
     def get_execution_index(self):

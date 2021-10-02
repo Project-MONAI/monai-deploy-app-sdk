@@ -17,9 +17,11 @@ import shutil
 import sys
 import tempfile
 from pathlib import Path
-from typing import Tuple
+from typing import Optional, Tuple
 
 from monai.deploy.runner.utils import get_requested_gpus, run_cmd, verify_image
+
+TEMP_WORKDIR = ".monai_workdir"  # working directory name used when no `workdir` is specified
 
 logger = logging.getLogger("app_runner")
 
@@ -61,7 +63,16 @@ def fetch_map_manifest(map_name: str) -> Tuple[dict, dict, int]:
         return app_info, pkg_info, returncode
 
 
-def run_app(map_name: str, input_path: Path, output_path: Path, app_info: dict, pkg_info: dict, quiet: bool) -> int:
+def run_app(
+    map_name: str,
+    input_path: Path,
+    output_path: Path,
+    workspace_path: Path,
+    app_info: dict,
+    pkg_info: dict,
+    quiet: bool,
+    log_level: Optional[str] = None,
+) -> int:
     """
     Executes the MONAI Application.
 
@@ -69,9 +80,11 @@ def run_app(map_name: str, input_path: Path, output_path: Path, app_info: dict, 
         map_name: MONAI Application Package
         input_path: input directory path
         output_path: output directory path
+        workspace_path: workspace directory path
         app_info: application manifest dictionary
         pkg_info: package manifest dictionary
         quiet: boolean flag indicating quiet mode
+        log_level: logging level
 
     Returns:
         returncode: command returncode
@@ -89,21 +102,36 @@ def run_app(map_name: str, input_path: Path, output_path: Path, app_info: dict, 
     # Use POSIX path for input and output paths as local paths are mounted to those paths in the container.
     map_input = Path(app_info["input"]["path"]).as_posix()
     map_output = Path(app_info["output"]["path"]).as_posix()
+    map_workdir = Path(app_info["working-directory"]).as_posix()
     if not posixpath.isabs(map_input):
-        map_input = posixpath.join(app_info["working-directory"], map_input)
+        map_input = posixpath.join(map_workdir, map_input)
 
     if not posixpath.isabs(map_output):
-        map_output = posixpath.join(app_info["working-directory"], map_output)
+        map_output = posixpath.join(map_workdir, map_output)
 
     cmd += f' -e MONAI_INPUTPATH="{map_input}"'
     cmd += f' -e MONAI_OUTPUTPATH="{map_output}"'
     # TODO(bhatt-piyush): Handle model environment correctly (maybe solved by fixing 'monai-exec')
     cmd += " -e MONAI_MODELPATH=/opt/monai/models"
+    cmd += f" -e MONAI_WORKDIR={map_workdir}"
+    cmd += f" -e MONAI_WORKDIR_HOST={workspace_path.absolute()}"
 
     map_command = app_info["command"]
+
+    # If log level is specified, set it to the command line.
+    if log_level:
+        map_command = f"{map_command} -l {log_level}"
+
     # TODO(bhatt-piyush): Fix 'monai-exec' to work correctly.
-    cmd += ' -v "{}":"{}" -v "{}":"{}" --shm-size=1g --entrypoint "/bin/bash" "{}" -c "{}"'.format(
-        input_path.absolute(), map_input, output_path.absolute(), map_output, map_name, map_command
+    cmd += ' -v "{}":"{}" -v "{}":"{}" -v "{}":"{}" -e DOCKER_HOST=tcp://172.17.0.1:80 --shm-size=1g --entrypoint "/bin/bash" "{}" -c "{}"'.format(
+        workspace_path.absolute(),
+        map_workdir,
+        input_path.absolute(),
+        map_input,
+        output_path.absolute(),
+        map_output,
+        map_name,
+        map_command,
     )
     # cmd += " -v {}:{} -v {}:{} {}".format(
     #     input_path.absolute(), map_input, output_path.absolute(), map_output, map_name
@@ -177,6 +205,16 @@ def main(args: argparse.Namespace):
         logger.error("Execution Aborted")
         sys.exit(1)
 
+    if args.workdir is None:
+        workdir = Path(TEMP_WORKDIR).absolute()
+        if workdir.exists():
+            shutil.rmtree(workdir)
+    else:
+        # Absolute path of the working directory
+        workdir = Path(args.workdir).absolute()
+
+    workdir.mkdir(parents=True, exist_ok=True)
+
     # Fetch application manifest from MAP
     app_info, pkg_info, returncode = fetch_map_manifest(args.map)
     if returncode != 0:
@@ -189,7 +227,9 @@ def main(args: argparse.Namespace):
         sys.exit(1)
 
     # Run MONAI Application
-    returncode = run_app(args.map, args.input, args.output, app_info, pkg_info, quiet=args.quiet)
+    returncode = run_app(
+        args.map, args.input, args.output, workdir, app_info, pkg_info, quiet=args.quiet, log_level=args.log_level
+    )
 
     if returncode != 0:
         logger.error('\nERROR: MONAI Application "%s" failed.', args.map)

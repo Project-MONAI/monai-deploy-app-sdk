@@ -31,6 +31,12 @@ def create_run_parser(subparser: _SubParsersAction, command: str, parents: List[
     parser.add_argument(
         "output", metavar="<output>", type=argparse_types.valid_dir_path, help="Output data directory path"
     )
+    parser.add_argument(
+        "--workdir",
+        "-w",
+        type=str,
+        help="Path to workspace folder to be mounted (default: A temporary '.monai_workdir' folder in the current folder)",
+    )
 
     parser.add_argument(
         "-q",

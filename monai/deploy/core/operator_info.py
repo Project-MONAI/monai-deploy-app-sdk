@@ -10,7 +10,7 @@
 # limitations under the License.
 
 from enum import Enum
-from typing import Dict, Set, Type, Union
+from typing import Dict, Optional, Set, Type, Union
 
 from .domain.datapath import DataPath
 from .io_type import IOType
@@ -45,6 +45,16 @@ class OperatorInfo:
                 self.data_type[kind][""] = DataPath
                 self.storage_type[kind][""] = IOType.DISK
 
+    def get_default_label(self, io_kind: Union[IO, str]) -> Optional[str]:
+        """Get a default label for IO context."""
+        io_kind = IO(io_kind)
+        labels = self.labels[io_kind]
+
+        if len(labels) == 1:
+            return next(iter(labels))
+        else:
+            return None
+
     def add_label(self, io_kind: Union[IO, str], label: str):
         io_kind = IO(io_kind)
         self.labels[io_kind].add(label)
@@ -57,14 +67,22 @@ class OperatorInfo:
         io_kind = IO(io_kind)
         self.data_type[io_kind][label] = data_type
 
-    def get_data_type(self, io_kind: Union[IO, str], label: str) -> Type:
+    def get_data_type(self, io_kind: Union[IO, str], label: str = "") -> Type:
         io_kind = IO(io_kind)
+        if not label:
+            default_label = self.get_default_label(io_kind)
+            if default_label:
+                label = default_label
         return self.data_type[io_kind][label]
 
     def set_storage_type(self, io_kind: Union[IO, str], label: str, storage_type: Union[int, IOType]):
         io_kind = IO(io_kind)
         self.storage_type[io_kind][label] = IOType(storage_type)
 
-    def get_storage_type(self, io_kind: Union[IO, str], label: str) -> IOType:
+    def get_storage_type(self, io_kind: Union[IO, str], label: str = "") -> IOType:
         io_kind = IO(io_kind)
+        if not label:
+            default_label = self.get_default_label(io_kind)
+            if default_label:
+                label = default_label
         return self.storage_type[io_kind][label]

@@ -20,9 +20,11 @@ torch, _ = optional_import("torch", "1.5")
 np_str_obj_array_pattern, _ = optional_import("torch.utils.data._utils.collate", name="np_str_obj_array_pattern")
 Dataset, _ = optional_import("monai.data", name="Dataset")
 DataLoader, _ = optional_import("monai.data", name="DataLoader")
-ImageReader_, _ = optional_import("monai.data", name="ImageReader")
+ImageReader_, image_reader_ok_ = optional_import("monai.data", name="ImageReader")
 # Dynamic class is not handled so make it Any for now: https://github.com/python/mypy/issues/2477
 ImageReader: Any = ImageReader_
+if not image_reader_ok_:
+    ImageReader = object  # for 'class InMemImageReader(ImageReader):' to work
 decollate_batch, _ = optional_import("monai.data", name="decollate_batch")
 sliding_window_inference, _ = optional_import("monai.inferers", name="sliding_window_inference")
 ensure_tuple, _ = optional_import("monai.utils", name="ensure_tuple")
