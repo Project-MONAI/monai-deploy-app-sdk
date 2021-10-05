@@ -305,6 +305,7 @@ install_python_dev_deps() {
         run_command ${MONAI_PY_EXE} -m pip install -q -U setuptools pip wheel build
         run_command ${MONAI_PY_EXE} -m pip install -q -r ${TOP}/requirements-dev.txt
         run_command ${MONAI_PY_EXE} -m pip install -q -r ${TOP}/requirements-examples.txt
+        run_command ${MONAI_PY_EXE} -m pip install -q -r ${TOP}/requirements.txt
 
     else
         c_echo_err R "You must be in a virtual environment to install dependencies."
