@@ -2,3 +2,5 @@ numpy>=1.17
 networkx>=2.4
 colorama>=0.4.1
 typeguard>=2.12.1
+typing-extensions>=3.10.0.0
+docker >=5.0.0 # needed for packager and runner
