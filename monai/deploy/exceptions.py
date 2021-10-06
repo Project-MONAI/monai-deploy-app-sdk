@@ -50,3 +50,9 @@ class UnsupportedOperationError(MONAIAppSdkError):
     """Raises when unsupported operation is requested."""
 
     pass
+
+
+class ServerError(MONAIAppSdkError):
+    """Raises when server error is encountered."""
+
+    pass

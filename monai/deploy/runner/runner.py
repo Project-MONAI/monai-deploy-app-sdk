@@ -20,6 +20,7 @@ from pathlib import Path
 from typing import Optional, Tuple
 
 from monai.deploy.runner.utils import get_requested_gpus, run_cmd, verify_image
+from monai.deploy.services.container import get_gateway_ip, launch_docker_proxy_server
 
 TEMP_WORKDIR = ".monai_workdir"  # working directory name used when no `workdir` is specified
 
@@ -122,22 +123,30 @@ def run_app(
     if log_level:
         map_command = f"{map_command} -l {log_level}"
 
+    docker_host = get_gateway_ip()
+    docker_service, docker_host, docker_port = launch_docker_proxy_server(docker_host)
+
     # TODO(bhatt-piyush): Fix 'monai-exec' to work correctly.
-    cmd += ' -v "{}":"{}" -v "{}":"{}" -v "{}":"{}" -e DOCKER_HOST=tcp://172.17.0.1:80 --shm-size=1g --entrypoint "/bin/bash" "{}" -c "{}"'.format(
-        workspace_path.absolute(),
-        map_workdir,
-        input_path.absolute(),
-        map_input,
-        output_path.absolute(),
-        map_output,
-        map_name,
-        map_command,
+    cmd += (
+        f' -v "{workspace_path.absolute()}":"{map_workdir}"'
+        f' -v "{input_path.absolute()}":"{map_input}"'
+        f' -v "{output_path.absolute()}":"{map_output}"'
+        f" -e DOCKER_HOST=tcp://{docker_host}:{docker_port}"
+        f" --shm-size=1g"
+        f' --entrypoint "/bin/bash"'
+        f' "{map_name}"'
+        f' -c "{map_command}"'
     )
     # cmd += " -v {}:{} -v {}:{} {}".format(
     #     input_path.absolute(), map_input, output_path.absolute(), map_output, map_name
     # )
 
-    return run_cmd(cmd)
+    error_code = run_cmd(cmd)
+
+    docker_service.terminate()
+    docker_service.join()
+
+    return error_code
 
 
 def dependency_verification(map_name: str) -> bool:

@@ -17,6 +17,9 @@ import monai.deploy.core as md
 from monai.deploy.core import ExecutionContext, InputContext, OutputContext
 from monai.deploy.core.domain import DataPath
 from monai.deploy.exceptions import MONAIAppSdkError, WrongValueError
+from monai.deploy.services.container.client.docker_client import DockerClient
+from monai.deploy.services.container.core.containers import Container
+from monai.deploy.services.container.core.status import NOT_STARTED, Status
 
 from .remote_operator import RemoteOperator
 
@@ -54,8 +57,10 @@ class RemoteDockerOperator(RemoteOperator):
         self.output_folder: Optional[str] = output_folder
         self.params: Dict[str, Any] = params or {}
         self.config: Dict[str, Any] = {}
-        self.container = None
+        self.container: Optional[Container] = None
+        self.client: Optional[DockerClient] = None
         self.volume_mappings: Dict[str, Any] = {}
+        self.status: Status = NOT_STARTED
         self.stdout: str = ""
         self.stderr: str = ""
 
@@ -90,9 +95,7 @@ class RemoteDockerOperator(RemoteOperator):
     def setup(self, op_input: InputContext, op_output: OutputContext, context: ExecutionContext):
         import os
 
-        import docker
-
-        self.client = docker.from_env()
+        self.client = DockerClient()
 
         local_input_folder: Path = self.to_input_folder(op_input, op_output, context).absolute()
         local_output_folder: Path = self.to_output_folder(op_input, op_output, context).absolute()
@@ -129,7 +132,9 @@ class RemoteDockerOperator(RemoteOperator):
         if self.command is not None:
             config.update(command=self.command)
 
-        container = self.client.containers.run(self.image, detach=True, **config)
+        if not self.client:
+            raise MONAIAppSdkError("Docker client is not initialized.")
+        container: Container = self.client.run(self.image, detach=True, **config)
         self.container = container
         logger.info(f"Container {container.id} started.")
 
@@ -144,7 +149,7 @@ class RemoteDockerOperator(RemoteOperator):
         self.stdout = container.logs(stdout=True, stderr=False).decode("utf-8")
         self.stderr = container.logs(stdout=False, stderr=True).decode("utf-8")
 
-        if self.status["StatusCode"] != 0:
+        if self.status.status_code != 0:
             logger.error(container.logs())
             raise MONAIAppSdkError("Docker exited with non-zero status code")
         container.remove()

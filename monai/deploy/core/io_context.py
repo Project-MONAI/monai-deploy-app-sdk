@@ -17,6 +17,7 @@ from typeguard import check_type
 # To avoid "Cannot resolve forward reference" error
 # : https://github.com/agronholm/sphinx-autodoc-typehints#dealing-with-circular-imports
 from . import execution_context
+from .io_type import IOType
 
 if TYPE_CHECKING:
     from .execution_context import ExecutionContext
@@ -24,7 +25,7 @@ if TYPE_CHECKING:
     from .datastores.datastore import Datastore
     from .operator_info import OperatorInfo
 
-from monai.deploy.exceptions import IOMappingError, ItemAlreadyExistsError, ItemNotExistsError
+from monai.deploy.exceptions import IOMappingError, ItemAlreadyExistsError
 
 from .domain.datapath import DataPath
 
@@ -124,7 +125,7 @@ class IOContext(ABC):
     def get_data_type(self, label: str = "") -> Type:
         return self._op_info.get_data_type(self._io_kind, label)
 
-    def get_storage_type(self, label: str = "") -> Type:
+    def get_storage_type(self, label: str = "") -> IOType:
         return self._op_info.get_storage_type(self._io_kind, label)
 
     @property
