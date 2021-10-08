@@ -79,12 +79,15 @@ def test_run_app_without_gpu_request(
 
     mock_run_cmd.return_value = return_value
     app_manifest = faux_app_manifest
-    expected_container_input = Path(app_manifest["input"]["path"])
-    expected_container_output = Path(app_manifest["output"]["path"])
-    expected_container_input /= app_manifest["working-directory"]
-    expected_container_output /= app_manifest["working-directory"]
+    workdir = Path(app_manifest["working-directory"])
+    expected_container_input = workdir
+    expected_container_output = workdir
+    expected_container_input /= Path(app_manifest["input"]["path"])
+    expected_container_output /= Path(app_manifest["output"]["path"])
 
-    returncode = runner.run_app(sample_map_name, input_path, output_path, app_manifest, faux_pkg_manifest, quiet)
+    returncode = runner.run_app(
+        sample_map_name, input_path, output_path, workdir, app_manifest, faux_pkg_manifest, quiet
+    )
 
     assert returncode == return_value
     mock_run_cmd.assert_called_once_with(ContainsString("docker run"))
@@ -123,13 +126,14 @@ def test_run_app_with_gpu_request(
 
     mock_run_cmd.return_value = return_value
     app_manifest = faux_app_manifest
-    expected_container_input = Path(app_manifest["input"]["path"])
-    expected_container_output = Path(app_manifest["output"]["path"])
-    expected_container_input /= app_manifest["working-directory"]
-    expected_container_output /= app_manifest["working-directory"]
+    workdir = Path(app_manifest["working-directory"])
+    expected_container_input = workdir
+    expected_container_output = workdir
+    expected_container_input /= Path(app_manifest["input"]["path"])
+    expected_container_output /= Path(app_manifest["output"]["path"])
 
     returncode = runner.run_app(
-        sample_map_name, input_path, output_path, app_manifest, faux_pkg_manifest_with_gpu, quiet
+        sample_map_name, input_path, output_path, workdir, app_manifest, faux_pkg_manifest_with_gpu, quiet
     )
 
     assert returncode == return_value
@@ -162,12 +166,15 @@ def test_run_app_for_input_output_path_with_space(
 
     mock_run_cmd.return_value = return_value
     app_manifest = faux_app_manifest
-    expected_container_input = Path(app_manifest["input"]["path"])
-    expected_container_output = Path(app_manifest["output"]["path"])
-    expected_container_input /= app_manifest["working-directory"]
-    expected_container_output /= app_manifest["working-directory"]
+    workdir = Path(app_manifest["working-directory"])
+    expected_container_input = workdir
+    expected_container_output = workdir
+    expected_container_input /= Path(app_manifest["input"]["path"])
+    expected_container_output /= Path(app_manifest["output"]["path"])
 
-    returncode = runner.run_app(sample_map_name, input_path, output_path, app_manifest, faux_pkg_manifest, quiet)
+    returncode = runner.run_app(
+        sample_map_name, input_path, output_path, workdir, app_manifest, faux_pkg_manifest, quiet
+    )
     input_path_with_quotes = f'"{input_path.absolute()}"'
     output_path_with_quotes = f'"{output_path.absolute()}"'
 
@@ -207,19 +214,23 @@ def test_run_app_for_absolute_paths_in_app_manifest(
 
     mock_run_cmd.return_value = return_value
     app_manifest = faux_app_manifest_with_absolute_path
+    workdir = Path(app_manifest["working-directory"])
     expected_container_input = Path(app_manifest["input"]["path"])
     expected_container_output = Path(app_manifest["output"]["path"])
 
-    returncode = runner.run_app(sample_map_name, input_path, output_path, app_manifest, faux_pkg_manifest, quiet)
+    returncode = runner.run_app(
+        sample_map_name, input_path, output_path, workdir, app_manifest, faux_pkg_manifest, quiet
+    )
 
     assert returncode == return_value
     mock_run_cmd.assert_called_once_with(ContainsString(sample_map_name))
     mock_run_cmd.assert_called_once_with(ContainsString(input_path))
     mock_run_cmd.assert_called_once_with(ContainsString(expected_container_input))
-    mock_run_cmd.assert_called_once_with(DoesntContainsString(app_manifest["working-directory"]))
+    # TODO(gbae): refactor this test once we refactor the runner module.
+    # mock_run_cmd.assert_called_once_with(DoesntContainsString(app_manifest["working-directory"]))
     mock_run_cmd.assert_called_once_with(ContainsString(output_path))
     mock_run_cmd.assert_called_once_with(ContainsString(expected_container_output))
-    mock_run_cmd.assert_called_once_with(DoesntContainsString(app_manifest["working-directory"]))
+    # mock_run_cmd.assert_called_once_with(DoesntContainsString(app_manifest["working-directory"]))
     mock_run_cmd.assert_called_once_with(ContainsString("STDERR"))
     if quiet:
         mock_run_cmd.assert_called_once_with(DoesntContainsString("STDOUT"))
@@ -253,7 +264,16 @@ def test_dependency_verification(
 )
 @pytest.mark.parametrize(
     "parsed_args",
-    [argparse.Namespace(map=lazy_fixture("sample_map_name"), input="input", output="output", quiet=False)],
+    [
+        argparse.Namespace(
+            map=lazy_fixture("sample_map_name"),
+            input="input",
+            output="output",
+            workdir=None,
+            quiet=False,
+            log_level="INFO",
+        )
+    ],
 )
 @patch("monai.deploy.runner.runner.run_app")
 @patch("monai.deploy.runner.runner.pkg_specific_dependency_verification")
@@ -293,7 +313,16 @@ def test_main(
 )
 @pytest.mark.parametrize(
     "parsed_args",
-    [argparse.Namespace(map=lazy_fixture("sample_map_name"), input="input", output="output", quiet=False)],
+    [
+        argparse.Namespace(
+            map=lazy_fixture("sample_map_name"),
+            input="input",
+            output="output",
+            workdir=None,
+            quiet=False,
+            log_level="INFO",
+        )
+    ],
 )
 @patch("monai.deploy.runner.runner.run_app")
 @patch("monai.deploy.runner.runner.pkg_specific_dependency_verification")
