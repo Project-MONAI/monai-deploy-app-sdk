@@ -18,6 +18,10 @@ MONAI Deploy App SDK offers a framework and associated tools to design, develop 
 - Package inference application with a single command into a portable MONAI Application Package
 - Locally run and debug your inference application using App Runner
 
+## User Guide
+
+User guide is available at [docs.monai.io](https://docs.monai.io/projects/monai-deploy-app-sdk/en/latest/).
+
 ## Installation
 
 To install [the current release](https://pypi.org/project/monai-deploy-app-sdk/), you can simply run:
@@ -27,6 +31,8 @@ pip install monai-deploy-app-sdk  # '--pre' to install a pre-release version.
 ```
 
 ## Getting Started
+
+Getting started guide is available at [here](https://docs.monai.io/projects/monai-deploy-app-sdk/en/latest/getting_started/index.html).
 
 ```bash
 pip install monai-deploy-app-sdk  # '--pre' to install a pre-release version.
@@ -52,9 +58,32 @@ cp examples/apps/simple_imaging_app/brain_mr_input.jpg input/
 monai-deploy run simple_app:latest input output
 ```
 
-[Examples](https://github.com/Project-MONAI/monai-deploy-app-sdk/tree/main/examples) and [notebook tutorials](https://github.com/Project-MONAI/monai-deploy-app-sdk/tree/main/notebooks) are located at [Project-MONAI/monai-deploy-app-sdk](https://github.com/Project-MONAI/monai-deploy-app-sdk).
+### [Tutorials](https://docs.monai.io/projects/monai-deploy-app-sdk/en/latest/getting_started/tutorials/index.html)
 
-User guide is available at [docs.monai.io](https://docs.monai.io/projects/monai-deploy-app-sdk/en/latest/).
+#### [1) Creating a simple image processing app](https://docs.monai.io/projects/monai-deploy-app-sdk/en/latest/getting_started/tutorials/01_simple_app.html)
+
+#### [2) Creating MedNIST Classifier app](https://docs.monai.io/projects/monai-deploy-app-sdk/en/latest/getting_started/tutorials/02_mednist_app.html)
+
+YouTube Video:
+
+- [MedNIST Classification Example](https://www.youtube.com/watch?v=WwjilJFHuU4)
+
+### [3) Creating a Segmentation app](https://docs.monai.io/projects/monai-deploy-app-sdk/en/latest/getting_started/tutorials/03_segmentation_app.html)
+
+YouTube Video:
+
+- [Spleen Organ Segmentation - Jupyter Notebook Tutorial](https://www.youtube.com/watch?v=cqDVxzYt9lY)
+- [Spleen Organ Segmentation - Deep Dive](https://www.youtube.com/watch?v=nivgfD4pwWE)
+
+### [Examples](https://docs.monai.io/projects/monai-deploy-app-sdk/en/latest/getting_started/examples.html)
+
+<https://github.com/Project-MONAI/monai-deploy-app-sdk/tree/main/examples/apps> has example apps that you can see.
+
+- ai_spleen_seg_app
+- ai_unetr_seg_app
+- dicom_series_to_image_app
+- mednist_classifier_monaideploy
+- simple_imaging_app
 
 ## Contributing
 
