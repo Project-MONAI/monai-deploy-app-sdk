@@ -158,6 +158,7 @@ class MonaiSegInferenceOperator(InferenceOperator):
             pre_transforms = self._pre_transform if self._pre_transform else self.pre_process(self._reader)
             post_transforms = self._post_transforms if self._post_transforms else self.post_process(pre_transforms)
 
+            device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
             model = None
             if context.models:
                 # `context.models.get(model_name)` returns a model instance if exists.
@@ -165,11 +166,10 @@ class MonaiSegInferenceOperator(InferenceOperator):
                 model = context.models.get()
             else:
                 print(f"Loading TorchScript model from: {MonaiSegInferenceOperator.MODEL_LOCAL_PATH}")
-                model = torch.jit.load(MonaiSegInferenceOperator.MODEL_LOCAL_PATH)
+                model = torch.jit.load(MonaiSegInferenceOperator.MODEL_LOCAL_PATH, map_location=device)
 
             dataset = Dataset(data=[{self._input_dataset_key: img_name}], transform=pre_transforms)
             dataloader = DataLoader(dataset, batch_size=1, shuffle=False, num_workers=1)
-            device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
             with torch.no_grad():
                 for d in dataloader:

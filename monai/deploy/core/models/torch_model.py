@@ -47,7 +47,9 @@ class TorchScriptModel(Model):
             torch.nn.Module: the model's predictor
         """
         if self._predictor is None:
-            self._predictor = torch.jit.load(self.path).eval()
+            # Use a device to dynamically remap, depending on the GPU availability.
+            device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+            self._predictor = torch.jit.load(self.path, map_location=device).eval()
         return self._predictor
 
     @predictor.setter
