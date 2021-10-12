@@ -36,9 +36,7 @@ class PublisherOperator(Operator):
         density_path, mask_path = self._find_density_and_mask_files(saved_images_folder)
         subs = {"DENSITY_FILE": path.basename(density_path), "MASK_FILE": path.basename(mask_path)}
 
-        app_output_folder = op_output.get().path
-        publish_folder_name = "publish"
-        publish_folder_path = path.join(app_output_folder, publish_folder_name)
+        publish_folder_path = context.output.get().path.joinpath("publish")
         makedirs(publish_folder_path, exist_ok=True)
         print(f"App publish folder: {publish_folder_path}")
 
