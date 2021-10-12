@@ -11,8 +11,8 @@
 
 import logging
 
-from unetr_seg_operator import UnetrSegOperator
-
+from livertumor_seg_operator import LiverTumorSegOperator
+from publisher_operator import PublisherOperator  # Will need to import from operators later.
 from monai.deploy.core import Application, resource
 from monai.deploy.operators.dicom_data_loader_operator import DICOMDataLoaderOperator
 from monai.deploy.operators.dicom_seg_writer_operator import DICOMSegmentationWriterOperator
@@ -46,6 +46,10 @@ class AIUnetrSegApp(Application):
         series_to_vol_op = DICOMSeriesToVolumeOperator()
         # Model specific inference operator, supporting MONAI transforms.
         unetr_seg_op = UnetrSegOperator()
+
+        # Create the publisher operator
+        publisher_op = PublisherOperator()
+
         # Creates DICOM Seg writer with segment label name in a string list
         dicom_seg_writer = DICOMSegmentationWriterOperator(
             seg_labels=[
@@ -64,15 +68,19 @@ class AIUnetrSegApp(Application):
                 "lad",
             ]
         )
-
         # Create the processing pipeline, by specifying the upstream and downstream operators, and
         # ensuring the output from the former matches the input of the latter, in both name and type.
         self.add_flow(study_loader_op, series_selector_op, {"dicom_study_list": "dicom_study_list"})
         self.add_flow(series_selector_op, series_to_vol_op, {"dicom_series": "dicom_series"})
         self.add_flow(series_to_vol_op, unetr_seg_op, {"image": "image"})
         # Note below the dicom_seg_writer requires two inputs, each coming from a upstream operator.
+        # Also note that the DICOMSegmentationWriterOperator may throw exception with some inputs.
+        #   Bug has been created to track the issue.
         self.add_flow(series_selector_op, dicom_seg_writer, {"dicom_series": "dicom_series"})
         self.add_flow(unetr_seg_op, dicom_seg_writer, {"seg_image": "seg_image"})
+        # Add the publishing operator to save the input and seg images for Render Server.
+        # Note the PublisherOperator has temp impl till a proper rendering module is created.
+        self.add_flow(unetr_seg_op, publisher_op, {"saved_images_folder": "saved_images_folder"})
 
         self._logger.debug(f"End {self.compose.__name__}")
 

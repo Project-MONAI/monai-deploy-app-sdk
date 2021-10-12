@@ -10,12 +10,12 @@
 # limitations under the License.
 
 import logging
-from os import path
+from os import path, makedirs
 
 from numpy import uint8
 
 import monai.deploy.core as md
-from monai.deploy.core import ExecutionContext, Image, InputContext, IOType, Operator, OutputContext
+from monai.deploy.core import DataPath, ExecutionContext, Image, InputContext, IOType, Operator, OutputContext
 from monai.deploy.operators.monai_seg_inference_operator import InMemImageReader, MonaiSegInferenceOperator
 from monai.transforms import (
     Activationsd,
@@ -35,6 +35,7 @@ from monai.transforms import (
 
 @md.input("image", Image, IOType.IN_MEMORY)
 @md.output("seg_image", Image, IOType.IN_MEMORY)
+@md.output("saved_images_folder", DataPath, IOType.DISK)
 @md.env(pip_packages=["monai==0.6.0", "torch>=1.5", "numpy>=1.17", "nibabel"])
 class UnetrSegOperator(Operator):
     """Performs multi-organ segmentation using UNETR model with an image converted from a DICOM CT series.
@@ -62,12 +63,16 @@ class UnetrSegOperator(Operator):
         # Get the output path from the execution context for saving file(s) to app output.
         # Without using this path, operator would be saving files to its designated path, e.g.
         # $PWD/.monai_workdir/operators/6048d75a-5de1-45b9-8bd1-2252f88827f2/0/output
-        output_path = context.output.get().path
+        op_output_folder_name = DataPath("saved_images_folder")
+        op_output.set(op_output_folder_name, "saved_images_folder")
+        op_output_folder_path = op_output.get("saved_images_folder").path
+        makedirs(op_output_folder_path, exist_ok=True)
+        print(f"Operator output folder path: {op_output_folder_path}")
 
         # This operator gets an in-memory Image object, so a specialized ImageReader is needed.
         _reader = InMemImageReader(input_image)
         pre_transforms = self.pre_process(_reader)
-        post_transforms = self.post_process(pre_transforms, path.join(output_path, "prediction_output"))
+        post_transforms = self.post_process(pre_transforms, op_output_folder_path)
 
         # Delegates inference and saving output to the built-in operator.
         infer_operator = MonaiSegInferenceOperator(
