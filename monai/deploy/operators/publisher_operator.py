@@ -9,13 +9,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import shutil
 from os import makedirs, path
 from pathlib import Path
 from shutil import copy
 
 import monai.deploy.core as md
-from monai.deploy.core import DataPath, ExecutionContext, Image, InputContext, IOType, Operator, OutputContext
+from monai.deploy.core import DataPath, ExecutionContext, InputContext, IOType, Operator, OutputContext
 
 
 @md.input("saved_images_folder", DataPath, IOType.DISK)
