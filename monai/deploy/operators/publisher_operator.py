@@ -9,10 +9,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from os import path, makedirs
+import shutil
+from os import makedirs, path
 from pathlib import Path
 from shutil import copy
-import shutil
+
 import monai.deploy.core as md
 from monai.deploy.core import DataPath, ExecutionContext, Image, InputContext, IOType, Operator, OutputContext
 
@@ -34,10 +35,7 @@ class PublisherOperator(Operator):
             raise ValueError("Expected a folder path for saved_image_folder input")
 
         density_path, mask_path = self._find_density_and_mask_files(saved_images_folder)
-        subs = {
-            "DENSITY_FILE": path.basename(density_path),
-            "MASK_FILE": path.basename(mask_path)
-        }
+        subs = {"DENSITY_FILE": path.basename(density_path), "MASK_FILE": path.basename(mask_path)}
 
         app_output_folder = op_output.get().path
         publish_folder_name = "publish"
@@ -54,7 +52,9 @@ class PublisherOperator(Operator):
             config_render_file.write(CONFIG_RENDER_TXT)
 
         # Replace the file name in the CONFIG_META_TXT and save as config.meta
-        config_meta_txt = CONFIG_META_TXT.replace("DENSITY_FILE", subs["DENSITY_FILE"]).replace("MASK_FILE", subs["MASK_FILE"])
+        config_meta_txt = CONFIG_META_TXT.replace("DENSITY_FILE", subs["DENSITY_FILE"]).replace(
+            "MASK_FILE", subs["MASK_FILE"]
+        )
         with open(path.join(publish_folder_path, "config.meta"), "w") as config_meta_file:
             config_meta_file.write(config_meta_txt)
 
@@ -62,7 +62,7 @@ class PublisherOperator(Operator):
         density_path = None
         mask_path = None
 
-        for matched_file in Path(folder_path).rglob('*'):
+        for matched_file in Path(folder_path).rglob("*"):
             # Need to get the file name in str
             f_name = str(matched_file)
             if path.isfile(f_name):
@@ -76,6 +76,7 @@ class PublisherOperator(Operator):
                 return density_path, mask_path
 
         raise ValueError("Cannot find both density and mask nii.gz files.")
+
 
 CONFIG_META_TXT = """
 {
