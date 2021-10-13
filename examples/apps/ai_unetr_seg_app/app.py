@@ -12,6 +12,7 @@
 import logging
 
 from unetr_seg_operator import UnetrSegOperator
+
 from monai.deploy.core import Application, resource
 from monai.deploy.operators.dicom_data_loader_operator import DICOMDataLoaderOperator
 from monai.deploy.operators.dicom_seg_writer_operator import DICOMSegmentationWriterOperator
