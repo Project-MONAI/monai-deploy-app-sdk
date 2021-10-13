@@ -11,13 +11,13 @@
 
 import logging
 
-from livertumor_seg_operator import LiverTumorSegOperator
-from publisher_operator import PublisherOperator  # Will need to import from operators later.
+from unetr_seg_operator import UnetrSegOperator
 from monai.deploy.core import Application, resource
 from monai.deploy.operators.dicom_data_loader_operator import DICOMDataLoaderOperator
 from monai.deploy.operators.dicom_seg_writer_operator import DICOMSegmentationWriterOperator
 from monai.deploy.operators.dicom_series_selector_operator import DICOMSeriesSelectorOperator
 from monai.deploy.operators.dicom_series_to_volume_operator import DICOMSeriesToVolumeOperator
+from monai.deploy.operators.publisher_operator import PublisherOperator
 
 
 @resource(cpu=1, gpu=1, memory="7Gi")
@@ -46,7 +46,6 @@ class AIUnetrSegApp(Application):
         series_to_vol_op = DICOMSeriesToVolumeOperator()
         # Model specific inference operator, supporting MONAI transforms.
         unetr_seg_op = UnetrSegOperator()
-
         # Create the publisher operator
         publisher_op = PublisherOperator()
 
