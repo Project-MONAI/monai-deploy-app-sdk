@@ -10,7 +10,7 @@
 # limitations under the License.
 
 import logging
-from os import makedirs, path
+from os import makedirs
 
 from numpy import uint8
 
