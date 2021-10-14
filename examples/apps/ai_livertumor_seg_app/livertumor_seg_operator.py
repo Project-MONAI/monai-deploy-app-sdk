@@ -10,7 +10,6 @@
 # limitations under the License.
 
 import logging
-from os import makedirs
 
 from numpy import uint8
 
@@ -72,7 +71,7 @@ class LiverTumorSegOperator(Operator):
         op_output_folder_name = DataPath("saved_images_folder")
         op_output.set(op_output_folder_name, "saved_images_folder")
         op_output_folder_path = op_output.get("saved_images_folder").path
-        makedirs(op_output_folder_path, exist_ok=True)
+        op_output_folder_path.mkdir(parents=True, exist_ok=True)
         print(f"Operator output folder path: {op_output_folder_path}")
 
         # This operator gets an in-memory Image object, so a specialized ImageReader is needed.
