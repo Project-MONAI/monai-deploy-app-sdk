@@ -127,6 +127,44 @@ class MonaiSegInferenceOperator(InferenceOperator):
             raise ValueError("Overlap must be between 0 and 1.")
         self._overlap = val
 
+    def _convert_dicom_metadata_datatype(self, metadata: Dict):
+        """Converts metadata in pydicom types to the corresponding native types.
+
+        It is knwon that some values of the metadata are of the pydicom types, for images converted
+        from DICOM series. Need to use this function to convert the types with best effort and for
+        the few knowns metadata attributes, until the following issue is addressed:
+            https://github.com/Project-MONAI/monai-deploy-app-sdk/issues/185
+
+        Args:
+            metadata (Dict): The metadata for an Image object
+        """
+
+        if not metadata:
+            return metadata
+
+        # Try to convert data type for the well knowned attributes. Add more as needed.
+        if metadata.get("series_instance_uid", None):
+            try:
+                metadata["series_instance_uid"] = str(metadata["series_instance_uid"])
+            except Exception:
+                pass
+        if metadata.get("row_pixel_spacing", None):
+            try:
+                metadata["row_pixel_spacing"] = float(metadata["row_pixel_spacing"])
+            except Exception:
+                pass
+        if metadata.get("col_pixel_spacing", None):
+            try:
+                metadata["col_pixel_spacing"] = float(metadata["col_pixel_spacing"])
+            except Exception:
+                pass
+
+        print("Converted Image object metadata:")
+        for k, v in metadata.items():
+            print(f"{k}: {v}, type {type(v)}")
+
+        return metadata
+
     def compute(self, op_input: InputContext, op_output: OutputContext, context: ExecutionContext):
         """Infers with the input image and save the predicted image to output
 
@@ -145,11 +183,10 @@ class MonaiSegInferenceOperator(InferenceOperator):
             if not input_image:
                 raise ValueError("Input is None.")
 
-            img_name = "Img_in_context"
-            try:
-                img_name = input_image.metadata().get["series_instance_uid", img_name]
-            except Exception:  # Best effort
-                pass
+            # Need to try to convert the data type of a few metadata attributes.
+            input_img_metadata = self._convert_dicom_metadata_datatype(input_image.metadata())
+            # Need to give a name to the image as in-mem Image obj has no name.
+            img_name = str(input_img_metadata.get("series_instance_uid", "Img_in_context"))
 
             pre_transforms: Compose = self._pre_transform
             post_transforms: Compose = self._post_transforms
@@ -196,7 +233,7 @@ class MonaiSegInferenceOperator(InferenceOperator):
                     out_ndarray = np.swapaxes(out_ndarray, 2, 0).astype(np.uint8)
                     print(f"Output Seg image numpy array shaped: {out_ndarray.shape}")
                     print(f"Output Seg image pixel max value: {np.amax(out_ndarray)}")
-                    out_image = Image(out_ndarray)
+                    out_image = Image(out_ndarray, input_img_metadata)
                     op_output.set(out_image, "seg_image")
         finally:
             # Reset state on completing this method execution.
