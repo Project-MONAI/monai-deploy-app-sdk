@@ -1,4 +1,4 @@
-from app import AIUnetrSegApp
+from app import AILiverTumorApp
 
 if __name__ == "__main__":
-    AIUnetrSegApp(do_run=True)
+    AILiverTumorApp(do_run=True)
