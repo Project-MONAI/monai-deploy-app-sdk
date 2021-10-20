@@ -38,7 +38,7 @@ torch>=1.5
 Note: The base image to be used already has torch 1.7 and numpy 19.5 pre-installed.
 
 ### Crete the Custom Dockerfile
-Create the `Dockerfile` in the application folder with content shown below,
+Create the `Dockerfile` in the application folder with the content shown below,
 
 ```bash
 ARG CONTAINER_REGISTRY=nvcr.io/nvidia/clara-agx
@@ -59,7 +59,7 @@ RUN pip3 install --no-cache-dir -r requirements.txt
 
 # Copy the application source code.
 COPY ./$MY_APP_NAME ./
-ENTRYPOINT python3 ./__main__.py -i /input -m /model/model.ts -o /output
+ENTRYPOINT python3 -u ./app.py -i /input -m /model/model.ts -o /output
 ```
 Note that
 - The application files are copied to `/opt/unetr_seg_app` in this example
@@ -111,4 +111,4 @@ echo "Rendering dataset files are saved in the folder, ${APP_DATASET_PATH}:"
 ls ${APP_DATASET_PATH}
 ```
 
-Once application docker terminates, check the application output in the folder shown in the console log. 
+Once application docker terminates, check the application output in the folder shown in the console log.
