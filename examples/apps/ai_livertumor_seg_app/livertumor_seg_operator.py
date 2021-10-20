@@ -76,7 +76,12 @@ class LiverTumorSegOperator(Operator):
 
         # This operator gets an in-memory Image object, so a specialized ImageReader is needed.
         _reader = InMemImageReader(input_image)
-        pre_transforms = self.pre_process(_reader)
+        # In this example, the input image, once loaded at the beginning of the pre-transforms, is
+        # saved on disk, so is the segmentation prediction image at the end of the post-transform.
+        # They are both saved in the same subfolder of the application output folder, with names
+        # distinguished by postfix. They can also be save in different subfolder if need be.
+        # These images files can then be packaged for rendering.
+        pre_transforms = self.pre_process(_reader, op_output_folder_path)
         post_transforms = self.post_process(pre_transforms, op_output_folder_path)
 
         # Delegates inference and saving output to the built-in operator.
@@ -98,7 +103,7 @@ class LiverTumorSegOperator(Operator):
         # Now let the built-in operator handles the work with the I/O spec and execution context.
         infer_operator.compute(op_input, op_output, context)
 
-    def pre_process(self, img_reader) -> Compose:
+    def pre_process(self, img_reader, out_dir: str = "./input_images") -> Compose:
         """Composes transforms for preprocessing input before predicting on a model."""
 
         my_key = self._input_dataset_key
@@ -106,6 +111,12 @@ class LiverTumorSegOperator(Operator):
             [
                 LoadImaged(keys=my_key, reader=img_reader),
                 EnsureChannelFirstd(keys=my_key),
+                SaveImaged(
+                    keys=my_key,
+                    output_dir=out_dir,
+                    output_postfix="",
+                    resample=False,
+                ),
                 Spacingd(keys=my_key, pixdim=(1.0, 1.0, 1.0), mode=("bilinear"), align_corners=True),
                 ScaleIntensityRanged(my_key, a_min=-21, a_max=189, b_min=0.0, b_max=1.0, clip=True),
                 CropForegroundd(my_key, source_key=my_key),
@@ -125,12 +136,5 @@ class LiverTumorSegOperator(Operator):
                     keys=pred_key, transform=pre_transforms, orig_keys=self._input_dataset_key, nearest_interp=True
                 ),
                 SaveImaged(keys=pred_key, output_dir=out_dir, output_postfix="seg", output_dtype=uint8, resample=False),
-                SaveImaged(
-                    keys=self._input_dataset_key,
-                    output_dir=out_dir,
-                    output_postfix="",
-                    output_dtype=uint8,
-                    resample=False,
-                ),
             ]
         )

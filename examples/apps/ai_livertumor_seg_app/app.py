@@ -24,7 +24,7 @@ from monai.deploy.operators.publisher_operator import PublisherOperator
 @resource(cpu=1, gpu=1, memory="7Gi")
 # pip_packages can be a string that is a path(str) to requirements.txt file or a list of packages.
 # The MONAI pkg is not required by this class, instead by the included operators.
-class AIUnetrSegApp(Application):
+class AILiverTumorApp(Application):
     def __init__(self, *args, **kwargs):
         """Creates an application instance."""
 
@@ -63,14 +63,14 @@ class AIUnetrSegApp(Application):
         self.add_flow(study_loader_op, series_selector_op, {"dicom_study_list": "dicom_study_list"})
         self.add_flow(series_selector_op, series_to_vol_op, {"dicom_series": "dicom_series"})
         self.add_flow(series_to_vol_op, unetr_seg_op, {"image": "image"})
+        # Add the publishing operator to save the input and seg images for Render Server.
+        # Note the PublisherOperator has temp impl till a proper rendering module is created.
+        self.add_flow(unetr_seg_op, publisher_op, {"saved_images_folder": "saved_images_folder"})
         # Note below the dicom_seg_writer requires two inputs, each coming from a upstream operator.
         # Also note that the DICOMSegmentationWriterOperator may throw exception with some inputs.
         #   Bug has been created to track the issue.
         self.add_flow(series_selector_op, dicom_seg_writer, {"dicom_series": "dicom_series"})
         self.add_flow(unetr_seg_op, dicom_seg_writer, {"seg_image": "seg_image"})
-        # Add the publishing operator to save the input and seg images for Render Server.
-        # Note the PublisherOperator has temp impl till a proper rendering module is created.
-        self.add_flow(unetr_seg_op, publisher_op, {"saved_images_folder": "saved_images_folder"})
 
         self._logger.debug(f"End {self.compose.__name__}")
 
@@ -84,5 +84,5 @@ if __name__ == "__main__":
     #     python3 app.py -i input -m model/model.ts
     #
     logging.basicConfig(level=logging.DEBUG)
-    app_instance = AIUnetrSegApp()  # Optional params' defaults are fine.
+    app_instance = AILiverTumorApp()  # Optional params' defaults are fine.
     app_instance.run()
