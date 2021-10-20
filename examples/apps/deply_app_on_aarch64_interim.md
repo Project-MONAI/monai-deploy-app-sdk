@@ -26,7 +26,7 @@ For the specific example on building and running a segmentation application, e.g
 In the following sections, the UNETR Multi-organ Segmentation application will be used as an example.
 
 ### Create the requirements file
-Without using the MONAI DEDeploy App ASK Packager to automatically detect the dependencies of an application, one has to explicitly create the `requierments.txt` file to be used in the `Dockerfile`. Create the `requirements.txt` file in the application's folder with content shown below,
+Without using the MONAI Deploy App SDK Packager to automatically detect the dependencies of an application, one has to explicitly create the `requierments.txt` file to be used in the `Dockerfile`. Create the `requirements.txt` file in the application's folder with the content shown below,
 ```bash
 monai>=0.6.0
 monai-deploy-app-sdk>=0.1.0
