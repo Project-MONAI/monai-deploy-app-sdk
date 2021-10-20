@@ -19,11 +19,11 @@ An interim solution is therefore provided to containerize and deploy a MONAI Dep
 
 ## Steps
 ### Create the MONAI Deploy Application
-For general guidance on how to build an deploy application using MONAI Deploy App SDK, and test it on x86 with the Packager and Runner, plesae refer [Developing with SDK](https://docs.monai.io/projects/monai-deploy-app-sdk/en/latest/developing_with_sdk/index.html).
+For general guidance on how to build a deploy application using MONAI Deploy App SDK, and test it on x86 with the Packager and Runner, please refer to [Developing with SDK](https://docs.monai.io/projects/monai-deploy-app-sdk/en/latest/developing_with_sdk/index.html).
 
-For the specific example on building and running a segmentation application on x86, e.g. the Spleen segmentation application, please see [Creating a Segmentation App](https://docs.monai.io/projects/monai-deploy-app-sdk/en/latest/getting_started/tutorials/03_segmentation_app.html).
+For the specific example on building and running a segmentation application, e.g. the Spleen segmentation application, please see [Creating a Segmentation App](https://docs.monai.io/projects/monai-deploy-app-sdk/en/latest/getting_started/tutorials/03_segmentation_app.html).
 
-In the following sections, the Spleen UNETR Multi-organ Segmentation application will be used as an example.
+In the following sections, the UNETR Multi-organ Segmentation application will be used as an example.
 
 ### Create the requirements file
 Without using the MONAI DEDeploy App ASK Packager to automatically detect the dependencies of an application, one has to explicitly create the `requierments.txt` file to be used in the `Dockerfile`. Create the `requirements.txt` file in the application's folder with content shown below,
