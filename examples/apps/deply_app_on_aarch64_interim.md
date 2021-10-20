@@ -108,7 +108,7 @@ docker run -t --rm --shm-size=1G \
 echo "${DOCKER_IMAGE} completed."
 echo
 echo "Rendering dataset files are saved in the folder, ${APP_DATASET_PATH}:"
-ls ${APP_DATASET_PATH
+ls ${APP_DATASET_PATH}
 ```
 
 Once application docker terminates, check the application output in the folder shown in the console log. 
