@@ -100,7 +100,7 @@ DOCKER_IMAGE="ai_unetr_seg_app"
 
 APP_DATASET_PATH=${OUTPUT_ROOT}/${DATASETS_FOLDER}/${APP_DATASET_FOLDER}
 echo "Set to save rendering dataset to: ${APP_DATASET_PATH} ..."
-docker run -t --rm --shm-size=1G\
+docker run -t --rm --shm-size=1G \
         -v ${INPUT_FOLDER}:/input \
         -v ${MODEL_FOLDER}:/model \
         -v ${APP_DATASET_PATH}:/output \
