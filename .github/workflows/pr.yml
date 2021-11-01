@@ -22,12 +22,15 @@ jobs:
         run: |
           pip install virtualenv
           virtualenv .venv
+          source .venv/bin/activate
           ./run setup
       - name: Check formatting
         run: |
+          source .venv/bin/activate
           ./run check -f
       - name: Run Unit tests
         run: |
+          source .venv/bin/activate
           ./run test all unit
       - name: Coverage
         run: |
