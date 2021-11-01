@@ -11,7 +11,6 @@ pycodestyle
 pyflakes
 black
 isort
-coverage
 pytype>=2020.6.1; platform_system != "Windows"
 types-pkg_resources
 mypy>=0.790

@@ -34,6 +34,7 @@ jobs:
           ./run test all unit
       - name: Coverage
         run: |
+          source .venv/bin/activate
           coverage xml
       - name: Upload coverage
         uses: codecov/codecov-action@v1
