@@ -1,0 +1,39 @@
+# This workflow will install Python dependencies, run tests and lint with a single version of Python
+# For more information see: https://help.github.com/actions/language-and-framework-guides/using-python-with-github-actions
+
+name: build
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Set up Python 3.6
+        uses: actions/setup-python@v2
+        with:
+          python-version: 3.6
+      - name: Setup Dev Environment
+        run: |
+          export VIRTUAL_ENV=true # Spoof running in virtual environment in CI
+          export CONDA_PREFIX=true # Spoof running in CONDA in CI
+          ./run setup
+      - name: Check formatting
+        run: |
+          ./run check -f
+      - name: Run Unit tests
+        run: |
+          ./run test all unit
+      - name: Coverage
+        run: |
+          coverage xml
+      - name: Upload coverage
+        uses: codecov/codecov-action@v1
+        with:
+          fail_ci_if_error: false
+          file: ./coverage.xml
