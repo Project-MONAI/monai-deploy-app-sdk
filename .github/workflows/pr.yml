@@ -20,8 +20,8 @@ jobs:
           python-version: 3.6
       - name: Setup Dev Environment
         run: |
-          export VIRTUAL_ENV=true # Spoof running in virtual environment in CI
-          export CONDA_PREFIX=true # Spoof running in CONDA in CI
+          pip install virtualenv
+          virtualenv .venv
           ./run setup
       - name: Check formatting
         run: |
