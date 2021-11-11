@@ -19,10 +19,13 @@
     DICOMStudy
     DICOMSeries
     DICOMSOPInstance
+    SelectedSeries
+    StudySelectedSeries
 """
 
 from .datapath import DataPath, NamedDataPath
 from .dicom_series import DICOMSeries
+from .dicom_series_selection import SelectedSeries, StudySelectedSeries
 from .dicom_sop_instance import DICOMSOPInstance
 from .dicom_study import DICOMStudy
 from .domain import Domain

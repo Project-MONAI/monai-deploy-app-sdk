@@ -9,6 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from typing import List
 import copy
 import math
 
@@ -20,7 +21,7 @@ from monai.deploy.core.domain.dicom_series import DICOMSeries
 from monai.deploy.operators.dicom_data_loader_operator import DICOMDataLoaderOperator
 
 
-@md.input("dicom_series", DICOMSeries, IOType.IN_MEMORY)
+@md.input("dicom_series", List[DICOMSeries], IOType.IN_MEMORY)
 @md.output("image", Image, IOType.IN_MEMORY)
 class DICOMSeriesToVolumeOperator(Operator):
     """This operator converts an instance of DICOMSeries into an Image object.
@@ -30,7 +31,9 @@ class DICOMSeriesToVolumeOperator(Operator):
 
     def compute(self, op_input: InputContext, op_output: OutputContext, context: ExecutionContext):
         """Extracts the pixel data from a DICOM Series and other attributes to for an instance of Image object"""
-        dicom_series = op_input.get()
+
+        # Foe now, only supports the one and only one selected series.
+        dicom_series = op_input.get()[0]
         self.prepare_series(dicom_series)
         metadata = self.create_metadata(dicom_series)
 
@@ -288,17 +291,23 @@ class DICOMSeriesToVolumeOperator(Operator):
         metadata = {}
         metadata["series_instance_uid"] = series.get_series_instance_uid()
 
-        if series.series_date is not None:
-            metadata["series_date"] = series.series_date
+        if series.SeriesDate is not None:
+            metadata["series_date"] = series.SeriesDate
 
-        if series.series_time is not None:
-            metadata["series_time"] = series.series_time
+        if series.SeriesTime is not None:
+            metadata["series_time"] = series.SeriesTime
 
-        if series.modality is not None:
-            metadata["modality"] = series.modality
+        if series.Modality is not None:
+            metadata["modality"] = series.Modality
 
-        if series.series_description is not None:
-            metadata["series_description"] = series.series_description
+        if series.SeriesDescription is not None:
+            metadata["series_description"] = series.SeriesDescription
+
+        if series.BodyPartExamined is not None:
+            metadata["body_part_examined"] = series.BodyPartExamined
+
+        if series.PatientPosition is not None:
+            metadata["patient_position"] = series.PatientPosition
 
         if series.row_pixel_spacing is not None:
             metadata["row_pixel_spacing"] = series.row_pixel_spacing

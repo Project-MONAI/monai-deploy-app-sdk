@@ -22,6 +22,7 @@ dcmread, _ = optional_import("pydicom", name="dcmread")
 get_testdata_file, _ = optional_import("pydicom.data", name="dcmread")
 FileSet, _ = optional_import("pydicom.fileset", name="FileSet")
 generate_uid, _ = optional_import("pydicom.uid", name="generate_uid")
+valuerep, _ = optional_import("pydicom", name="valuerep")
 
 
 @md.input("dicom_files", DataPath, IOType.DISK)
@@ -75,14 +76,14 @@ class DICOMDataLoaderOperator(Operator):
 
         for sop_instance in sop_instances:
 
-            study_instance_uid = sop_instance[0x0020, 0x000D].value
+            study_instance_uid = sop_instance[0x0020, 0x000D].value.name  # name is the UID as str
 
             if study_instance_uid not in study_dict:
                 study = DICOMStudy(study_instance_uid)
                 self.populate_study_attributes(study, sop_instance)
                 study_dict[study_instance_uid] = study
 
-            series_instance_uid = sop_instance[0x0020, 0x000E].value
+            series_instance_uid = sop_instance[0x0020, 0x000E].value.name  # name is the UID as str
 
             if series_instance_uid not in series_dict:
                 series = DICOMSeries(series_instance_uid)
@@ -103,35 +104,35 @@ class DICOMDataLoaderOperator(Operator):
         try:
             study_id_de = sop_instance[0x0020, 0x0010]
             if study_id_de is not None:
-                study.study_id = study_id_de.value
+                study.StudyID = study_id_de.value
         except KeyError:
             pass
 
         try:
             study_date_de = sop_instance[0x0008, 0x0020]
             if study_date_de is not None:
-                study.study_date = study_date_de.value
+                study.StudyDate = study_date_de.value
         except KeyError:
             pass
 
         try:
             study_time_de = sop_instance[0x0008, 0x0030]
             if study_time_de is not None:
-                study.study_time = study_time_de.value
+                study.StudyTime = study_time_de.value
         except KeyError:
             pass
 
         try:
             study_desc_de = sop_instance[0x0008, 0x1030]
             if study_desc_de is not None:
-                study.study_description = study_desc_de.value
+                study.StudyDescription = study_desc_de.value
         except KeyError:
             pass
 
         try:
             accession_number_de = sop_instance[0x0008, 0x0050]
             if accession_number_de is not None:
-                study.accession_number = accession_number_de.value
+                study.AccessionNumber = accession_number_de.value
         except KeyError:
             pass
 
@@ -145,56 +146,60 @@ class DICOMDataLoaderOperator(Operator):
         try:
             series_date_de = sop_instance[0x0008, 0x0021]
             if series_date_de is not None:
-                series.series_date = series_date_de.value
+                series.SeriesDate = series_date_de.value
         except KeyError:
             pass
 
         try:
             series_time_de = sop_instance[0x0008, 0x0031]
             if series_time_de is not None:
-                series.series_time = series_time_de.value
+                series.SeriesTime = series_time_de.value
         except KeyError:
             pass
 
         try:
             series_modality_de = sop_instance[0x0008, 0x0060]
             if series_modality_de is not None:
-                series.modality = series_modality_de.value
+                series.Modality = series_modality_de.value
         except KeyError:
             pass
 
         try:
             series_description_de = sop_instance[0x0008, 0x103E]
             if series_description_de is not None:
-                series.series_description = series_description_de.value
+                series.SeriesDescription = series_description_de.value
         except KeyError:
             pass
 
         try:
             body_part_examined_de = sop_instance[0x0008, 0x0015]
             if body_part_examined_de is not None:
-                series.body_part_examined = body_part_examined_de.value
+                series.BodyPartExamined = body_part_examined_de.value
         except KeyError:
             pass
 
         try:
             patient_position_de = sop_instance[0x0018, 0x5100]
             if patient_position_de is not None:
-                series.patient_position = patient_position_de.value
+                series.PatientPosition = patient_position_de.value
         except KeyError:
             pass
 
         try:
             series_number_de = sop_instance[0x0020, 0x0011]
             if series_number_de is not None:
-                series.series_number = series_number_de.value
+                val = series_number_de.value
+                if isinstance(val, valuerep.IS):
+                    series.SeriesNumber = val.real
+                else:
+                    series.SeriesNumber = int(val)
         except KeyError:
             pass
 
         try:
             laterality_de = sop_instance[0x0020, 0x0060]
             if laterality_de is not None:
-                series.laterality = laterality_de.value
+                series.Laterality = laterality_de.value
         except KeyError:
             pass
 
@@ -222,8 +227,7 @@ class DICOMDataLoaderOperator(Operator):
 
 
 def main():
-    # data_path = "/home/rahul/medical-images/mixed-data/"
-    data_path = "/home/rahul/medical-images/lung-ct-1/"
+    data_path = "../../../examples/ai_spleen_seg_data/dcm"
     files = []
     loader = DICOMDataLoaderOperator()
     loader._list_files(data_path, files)
