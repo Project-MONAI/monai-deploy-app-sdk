@@ -49,24 +49,35 @@ class DICOMSeriesSelectorOperator(Operator):
     }
     """
 
-    def __init__(self, rules: Text = None, *args, **kwargs):
+    def __init__(self, rules: Text = None, all_matched: bool = False, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
+        """Instantiate an instance.
+
+        Args:
+            rules (Text): Selection rules in JSON string.
+            all_matched (bool): Gets all matched series in a study. Defaults to False for first one only.
+        """
 
         # Delay loading the rules as json string till compute time.
         self._rules_json_str = rules if rules else None
+        self._all_matched = all_matched
 
     def compute(self, op_input: InputContext, op_output: OutputContext, context: ExecutionContext):
         """Performs computation for this operator."""
         try:
             dicom_study_list = op_input.get("dicom_study_list")
             selection_rules = self._load_rules() if self._rules_json_str else None
-            dicom_series_list, study_selected_series = self.filter(selection_rules, dicom_study_list)
+            dicom_series_list, study_selected_series = self.filter(selection_rules, dicom_study_list, self._all_matched)
             op_output.set(dicom_series_list, "dicom_series")
-            op_output.set(study_selected_series, )
+            op_output.set(
+                study_selected_series,
+            )
         except ItemNotExistsError:
             pass
 
-    def filter(self, selection_rules, dicom_study_list) -> Tuple[List[SelectedSeries], List[StudySelectedSeries]]:
+    def filter(
+        self, selection_rules, dicom_study_list, all_matched: bool = False
+    ) -> Tuple[List[SelectedSeries], List[StudySelectedSeries]]:
         """Selects the series with the given matching rules.
 
         If rules object is None, all series will be returned with series instance UID
@@ -78,7 +89,9 @@ class DICOMSeriesSelectorOperator(Operator):
             String array matches as subset, case insensitive
 
         Args:
-            rules_json (object): JSON object containing the matching rules
+            selection_rules (object): JSON object containing the matching rules.
+            dicom_study_list (list): A list of DICOMStudiy objects.
+            all_matched (bool): Gets all matched series in a study. Defaults to False for first one only.
 
         Returns:
             list: A list of all selected series of type SelectedSeries.
@@ -114,7 +127,7 @@ class DICOMSeriesSelectorOperator(Operator):
                     continue
 
                 # Select only the first series that matches the conditions, list of one
-                series_list = self._select_series(conditions, study, False)
+                series_list = self._select_series(conditions, study, all_matched)
                 if series_list and len(series_list) > 0:
                     selected_series_list.extend(x for x in series_list)  # Add each single one
                     for series in series_list:
@@ -152,15 +165,15 @@ class DICOMSeriesSelectorOperator(Operator):
             study_selected_series_list.append(study_selected_series)
         return series_list, study_selected_series_list
 
-    def _select_series(self, attributes: dict, study: DICOMStudy, find_all=False):
+    def _select_series(self, attributes: dict, study: DICOMStudy, all_matched=False):
         """Finds series whose attributes match the given attributes.
 
         Args:
             attributes (dict): Dictionary of attributes for matching
-            find_all (bool): Find all series that match; default is False
+            all_matched (bool): Gets all matched series in a study. Defaults to False for first one only.
 
         Returns:
-            List of DICOMSeries. At most 1 if find_all is False.
+            List of DICOMSeries. At most one element if all_matched is False.
         """
         assert isinstance(attributes, dict), '"attributes" must be a dict.'
 
@@ -215,7 +228,7 @@ class DICOMSeriesSelectorOperator(Operator):
                 logging.info(f"Selected Series, UID: {series.SeriesInstanceUID}")
                 found_series.append(series)
 
-                if not find_all:
+                if not all_matched:
                     return found_series
 
         return found_series
@@ -229,6 +242,7 @@ class DICOMSeriesSelectorOperator(Operator):
         for attribute in [x for x in type(obj).__dict__ if isinstance(type(obj).__dict__[x], property)]:
             prop_dict[attribute] = getattr(obj, attribute, None)
         return prop_dict
+
 
 # Module functions
 def _print_instance_properties(obj: object, pre_fix: str = None, print_val=True):
