@@ -279,7 +279,7 @@ def _print_instance_properties(obj: object, pre_fix: str = None, print_val=True)
         print(f"{pre_fix}  {attribute}: {type(attr_val)} {attr_val if print_val else ''}")
 
 
-def main():
+def test():
     from pathlib import Path
 
     from monai.deploy.operators.dicom_data_loader_operator import DICOMDataLoaderOperator
@@ -349,4 +349,4 @@ Sample_Rules_Text = """
 """
 
 if __name__ == "__main__":
-    main()
+    test()

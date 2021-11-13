@@ -244,7 +244,7 @@ class DICOMDataLoaderOperator(Operator):
             pass
 
 
-def main():
+def test():
     data_path = "../../../examples/ai_spleen_seg_data/dcm"
 
     loader = DICOMDataLoaderOperator()
@@ -258,4 +258,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    test()

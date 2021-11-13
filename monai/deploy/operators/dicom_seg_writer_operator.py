@@ -121,7 +121,7 @@ class DICOMSegmentationWriterOperator(Operator):
         output_dir = op_output.get().path
         output_dir.mkdir(parents=True, exist_ok=True)
 
-        self.process_images(seg_image_numpy, dicom_series, output_path)
+        self.process_images(seg_image, study_selected_series_list, output_dir)
 
     def process_images(
         self, image: Union[Image, Path], study_selected_series_list: StudySelectedSeries, output_dir: Path
@@ -146,7 +146,6 @@ class DICOMSegmentationWriterOperator(Operator):
             DICOMSegmentationWriterOperator.DCM_EXTENSION,
         )
         output_path = output_dir / output_filename
-
         # Pick DICOM Series that was used as input for getting the seg image.
         # For now, first one in the list.
         for study_selected_series in study_selected_series_list:
@@ -164,16 +163,16 @@ class DICOMSegmentationWriterOperator(Operator):
         # DICOM Seg creation
         self._seg_writer = DICOMSegWriter()
         try:
-            self._seg_writer.write(image, dicom_dataset_list, file_path.name, self._seg_labels)
+            self._seg_writer.write(image, dicom_dataset_list, str(file_path), self._seg_labels)
             # TODO: get a class to encapsulate the seg label information.
 
             # Test reading back
-            _ = self._read_from_dcm(file_path.name)
+            _ = self._read_from_dcm(str(file_path))
         except Exception as ex:
             print("DICOMSeg creation failed. Error:\n{}".format(ex))
             raise
 
-    def _read_from_dcm(self, file_path):
+    def _read_from_dcm(self, file_path: str):
         """Read dcm file into pydicom Dataset
 
         Args:

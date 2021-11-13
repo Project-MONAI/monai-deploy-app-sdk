@@ -337,7 +337,7 @@ class DICOMSeriesToVolumeOperator(Operator):
         return prop_dict
 
 
-def main():
+def test():
 
     from pathlib import Path
 
@@ -359,4 +359,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    test()
