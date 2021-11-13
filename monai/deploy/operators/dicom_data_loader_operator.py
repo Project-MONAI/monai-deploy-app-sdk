@@ -10,6 +10,7 @@
 # limitations under the License.
 
 import os
+from pathlib import Path
 from typing import List
 
 import monai.deploy.core as md
@@ -35,23 +36,40 @@ class DICOMDataLoaderOperator(Operator):
     """
 
     def compute(self, op_input: InputContext, op_output: OutputContext, context: ExecutionContext):
-        """Performs computation for this operator.
+        """Performs computation for this operator and handlesI/O."""
+
+        input_path = op_input.get().path
+        dicom_study_list = self.load_data_to_studies(input_path)
+        op_output.set(dicom_study_list)
+
+    def load_data_to_studies(self, input_path: Path) -> List[DICOMStudy]:
+        """Load DICOM data from files into DICOMStudy objects in a list.
 
         It scans through the input directory for all SOP instances.
         It groups them by a collection of studies where each study contains one or more series.
-        This method returns a set of studies.
+        This method returns a list of studies.
+
+        Args:
+            input_path (Path): The folder containing DICOM instance files.
+
+        Returns:
+            List[DICOMStudy]: List of DICOMStudy.
+
+        Raises:
+            ValueError: If the folder to load files from does not exist.
         """
+        if not input_path.exists() or not input_path.is_dir():
+            raise ValueError("Required input folder does not exist.")
+
         files: List[str] = []
-        input_path = op_input.get().path
         self._list_files(input_path, files)
-        dicom_study_list = self._load_data(files)
-        op_output.set(dicom_study_list)
+        return self._load_data(files)
 
     def _list_files(self, path, files: List[str]):
         """Collects fully qualified names of all files recurvisely given a directory path.
 
         Args:
-            path: A directoty containing DICOM SOP instances. It have have nested hirerarchical directories.
+            path: A directoty containing DICOM SOP instances. It may have nested hirerarchical directories.
             files: This method populates "files" with fully qualified names of files that belong to the specified directory.
         """
         for item in os.listdir(path):
@@ -228,10 +246,9 @@ class DICOMDataLoaderOperator(Operator):
 
 def main():
     data_path = "../../../examples/ai_spleen_seg_data/dcm"
-    files = []
+
     loader = DICOMDataLoaderOperator()
-    loader._list_files(data_path, files)
-    study_list = loader._load_data(files)
+    study_list = loader.load_data_to_studies(Path(data_path).absolute())
 
     for study in study_list:
         print("###############################")

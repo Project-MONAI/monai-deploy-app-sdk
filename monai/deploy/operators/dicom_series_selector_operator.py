@@ -13,28 +13,40 @@ import logging
 import numbers
 import re
 from json import loads as json_loads
-from typing import Dict, List, Optional, Text, Tuple, Union
+from typing import Dict, List, Text, Tuple
 
 import monai.deploy.core as md
 from monai.deploy.core import ExecutionContext, InputContext, IOType, Operator, OutputContext
 from monai.deploy.core.domain.dicom_series import DICOMSeries
 from monai.deploy.core.domain.dicom_series_selection import SelectedSeries, StudySelectedSeries
 from monai.deploy.core.domain.dicom_study import DICOMStudy
-from monai.deploy.core.domain.image import Image
 from monai.deploy.exceptions import ItemNotExistsError
-from monai.deploy.operators.dicom_data_loader_operator import DICOMDataLoaderOperator
 
 
 @md.input("dicom_study_list", List[DICOMStudy], IOType.IN_MEMORY)
-# @md.input("selection_rules", Dict, IOType.IN_MEMORY)  # The App needs to provide this.
+@md.input("selection_rules", Dict, IOType.IN_MEMORY)  # This overides the rules in the instance.
 @md.output("dicom_series", List[DICOMSeries], IOType.IN_MEMORY)
 @md.output("study_selected_series_list", List[StudySelectedSeries], IOType.IN_MEMORY)
 class DICOMSeriesSelectorOperator(Operator):
-    """This operator selects a list of DICOM Series for a given set of selection rules.
+    """This operator selects a list of DICOM Series in a DICOM Study for a given set of selection rules.
 
-    More to come.
+    This class can be considered a base class, and a derived class can override the 'filer' function to with
+    custom logics.
 
-    Example selection rule in JSON:
+    In its default implementation, this class
+        1. selects a series or all matched series within the scope of a study in a list of studies
+        2. uses rules defined in JSON string, see below for details
+        3. supports DICOM Study and Series module attribute matching, including regex for string types
+        4. supports multiple named selections, in the scope of each DICOM study
+        5. outputs a list of SutdySelectedSeries objects, as well as a flat list of SelectedSeries (to be deprecated)
+
+    The selection rules are defined in JSON,
+        1. attribute "selections" value is a list of selections
+        2. each selection has a "name", and its "conditions" value is a list of matching criteria
+        3. each condition has uses the implicit equal operator, except for regex for str type and union for set type
+        4. DICOM attribute keywords are used, and only for those defined as DICOMStudy and DICOMSeries properties
+
+    An example selection rules:
     {
         "selections": [
             {
@@ -43,6 +55,14 @@ class DICOMSeriesSelectorOperator(Operator):
                     "StudyDescription": "(?i)^Spleen",
                     "Modality": "(?i)CT",
                     "SeriesDescription": "(?i)^No series description|(.*?)"
+                }
+            },
+            {
+                "name": "CT Series 2",
+                "conditions": {
+                    "Modality": "CT",
+                    "BodyPartExamined": "Abdomen",
+                    "SeriesDescription" : "Not to be matched. For illustration only."
                 }
             }
         ]
@@ -55,10 +75,10 @@ class DICOMSeriesSelectorOperator(Operator):
 
         Args:
             rules (Text): Selection rules in JSON string.
-            all_matched (bool): Gets all matched series in a study. Defaults to False for first one only.
+            all_matched (bool): Gets all matched series in a study. Defaults to False for first match only.
         """
 
-        # Delay loading the rules as json string till compute time.
+        # Delay loading the rules as JSON string till compute time.
         self._rules_json_str = rules if rules else None
         self._all_matched = all_matched
 
@@ -66,7 +86,9 @@ class DICOMSeriesSelectorOperator(Operator):
         """Performs computation for this operator."""
         try:
             dicom_study_list = op_input.get("dicom_study_list")
-            selection_rules = self._load_rules() if self._rules_json_str else None
+            selection_rules = op_input.get("selection_rules")
+            if not selection_rules:
+                selection_rules = self._load_rules() if self._rules_json_str else None
             dicom_series_list, study_selected_series = self.filter(selection_rules, dicom_study_list, self._all_matched)
             op_output.set(dicom_series_list, "dicom_series")
             op_output.set(
@@ -80,29 +102,31 @@ class DICOMSeriesSelectorOperator(Operator):
     ) -> Tuple[List[SelectedSeries], List[StudySelectedSeries]]:
         """Selects the series with the given matching rules.
 
-        If rules object is None, all series will be returned with series instance UID
-        as both the key and value for each dictionary value.
+        If rules object is None, all series will be returned with series instance UID as the selection name.
 
         Simplistic matching is used for demonstration:
             Number: exactly matches
-            String: matches case insensitive, if fails, trys RegEx search
+            String: matches case insensitive, if fails then tries RegEx search
             String array matches as subset, case insensitive
 
         Args:
             selection_rules (object): JSON object containing the matching rules.
             dicom_study_list (list): A list of DICOMStudiy objects.
-            all_matched (bool): Gets all matched series in a study. Defaults to False for first one only.
+            all_matched (bool): Gets all matched series in a study. Defaults to False for first match only.
 
         Returns:
             list: A list of all selected series of type SelectedSeries.
             list: A list of objects of type StudySelectedSeries.
+
+        Raises:
+            ValueError: If the selection_rules object does not contain "selections" attribute.
         """
 
         if not dicom_study_list or len(dicom_study_list) < 1:
             return [], []
 
         if not selection_rules:
-            # Return all series if no slection rules are supplied
+            # Return all series if no selection rules are supplied
             logging.warn(f"No selection rules given; select all series.")
             return self._select_all_series(dicom_study_list)
 
@@ -142,7 +166,9 @@ class DICOMSeriesSelectorOperator(Operator):
     def _load_rules(self):
         return json_loads(self._rules_json_str) if self._rules_json_str else None
 
-    def _select_all_series(self, dicom_study_list: List[DICOMStudy]):
+    def _select_all_series(
+        self, dicom_study_list: List[DICOMStudy]
+    ) -> Tuple[List[SelectedSeries], List[StudySelectedSeries]]:
         """Select all series in studies
 
         Returns:
@@ -165,12 +191,12 @@ class DICOMSeriesSelectorOperator(Operator):
             study_selected_series_list.append(study_selected_series)
         return series_list, study_selected_series_list
 
-    def _select_series(self, attributes: dict, study: DICOMStudy, all_matched=False):
+    def _select_series(self, attributes: dict, study: DICOMStudy, all_matched=False) -> List[DICOMSeries]:
         """Finds series whose attributes match the given attributes.
 
         Args:
             attributes (dict): Dictionary of attributes for matching
-            all_matched (bool): Gets all matched series in a study. Defaults to False for first one only.
+            all_matched (bool): Gets all matched series in a study. Defaults to False for first match only.
 
         Returns:
             List of DICOMSeries. At most one element if all_matched is False.
@@ -245,6 +271,7 @@ class DICOMSeriesSelectorOperator(Operator):
 
 
 # Module functions
+# Helper function to get console output of the selection content when testing the script
 def _print_instance_properties(obj: object, pre_fix: str = None, print_val=True):
     print(f"{pre_fix}Instance of {type(obj)}")
     for attribute in [x for x in type(obj).__dict__ if isinstance(type(obj).__dict__[x], property)]:
@@ -253,13 +280,14 @@ def _print_instance_properties(obj: object, pre_fix: str = None, print_val=True)
 
 
 def main():
-    data_path = "/home/mqin/src/monai-app-sdk/examples/ai_spleen_seg_data/dcm-multi"
-    # /home/mqin/src/monai-app-sdk/examples/input_spleen/input_dcm"
-    # data_path = "/home/rahul/medical-images/lung-ct-1/"
-    files = []
+    from pathlib import Path
+
+    from monai.deploy.operators.dicom_data_loader_operator import DICOMDataLoaderOperator
+
+    data_path = "../../../examples/ai_spleen_seg_data/dcm-multi"
+
     loader = DICOMDataLoaderOperator()
-    loader._list_files(data_path, files)
-    study_list = loader._load_data(files)
+    study_list = loader.load_data_to_studies(Path(data_path).absolute())
     selector = DICOMSeriesSelectorOperator()
     sample_selection_rule = json_loads(Sample_Rules_Text)
     print(f"Selection rules in JSON:\n{sample_selection_rule}")
@@ -273,7 +301,7 @@ def main():
         _print_instance_properties(study, pre_fix, print_val=False)
         print(f"{pre_fix}==============================")
 
-        # The following commneted code block uses and prints the flat list of all selected series.
+        # The following commented code block accesses and prints the flat list of all selected series.
         # for ss_obj in sss_obj.selected_series:
         #     pre_fix = "    "
         #     _print_instance_properties(ss_obj, pre_fix, print_val=False)
@@ -282,7 +310,7 @@ def main():
         #     _print_instance_properties(ss_obj, pre_fix)
         #     print(f"{pre_fix}===============================")
 
-        # The following uses gouping by selection name, and prints list of series for each.
+        # The following block uses hierarchical grouping by selection name, and prints the list of series for each.
         for selection_name, ss_list in sss_obj.series_by_selection_name.items():
             pre_fix = "    "
             print(f"{pre_fix}Selection name: {selection_name}")
