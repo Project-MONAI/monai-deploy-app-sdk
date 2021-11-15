@@ -25,7 +25,9 @@ class App(Application):
         png_converter_op = PNGConverterOperator()
 
         self.add_flow(study_loader_op, series_selector_op, {"dicom_study_list": "dicom_study_list"})
-        self.add_flow(series_selector_op, series_to_vol_op, {"dicom_series": "dicom_series"})
+        self.add_flow(
+            series_selector_op, series_to_vol_op, {"study_selected_series_list": "study_selected_series_list"}
+        )
         self.add_flow(series_to_vol_op, png_converter_op, {"image": "image"})
 
 

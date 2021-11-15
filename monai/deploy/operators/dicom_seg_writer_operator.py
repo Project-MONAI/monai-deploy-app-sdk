@@ -38,9 +38,7 @@ from monai.deploy.core.domain.dicom_series_selection import SelectedSeries, Stud
 
 
 @md.input("seg_image", Image, IOType.IN_MEMORY)
-@md.input(
-    "study_selected_series_list", List[StudySelectedSeries], IOType.IN_MEMORY
-)  # "dicom_series", DICOMSeries, IOType.IN_MEMORY)
+@md.input("study_selected_series_list", List[StudySelectedSeries], IOType.IN_MEMORY)
 @md.output("dicom_seg_instance", DataPath, IOType.DISK)
 @md.env(pip_packages=["pydicom >= 1.4.2", "SimpleITK >= 2.0.0"])
 class DICOMSegmentationWriterOperator(Operator):

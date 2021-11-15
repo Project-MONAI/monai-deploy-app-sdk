@@ -40,7 +40,7 @@ class DICOMDataLoaderOperator(Operator):
 
         input_path = op_input.get().path
         dicom_study_list = self.load_data_to_studies(input_path)
-        op_output.set(dicom_study_list)
+        op_output.set(dicom_study_list, "dicom_study_list")
 
     def load_data_to_studies(self, input_path: Path) -> List[DICOMStudy]:
         """Load DICOM data from files into DICOMStudy objects in a list.

@@ -25,7 +25,6 @@ from monai.deploy.exceptions import ItemNotExistsError
 
 @md.input("dicom_study_list", List[DICOMStudy], IOType.IN_MEMORY)
 @md.input("selection_rules", Dict, IOType.IN_MEMORY)  # This overides the rules in the instance.
-@md.output("dicom_series", List[DICOMSeries], IOType.IN_MEMORY)
 @md.output("study_selected_series_list", List[StudySelectedSeries], IOType.IN_MEMORY)
 class DICOMSeriesSelectorOperator(Operator):
     """This operator selects a list of DICOM Series in a DICOM Study for a given set of selection rules.
@@ -84,22 +83,27 @@ class DICOMSeriesSelectorOperator(Operator):
 
     def compute(self, op_input: InputContext, op_output: OutputContext, context: ExecutionContext):
         """Performs computation for this operator."""
+
+        dicom_study_list = None
+        selection_rules = None
         try:
             dicom_study_list = op_input.get("dicom_study_list")
+        except ItemNotExistsError as ex:
+            logging.exception(f"Failed to find input 'dicom_study_list', {ex}")
+            raise
+
+        try:
             selection_rules = op_input.get("selection_rules")
-            if not selection_rules:
-                selection_rules = self._load_rules() if self._rules_json_str else None
-            dicom_series_list, study_selected_series = self.filter(selection_rules, dicom_study_list, self._all_matched)
-            op_output.set(dicom_series_list, "dicom_series")
-            op_output.set(
-                study_selected_series,
-            )
         except ItemNotExistsError:
+            # OK for not providing selection rules.
             pass
 
-    def filter(
-        self, selection_rules, dicom_study_list, all_matched: bool = False
-    ) -> Tuple[List[SelectedSeries], List[StudySelectedSeries]]:
+        if not selection_rules:
+            selection_rules = self._load_rules() if self._rules_json_str else None
+        study_selected_series = self.filter(selection_rules, dicom_study_list, self._all_matched)
+        op_output.set(study_selected_series, "study_selected_series_list")
+
+    def filter(self, selection_rules, dicom_study_list, all_matched: bool = False) -> List[StudySelectedSeries]:
         """Selects the series with the given matching rules.
 
         If rules object is None, all series will be returned with series instance UID as the selection name.
@@ -115,7 +119,6 @@ class DICOMSeriesSelectorOperator(Operator):
             all_matched (bool): Gets all matched series in a study. Defaults to False for first match only.
 
         Returns:
-            list: A list of all selected series of type SelectedSeries.
             list: A list of objects of type StudySelectedSeries.
 
         Raises:
@@ -123,7 +126,7 @@ class DICOMSeriesSelectorOperator(Operator):
         """
 
         if not dicom_study_list or len(dicom_study_list) < 1:
-            return [], []
+            return []
 
         if not selection_rules:
             # Return all series if no selection rules are supplied
@@ -135,7 +138,6 @@ class DICOMSeriesSelectorOperator(Operator):
         if not selections:
             raise ValueError('Expected "selections" not found in the rules.')
 
-        selected_series_list = []  # List of all selected DICOMSeries objects
         study_selected_series_list = []  # List of StudySelectedSeries objects
 
         for study in dicom_study_list:
@@ -153,7 +155,6 @@ class DICOMSeriesSelectorOperator(Operator):
                 # Select only the first series that matches the conditions, list of one
                 series_list = self._select_series(conditions, study, all_matched)
                 if series_list and len(series_list) > 0:
-                    selected_series_list.extend(x for x in series_list)  # Add each single one
                     for series in series_list:
                         selected_series = SelectedSeries(selection_name, series)
                         study_selected_series.add_selected_series(selected_series)
@@ -161,14 +162,12 @@ class DICOMSeriesSelectorOperator(Operator):
             if len(study_selected_series.selected_series) > 0:
                 study_selected_series_list.append(study_selected_series)
 
-        return selected_series_list, study_selected_series_list
+        return study_selected_series_list
 
     def _load_rules(self):
         return json_loads(self._rules_json_str) if self._rules_json_str else None
 
-    def _select_all_series(
-        self, dicom_study_list: List[DICOMStudy]
-    ) -> Tuple[List[SelectedSeries], List[StudySelectedSeries]]:
+    def _select_all_series(self, dicom_study_list: List[DICOMStudy]) -> List[StudySelectedSeries]:
         """Select all series in studies
 
         Returns:
@@ -176,7 +175,6 @@ class DICOMSeriesSelectorOperator(Operator):
             list: list of StudySelectedSeries objects
         """
 
-        series_list = []
         study_selected_series_list = []
         for study in dicom_study_list:
             logging.info(f"Working on study, instance UID: {study.StudyInstanceUID}")
@@ -187,9 +185,8 @@ class DICOMSeriesSelectorOperator(Operator):
                 print(f"Working on series, instance UID: {str(series.SeriesInstanceUID)}")
                 selected_series = SelectedSeries(None, series)  # No selection name is known or given
                 study_selected_series.add_selected_series(selected_series)
-                series_list.append(series)
             study_selected_series_list.append(study_selected_series)
-        return series_list, study_selected_series_list
+        return study_selected_series_list
 
     def _select_series(self, attributes: dict, study: DICOMStudy, all_matched=False) -> List[DICOMSeries]:
         """Finds series whose attributes match the given attributes.
