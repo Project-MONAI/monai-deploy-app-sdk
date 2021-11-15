@@ -13,7 +13,7 @@ import logging
 import numbers
 import re
 from json import loads as json_loads
-from typing import Dict, List, Text, Tuple
+from typing import Dict, List, Text
 
 import monai.deploy.core as md
 from monai.deploy.core import ExecutionContext, InputContext, IOType, Operator, OutputContext
@@ -130,7 +130,7 @@ class DICOMSeriesSelectorOperator(Operator):
 
         if not selection_rules:
             # Return all series if no selection rules are supplied
-            logging.warn(f"No selection rules given; select all series.")
+            logging.warn("No selection rules given; select all series.")
             return self._select_all_series(dicom_study_list)
 
         selections = selection_rules.get("selections", None)
@@ -171,7 +171,6 @@ class DICOMSeriesSelectorOperator(Operator):
         """Select all series in studies
 
         Returns:
-            list: list of DICOMSeries objects
             list: list of StudySelectedSeries objects
         """
 

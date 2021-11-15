@@ -34,7 +34,7 @@ sitk, _ = optional_import("SimpleITK")
 import monai.deploy.core as md
 from monai.deploy.core import DataPath, ExecutionContext, Image, InputContext, IOType, Operator, OutputContext
 from monai.deploy.core.domain.dicom_series import DICOMSeries
-from monai.deploy.core.domain.dicom_series_selection import SelectedSeries, StudySelectedSeries
+from monai.deploy.core.domain.dicom_series_selection import StudySelectedSeries
 
 
 @md.input("seg_image", Image, IOType.IN_MEMORY)
