@@ -27,7 +27,7 @@ class SelectedSeries(Domain):
         self,
         selection_name: str,
         dicom_series: DICOMSeries,
-        image: Optional[Image] = None,
+        image: Image = None,
         metadata: Optional[Dict] = None,
     ) -> None:
         """Creates an instance of this class
