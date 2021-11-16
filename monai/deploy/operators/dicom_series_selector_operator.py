@@ -257,7 +257,7 @@ class DICOMSeriesSelectorOperator(Operator):
 
     @staticmethod
     def _get_instance_properties(obj: object):
-        prop_dict = {str, Any}
+        prop_dict = dict()
         if not obj:
             return prop_dict
 
