@@ -122,7 +122,7 @@ class DICOMSegmentationWriterOperator(Operator):
         self.process_images(seg_image, study_selected_series_list, output_dir)
 
     def process_images(
-        self, image: Union[Image, Path], study_selected_series_list: StudySelectedSeries, output_dir: Path
+        self, image: Union[Image, Path], study_selected_series_list: List[StudySelectedSeries], output_dir: Path
     ):
         """ """
         # Get the seg image in numpy, and if the image is passed in as object, need to fake a input path.
@@ -132,7 +132,7 @@ class DICOMSegmentationWriterOperator(Operator):
         if isinstance(image, Image):
             seg_image_numpy = image.asnumpy()
         elif isinstance(image, Path):
-            input_path = image  # It is expected that this is the image file path.
+            input_path = Path(image)  # It is expected that this is the image file path.
             seg_image_numpy = self._image_file_to_numpy(input_path)
         else:
             raise ValueError("'image' is not an Image object or a supported image file.")

@@ -65,7 +65,10 @@ class DICOMSeriesToVolumeOperator(Operator):
             selected_series.image = image
 
             # Break out since limited to one series/image for now
-            return image
+            break
+
+        #TODO: This needs to be updated once allowed to output multiple Image objects
+        return study_selected_series_list[0].selected_series[0].image
 
     def generate_voxel_data(self, series):
         """Applies rescale slope and rescale intercept to the pixels.

@@ -68,7 +68,7 @@ class DICOMSeriesSelectorOperator(Operator):
     }
     """
 
-    def __init__(self, rules: Text = None, all_matched: bool = False, *args, **kwargs) -> None:
+    def __init__(self, rules: Text = "", all_matched: bool = False, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         """Instantiate an instance.
 
@@ -78,7 +78,7 @@ class DICOMSeriesSelectorOperator(Operator):
         """
 
         # Delay loading the rules as JSON string till compute time.
-        self._rules_json_str = rules if rules else None
+        self._rules_json_str = rules if rules and rules.strip() else None
         self._all_matched = all_matched
 
     def compute(self, op_input: InputContext, op_output: OutputContext, context: ExecutionContext):
@@ -182,7 +182,7 @@ class DICOMSeriesSelectorOperator(Operator):
             for series in study.get_all_series():
                 logging.info(f"Working on series, instance UID: {str(series.SeriesInstanceUID)}")
                 print(f"Working on series, instance UID: {str(series.SeriesInstanceUID)}")
-                selected_series = SelectedSeries(None, series)  # No selection name is known or given
+                selected_series = SelectedSeries("", series)  # No selection name is known or given
                 study_selected_series.add_selected_series(selected_series)
             study_selected_series_list.append(study_selected_series)
         return study_selected_series_list
@@ -256,7 +256,7 @@ class DICOMSeriesSelectorOperator(Operator):
         return found_series
 
     @staticmethod
-    def _get_instance_properties(obj: object) -> Dict:
+    def _get_instance_properties(obj: object):
         prop_dict = {}
         if not obj:
             return prop_dict
@@ -268,7 +268,7 @@ class DICOMSeriesSelectorOperator(Operator):
 
 # Module functions
 # Helper function to get console output of the selection content when testing the script
-def _print_instance_properties(obj: object, pre_fix: str = None, print_val=True):
+def _print_instance_properties(obj: object, pre_fix: str = "", print_val=True):
     print(f"{pre_fix}Instance of {type(obj)}")
     for attribute in [x for x in type(obj).__dict__ if isinstance(type(obj).__dict__[x], property)]:
         attr_val = getattr(obj, attribute, None)
