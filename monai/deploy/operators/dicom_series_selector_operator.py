@@ -13,7 +13,7 @@ import logging
 import numbers
 import re
 from json import loads as json_loads
-from typing import Any, Dict, List, Text
+from typing import Dict, List, Text
 
 import monai.deploy.core as md
 from monai.deploy.core import ExecutionContext, InputContext, IOType, Operator, OutputContext
