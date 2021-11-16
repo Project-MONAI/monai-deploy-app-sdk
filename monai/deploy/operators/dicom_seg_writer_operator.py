@@ -132,7 +132,7 @@ class DICOMSegmentationWriterOperator(Operator):
         if isinstance(image, Image):
             seg_image_numpy = image.asnumpy()
         elif isinstance(image, Path):
-            input_path = Path(image)  # It is expected that this is the image file path.
+            input_path = str(image)  # It is expected that this is the image file path.
             seg_image_numpy = self._image_file_to_numpy(input_path)
         else:
             raise ValueError("'image' is not an Image object or a supported image file.")

@@ -13,7 +13,7 @@ import logging
 import numbers
 import re
 from json import loads as json_loads
-from typing import Dict, List, Text
+from typing import Any, Dict, List, Text
 
 import monai.deploy.core as md
 from monai.deploy.core import ExecutionContext, InputContext, IOType, Operator, OutputContext
@@ -257,7 +257,7 @@ class DICOMSeriesSelectorOperator(Operator):
 
     @staticmethod
     def _get_instance_properties(obj: object):
-        prop_dict = {}
+        prop_dict = {str, Any}
         if not obj:
             return prop_dict
 

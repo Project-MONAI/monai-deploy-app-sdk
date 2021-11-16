@@ -61,7 +61,7 @@ class SelectedSeries(Domain):
         return self._name
 
     @property
-    def image(self) -> Union[Image, None]:
+    def image(self) -> Image:
         return self._image
 
     @image.setter

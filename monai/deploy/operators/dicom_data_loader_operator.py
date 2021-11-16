@@ -42,7 +42,7 @@ class DICOMDataLoaderOperator(Operator):
         dicom_study_list = self.load_data_to_studies(input_path)
         op_output.set(dicom_study_list, "dicom_study_list")
 
-    def load_data_to_studies(self, input_path: Path) -> List[DICOMStudy]:
+    def load_data_to_studies(self, input_path: Path):
         """Load DICOM data from files into DICOMStudy objects in a list.
 
         It scans through the input directory for all SOP instances.
