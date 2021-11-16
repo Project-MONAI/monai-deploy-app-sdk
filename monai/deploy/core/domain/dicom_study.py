@@ -23,14 +23,7 @@ class DICOMStudy(Domain):
         super().__init__(None)
         self._study_instance_uid = study_instance_uid
         self._series_dict = {}
-
         # Do not set attributes in advance to save memory
-
-        # self._study_id: Any = None
-        # self._study_date: Any = None
-        # self._study_time: Any = None
-        # self._study_description: Any = None
-        # self._accession_number: Any = None
 
     def get_study_instance_uid(self):
         return self._study_instance_uid

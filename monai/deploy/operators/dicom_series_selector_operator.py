@@ -233,9 +233,9 @@ class DICOMSeriesSelectorOperator(Operator):
                         if re.search(value_to_match, attr_value, re.IGNORECASE):
                             matched = True
                 elif isinstance(attr_value, list):
-                    meta_data_set = set(str(element).lower() for element in attr_value)
+                    meta_data_set = {str(element).lower() for element in attr_value}
                     if isinstance(value_to_match, list):
-                        value_set = set(str(element).lower() for element in value_to_match)
+                        value_set = {str(element).lower() for element in value_to_match}
                         matched = all(val in meta_data_set for val in value_set)
                     elif isinstance(value_to_match, (str, numbers.Number)):
                         matched = str(value_to_match).lower() in meta_data_set
