@@ -11,7 +11,7 @@
 
 import copy
 import math
-from typing import Dict, List
+from typing import Dict, List, Union
 
 import numpy as np
 
@@ -38,7 +38,7 @@ class DICOMSeriesToVolumeOperator(Operator):
         image = self.convert_to_image(study_selected_series_list)
         op_output.set(image, "image")
 
-    def convert_to_image(self, study_selected_series_list: List[StudySelectedSeries]) -> Image:
+    def convert_to_image(self, study_selected_series_list: List[StudySelectedSeries]) -> Union[Image, None]:
         """Extracts the pixel data from a DICOM Series and other attributes to create an Image object"""
         # For now, only supports the one and only one selected series.
         if not study_selected_series_list or len(study_selected_series_list) < 1:

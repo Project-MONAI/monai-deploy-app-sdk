@@ -156,7 +156,7 @@ class DICOMSeriesSelectorOperator(Operator):
                 series_list = self._select_series(conditions, study, all_matched)
                 if series_list and len(series_list) > 0:
                     for series in series_list:
-                        selected_series = SelectedSeries(selection_name, series)
+                        selected_series = SelectedSeries(selection_name, series, None)  # No Image obj yet.
                         study_selected_series.add_selected_series(selected_series)
 
             if len(study_selected_series.selected_series) > 0:
@@ -182,7 +182,7 @@ class DICOMSeriesSelectorOperator(Operator):
             for series in study.get_all_series():
                 logging.info(f"Working on series, instance UID: {str(series.SeriesInstanceUID)}")
                 print(f"Working on series, instance UID: {str(series.SeriesInstanceUID)}")
-                selected_series = SelectedSeries("", series)  # No selection name is known or given
+                selected_series = SelectedSeries("", series, None)  # No selection name or Image obj.
                 study_selected_series.add_selected_series(selected_series)
             study_selected_series_list.append(study_selected_series)
         return study_selected_series_list

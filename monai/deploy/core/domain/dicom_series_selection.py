@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Union
 
 from .dicom_series import DICOMSeries
 from .dicom_study import DICOMStudy
@@ -27,7 +27,7 @@ class SelectedSeries(Domain):
         self,
         selection_name: str,
         dicom_series: DICOMSeries,
-        image: Image = None,
+        image: Optional[Image] = None,
         metadata: Optional[Dict] = None,
     ) -> None:
         """Creates an instance of this class
@@ -45,7 +45,13 @@ class SelectedSeries(Domain):
             raise ValueError("Argument dicom_series must be a DICOMSeries object.")
         super().__init__(metadata)
         self._series = dicom_series
-        self._image = image
+
+        if not image:
+            self._image = None
+        elif isinstance(image, Image):
+            self._image = image
+        else:
+            raise ValueError("'image' must be an Image object if not None.")
 
         if not selection_name or not selection_name.strip():
             self._name = str(dicom_series.SeriesInstanceUID)
@@ -61,12 +67,17 @@ class SelectedSeries(Domain):
         return self._name
 
     @property
-    def image(self) -> Image:
+    def image(self) -> Union[Image, None]:
         return self._image
 
     @image.setter
-    def image(self, val):
-        self._image = val
+    def image(self, val: Optional[Image]):
+        if not val:
+            self._image = None
+        elif isinstance(val, Image):
+            self._image = val
+        else:
+            raise ValueError("'val' must be an Image object if not None.")
 
 
 class StudySelectedSeries(Domain):
