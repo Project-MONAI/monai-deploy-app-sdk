@@ -67,7 +67,7 @@ class DICOMSeriesToVolumeOperator(Operator):
             # Break out since limited to one series/image for now
             break
 
-        #TODO: This needs to be updated once allowed to output multiple Image objects
+        # TODO: This needs to be updated once allowed to output multiple Image objects
         return study_selected_series_list[0].selected_series[0].image
 
     def generate_voxel_data(self, series):
