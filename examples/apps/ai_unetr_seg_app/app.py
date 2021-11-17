@@ -71,7 +71,9 @@ class AIUnetrSegApp(Application):
         # Create the processing pipeline, by specifying the upstream and downstream operators, and
         # ensuring the output from the former matches the input of the latter, in both name and type.
         self.add_flow(study_loader_op, series_selector_op, {"dicom_study_list": "dicom_study_list"})
-        self.add_flow(series_selector_op, series_to_vol_op, {"dicom_series": "dicom_series"})
+        self.add_flow(
+            series_selector_op, series_to_vol_op, {"study_selected_series_list": "study_selected_series_list"}
+        )
         self.add_flow(series_to_vol_op, unetr_seg_op, {"image": "image"})
         # Add the publishing operator to save the input and seg images for Render Server.
         # Note the PublisherOperator has temp impl till a proper rendering module is created.
@@ -79,7 +81,9 @@ class AIUnetrSegApp(Application):
         # Note below the dicom_seg_writer requires two inputs, each coming from a upstream operator.
         # Also note that the DICOMSegmentationWriterOperator may throw exception with some inputs.
         #   Bug has been created to track the issue.
-        self.add_flow(series_selector_op, dicom_seg_writer, {"dicom_series": "dicom_series"})
+        self.add_flow(
+            series_selector_op, dicom_seg_writer, {"study_selected_series_list": "study_selected_series_list"}
+        )
         self.add_flow(unetr_seg_op, dicom_seg_writer, {"seg_image": "seg_image"})
 
         self._logger.debug(f"End {self.compose.__name__}")

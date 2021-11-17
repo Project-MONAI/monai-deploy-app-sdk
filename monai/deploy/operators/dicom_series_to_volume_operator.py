@@ -11,16 +11,16 @@
 
 import copy
 import math
+from typing import Dict, List, Union
 
 import numpy as np
 
 import monai.deploy.core as md
 from monai.deploy.core import ExecutionContext, Image, InputContext, IOType, Operator, OutputContext
-from monai.deploy.core.domain.dicom_series import DICOMSeries
-from monai.deploy.operators.dicom_data_loader_operator import DICOMDataLoaderOperator
+from monai.deploy.core.domain.dicom_series_selection import StudySelectedSeries
 
 
-@md.input("dicom_series", DICOMSeries, IOType.IN_MEMORY)
+@md.input("study_selected_series_list", List[StudySelectedSeries], IOType.IN_MEMORY)
 @md.output("image", Image, IOType.IN_MEMORY)
 class DICOMSeriesToVolumeOperator(Operator):
     """This operator converts an instance of DICOMSeries into an Image object.
@@ -29,14 +29,46 @@ class DICOMSeriesToVolumeOperator(Operator):
     """
 
     def compute(self, op_input: InputContext, op_output: OutputContext, context: ExecutionContext):
-        """Extracts the pixel data from a DICOM Series and other attributes to for an instance of Image object"""
-        dicom_series = op_input.get()
-        self.prepare_series(dicom_series)
-        metadata = self.create_metadata(dicom_series)
+        """Performs computation for this operator and handles I/O."""
 
-        voxel_data = self.generate_voxel_data(dicom_series)
-        image = self.create_volumetric_image(voxel_data, metadata)
+        study_selected_series_list = op_input.get("study_selected_series_list")
+
+        # TODO: need to get a solution to correctly annotate and consume multiple image outputs.
+        # For now, only supports the one and only one selected series.
+        image = self.convert_to_image(study_selected_series_list)
         op_output.set(image, "image")
+
+    def convert_to_image(self, study_selected_series_list: List[StudySelectedSeries]) -> Union[Image, None]:
+        """Extracts the pixel data from a DICOM Series and other attributes to create an Image object"""
+        # For now, only supports the one and only one selected series.
+        if not study_selected_series_list or len(study_selected_series_list) < 1:
+            raise ValueError("Missing expected input 'study_selected_series_list'")
+
+        for study_selected_series in study_selected_series_list:
+            if not isinstance(study_selected_series, StudySelectedSeries):
+                raise ValueError("Element in input is not expected type, 'StudySelectedSeries'.")
+            selected_series = study_selected_series.selected_series[0]
+            dicom_series = selected_series.series
+            selection_name = selected_series.slection_name
+            self.prepare_series(dicom_series)
+            metadata = self.create_metadata(dicom_series)
+
+            # Add to the metadata the DICOMStudy properties and selection metadata
+            metadata.update(self._get_instance_properties(study_selected_series.study))
+            selection_metadata = {"selection_name": selection_name}
+            metadata.update(selection_metadata)
+
+            voxel_data = self.generate_voxel_data(dicom_series)
+            image = self.create_volumetric_image(voxel_data, metadata)
+
+            # Now it is time to assign the converted image to the SelectedSeries obj
+            selected_series.image = image
+
+            # Break out since limited to one series/image for now
+            break
+
+        # TODO: This needs to be updated once allowed to output multiple Image objects
+        return study_selected_series_list[0].selected_series[0].image
 
     def generate_voxel_data(self, series):
         """Applies rescale slope and rescale intercept to the pixels.
@@ -45,7 +77,7 @@ class DICOMSeriesToVolumeOperator(Operator):
             series: DICOM Series for which the pixel data needs to be extracted.
 
         Returns:
-            A 3D numpy tensor rerepesenting the volumetric data.
+            A 3D numpy tensor representing the volumetric data.
         """
         slices = series.get_sop_instances()
         # Need to transpose the DICOM pixel_array and pack the slice as the last dim.
@@ -78,7 +110,7 @@ class DICOMSeriesToVolumeOperator(Operator):
         """Computes the slice normal for each slice and then projects the first voxel of each
         slice on that slice normal.
 
-        It computes the distance of that point from the origin of the aient coordinate system along the alice normal.
+        It computes the distance of that point from the origin of the patient coordinate system along the slice normal.
         It orders the slices in the series according to that distance.
 
         Args:
@@ -276,7 +308,7 @@ class DICOMSeriesToVolumeOperator(Operator):
 
         series.nifti_affine_transform = m2
 
-    def create_metadata(self, series):
+    def create_metadata(self, series) -> Dict:
         """Collects all relevant metadata from the DICOM Series and creates a dictionary.
 
         Args:
@@ -285,67 +317,48 @@ class DICOMSeriesToVolumeOperator(Operator):
         Returns:
             An instance of a dictionary containing metadata for the volumetric image.
         """
+
+        # Set metadata with series properties that are not None.
         metadata = {}
-        metadata["series_instance_uid"] = series.get_series_instance_uid()
-
-        if series.series_date is not None:
-            metadata["series_date"] = series.series_date
-
-        if series.series_time is not None:
-            metadata["series_time"] = series.series_time
-
-        if series.modality is not None:
-            metadata["modality"] = series.modality
-
-        if series.series_description is not None:
-            metadata["series_description"] = series.series_description
-
-        if series.row_pixel_spacing is not None:
-            metadata["row_pixel_spacing"] = series.row_pixel_spacing
-
-        if series.col_pixel_spacing is not None:
-            metadata["col_pixel_spacing"] = series.col_pixel_spacing
-
-        if series.depth_pixel_spacing is not None:
-            metadata["depth_pixel_spacing"] = series.depth_pixel_spacing
-
-        if series.row_direction_cosine is not None:
-            metadata["row_direction_cosine"] = series.row_direction_cosine
-
-        if series.col_direction_cosine is not None:
-            metadata["col_direction_cosine"] = series.col_direction_cosine
-
-        if series.depth_direction_cosine is not None:
-            metadata["depth_direction_cosine"] = series.depth_direction_cosine
-
-        if series.dicom_affine_transform is not None:
-            metadata["dicom_affine_transform"] = series.dicom_affine_transform
-
-        if series.nifti_affine_transform is not None:
-            metadata["nifti_affine_transform"] = series.nifti_affine_transform
-
+        if series:
+            metadata = self._get_instance_properties(series)
         return metadata
 
+    @staticmethod
+    def _get_instance_properties(obj: object, not_none: bool = True) -> Dict:
+        prop_dict = {}
+        if obj:
+            for attribute in [x for x in type(obj).__dict__ if isinstance(type(obj).__dict__[x], property)]:
+                attr_val = getattr(obj, attribute, None)
+                if not_none:
+                    if attr_val is not None:
+                        prop_dict[attribute] = attr_val
+                else:
+                    prop_dict[attribute] = attr_val
 
-def main():
-    op = DICOMSeriesToVolumeOperator()
-    # data_path = "/home/rahul/medical-images/mixed-data/"
-    # data_path = "/home/rahul/medical-images/lung-ct-2/"
-    data_path = "/home/rahul/medical-images/spleen-ct/"
-    files = []
+        return prop_dict
+
+
+def test():
+
+    from pathlib import Path
+
+    from monai.deploy.operators.dicom_data_loader_operator import DICOMDataLoaderOperator
+    from monai.deploy.operators.dicom_series_selector_operator import DICOMSeriesSelectorOperator
+
+    data_path = "../../../examples/ai_spleen_seg_data/dcm"
     loader = DICOMDataLoaderOperator()
-    loader._list_files(data_path, files)
-    study_list = loader._load_data(files)
+    study_list = loader.load_data_to_studies(Path(data_path).absolute())
 
-    series = study_list[0].get_all_series()[0]
-    op.prepare_series(series)
-    voxels = op.generate_voxel_data(series)
-    metadata = op.create_metadata(series)
-    image = op.create_volumetric_image(voxels, metadata)
+    series_selector = DICOMSeriesSelectorOperator()
+    _, study_selected_series_list = series_selector.filter(None, study_list)
 
-    print(series)
-    print(metadata.keys())
+    op = DICOMSeriesToVolumeOperator()
+    image = op.convert_to_image(study_selected_series_list)
+
+    for k, v in image.metadata().items():
+        print(f"{(k)}: {(v)}")
 
 
 if __name__ == "__main__":
-    main()
+    test()

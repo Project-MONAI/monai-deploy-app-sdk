@@ -14,6 +14,7 @@ import datetime
 import json
 import logging
 import os
+from pathlib import Path
 from random import randint
 from typing import List, Optional, Union
 
@@ -33,12 +34,11 @@ sitk, _ = optional_import("SimpleITK")
 import monai.deploy.core as md
 from monai.deploy.core import DataPath, ExecutionContext, Image, InputContext, IOType, Operator, OutputContext
 from monai.deploy.core.domain.dicom_series import DICOMSeries
-from monai.deploy.operators.dicom_data_loader_operator import DICOMDataLoaderOperator
-from monai.deploy.operators.dicom_series_to_volume_operator import DICOMSeriesToVolumeOperator
+from monai.deploy.core.domain.dicom_series_selection import StudySelectedSeries
 
 
 @md.input("seg_image", Image, IOType.IN_MEMORY)
-@md.input("dicom_series", DICOMSeries, IOType.IN_MEMORY)
+@md.input("study_selected_series_list", List[StudySelectedSeries], IOType.IN_MEMORY)
 @md.output("dicom_seg_instance", DataPath, IOType.DISK)
 @md.env(pip_packages=["pydicom >= 1.4.2", "SimpleITK >= 2.0.0"])
 class DICOMSegmentationWriterOperator(Operator):
@@ -48,7 +48,7 @@ class DICOMSegmentationWriterOperator(Operator):
 
     # Supported input image format, based on extension.
     SUPPORTED_EXTENSIONS = [".nii", ".nii.gz", ".mhd"]
-    # DICOM instance file extension. Case insentiive in string comaprision.
+    # DICOM instance file extension. Case insensitive in string comparison.
     DCM_EXTENSION = ".dcm"
     # Suffix to add to file name to indicate DICOM Seg dcm file.
     DICOMSEG_SUFFIX = "-DICOMSEG"
@@ -79,58 +79,98 @@ class DICOMSegmentationWriterOperator(Operator):
         if isinstance(seg_labels, str):
             self._seg_labels = [seg_labels]
         elif isinstance(seg_labels, list):
+            self._seg_labels = []
             for label in seg_labels:
-                if not isinstance(label, str):
+                if isinstance(label, str) or isinstance(label, int):
+                    self._seg_labels.append(label)
+                else:
                     raise ValueError(f"List of strings expected, but contains {label} of type {type(label)}.")
-            self._seg_labels = seg_labels
-        else:
-            raise ValueError("List of strings expected.")
 
     def compute(self, op_input: InputContext, op_output: OutputContext, context: ExecutionContext):
-        dicom_series = op_input.get("dicom_series")
+        """Performs computation for this operator and handles I/O.
 
-        # Get the seg image in numpy
-        seg_image_numpy = None
-        input_path = "dicom_seg"
+        For now, only a single segmentation image object or file is supported and the selected DICOM
+        series for inference is required, because the DICOM Seg IOD needs to refer to original instance.
+        When there are multiple selected series in the input, the first series' containing study will
+        be used for retrieving DICOM Study module attributes, e.g. StudyInstanceUID.
+
+        Raises:
+            FileNotFoundError: When image object not in the input, and segmentation image file not found either.
+            ValueError: Neither image object nor image file's folder is in the input, or no selected series.
+        """
+
+        # Gets the input, prepares the output folder, and then delegates the processing.
+        study_selected_series_list = op_input.get("study_selected_series_list")
+        if not study_selected_series_list or len(study_selected_series_list) < 1:
+            raise ValueError("Missing input, list of 'StudySelectedSeries'.")
+        for study_selected_series in study_selected_series_list:
+            if not isinstance(study_selected_series, StudySelectedSeries):
+                raise ValueError("Element in input is not expected type, 'StudySelectedSeries'.")
+
         seg_image = op_input.get("seg_image")
-        if isinstance(seg_image, Image):
-            seg_image_numpy = seg_image.asnumpy()
-        elif isinstance(seg_image, DataPath):
-            input_path = op_input.get("segmentation_image").path
-            input_path, _ = self.select_input_file(input_path)
-            seg_image_numpy = self._image_file_to_numpy(input_path)
-        else:
-            # What else
-            raise ValueError("seg_image is not Image or DataPath")
+        # In case the Image object is not in the input, and input is the seg image file folder path.
+        if not isinstance(seg_image, Image):
+            if isinstance(seg_image, DataPath):
+                input_path = op_input.get("segmentation_image").path
+                seg_image, _ = self.select_input_file(input_path)
+            else:
+                raise ValueError("Input 'seg_image' is not Image or DataPath.")
 
-        # Create the output path for created DICOM Seg instance
         output_dir = op_output.get().path
         output_dir.mkdir(parents=True, exist_ok=True)
+
+        self.process_images(seg_image, study_selected_series_list, output_dir)
+
+    def process_images(
+        self, image: Union[Image, Path], study_selected_series_list: List[StudySelectedSeries], output_dir: Path
+    ):
+        """ """
+        # Get the seg image in numpy, and if the image is passed in as object, need to fake a input path.
+        seg_image_numpy = None
+        input_path = "dicom_seg"
+
+        if isinstance(image, Image):
+            seg_image_numpy = image.asnumpy()
+        elif isinstance(image, Path):
+            input_path = str(image)  # It is expected that this is the image file path.
+            seg_image_numpy = self._image_file_to_numpy(input_path)
+        else:
+            raise ValueError("'image' is not an Image object or a supported image file.")
+
+        # The output DICOM Seg instance file name is based on the actual or made-up input image file name.
         output_filename = "{0}{1}{2}".format(
             os.path.splitext(os.path.basename(input_path))[0],
             DICOMSegmentationWriterOperator.DICOMSEG_SUFFIX,
             DICOMSegmentationWriterOperator.DCM_EXTENSION,
         )
-        output_path = os.path.join(output_dir, output_filename)
+        output_path = output_dir / output_filename
+        # Pick DICOM Series that was used as input for getting the seg image.
+        # For now, first one in the list.
+        for study_selected_series in study_selected_series_list:
+            if not isinstance(study_selected_series, StudySelectedSeries):
+                raise ValueError("Element in input is not expected type, 'StudySelectedSeries'.")
+            selected_series = study_selected_series.selected_series[0]
+            dicom_series = selected_series.series
+            self.create_dicom_seg(seg_image_numpy, dicom_series, output_path)
+            break
 
-        self.create_dicom_seg(seg_image_numpy, dicom_series, output_path)
+    def create_dicom_seg(self, image: Image, dicom_series: DICOMSeries, file_path: Path):
+        file_path.parent.absolute().mkdir(parents=True, exist_ok=True)
 
-    def create_dicom_seg(self, image, dicom_series: DICOMSeries, file_path: str):
         dicom_dataset_list = [i.get_native_sop_instance() for i in dicom_series.get_sop_instances()]
-
         # DICOM Seg creation
         self._seg_writer = DICOMSegWriter()
         try:
-            self._seg_writer.write(image, dicom_dataset_list, file_path, self._seg_labels)
+            self._seg_writer.write(image, dicom_dataset_list, str(file_path), self._seg_labels)
             # TODO: get a class to encapsulate the seg label information.
 
             # Test reading back
-            _ = self._read_from_dcm(file_path)
+            _ = self._read_from_dcm(str(file_path))
         except Exception as ex:
             print("DICOMSeg creation failed. Error:\n{}".format(ex))
             raise
 
-    def _read_from_dcm(self, file_path):
+    def _read_from_dcm(self, file_path: str):
         """Read dcm file into pydicom Dataset
 
         Args:
@@ -193,7 +233,7 @@ class DICOMSegmentationWriterOperator(Operator):
         """
 
         # Use json.loads as a convenience method to convert string to list of strings
-        assert isinstance(stringfied_list_of_labels, str), "Expected stringfiled list pf labels."
+        assert isinstance(stringfied_list_of_labels, str), "Expected stringfied list pf labels."
 
         label_list = ["default-label"]  # Use this as default if empty string
         if stringfied_list_of_labels:
@@ -212,7 +252,7 @@ class DICOMSegWriter(object):
         """Write DICOM Segmentation object for the segmentation image
 
         Args:
-            seg_img (numpy array): numpy array of the segmentatin image.
+            seg_img (numpy array): numpy array of the segmentation image.
             input_ds (list): list of Pydicom datasets of the original DICOM instances.
             outfile (str): path for the output DICOM instance file.
             seg_labels: list of labels for the segments
@@ -571,7 +611,7 @@ def segslice_from_mhd(dcm_output, seg_img, input_ds, num_labels):
                     img_slice, label, out_frame_counter, safe_get(input_ds[img_slice], 0x00200032)
                 )
             )
-            seg_slice = np.zeros((1, seg_img.shape[1], seg_img.shape[2]), dtype=np.bool)
+            seg_slice = np.zeros((1, seg_img.shape[1], seg_img.shape[2]), dtype=bool)
 
             seg_slice[np.expand_dims(seg_img[img_slice, ...] == label, 0)] = 1
 
@@ -584,7 +624,7 @@ def segslice_from_mhd(dcm_output, seg_img, input_ds, num_labels):
 
     dcm_output.add_new(0x52009230, "SQ", out_frames)  # PerFrameFunctionalGroupsSequence
     dcm_output.NumberOfFrames = out_frame_counter
-    dcm_output.PixelData = np.packbits(np.flip(np.reshape(out_pixels.astype(np.bool), (-1, 8)), 1)).tostring()
+    dcm_output.PixelData = np.packbits(np.flip(np.reshape(out_pixels.astype(bool), (-1, 8)), 1)).tobytes()
 
     dcm_output.get(0x00081115)[0].add_new(0x0008114A, "SQ", referenceInstances)  # ReferencedInstanceSequence
 
@@ -616,24 +656,36 @@ def segslice_from_mhd(dcm_output, seg_img, input_ds, num_labels):
 
 
 def test():
-    data_path = "/home/mqin/src/monai-deploy-app-sdk/examples/apps/ai_spleen_seg_app/input"
-    out_path = "/home/mqin/src/monai-deploy-app-sdk/examples/apps/ai_spleen_seg_app/output/dcm_seg_test.dcm"
+    from monai.deploy.operators.dicom_data_loader_operator import DICOMDataLoaderOperator
+    from monai.deploy.operators.dicom_series_selector_operator import DICOMSeriesSelectorOperator
+    from monai.deploy.operators.dicom_series_to_volume_operator import DICOMSeriesToVolumeOperator
+
+    data_path = "../../../examples/ai_spleen_seg_data/dcm"
+    out_path = "../../../examples/output_seg_op/dcm_seg_test.dcm"
 
     files = []
     loader = DICOMDataLoaderOperator()
-    loader._list_files(data_path, files)
-    study_list = loader._load_data(files)
+    series_selector = DICOMSeriesSelectorOperator()
+    dcm_to_volume_op = DICOMSeriesToVolumeOperator()
+    seg_writer = DICOMSegmentationWriterOperator()
+
+    # Testing with more granular functions
+    study_list = loader.load_data_to_studies(Path(data_path).absolute())
     series = study_list[0].get_all_series()[0]
 
-    dcm_to_volume_op = DICOMSeriesToVolumeOperator()
     dcm_to_volume_op.prepare_series(series)
     voxels = dcm_to_volume_op.generate_voxel_data(series)
     metadata = dcm_to_volume_op.create_metadata(series)
     image = dcm_to_volume_op.create_volumetric_image(voxels, metadata)
     image_numpy = image.asnumpy()
 
-    seg_writer = DICOMSegmentationWriterOperator()
-    seg_writer.create_dicom_seg(image_numpy, series, out_path)
+    seg_writer.create_dicom_seg(image_numpy, series, Path(out_path).absolute())
+
+    # Testing with the main entry functions
+    study_list = loader.load_data_to_studies(Path(data_path).absolute())
+    _, study_selected_series_list = series_selector.filter(None, study_list)
+    image = dcm_to_volume_op.convert_to_image(study_selected_series_list)
+    seg_writer.process_images(image, study_selected_series_list, Path(out_path).parent.absolute())
 
 
 if __name__ == "__main__":

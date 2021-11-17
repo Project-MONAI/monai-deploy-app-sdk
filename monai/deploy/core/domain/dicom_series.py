@@ -50,70 +50,85 @@ class DICOMSeries(Domain):
     def get_sop_instances(self):
         return self._sop_instances
 
+    # Properties named after DICOM Series module attribute keywords
+    # There are two required (Type 1) attrbutes for a series:
+    #     Keyword: SeriesInstanceUID, Tag: (0020,000E)
+    #     Keyword: Modality, Tag: (0008,0060)
+    #
     @property
-    def series_date(self):
+    def SeriesInstanceUID(self):
+        return self._series_instance_uid
+
+    @SeriesInstanceUID.setter
+    def SeriesInstanceUID(self, val):
+        self._series_instance_uid = val
+
+    @property
+    def SeriesDate(self):
         return getattr(self, "_series_date", None)
 
-    @series_date.setter
-    def series_date(self, val):
+    @SeriesDate.setter
+    def SeriesDate(self, val):
         self._series_date = val
 
     @property
-    def series_time(self):
+    def SeriesTime(self):
         return getattr(self, "_series_time", None)
 
-    @series_time.setter
-    def series_time(self, val):
+    @SeriesTime.setter
+    def SeriesTime(self, val):
         self._series_time = val
 
     @property
-    def modality(self):
+    def Modality(self):
         return getattr(self, "_modality", None)
 
-    @modality.setter
-    def modality(self, val):
+    @Modality.setter
+    def Modality(self, val):
         self._modality = val
 
     @property
-    def series_description(self):
+    def SeriesDescription(self):
         return getattr(self, "_series_description", None)
 
-    @series_description.setter
-    def series_description(self, val):
+    @SeriesDescription.setter
+    def SeriesDescription(self, val):
         self._series_description = val
 
     @property
-    def body_part_examined(self):
+    def BodyPartExamined(self):
         return getattr(self, "_body_part_examined", None)
 
-    @body_part_examined.setter
-    def body_part_examined(self, val):
+    @BodyPartExamined.setter
+    def BodyPartExamined(self, val):
         self._body_part_examined = val
 
     @property
-    def patient_position(self):
+    def PatientPosition(self):
         return getattr(self, "_patient_position", None)
 
-    @patient_position.setter
-    def patient_position(self, val):
+    @PatientPosition.setter
+    def PatientPosition(self, val):
         self._patient_position = val
 
     @property
-    def series_number(self):
+    def SeriesNumber(self):
         return getattr(self, "_series_number", None)
 
-    @series_number.setter
-    def series_number(self, val):
+    @SeriesNumber.setter
+    def SeriesNumber(self, val):
         self._series_number = val
 
     @property
-    def laterality(self):
-        return getattr(self, "_laterality", None)
+    def Laterality(self):
+        return getattr(self, "_Laterality", None)
 
-    @laterality.setter
-    def laterality(self, val):
+    @Laterality.setter
+    def Laterality(self, val):
         self._laterality = val
 
+    # Derived properties based on image module attributes
+    #
     @property
     def row_pixel_spacing(self):
         return getattr(self, "_row_pixel_spacing", None)
@@ -179,7 +194,7 @@ class DICOMSeries(Domain):
         self._nifti_affine_transform = val
 
     def __str__(self):
-        result = "---------------" + "\n"
+        result = "\n---------------" + "\n"
 
         series_instance_uid_attr = "Series Instance UID: " + self._series_instance_uid + "\n"
         result += series_instance_uid_attr
@@ -187,20 +202,20 @@ class DICOMSeries(Domain):
         num_sop_instances = "Num SOP Instances: " + str(len(self._sop_instances)) + "\n"
         result += num_sop_instances
 
-        if self.series_date is not None:
-            series_date_attr = "Series Date: " + self.series_date + "\n"
+        if self.SeriesDate is not None:
+            series_date_attr = "Series Date: " + self.SeriesDate + "\n"
             result += series_date_attr
 
-        if self.series_time is not None:
-            series_time_attr = "Series Time: " + self.series_time + "\n"
+        if self.SeriesTime is not None:
+            series_time_attr = "Series Time: " + self.SeriesTime + "\n"
             result += series_time_attr
 
-        if self.modality is not None:
-            modality_attr = "Modality: " + self.modality + "\n"
+        if self.Modality is not None:
+            modality_attr = "Modality: " + self.Modality + "\n"
             result += modality_attr
 
-        if self.series_description is not None:
-            series_desc_attr = "Series Description: " + self.series_description + "\n"
+        if self.SeriesDescription is not None:
+            series_desc_attr = "Series Description: " + self.SeriesDescription + "\n"
             result += series_desc_attr
 
         if self.row_pixel_spacing is not None:

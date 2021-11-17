@@ -10,6 +10,7 @@
 # limitations under the License.
 
 import os
+from pathlib import Path
 from typing import List
 
 import monai.deploy.core as md
@@ -22,6 +23,7 @@ dcmread, _ = optional_import("pydicom", name="dcmread")
 get_testdata_file, _ = optional_import("pydicom.data", name="dcmread")
 FileSet, _ = optional_import("pydicom.fileset", name="FileSet")
 generate_uid, _ = optional_import("pydicom.uid", name="generate_uid")
+valuerep, _ = optional_import("pydicom", name="valuerep")
 
 
 @md.input("dicom_files", DataPath, IOType.DISK)
@@ -34,23 +36,40 @@ class DICOMDataLoaderOperator(Operator):
     """
 
     def compute(self, op_input: InputContext, op_output: OutputContext, context: ExecutionContext):
-        """Performs computation for this operator.
+        """Performs computation for this operator and handlesI/O."""
+
+        input_path = op_input.get().path
+        dicom_study_list = self.load_data_to_studies(input_path)
+        op_output.set(dicom_study_list, "dicom_study_list")
+
+    def load_data_to_studies(self, input_path: Path):
+        """Load DICOM data from files into DICOMStudy objects in a list.
 
         It scans through the input directory for all SOP instances.
         It groups them by a collection of studies where each study contains one or more series.
-        This method returns a set of studies.
+        This method returns a list of studies.
+
+        Args:
+            input_path (Path): The folder containing DICOM instance files.
+
+        Returns:
+            List[DICOMStudy]: List of DICOMStudy.
+
+        Raises:
+            ValueError: If the folder to load files from does not exist.
         """
+        if not input_path.exists() or not input_path.is_dir():
+            raise ValueError("Required input folder does not exist.")
+
         files: List[str] = []
-        input_path = op_input.get().path
         self._list_files(input_path, files)
-        dicom_study_list = self._load_data(files)
-        op_output.set(dicom_study_list)
+        return self._load_data(files)
 
     def _list_files(self, path, files: List[str]):
         """Collects fully qualified names of all files recurvisely given a directory path.
 
         Args:
-            path: A directoty containing DICOM SOP instances. It have have nested hirerarchical directories.
+            path: A directoty containing DICOM SOP instances. It may have nested hirerarchical directories.
             files: This method populates "files" with fully qualified names of files that belong to the specified directory.
         """
         for item in os.listdir(path):
@@ -75,14 +94,14 @@ class DICOMDataLoaderOperator(Operator):
 
         for sop_instance in sop_instances:
 
-            study_instance_uid = sop_instance[0x0020, 0x000D].value
+            study_instance_uid = sop_instance[0x0020, 0x000D].value.name  # name is the UID as str
 
             if study_instance_uid not in study_dict:
                 study = DICOMStudy(study_instance_uid)
                 self.populate_study_attributes(study, sop_instance)
                 study_dict[study_instance_uid] = study
 
-            series_instance_uid = sop_instance[0x0020, 0x000E].value
+            series_instance_uid = sop_instance[0x0020, 0x000E].value.name  # name is the UID as str
 
             if series_instance_uid not in series_dict:
                 series = DICOMSeries(series_instance_uid)
@@ -103,35 +122,35 @@ class DICOMDataLoaderOperator(Operator):
         try:
             study_id_de = sop_instance[0x0020, 0x0010]
             if study_id_de is not None:
-                study.study_id = study_id_de.value
+                study.StudyID = study_id_de.value
         except KeyError:
             pass
 
         try:
             study_date_de = sop_instance[0x0008, 0x0020]
             if study_date_de is not None:
-                study.study_date = study_date_de.value
+                study.StudyDate = study_date_de.value
         except KeyError:
             pass
 
         try:
             study_time_de = sop_instance[0x0008, 0x0030]
             if study_time_de is not None:
-                study.study_time = study_time_de.value
+                study.StudyTime = study_time_de.value
         except KeyError:
             pass
 
         try:
             study_desc_de = sop_instance[0x0008, 0x1030]
             if study_desc_de is not None:
-                study.study_description = study_desc_de.value
+                study.StudyDescription = study_desc_de.value
         except KeyError:
             pass
 
         try:
             accession_number_de = sop_instance[0x0008, 0x0050]
             if accession_number_de is not None:
-                study.accession_number = accession_number_de.value
+                study.AccessionNumber = accession_number_de.value
         except KeyError:
             pass
 
@@ -145,56 +164,60 @@ class DICOMDataLoaderOperator(Operator):
         try:
             series_date_de = sop_instance[0x0008, 0x0021]
             if series_date_de is not None:
-                series.series_date = series_date_de.value
+                series.SeriesDate = series_date_de.value
         except KeyError:
             pass
 
         try:
             series_time_de = sop_instance[0x0008, 0x0031]
             if series_time_de is not None:
-                series.series_time = series_time_de.value
+                series.SeriesTime = series_time_de.value
         except KeyError:
             pass
 
         try:
             series_modality_de = sop_instance[0x0008, 0x0060]
             if series_modality_de is not None:
-                series.modality = series_modality_de.value
+                series.Modality = series_modality_de.value
         except KeyError:
             pass
 
         try:
             series_description_de = sop_instance[0x0008, 0x103E]
             if series_description_de is not None:
-                series.series_description = series_description_de.value
+                series.SeriesDescription = series_description_de.value
         except KeyError:
             pass
 
         try:
             body_part_examined_de = sop_instance[0x0008, 0x0015]
             if body_part_examined_de is not None:
-                series.body_part_examined = body_part_examined_de.value
+                series.BodyPartExamined = body_part_examined_de.value
         except KeyError:
             pass
 
         try:
             patient_position_de = sop_instance[0x0018, 0x5100]
             if patient_position_de is not None:
-                series.patient_position = patient_position_de.value
+                series.PatientPosition = patient_position_de.value
         except KeyError:
             pass
 
         try:
             series_number_de = sop_instance[0x0020, 0x0011]
             if series_number_de is not None:
-                series.series_number = series_number_de.value
+                val = series_number_de.value
+                if isinstance(val, valuerep.IS):
+                    series.SeriesNumber = val.real
+                else:
+                    series.SeriesNumber = int(val)
         except KeyError:
             pass
 
         try:
             laterality_de = sop_instance[0x0020, 0x0060]
             if laterality_de is not None:
-                series.laterality = laterality_de.value
+                series.Laterality = laterality_de.value
         except KeyError:
             pass
 
@@ -221,13 +244,11 @@ class DICOMDataLoaderOperator(Operator):
             pass
 
 
-def main():
-    # data_path = "/home/rahul/medical-images/mixed-data/"
-    data_path = "/home/rahul/medical-images/lung-ct-1/"
-    files = []
+def test():
+    data_path = "../../../examples/ai_spleen_seg_data/dcm"
+
     loader = DICOMDataLoaderOperator()
-    loader._list_files(data_path, files)
-    study_list = loader._load_data(files)
+    study_list = loader.load_data_to_studies(Path(data_path).absolute())
 
     for study in study_list:
         print("###############################")
@@ -237,4 +258,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    test()

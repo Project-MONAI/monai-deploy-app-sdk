@@ -39,9 +39,10 @@ class AISpleenSegApp(Application):
         """Creates the app specific operators and chain them up in the processing DAG."""
 
         self._logger.debug(f"Begin {self.compose.__name__}")
+
         # Creates the custom operator(s) as well as SDK built-in operator(s).
         study_loader_op = DICOMDataLoaderOperator()
-        series_selector_op = DICOMSeriesSelectorOperator()
+        series_selector_op = DICOMSeriesSelectorOperator(Sample_Rules_Text)
         series_to_vol_op = DICOMSeriesToVolumeOperator()
         # Model specific inference operator, supporting MONAI transforms.
         spleen_seg_op = SpleenSegOperator()
@@ -51,14 +52,36 @@ class AISpleenSegApp(Application):
         # Create the processing pipeline, by specifying the upstream and downstream operators, and
         # ensuring the output from the former matches the input of the latter, in both name and type.
         self.add_flow(study_loader_op, series_selector_op, {"dicom_study_list": "dicom_study_list"})
-        self.add_flow(series_selector_op, series_to_vol_op, {"dicom_series": "dicom_series"})
+        self.add_flow(
+            series_selector_op, series_to_vol_op, {"study_selected_series_list": "study_selected_series_list"}
+        )
         self.add_flow(series_to_vol_op, spleen_seg_op, {"image": "image"})
         # Note below the dicom_seg_writer requires two inputs, each coming from a upstream operator.
-        self.add_flow(series_selector_op, dicom_seg_writer, {"dicom_series": "dicom_series"})
+        self.add_flow(
+            series_selector_op, dicom_seg_writer, {"study_selected_series_list": "study_selected_series_list"}
+        )
         self.add_flow(spleen_seg_op, dicom_seg_writer, {"seg_image": "seg_image"})
 
         self._logger.debug(f"End {self.compose.__name__}")
 
+
+# This is a sample series selection rule in JSON, simply selecting CT series.
+# If the study has more than 1 CT series, then all of them will be selected.
+# Please see more detail in DICOMSeriesSelectorOperator.
+Sample_Rules_Text = """
+{
+    "selections": [
+        {
+            "name": "CT Series",
+            "conditions": {
+                "StudyDescription": "(.*?)",
+                "Modality": "(?i)CT",
+                "SeriesDescription": "(.*?)"
+            }
+        }
+    ]
+}
+"""
 
 if __name__ == "__main__":
     # Creates the app and test it standalone. When running is this mode, please note the following:

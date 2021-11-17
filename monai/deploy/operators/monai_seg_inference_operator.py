@@ -143,9 +143,9 @@ class MonaiSegInferenceOperator(InferenceOperator):
             return metadata
 
         # Try to convert data type for the well knowned attributes. Add more as needed.
-        if metadata.get("series_instance_uid", None):
+        if metadata.get("SeriesInstanceUID", None):
             try:
-                metadata["series_instance_uid"] = str(metadata["series_instance_uid"])
+                metadata["SeriesInstanceUID"] = str(metadata["SeriesInstanceUID"])
             except Exception:
                 pass
         if metadata.get("row_pixel_spacing", None):
@@ -186,7 +186,7 @@ class MonaiSegInferenceOperator(InferenceOperator):
             # Need to try to convert the data type of a few metadata attributes.
             input_img_metadata = self._convert_dicom_metadata_datatype(input_image.metadata())
             # Need to give a name to the image as in-mem Image obj has no name.
-            img_name = str(input_img_metadata.get("series_instance_uid", "Img_in_context"))
+            img_name = str(input_img_metadata.get("SeriesInstanceUID", "Img_in_context"))
 
             pre_transforms: Compose = self._pre_transform
             post_transforms: Compose = self._post_transforms
