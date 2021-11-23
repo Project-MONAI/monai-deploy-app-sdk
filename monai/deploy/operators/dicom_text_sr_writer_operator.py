@@ -260,7 +260,7 @@ class DICOMTestSRWriterOperator(Operator):
     # TODO: The following fucntion can considered to be moved into Domain module as it's common.
     @staticmethod
     def write_common_modules(
-        dicom_series: DICOMSeries,
+        dicom_series: Union[DICOMSeries, None],
         copy_tags: bool,
         modality_type: str,
         sop_class_uid: str,
