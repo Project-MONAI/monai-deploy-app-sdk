@@ -21,9 +21,9 @@ DataElement: Any = DataElement_ if dataelement_ok_ else Any
 Dataset_, dataset_ok_ = optional_import("pydicom", name="Dataset")
 # Dynamic class is not handled so make it Any for now: https://github.com/python/mypy/issues/2477
 Dataset: Any = Dataset_ if dataset_ok_ else Any
-TagType_, tagtype_ok_ = optional_import("pydicom.tag", name="TagType")
+Tag_, tag_ok_ = optional_import("pydicom.tag", name="Tag")
 # Dynamic class is not handled so make it Any for now: https://github.com/python/mypy/issues/2477
-TagType: Any = TagType_ if tagtype_ok_ else Any
+Tag: Any = Tag_ if tag_ok_ else Any
 
 
 class DICOMSOPInstance(Domain):
@@ -39,7 +39,7 @@ class DICOMSOPInstance(Domain):
     def get_native_sop_instance(self):
         return self._sop
 
-    def __getitem__(self, key: Union[int, slice, TagType]) -> Union[Dataset, DataElement]:
+    def __getitem__(self, key: Union[int, slice, Tag]) -> Union[Dataset, DataElement]:
         return self._sop.__getitem__(key)
 
     def get_pixel_array(self):

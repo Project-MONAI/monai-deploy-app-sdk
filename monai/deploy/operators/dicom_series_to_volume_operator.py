@@ -346,12 +346,13 @@ def test():
     from monai.deploy.operators.dicom_data_loader_operator import DICOMDataLoaderOperator
     from monai.deploy.operators.dicom_series_selector_operator import DICOMSeriesSelectorOperator
 
-    data_path = "../../../examples/ai_spleen_seg_data/dcm"
+    current_file_dir = Path(__file__).parent.resolve()
+    data_path = current_file_dir.joinpath("../../../examples/ai_spleen_seg_data/dcm")
     loader = DICOMDataLoaderOperator()
     study_list = loader.load_data_to_studies(Path(data_path).absolute())
 
     series_selector = DICOMSeriesSelectorOperator()
-    _, study_selected_series_list = series_selector.filter(None, study_list)
+    study_selected_series_list = series_selector.filter(None, study_list)
 
     op = DICOMSeriesToVolumeOperator()
     image = op.convert_to_image(study_selected_series_list)

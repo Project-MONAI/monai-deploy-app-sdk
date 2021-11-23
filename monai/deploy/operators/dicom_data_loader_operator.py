@@ -245,16 +245,50 @@ class DICOMDataLoaderOperator(Operator):
 
 
 def test():
-    data_path = "../../../examples/ai_spleen_seg_data/dcm"
+    current_file_dir = Path(__file__).parent.resolve()
+    data_path = current_file_dir.joinpath("../../../examples/ai_spleen_seg_data/dcm")
 
     loader = DICOMDataLoaderOperator()
-    study_list = loader.load_data_to_studies(Path(data_path).absolute())
+    study_list = loader.load_data_to_studies(data_path.absolute())
 
     for study in study_list:
         print("###############################")
         print(study)
         for series in study.get_all_series():
             print(series)
+        for series in study.get_all_series():
+            for sop in series.get_sop_instances():
+                print("Demonstrating ways to access DICOM attributes in a SOP instance.")
+                # No need to get the native_ds = sop.get_native_sop_instance()
+                # sop = sop.get_native_sop_instance()
+                print(f"   'StudyInstanceUID': {sop['StudyInstanceUID'].repval}")
+                print(f"     (0x0020, 0x000D): {sop[0x0020, 0x000D].repval}")
+                print(f"  'SeriesInstanceUID': {sop['SeriesInstanceUID'].value.name}")
+                print(f"     (0x0020, 0x000E): {sop[0x0020, 0x000E].value.name}")
+                print(f"     'SOPInstanceUID': {sop['SOPInstanceUID'].value.name}")
+                print(f"          (0008,0018): {sop[0x0008, 0x0018].value.name}")
+                try:
+                    print(f"     'InstanceNumber': {sop['InstanceNumber'].repval}")
+                    print(f"         (0020, 0013): {sop[0x0020, 0x0013].repval}")
+                except KeyError:
+                    pass
+                # Need to get pydicom dataset to use properties and get method of a dict.
+                ds = sop.get_native_sop_instance()
+                print(f"   'StudyInstanceUID': {ds.StudyInstanceUID if ds.StudyInstanceUID else ''}")
+                print(f"  'SeriesDescription': {ds.SeriesDescription if ds.SeriesDescription else ''}")
+                print(
+                    f"  'IssuerOfPatientID': {ds.get('IssuerOfPatientID', '').repval if ds.get('IssuerOfPatientID', '') else '' }"
+                )
+                try:
+                    print(f"  'IssuerOfPatientID': {ds.IssuerOfPatientID if ds.IssuerOfPatientID else '' }")
+                except AttributeError:
+                    print(
+                        "    If the IssuerOfPatientID does not exist, ds.IssuerOfPatientID would throw AttributeError."
+                    )
+                    print("    Use ds.get('IssuerOfPatientID', '') instead.")
+
+                break
+            break
 
 
 if __name__ == "__main__":
