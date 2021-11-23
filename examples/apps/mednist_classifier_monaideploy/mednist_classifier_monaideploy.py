@@ -52,7 +52,6 @@ class LoadPILOperator(Operator):
 
 @md.input("image", Image, IOType.IN_MEMORY)
 @md.output("result_text", Text, IOType.IN_MEMORY)
-# @md.output("output", DataPath, IOType.DISK)
 @md.env(pip_packages=["monai"])
 class MedNISTClassifierOperator(Operator):
     """Classifies the given image and returns the class name."""

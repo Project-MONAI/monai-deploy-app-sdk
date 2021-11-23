@@ -259,7 +259,7 @@ class DICOMTextSRWriterOperator(Operator):
             # Test reading back
             _ = dcmread(str(file_path))
 
-    # TODO: The following function can considered to be moved into Domain module as it's common.
+    # TODO: The following function can be moved into Domain module as it's common.
     @staticmethod
     def write_common_modules(
         dicom_series: Union[DICOMSeries, None],
