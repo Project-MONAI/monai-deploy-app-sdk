@@ -106,8 +106,10 @@ class DICOMTestSRWriterOperator(Operator):
         Args:
             copy_tags (bool): True for copying DICOM attributes from a provided DICOMSeries.
             model_info (ModelInfo): Object encapsulating model creator, name, verison and UID.
-            equipment_info (EquipmentInfo, optional): Object encapsulating info for DICOM Equipement Module. Defaults to None.
-            custom_tags (Dict[str, str], optional): Dictionary for setting custom DICOM tags using Keywords and str values only. Defaults to None.
+            equipment_info (EquipmentInfo, optional): Object encapsulating info for DICOM Equipement Module.
+                                                      Defaults to None.
+            custom_tags (Dict[str, str], optional): Dictionary for setting custom DICOM tags using Keywords and str values only.
+                                                    Defaults to None.
 
         Raises:
             ValueError: If copy_tags is true and no DICOMSeries object provided, or
@@ -154,7 +156,7 @@ class DICOMTestSRWriterOperator(Operator):
             try:
                 file_path = op_input.get("classification_result_file")
             except ItemNotExistsError:
-                raise ValueError("None of the named inputs for result can be found.")
+                raise ValueError("None of the named inputs for result can be found.") from None
             # Read file, and if exception, let it bubble up
             with open(file_path.path, "r") as f:
                 result_text = f.read().strip()
