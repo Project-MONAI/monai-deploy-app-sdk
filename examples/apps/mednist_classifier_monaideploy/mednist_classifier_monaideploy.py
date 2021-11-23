@@ -107,7 +107,7 @@ class App(Application):
 
         my_model_info = ModelInfo("MONAI WG Trainer", "MEDNIST Classifier", "0.1", "xyz")
         my_equipment = EquipmentInfo(manufacturer="MOANI Deploy App SDK", manufacturer_model="DICOM SR Writer")
-        my_special_tags = {"SeriesDescription": "Not for clinical use. The result is research use only"}
+        my_special_tags = {"SeriesDescription": "Not for clinical use. The result is for research use only."}
         dicom_sr_operator = DICOMTextSRWriterOperator(
             copy_tags=False, model_info=my_model_info, equipment_info=my_equipment, custom_tags=my_special_tags
         )

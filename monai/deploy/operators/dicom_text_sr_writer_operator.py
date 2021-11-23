@@ -37,7 +37,7 @@ from monai.deploy.exceptions import ItemNotExistsError
 class ModelInfo(object):
     """Class encapsulating AI model information, according to IHE AI Results (AIR) Rev 1.1.
 
-    The attributes of the class will be used to populate the Contributing Equipement Sequence in the DICOM IOD
+    The attributes of the class will be used to populate the Contributing Equipment Sequence in the DICOM IOD
     per IHE AIR Rev 1.1, Section 6.5.3.1 General Result Encoding Requirements, as the following,
 
     The Creator shall describe each algorithm that was used to generate the results in the
@@ -62,7 +62,7 @@ class ModelInfo(object):
 
 
 class EquipmentInfo(object):
-    """Class encapsulating attributes required for DICOM Equipement Module."""
+    """Class encapsulating attributes required for DICOM Equipment Module."""
 
     def __init__(
         self,
@@ -107,8 +107,8 @@ class DICOMTextSRWriterOperator(Operator):
 
         Args:
             copy_tags (bool): True for copying DICOM attributes from a provided DICOMSeries.
-            model_info (ModelInfo): Object encapsulating model creator, name, verison and UID.
-            equipment_info (EquipmentInfo, optional): Object encapsulating info for DICOM Equipement Module.
+            model_info (ModelInfo): Object encapsulating model creator, name, version and UID.
+            equipment_info (EquipmentInfo, optional): Object encapsulating info for DICOM Equipment Module.
                                                       Defaults to None.
             custom_tags (Dict[str, str], optional): Dictionary for setting custom DICOM tags using Keywords and str values only.
                                                     Defaults to None.
@@ -173,7 +173,7 @@ class DICOMTextSRWriterOperator(Operator):
 
         dicom_series = None  # It can be None of copy_tags is false.
         if self.copy_tags:
-            # Get the first DICOM Series, as for now, only exepecting this.
+            # Get the first DICOM Series, as for now, only expecting this.
             if not study_selected_series_list or len(study_selected_series_list) < 1:
                 raise ValueError("Missing input, list of 'StudySelectedSeries'.")
             for study_selected_series in study_selected_series_list:
@@ -185,7 +185,7 @@ class DICOMTextSRWriterOperator(Operator):
         output_dir = op_output.get().path
         output_dir.mkdir(parents=True, exist_ok=True)
 
-        # Now ready to starting writing the DICOM insance
+        # Now ready to starting writing the DICOM instance
         self.write(result_text, dicom_series, output_dir)
 
     def write(self, content_text, dicom_series: Union[DICOMSeries, None], output_dir: Path):
@@ -194,7 +194,7 @@ class DICOMTextSRWriterOperator(Operator):
         Args:
             content_file (str): file containing the contents
             dicom_series (DicomSeries): DicomSeries object encapsulating the original series.
-            model_info (MoelInfo): Object encapsulating model creator, name, verison and UID.
+            model_info (MoelInfo): Object encapsulating model creator, name, version and UID.
 
         Returns:
             PyDicom Dataset
@@ -210,7 +210,7 @@ class DICOMTextSRWriterOperator(Operator):
         ds.VerificationFlag = "UNVERIFIED"  # Not attested by a legally accountable person.
 
         # Per recommendation of IHE Radiology Technical Framework Supplement
-        # AI Results (AIR) Rev1.1 - Trial Implenmentation
+        # AI Results (AIR) Rev1.1 - Trial Implementation
         # Specifically for Qualitative Findings,
         # Qualitative findings shall be encoded in an instance of the DICOM Comprehensive 3D SR SOP
         # Class using TID 1500 (Measurement Report) as the root template.
@@ -259,7 +259,7 @@ class DICOMTextSRWriterOperator(Operator):
             # Test reading back
             _ = dcmread(str(file_path))
 
-    # TODO: The following fucntion can considered to be moved into Domain module as it's common.
+    # TODO: The following function can considered to be moved into Domain module as it's common.
     @staticmethod
     def write_common_modules(
         dicom_series: Union[DICOMSeries, None],
@@ -278,8 +278,8 @@ class DICOMTextSRWriterOperator(Operator):
             copy_tags (bool): If true, dicom_series must be provided for copying tags.
             modality_type (str): DICOM Modality Type, e.g. SR.
             sop_class_uid (str): Media Storage SOP Class UID, e.g. "1.2.840.10008.5.1.4.1.1.88.34" for Comprehensive 3D SR IOD.
-            model_info (MoelInfo): Object encapsulating model creator, name, verison and UID.
-            equipment_info(EquipmentInfo): Oject encapsulating attributes for DICOM Equipement Module
+            model_info (MoelInfo): Object encapsulating model creator, name, version and UID.
+            equipment_info(EquipmentInfo): Object encapsulating attributes for DICOM Equipment Module
 
         Returns:
             pydicom Dataset
@@ -357,7 +357,7 @@ class DICOMTextSRWriterOperator(Operator):
         ds.StudyID = orig_ds.get("StudyID", "") if copy_tags else "1"
         ds.ReferringPhysicianName = orig_ds.get("ReferringPhysicianName", "") if copy_tags else ""
 
-        # Equipement Module, mandatory
+        # Equipment Module, mandatory
         if equipment_info:
             ds.Manufacturer = equipment_info.manufacturer
             ds.ManufacturerModel = equipment_info.manufacturer_model
@@ -379,11 +379,11 @@ class DICOMTextSRWriterOperator(Operator):
         ds.SeriesDescription = my_series_description
         ds.SeriesDate = date_now_dcm
         ds.SeriesTime = time_now_dcm
-        # Body part copied over, although not madatory depedning on modality
+        # Body part copied over, although not mandatory depending on modality
         ds.BodyPartExamined = orig_ds.get("BodyPartExamined", "") if copy_tags else ""
         ds.RequestedProcedureID = orig_ds.get("RequestedProcedureID", "") if copy_tags else ""
 
-        # Contributing Equipement Sequence
+        # Contributing Equipment Sequence
         # The Creator shall describe each algorithm that was used to generate the results in the
         # Contributing Equipment Sequence (0018,A001). Multiple items may be included. The Creator
         # shall encode the following details in the Contributing Equipment Sequence:
@@ -402,18 +402,18 @@ class DICOMTextSRWriterOperator(Operator):
             ds_purpose_of_reference_code.CodeMeaning = '"Processing Algorithm'
             seq_purpose_of_reference_code.append(ds_purpose_of_reference_code)
 
-            seq_contributing_equipement = Sequence()
-            ds_contributing_equipement = Dataset()
-            ds_contributing_equipement.PurposeOfReferenceCodeSequence = seq_purpose_of_reference_code
+            seq_contributing_equipment = Sequence()
+            ds_contributing_equipment = Dataset()
+            ds_contributing_equipment.PurposeOfReferenceCodeSequence = seq_purpose_of_reference_code
             # '(121014, DCM, “Device Observer Manufacturer")'
-            ds_contributing_equipement.Manufacturer = model_info.creator
+            ds_contributing_equipment.Manufacturer = model_info.creator
             # u'(121015, DCM, “Device Observer Model Name")'
-            ds_contributing_equipement.ManufacturerModel = model_info.name
+            ds_contributing_equipment.ManufacturerModel = model_info.name
             # u'(111003, DCM, “Algorithm Version")'
-            ds_contributing_equipement.SoftwareVersionNumber = model_info.version
-            ds_contributing_equipement.DeviceUID = model_info.uid  # u'(121012, DCM, “Device Observer UID")'
-            seq_contributing_equipement.append(ds_contributing_equipement)
-            ds.ContributingEquipementSequence = seq_contributing_equipement
+            ds_contributing_equipment.SoftwareVersionNumber = model_info.version
+            ds_contributing_equipment.DeviceUID = model_info.uid  # u'(121012, DCM, “Device Observer UID")'
+            seq_contributing_equipment.append(ds_contributing_equipment)
+            ds.ContributingequipmentSequence = seq_contributing_equipment
 
         logging.debug("DICOM common modules written:\n{}".format(ds))
 
@@ -451,7 +451,7 @@ def test():
     if test_copy_tags:
         study_list = loader.load_data_to_studies(Path(data_path).absolute())
         study_selected_series_list = series_selector.filter(None, study_list)
-        # Get the first DICOM Series, as for now, only exepecting this.
+        # Get the first DICOM Series, as for now, only expecting this.
         if not study_selected_series_list or len(study_selected_series_list) < 1:
             raise ValueError("Missing input, list of 'StudySelectedSeries'.")
         for study_selected_series in study_selected_series_list:
