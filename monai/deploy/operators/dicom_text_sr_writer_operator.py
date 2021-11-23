@@ -13,7 +13,7 @@ import datetime
 import logging
 from pathlib import Path
 from random import randint
-from typing import Dict, List, Text
+from typing import Dict, List, Text, Union
 
 from monai.deploy.utils.importutil import optional_import
 from monai.deploy.utils.version import get_sdk_semver
@@ -98,8 +98,8 @@ class DICOMTestSRWriterOperator(Operator):
         self,
         copy_tags: bool,
         model_info: ModelInfo,
-        equipment_info: EquipmentInfo = None,
-        custom_tags: Dict[str, str] = None,
+        equipment_info: Union[EquipmentInfo, None] = None,
+        custom_tags: Union[Dict[str, str], None] = None,
     ):
         """Class to write DICOM SR SOP Instance for AI textual result in memeory or in a file.
 
@@ -186,7 +186,7 @@ class DICOMTestSRWriterOperator(Operator):
         # Now ready to starting writing the DICOM insance
         self.write(result_text, dicom_series, output_dir)
 
-    def write(self, content_text, dicom_series: DICOMSeries, output_dir: Path):
+    def write(self, content_text, dicom_series: Union[DICOMSeries, None], output_dir: Path):
         """Writes DICOM object
 
         Args:
@@ -246,7 +246,7 @@ class DICOMTestSRWriterOperator(Operator):
         self.save_dcm_file(ds, file_path)
 
     @staticmethod
-    def save_dcm_file(data_set: Dataset, file_path: Path, validate_readable: bool = True):
+    def save_dcm_file(data_set, file_path: Path, validate_readable: bool = True):
         logging.debug(f"DICOM dataset to be written:{data_set}")
 
         # Write out the DCM file
@@ -264,8 +264,8 @@ class DICOMTestSRWriterOperator(Operator):
         copy_tags: bool,
         modality_type: str,
         sop_class_uid: str,
-        model_info: ModelInfo = None,
-        equipment_info: EquipmentInfo = None,
+        model_info: Union[ModelInfo, None] = None,
+        equipment_info: Union[EquipmentInfo, None] = None,
     ):
         """Writes DICOM object common modules with or without a reference DCIOM Series
 
