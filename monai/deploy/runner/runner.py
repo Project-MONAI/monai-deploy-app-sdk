@@ -39,8 +39,14 @@ def fetch_map_manifest(map_name: str) -> Tuple[dict, dict, int]:
     logger.info("\nReading MONAI App Package manifest...")
 
     with tempfile.TemporaryDirectory() as info_dir:
-        cmd = f"docker run --rm -a STDOUT -a STDERR -v {info_dir}:/var/run/monai/export/config {map_name}"
-
+        if sys.platform == "win32":
+            cmd = f'docker run --rm -a STDOUT -a STDERR -v "{info_dir}":/var/run/monai/export/config {map_name}'
+        else:
+            cmd = f"""docker_id=$(docker create {map_name})
+docker cp $docker_id:/etc/monai/app.json "{info_dir}/app.json"
+docker cp $docker_id:/etc/monai/pkg.json "{info_dir}/pkg.json"
+docker rm -v $docker_id > /dev/null
+"""
         returncode = run_cmd(cmd)
         if returncode != 0:
             return {}, {}, returncode
