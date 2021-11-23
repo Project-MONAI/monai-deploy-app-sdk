@@ -110,7 +110,8 @@ class DICOMTestSRWriterOperator(Operator):
             custom_tags (Dict[str, str], optional): Dictionary for setting custom DICOM tags using Keywords and str values only. Defaults to None.
 
         Raises:
-            ValueError: If copy_tags is true and no DICOMSeries object provided.
+            ValueError: If copy_tags is true and no DICOMSeries object provided, or
+                        if result cannot be found either in memory or from file.
         """
 
         self._logger = logging.getLogger("{}.{}".format(__name__, type(self).__name__))
@@ -153,7 +154,7 @@ class DICOMTestSRWriterOperator(Operator):
             try:
                 file_path = op_input.get("classification_result_file")
             except ItemNotExistsError:
-                raise ItemNotExistsError("None of the named inputs exists")
+                raise ValueError("None of the named inputs for result can be found.")
             # Read file, and if exception, let it bubble up
             with open(file_path.path, "r") as f:
                 result_text = f.read().strip()
@@ -217,7 +218,7 @@ class DICOMTestSRWriterOperator(Operator):
         # Use text value for example
         ds.ValueType = "TEXT"
 
-        ## ConceptNameCode Sequence
+        # ConceptNameCode Sequence
         seq_concept_name_code = Sequence()
         ds_concept_name_code = Dataset()
         ds_concept_name_code.CodeValue = "18748-4"
@@ -400,16 +401,13 @@ class DICOMTestSRWriterOperator(Operator):
             seq_contributing_equipement = Sequence()
             ds_contributing_equipement = Dataset()
             ds_contributing_equipement.PurposeOfReferenceCodeSequence = seq_purpose_of_reference_code
-            ds_contributing_equipement.Manufacturer = (
-                model_info.creator
-            )  # '(121014, DCM, “Device Observer Manufacturer")'
-            ds_contributing_equipement.ManufacturerModel = (
-                model_info.name
-            )  # u'(121015, DCM, “Device Observer Model Name")'
-            ds_contributing_equipement.SoftwareVersionNumber = (
-                model_info.version
-            )  # u'(111003, DCM, “Algorithm Version")'
-            ds_contributing_equipement.DeviceUID = model_info.uid  #  u'(121012, DCM, “Device Observer UID")'
+            # '(121014, DCM, “Device Observer Manufacturer")'
+            ds_contributing_equipement.Manufacturer = model_info.creator
+            # u'(121015, DCM, “Device Observer Model Name")'
+            ds_contributing_equipement.ManufacturerModel = model_info.name
+            # u'(111003, DCM, “Algorithm Version")'
+            ds_contributing_equipement.SoftwareVersionNumber = model_info.version
+            ds_contributing_equipement.DeviceUID = model_info.uid  # u'(121012, DCM, “Device Observer UID")'
             seq_contributing_equipement.append(ds_contributing_equipement)
             ds.ContributingEquipementSequence = seq_contributing_equipement
 
