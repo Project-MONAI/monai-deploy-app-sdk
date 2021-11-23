@@ -277,14 +277,15 @@ def test():
 
     from monai.deploy.operators.dicom_data_loader_operator import DICOMDataLoaderOperator
 
-    data_path = "../../../examples/ai_spleen_seg_data/dcm-multi"
+    current_file_dir = Path(__file__).parent.resolve()
+    data_path = current_file_dir.joinpath("../../../examples/ai_spleen_seg_data/dcm-multi")
 
     loader = DICOMDataLoaderOperator()
-    study_list = loader.load_data_to_studies(Path(data_path).absolute())
+    study_list = loader.load_data_to_studies(data_path.absolute())
     selector = DICOMSeriesSelectorOperator()
     sample_selection_rule = json_loads(Sample_Rules_Text)
     print(f"Selection rules in JSON:\n{sample_selection_rule}")
-    series_list, study_selected_seriee_list = selector.filter(sample_selection_rule, study_list)
+    study_selected_seriee_list = selector.filter(sample_selection_rule, study_list)
 
     for sss_obj in study_selected_seriee_list:
         _print_instance_properties(sss_obj, pre_fix="", print_val=False)
@@ -314,7 +315,7 @@ def test():
                 _print_instance_properties(ss_obj, pre_fix)
                 print(f"{pre_fix}===============================")
 
-    print(f"Total # of series selected: {len(series_list)}")
+        print(f"  A total of {len(sss_obj.selected_series)} series selected for study {study.StudyInstanceUID}")
 
 
 # Sample rule used for testing

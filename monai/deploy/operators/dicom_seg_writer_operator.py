@@ -660,17 +660,17 @@ def test():
     from monai.deploy.operators.dicom_series_selector_operator import DICOMSeriesSelectorOperator
     from monai.deploy.operators.dicom_series_to_volume_operator import DICOMSeriesToVolumeOperator
 
-    data_path = "../../../examples/ai_spleen_seg_data/dcm"
-    out_path = "../../../examples/output_seg_op/dcm_seg_test.dcm"
+    current_file_dir = Path(__file__).parent.resolve()
+    data_path = current_file_dir.joinpath("../../../examples/ai_spleen_seg_data/dcm")
+    out_path = current_file_dir.joinpath("../../../examples/output_seg_op/dcm_seg_test.dcm")
 
-    files = []
     loader = DICOMDataLoaderOperator()
     series_selector = DICOMSeriesSelectorOperator()
     dcm_to_volume_op = DICOMSeriesToVolumeOperator()
     seg_writer = DICOMSegmentationWriterOperator()
 
     # Testing with more granular functions
-    study_list = loader.load_data_to_studies(Path(data_path).absolute())
+    study_list = loader.load_data_to_studies(data_path.absolute())
     series = study_list[0].get_all_series()[0]
 
     dcm_to_volume_op.prepare_series(series)
@@ -682,10 +682,10 @@ def test():
     seg_writer.create_dicom_seg(image_numpy, series, Path(out_path).absolute())
 
     # Testing with the main entry functions
-    study_list = loader.load_data_to_studies(Path(data_path).absolute())
-    _, study_selected_series_list = series_selector.filter(None, study_list)
+    study_list = loader.load_data_to_studies(data_path.absolute())
+    study_selected_series_list = series_selector.filter(None, study_list)
     image = dcm_to_volume_op.convert_to_image(study_selected_series_list)
-    seg_writer.process_images(image, study_selected_series_list, Path(out_path).parent.absolute())
+    seg_writer.process_images(image, study_selected_series_list, out_path.parent.absolute())
 
 
 if __name__ == "__main__":
