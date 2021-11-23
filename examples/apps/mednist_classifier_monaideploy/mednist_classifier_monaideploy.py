@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from typing import Text
+
 import monai.deploy.core as md
 from monai.deploy.core import (
     Application,
@@ -20,6 +22,7 @@ from monai.deploy.core import (
     Operator,
     OutputContext,
 )
+from monai.deploy.operators.dicom_text_sr_writer_operator import DICOMTextSRWriterOperator, EquipmentInfo, ModelInfo
 from monai.transforms import AddChannel, Compose, EnsureType, ScaleIntensity
 
 MEDNIST_CLASSES = ["AbdomenCT", "BreastMRI", "CXR", "ChestCT", "Hand", "HeadCT"]
@@ -48,7 +51,8 @@ class LoadPILOperator(Operator):
 
 
 @md.input("image", Image, IOType.IN_MEMORY)
-@md.output("output", DataPath, IOType.DISK)
+@md.output("result_text", Text, IOType.IN_MEMORY)
+# @md.output("output", DataPath, IOType.DISK)
 @md.env(pip_packages=["monai"])
 class MedNISTClassifierOperator(Operator):
     """Classifies the given image and returns the class name."""
@@ -80,9 +84,11 @@ class MedNISTClassifierOperator(Operator):
 
         result = MEDNIST_CLASSES[output_classes[0]]  # get the class name
         print(result)
+        op_output.set(result, "result_text")
 
         # Get output (folder) path and create the folder if not exists
-        output_folder = op_output.get().path
+        # The following gets the App context's output path, instead the operator's.
+        output_folder = context.output.get().path
         output_folder.mkdir(parents=True, exist_ok=True)
 
         # Write result to "output.json"
@@ -99,7 +105,15 @@ class App(Application):
         load_pil_op = LoadPILOperator()
         classifier_op = MedNISTClassifierOperator()
 
+        my_model_info = ModelInfo("MONAI WG Trainer", "MEDNIST Classifier", "0.1", "xyz")
+        my_equipment = EquipmentInfo(manufacturer="MOANI Deploy App SDK", manufacturer_model="DICOM SR Writer")
+        my_special_tags = {"SeriesDescription": "Not for clinical use. The result is research use only"}
+        dicom_sr_operator = DICOMTextSRWriterOperator(
+            copy_tags=False, model_info=my_model_info, equipment_info=my_equipment, custom_tags=my_special_tags
+        )
+
         self.add_flow(load_pil_op, classifier_op)
+        self.add_flow(classifier_op, dicom_sr_operator, {"result_text": "classification_result"})
 
 
 if __name__ == "__main__":

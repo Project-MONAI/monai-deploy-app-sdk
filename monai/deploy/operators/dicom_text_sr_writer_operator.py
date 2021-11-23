@@ -100,6 +100,8 @@ class DICOMTextSRWriterOperator(Operator):
         model_info: ModelInfo,
         equipment_info: Union[EquipmentInfo, None] = None,
         custom_tags: Union[Dict[str, str], None] = None,
+        *args,
+        **kwargs,
     ):
         """Class to write DICOM SR SOP Instance for AI textual result in memeory or in a file.
 
@@ -115,7 +117,7 @@ class DICOMTextSRWriterOperator(Operator):
             ValueError: If copy_tags is true and no DICOMSeries object provided, or
                         if result cannot be found either in memory or from file.
         """
-
+        super().__init__(*args, **kwargs)
         self._logger = logging.getLogger("{}.{}".format(__name__, type(self).__name__))
         self.copy_tags = copy_tags
         self.model_info = model_info if model_info else ModelInfo()
