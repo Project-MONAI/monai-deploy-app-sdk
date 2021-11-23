@@ -90,7 +90,7 @@ class EquipmentInfo(object):
 @md.input("study_selected_series_list", List[StudySelectedSeries], IOType.IN_MEMORY)
 @md.output("dicom_instance", DataPath, IOType.DISK)
 @md.env(pip_packages=["pydicom >= 1.4.2"])
-class DICOMTestSRWriterOperator(Operator):
+class DICOMTextSRWriterOperator(Operator):
 
     DCM_EXTENSION = ".dcm"
 
@@ -200,7 +200,7 @@ class DICOMTestSRWriterOperator(Operator):
         self._logger.debug("Writing DICOM object...\n{}")
         output_dir.mkdir(parents=True, exist_ok=True)  # Just in case
 
-        ds = DICOMTestSRWriterOperator.write_common_modules(
+        ds = DICOMTextSRWriterOperator.write_common_modules(
             dicom_series, self.copy_tags, self.modality_type, self.sop_class_uid, self.model_info, self.equipment_info
         )
 
@@ -241,7 +241,7 @@ class DICOMTestSRWriterOperator(Operator):
                         logging.warning(f"Tag {k} was not written, due to {ex}")
 
         # Create the dcm file name, based on series instance UID, then save it.
-        file_name = f"{ds.SeriesInstanceUID}_{ds.Modality}{DICOMTestSRWriterOperator.DCM_EXTENSION}"
+        file_name = f"{ds.SeriesInstanceUID}_{ds.Modality}{DICOMTextSRWriterOperator.DCM_EXTENSION}"
         file_path = output_dir.joinpath(file_name)
         self.save_dcm_file(ds, file_path)
 
@@ -307,7 +307,7 @@ class DICOMTestSRWriterOperator(Operator):
         my_sop_instance_uid = generate_uid()
         my_series_instance_uid = generate_uid()
         my_series_description = "CAUTION: Not for Diagnostic Use, for research use only."
-        my_series_number = str(DICOMTestSRWriterOperator.random_with_n_digits(4))  # 4 digit number to avoid conflict
+        my_series_number = str(DICOMTextSRWriterOperator.random_with_n_digits(4))  # 4 digit number to avoid conflict
         my_study_instance_uid = orig_ds.StudyInstanceUID if copy_tags else generate_uid()
 
         # File meta info data set
@@ -440,7 +440,7 @@ def test():
 
     loader = DICOMDataLoaderOperator()
     series_selector = DICOMSeriesSelectorOperator()
-    sr_writer = DICOMTestSRWriterOperator(
+    sr_writer = DICOMTextSRWriterOperator(
         copy_tags=test_copy_tags, model_info=None, custom_tags={"SeriesDescription": "New AI Series"}
     )
 
