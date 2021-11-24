@@ -12,6 +12,8 @@
 :maxdepth: 1
 
 v0.2.0
+```
+
 ## Version 0.1
 
 ```{toctree}
