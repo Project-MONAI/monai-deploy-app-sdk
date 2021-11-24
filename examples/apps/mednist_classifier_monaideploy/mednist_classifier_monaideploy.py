@@ -69,12 +69,10 @@ class MedNISTClassifierOperator(Operator):
         image_tensor = self.transform(img)  # (1, 64, 64), torch.float64
         image_tensor = image_tensor[None].float()  # (1, 1, 64, 64), torch.float32
 
-        # Comment below line if you want to do CPU inference
-        image_tensor = image_tensor.cuda()
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        image_tensor = image_tensor.to(device)
 
         model = context.models.get()  # get a TorchScriptModel object
-        # Uncomment the following line if you want to do CPU inference
-        # model.predictor = torch.jit.load(model.path, map_location="cpu").eval()
 
         with torch.no_grad():
             outputs = model(image_tensor)
