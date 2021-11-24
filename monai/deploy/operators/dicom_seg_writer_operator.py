@@ -20,6 +20,8 @@ from typing import List, Optional, Union
 
 import numpy as np
 
+import highdicom as hd
+
 from monai.deploy.utils.importutil import optional_import
 from monai.deploy.utils.version import get_sdk_semver
 
@@ -157,12 +159,28 @@ class DICOMSegmentationWriterOperator(Operator):
         file_path.parent.absolute().mkdir(parents=True, exist_ok=True)
 
         dicom_dataset_list = [i.get_native_sop_instance() for i in dicom_series.get_sop_instances()]
-        # DICOM Seg creation
-        self._seg_writer = DICOMSegWriter()
-        try:
-            self._seg_writer.write(image, dicom_dataset_list, str(file_path), self._seg_labels)
-            # TODO: get a class to encapsulate the seg label information.
 
+        try:
+            version_str = get_sdk_semver()  # SDK Version
+        except Exception:
+            version_str = "0.1"  # Fall back to the initial version
+
+        seg = hd.seg.Segmentation(
+            source_images=dicom_dataset_list,
+            segmentation_type=hd.seg.SegmentationType.BINARY,
+            segment_descriptions=...,  # TODO segment descriptions
+            series_instance_uid=hd.UID(),
+            series_number=random_with_n_digits(4),
+            sop_instance_uid=hd.UID(),
+            instance_number=1,
+            manufacturer='Monai Deploy',
+            manufacturer_model_name='App SDK',
+            software_version=version_str,
+            device_serial_number='0000'
+        )
+        seg.save_as(file_path)
+
+        try:
             # Test reading back
             _ = self._read_from_dcm(str(file_path))
         except Exception as ex:
