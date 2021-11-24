@@ -12,9 +12,10 @@
 import os
 from pathlib import Path
 from random import randint
-from typing import TYPE_CHECKING, List, Union
+from typing import List, NamedTuple, Optional, Sequence, Union
 
 import numpy as np
+from typeguard import typechecked
 
 from monai.deploy.utils.importutil import optional_import
 from monai.deploy.utils.version import get_sdk_semver
@@ -24,19 +25,83 @@ generate_uid, _ = optional_import("pydicom.uid", name="generate_uid")
 ImplicitVRLittleEndian, _ = optional_import("pydicom.uid", name="ImplicitVRLittleEndian")
 Dataset, _ = optional_import("pydicom.dataset", name="Dataset")
 FileDataset, _ = optional_import("pydicom.dataset", name="FileDataset")
-Sequence, _ = optional_import("pydicom.sequence", name="Sequence")
 hd, _ = optional_import("highdicom")
 sitk, _ = optional_import("SimpleITK")
 codes, _ = optional_import("pydicom.sr.codedict", name="codes")
-if TYPE_CHECKING:
-    from highdicom.seg import SegmentDescription
-else:
-    SegmentDescription, _ = optional_import("highdicom.seg", name="SegmentDescription")
+pydicom_Code, _ = optional_import("pydicom.sr.coding", name="Codes")
 
 import monai.deploy.core as md
 from monai.deploy.core import DataPath, ExecutionContext, Image, InputContext, IOType, Operator, OutputContext
 from monai.deploy.core.domain.dicom_series import DICOMSeries
 from monai.deploy.core.domain.dicom_series_selection import StudySelectedSeries
+
+
+class Code(NamedTuple):
+    """Namedtuple for representation of a coded concept consisting of the
+    actual code *value*, the coding *scheme designator*, the code *meaning*
+    (and optionally the coding *scheme version*).
+    """
+    value: str
+    scheme_designator: str
+    meaning: str
+    scheme_version: Optional[str] = None
+
+
+class SegmentDescription:
+
+    @typechecked
+    def __init__(
+        self,
+        segment_number: int,
+        segment_label: str,
+        segmented_property_category: Code,
+        segmented_property_type: Code,
+        algorithm_name: str,
+        algorithm_version: str,
+        algorithm_family: Code = codes.DCM.ArtificialIntelligence,
+        tracking_uid: Optional[str] = None,
+        tracking_id: Optional[str] = None,
+        anatomic_regions: Optional[Sequence[Code]] = None,
+        primary_anatomic_structures: Optional[Sequence[Code]] = None
+    ):
+        self._segment_number = segment_number
+        self._segment_label = segment_label
+        self._segmented_property_category = pydicom_Code(*segmented_property_category)
+        self._segmented_property_type = pydicom_Code(*segmented_property_type)
+        self._tracking_id = tracking_id
+        if anatomic_regions is not None:
+            self._anatomic_regions = [pydicom_Code(*ar) for ar in anatomic_regions]
+        else:
+            self._anatomic_regions = None
+        if primary_anatomic_structures is not None:
+            self._primary_anatomic_structures = [pydicom_Code(*pas) for pas in primary_anatomic_structures]
+        else:
+            self._primary_anatomic_structures = None
+
+        # Generate a UID if one was not provided
+        if tracking_id is not None and tracking_uid is None:
+            tracking_uid = hd.UID()
+        self._tracking_uid = tracking_uid
+
+        self._algorithm_identification = hd.AlgorithmIdentificationSequence(
+            name=algorithm_name,
+            family=algorithm_family,
+            version=algorithm_version,
+        )
+
+    def to_segment_description(self) -> hd.seg.SegmentDescription:
+        return hd.seg.SegmentDescription(
+            segment_number=self._segment_number,
+            segment_label=self._segment_label,
+            segmented_property_category=self._segment_label,
+            segmented_property_type=self._segmented_property_type,
+            algorithm_identification=self._algorithm_identification,
+            algorithm_type="AUTOMATIC",
+            tracking_uid=self._tracking_uid,
+            tracking_id=self._tracking_id,
+            anatomic_regions=self._anatomic_regions,
+            primary_anatomic_structures=self._primary_anatomic_structures,
+        )
 
 
 @md.input("seg_image", Image, IOType.IN_MEMORY)
@@ -75,7 +140,7 @@ class DICOMSegmentationWriterOperator(Operator):
             segmentation.
         """
 
-        self._seg_descs = segment_descriptions
+        self._seg_descs = [sd.to_segment_description() for sd in segment_descriptions]
 
     def compute(self, op_input: InputContext, op_output: OutputContext, context: ExecutionContext):
         """Performs computation for this operator and handles I/O.
