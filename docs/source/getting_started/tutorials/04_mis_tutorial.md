@@ -13,6 +13,12 @@ The environment from the previous section (**<a href="./03_segmentation_app.html
 ```
 
 ```{raw} html
+<div style="text-align: center;">
+    <iframe width="560" height="315" src="https://www.youtube.com/watch?v=sISg521fdCA" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+</div>
+```
+
+```{raw} html
 <p style="text-align: center;">
     <a class="sphinx-bs btn text-wrap btn-outline-primary col-md-6 reference external" href="../../_static/notebooks/tutorials/04_mis_tutorial.ipynb">
         <span>Download 04_mis_tutorial.ipynb</span>
