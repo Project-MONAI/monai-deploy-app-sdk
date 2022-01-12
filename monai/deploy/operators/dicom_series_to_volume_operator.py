@@ -89,6 +89,7 @@ class DICOMSeriesToVolumeOperator(Operator):
             intercept = slices[0][0x0028, 0x1052].value
         except KeyError:
             intercept = 0
+
         try:
             slope = slices[0][0x0028, 0x1053].value
         except KeyError:
