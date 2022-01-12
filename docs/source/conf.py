@@ -16,7 +16,7 @@ if on_rtd:
 
     subprocess.call(
         "/bin/bash -c 'source /home/docs/checkouts/readthedocs.org/user_builds/"
-        f"{READTHEDOCS_PROJECT}/envs/{READTHEDOCS_VERSION}/bin/activate; ../../run setup'",
+        f"{READTHEDOCS_PROJECT}/envs/{READTHEDOCS_VERSION}/bin/activate; ../../run setup read_the_docs'",
         shell=True,
     )
     subprocess.call(
