@@ -301,11 +301,16 @@ get_package_info() {
 #==================================================================================
 
 install_python_dev_deps() {
+    local config="${1:-dev}"
     if [ -n "${VIRTUAL_ENV}" ] || [ -n "${CONDA_PREFIX}" ]; then
-        run_command ${MONAI_PY_EXE} -m pip install -q -U setuptools pip wheel build
+        # Read the Docs site is using specific setuptools version so should not upgrade it.
+        if [ "$config" = "read_the_docs" ]; then
+            run_command ${MONAI_PY_EXE} -m pip install -q -U pip wheel build
+        else
+            run_command ${MONAI_PY_EXE} -m pip install -q -U setuptools pip wheel build
+        fi
         run_command ${MONAI_PY_EXE} -m pip install -q -r ${TOP}/requirements-dev.txt
         run_command ${MONAI_PY_EXE} -m pip install -q -r ${TOP}/requirements-examples.txt
-
     else
         c_echo_err R "You must be in a virtual environment to install dependencies."
         if [ ! -e "$TOP/.venv/dev/bin/python3" ]; then
@@ -370,10 +375,14 @@ install_edit_mode() {
 }
 
 setup_desc() { c_echo 'Setup development environment
+
+Arguements:
+  $1 - configuration (default: "dev")
 '
 }
 setup() {
-    install_python_dev_deps
+    local config="${1:-dev}"
+    install_python_dev_deps "${config}"
 }
 
 clean_desc() { c_echo 'Clean up temporary files and uninstall monai-deploy-app-sdk
@@ -895,6 +904,7 @@ install_doc_requirements() {
         run_command ${MONAI_PY_EXE} -m pip install -q -U setuptools pip wheel build
         run_command ${MONAI_PY_EXE} -m pip install -q -r ${TOP}/docs/requirements.txt
         install_edit_mode
+        hash -r  # reload hash for sphinx-build command
     else
         c_echo_err R "You must be in a virtual environment to install dependencies."
         if [ ! -e "$TOP/.venv/dev/bin/python3" ]; then
@@ -916,7 +926,7 @@ setup_gen_docs() {
     # Remove existing files in dist/docs
     run_command rm -rf ${output_folder}/*
     # Remove existing _autosummary folder
-    run command rm -rf ${TOP}/docs/source/modules/_autosummary
+    run_command rm -rf ${TOP}/docs/source/modules/_autosummary
 
     # Symbolic link notebooks folder from 'docs/source/notebooks' to 'notebooks'
     run_command rm -rf ${TOP}/docs/source/notebooks
