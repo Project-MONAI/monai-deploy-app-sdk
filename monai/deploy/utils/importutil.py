@@ -99,7 +99,11 @@ def get_application(path: Union[str, Path]) -> Optional["Application"]:
 def get_class_file_path(cls: Type) -> Path:
     """Get the file path of a class.
 
-    If file path is not available, it tries to get the internal class name used in IPython(starting with <ipython-...>).
+    If the file path is not available, it tries to see each frame information
+    in the stack to check whether the file name ends with "interactiveshell.py"
+    and the function name is "run_code".
+    If so, it returns Path("ipython") to notify that the class is defined
+    inside IPython.
 
     Args:
         cls (Type): A class to get file path from.
@@ -114,8 +118,8 @@ def get_class_file_path(cls: Type) -> Path:
         # If in IPython shell, use inspect.stack() to get the caller's file path
         stack = inspect.stack()
         for frame in stack:
-            if frame.filename.startswith("<ipython-"):
-                return Path(frame.filename)
+            if frame.filename.endswith("interactiveshell.py") and frame.function == "run_code":
+                return Path("ipython")
         # If not in IPython shell, re-raise the error
         raise
 
