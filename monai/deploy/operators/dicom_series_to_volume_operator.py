@@ -1,4 +1,4 @@
-# Copyright 2021 MONAI Consortium
+# Copyright 2021-2022 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -26,6 +26,8 @@ class DICOMSeriesToVolumeOperator(Operator):
     """This operator converts an instance of DICOMSeries into an Image object.
 
     The loaded Image Object can be used for further processing via other operators.
+    The data array will be a 3D image NumPy array with index order of `DHW`.
+    Channel is limited to 1 as of now, and `C` is absent in the NumPy array.
     """
 
     def compute(self, op_input: InputContext, op_output: OutputContext, context: ExecutionContext):
@@ -80,10 +82,14 @@ class DICOMSeriesToVolumeOperator(Operator):
             A 3D numpy tensor representing the volumetric data.
         """
         slices = series.get_sop_instances()
-        # Need to transpose the DICOM pixel_array and pack the slice as the last dim.
-        # This is to have the same numpy ndarray as from Monai ImageReader (ITK, NiBabel etc).
-        vol_data = np.stack([np.transpose(s.get_pixel_array()) for s in slices], axis=-1)
+        # The sop_instance get_pixel_array() returns a 2D NumPy array with index order
+        # of `HW`. The pixel array of all instances will be stacked along the first axis,
+        # so the final 3D NumPy array will have index order of [DHW]. This is consistent
+        # with the NumPy array returned from the ITK GetArrayViewFromImage on the image
+        # loaded from the same DICOM series.
+        vol_data = np.stack([s.get_pixel_array() for s in slices], axis=0)
         vol_data = vol_data.astype(np.int16)
+
         # Rescale Intercept and Slope attributes might be missing, but safe to assume defaults.
         try:
             intercept = slices[0][0x0028, 0x1052].value
@@ -126,6 +132,7 @@ class DICOMSeriesToVolumeOperator(Operator):
         """
 
         if len(series._sop_instances) <= 1:
+            series.depth_pixel_spacing = 1.0  # Default to 1, e.g. for CR image, similar to (Simple) ITK
             return
 
         slice_indices_to_be_removed = []
@@ -355,7 +362,7 @@ def test():
     from monai.deploy.operators.dicom_series_selector_operator import DICOMSeriesSelectorOperator
 
     current_file_dir = Path(__file__).parent.resolve()
-    data_path = current_file_dir.joinpath("../../../examples/ai_spleen_seg_data/dcm")
+    data_path = current_file_dir.joinpath("../../../examples/ai_spleen_seg_data/dcm") # current_file_dir.joinpath("../../../examples/ai_spleen_seg_data/dcm")
     loader = DICOMDataLoaderOperator()
     study_list = loader.load_data_to_studies(Path(data_path).absolute())
 
@@ -365,6 +372,7 @@ def test():
     op = DICOMSeriesToVolumeOperator()
     image = op.convert_to_image(study_selected_series_list)
 
+    print(f"Image NumPy array shape (index order DHW): {image.asnumpy().shape}")
     for k, v in image.metadata().items():
         print(f"{(k)}: {(v)}")
 

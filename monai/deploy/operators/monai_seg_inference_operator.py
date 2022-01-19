@@ -232,7 +232,7 @@ class MonaiSegInferenceOperator(InferenceOperator):
                     #       the resultant ndarray for each slice needs to be transposed back, and the depth
                     #       dim moved back to first, otherwise the seg ndarray would be flipped compared to
                     #       the DICOM pixel array, causing the DICOM Seg Writer generate flipped seg images.
-                    out_ndarray = np.swapaxes(out_ndarray, 2, 0).astype(np.uint8)
+                    out_ndarray = out_ndarray.T.astype(np.uint8)  # np.swapaxes(out_ndarray, 2, 0).astype(np.uint8)
                     print(f"Output Seg image numpy array shaped: {out_ndarray.shape}")
                     print(f"Output Seg image pixel max value: {np.amax(out_ndarray)}")
                     out_image = Image(out_ndarray, input_img_metadata)
@@ -278,6 +278,10 @@ class InMemImageReader(ImageReader):
 
     This is derived from MONAI ImageReader. Instead of reading image from file system, this
     class simply converts a in-memory SDK Image object to the expected formats from ImageReader.
+
+    The loaded data array will be in C order, for example, a 3D image NumPy array index order
+    will be `CDWH`. The actual data array loaded is to be the same as that from the
+    MONAI ITKReader, which can also load DICOM series.
     """
 
     def __init__(self, input_image: Image, channel_dim: Optional[int] = None, **kwargs):
@@ -290,23 +294,39 @@ class InMemImageReader(ImageReader):
         return True
 
     def read(self, data: Union[Sequence[str], str], **kwargs) -> Union[Sequence[Any], Any]:
-        # Really does not have anything to do.
-        return self.input_image.asnumpy()
+        # Really does not have anything to do. Simply return the Image object
+        return self.input_image
 
     def get_data(self, input_image):
         """Extracts data array and meta data from loaded image and return them.
 
         This function returns two objects, first is numpy array of image data, second is dict of meta data.
         It constructs `affine`, `original_affine`, and `spatial_shape` and stores them in meta dict.
-        A single image is loaded with a single set of metadata as of now."""
+        A single image is loaded with a single set of metadata as of now.
+
+        The App SDK Image asnumpy function is expected to return a NumPy array of index order `DHW`.
+        This is because in the DICOM serie to volume operator pydicom Dataset pixel_array is used to
+        to get per instance pixel NumPy array, with index order of `HW`. When all instances are stacked,
+        along the first axis, the Image NumPy array's index order is `DHW`. ITK array_view_from_image
+        and SimpleITK GetArrayViewFromImage also returns a Numpy array with index order of `DHW`.
+        This NumPy array is then transposed to be consistent with the NumPy array from NibabelReader,
+        which loads NIfTI image and gets NumPy array using the image's get_fdata() function.
+
+        Args:
+            input_image (Image): an App SDK Image object.
+        """
 
         img_array: List[np.ndarray] = []
         compatible_meta: Dict = {}
 
-        for i in ensure_tuple(self.input_image):
+        for i in ensure_tuple(input_image):
             if not isinstance(i, Image):
                 raise TypeError("Only object of Image type is supported.")
-            data = i.asnumpy()
+
+            # The Image asnumpy() retruns NumPy array similar to ITK array_view_from_image
+            # The array then needs to be transposed, as does in MONAI ITKReader, to align
+            # with the output from Nibabel reader loading NIfTI files.
+            data = i.asnumpy().T
             img_array.append(data)
             header = self._get_meta_dict(i)
             _copy_compatible_dict(header, compatible_meta)
@@ -328,18 +348,19 @@ class InMemImageReader(ImageReader):
         # So, for now have to get to the Image generator, namely DICOMSeriesToVolumeOperator, and
         # rely on its published metadata.
 
-        # Recall that the column and row data for pydicom pixel_array had been switched, and the depth
-        # is the last dim in DICOMSeriesToVolumeOperator
+        # Referring to the MONAI ITKReader, the spacing is simply a NumPy array from the ITK image
+        # GetSpacing, in WHD.
         meta_dict["spacing"] = np.asarray(
             [
-                img_meta_dict["col_pixel_spacing"],
                 img_meta_dict["row_pixel_spacing"],
+                img_meta_dict["col_pixel_spacing"],
                 img_meta_dict["depth_pixel_spacing"],
             ]
         )
         meta_dict["original_affine"] = np.asarray(img_meta_dict["nifti_affine_transform"])
         meta_dict["affine"] = meta_dict["original_affine"]
-        meta_dict["spatial_shape"] = np.asarray(img.asnumpy().shape)
+        # The spatial shape, again, referring to ITKReader, it is the WHD
+        meta_dict["spatial_shape"] = np.asarray(img.asnumpy().T.shape)
         # Well, no channel as the image data shape is forced to the the same as spatial shape
         meta_dict["original_channel_dim"] = "no_channel"
 
