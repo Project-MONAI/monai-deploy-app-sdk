@@ -3,8 +3,11 @@
 ## Setup
 
 ```bash
-# Create a virtual environment. Skip if you are already in a virtual environment.
-conda create -n mednist python=3.6 pytorch jupyterlab cudatoolkit=11.1 -c pytorch -c conda-forge
+# Create a virtual environment with Python 3.7.
+# Skip if you are already in a virtual environment.
+# (JupyterLab dropped its support for Python 3.6 since 2021-12-23.
+#  See https://github.com/jupyterlab/jupyterlab/pull/11740)
+conda create -n mednist python=3.7 pytorch jupyterlab cudatoolkit=11.1 -c pytorch -c conda-forge
 conda activate mednist
 
 # Launch JupyterLab if you want to work on Jupyter Notebook
