@@ -41,7 +41,7 @@ COMMON_FOOTPRINT = """
     USER monai
     ENV PATH=/home/monai/.local/bin:$PATH
 
-    RUN pip install --no-cache-dir --upgrade -r {map_requirements_path}
+    RUN pip install --no-cache-dir -r {map_requirements_path}
 
     # Override monai-deploy-app-sdk module
     COPY --chown=monai:monai ./monai-deploy-app-sdk /home/monai/.local/lib/python3.8/site-packages/monai/deploy/
