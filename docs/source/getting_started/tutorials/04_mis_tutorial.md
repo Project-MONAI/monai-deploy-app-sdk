@@ -12,11 +12,11 @@ The environment from the previous section (**<a href="./03_segmentation_app.html
 ../../notebooks/tutorials/04_mis_tutorial.ipynb
 ```
 
-```{raw} html
+<!-- ```{raw} html
 <div style="text-align: center;">
     <iframe width="560" height="315" src="https://www.youtube.com/watch?v=sISg521fdCA" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
 </div>
-```
+``` -->
 
 ```{raw} html
 <p style="text-align: center;">

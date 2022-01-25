@@ -75,6 +75,10 @@ YouTube Video:
 - [Spleen Organ Segmentation - Jupyter Notebook Tutorial](https://www.youtube.com/watch?v=cqDVxzYt9lY)
 - [Spleen Organ Segmentation - Deep Dive](https://www.youtube.com/watch?v=nivgfD4pwWE)
 
+### [4) Deploying Segmentation app with MONAI Inference Service (MIS)](https://docs.monai.io/projects/monai-deploy-app-sdk/en/latest/getting_started/tutorials/04_mis_tutorial.html)
+
+### [5) Building and deploying Segmentation app with MONAI Inference Service (MIS)](https://docs.monai.io/projects/monai-deploy-app-sdk/en/latest/getting_started/tutorials/05_full_tutorial.html)
+
 ### [Examples](https://docs.monai.io/projects/monai-deploy-app-sdk/en/latest/getting_started/examples.html)
 
 <https://github.com/Project-MONAI/monai-deploy-app-sdk/tree/main/examples/apps> has example apps that you can see.
