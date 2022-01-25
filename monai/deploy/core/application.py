@@ -95,7 +95,7 @@ class Application(ABC):
             self.path = get_class_file_path(self.__class__)
 
         # Set the runtime environment
-        if str(self.path).startswith("<ipython-"):
+        if str(self.path) == "ipython":
             self.in_ipython = True
         else:
             self.in_ipython = False

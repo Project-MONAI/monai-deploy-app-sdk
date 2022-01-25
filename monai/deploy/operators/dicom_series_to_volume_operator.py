@@ -84,8 +84,16 @@ class DICOMSeriesToVolumeOperator(Operator):
         # This is to have the same numpy ndarray as from Monai ImageReader (ITK, NiBabel etc).
         vol_data = np.stack([np.transpose(s.get_pixel_array()) for s in slices], axis=-1)
         vol_data = vol_data.astype(np.int16)
-        intercept = slices[0][0x0028, 0x1052].value
-        slope = slices[0][0x0028, 0x1053].value
+        # Rescale Intercept and Slope attributes might be missing, but safe to assume defaults.
+        try:
+            intercept = slices[0][0x0028, 0x1052].value
+        except KeyError:
+            intercept = 0
+
+        try:
+            slope = slices[0][0x0028, 0x1053].value
+        except KeyError:
+            slope = 1
 
         if slope != 1:
             vol_data = slope * vol_data.astype(np.float64)

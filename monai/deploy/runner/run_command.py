@@ -20,7 +20,9 @@ logger = logging.getLogger("app_runner")
 
 
 def create_run_parser(subparser: _SubParsersAction, command: str, parents: List[ArgumentParser]) -> ArgumentParser:
-    parser = subparser.add_parser(command, formatter_class=HelpFormatter, parents=parents, add_help=False)
+    parser: ArgumentParser = subparser.add_parser(
+        command, formatter_class=HelpFormatter, parents=parents, add_help=False
+    )
 
     parser.add_argument("map", metavar="<map-image[:tag]>", help="MAP image name")
 

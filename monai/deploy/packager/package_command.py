@@ -17,7 +17,9 @@ from monai.deploy.packager import util as packager_util
 
 
 def create_package_parser(subparser: _SubParsersAction, command: str, parents: List[ArgumentParser]) -> ArgumentParser:
-    parser = subparser.add_parser(command, formatter_class=argparse.HelpFormatter, parents=parents, add_help=False)
+    parser: ArgumentParser = subparser.add_parser(
+        command, formatter_class=argparse.HelpFormatter, parents=parents, add_help=False
+    )
 
     parser.add_argument("application", type=str, help="MONAI application path")
     parser.add_argument(
