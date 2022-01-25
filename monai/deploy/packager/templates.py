@@ -36,7 +36,7 @@ COMMON_FOOTPRINT = """
 
     ENV PATH=/home/root/.local/bin:$PATH
 
-    RUN pip install --no-cache-dir --upgrade -r {map_requirements_path}
+    RUN pip install --no-cache-dir -r {map_requirements_path}
 
     COPY ./map/app.json /etc/monai/
     COPY ./map/pkg.json /etc/monai/
