@@ -194,8 +194,8 @@ def build_image(args: dict, temp_dir: str):
         else:
             shutil.copytree(model_path, dest_model_path)
 
-    models_string = f"RUN mkdir -p {models_dir} && chown -R monai:monai {models_dir}\n"
-    models_string += f"COPY --chown=monai:monai ./models {models_dir}\n"
+    models_string = f"RUN mkdir -p {models_dir}\n"
+    models_string += f"COPY ./models {models_dir}\n"
 
     # Dockerfile template
     template_params = {

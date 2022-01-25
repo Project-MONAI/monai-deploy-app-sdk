@@ -12,47 +12,36 @@
 COMMON_FOOTPRINT = """
     USER root
 
-    RUN pip install --no-cache-dir --upgrade setuptools==57.4.0 pip==21.2.4 wheel==0.37.0
+    RUN pip install --no-cache-dir --upgrade setuptools==57.4.0 pip==21.2.4 wheel==0.37.0 monai-deploy-app-sdk==0.2.0
 
-    RUN groupadd -g $MONAI_GID -o -r monai
-    RUN useradd -g $MONAI_GID -u $MONAI_UID -m -o -r monai
-
-    RUN mkdir -p /etc/monai/ && chown -R monai:monai /etc/monai \\
-     && mkdir -p /opt/monai/ && chown -R monai:monai /opt/monai \\
-     && mkdir -p {working_dir} && chown -R monai:monai {working_dir} \\
-     && mkdir -p {app_dir} && chown -R monai:monai {app_dir} \\
-     && mkdir -p {executor_dir} && chown -R monai:monai {executor_dir} \\
-     && mkdir -p {full_input_path} && chown -R monai:monai {full_input_path} \\
-     && mkdir -p {full_output_path} && chown -R monai:monai {full_output_path} \\
-     && mkdir -p {models_dir} && chown -R monai:monai {models_dir}
+    RUN mkdir -p /etc/monai/ \\
+     && mkdir -p /opt/monai/ \\
+     && mkdir -p {working_dir} \\
+     && mkdir -p {app_dir} \\
+     && mkdir -p {executor_dir} \\
+     && mkdir -p {full_input_path} \\
+     && mkdir -p {full_output_path} \\
+     && mkdir -p {models_dir}
 
     {models_string}
 
-    COPY --chown=monai:monai ./pip/requirements.txt {map_requirements_path}
+    COPY ./pip/requirements.txt {map_requirements_path}
 
     RUN curl {executor_url} -o {executor_dir}/executor.zip \\
      && unzip {executor_dir}/executor.zip -d {executor_dir}/executor_pkg \\
      && mv {executor_dir}/executor_pkg/lib/native/linux-x64/* {executor_dir} \\
      && rm -f {executor_dir}/executor.zip \\
      && rm -rf {executor_dir}/executor_pkg \\
-     && chown -R monai:monai {executor_dir} \\
      && chmod +x {executor_dir}/monai-exec
 
-    USER monai
-    ENV PATH=/home/monai/.local/bin:$PATH
+    ENV PATH=/home/root/.local/bin:$PATH
 
     RUN pip install --no-cache-dir --upgrade -r {map_requirements_path}
 
-    # Override monai-deploy-app-sdk module
-    COPY --chown=monai:monai ./monai-deploy-app-sdk /home/monai/.local/lib/python3.8/site-packages/monai/deploy/
+    COPY ./map/app.json /etc/monai/
+    COPY ./map/pkg.json /etc/monai/
 
-    COPY --chown=monai:monai ./map/app.json /etc/monai/
-    COPY --chown=monai:monai ./map/pkg.json /etc/monai/
-
-    COPY --chown=monai:monai ./app {app_dir}
-
-    # Create bytecodes for monai and app's code. This would help speed up loading time a little bit.
-    RUN python -m compileall -q -j 0 /home/monai/.local/lib/python3.8/site-packages/monai /opt/monai/app
+    COPY ./app {app_dir}
 
     # Set the working directory
     WORKDIR {working_dir}
@@ -62,9 +51,6 @@ COMMON_FOOTPRINT = """
 
 UBUNTU_DOCKERFILE_TEMPLATE = (
     """FROM {base_image}
-
-    ARG MONAI_GID=1000
-    ARG MONAI_UID=1000
 
     LABEL base="{base_image}"
     LABEL tag="{tag}"
@@ -99,9 +85,6 @@ UBUNTU_DOCKERFILE_TEMPLATE = (
 
 PYTORCH_DOCKERFILE_TEMPLATE = (
     """FROM {base_image}
-
-    ARG MONAI_GID=1000
-    ARG MONAI_UID=1000
 
     LABEL base="{base_image}"
     LABEL tag="{tag}"
