@@ -698,7 +698,7 @@ The SDK shall support the following system configurations for a given target rel
 | Docker CE                | 19.03.13+ ([2020-09-16](https://docs.docker.com/engine/release-notes/19.03/#190313)) |
 | NVIDIA Docker            | [v2.5.0+](https://github.com/NVIDIA/nvidia-docker/)                                  |
 | CUDA Compute Capability  | 6.0 or larger (Pascal or newer, including Pascal, Volta, Turing and Ampere families) |
-| Python                   | Python 3.6+                                                                          |
+| Python                   | Python 3.7+                                                                          |
 
 
 ### System Config #2 (Desktop ARM64)
@@ -714,7 +714,7 @@ The SDK shall support the following system configurations for a given target rel
 | Docker CE                | 19.03.13+ ([2020-09-16](https://docs.docker.com/engine/release-notes/19.03/#190313)) |
 | NVIDIA Docker            | [v2.5.0+](https://github.com/NVIDIA/nvidia-docker/)                                  |
 | CUDA Compute Capability  | 6.0 or larger (Pascal or newer, including Pascal, Volta, Turing and Ampere families) |
-| Python                   | Python 3.6+                                                                          |
+| Python                   | Python 3.7+                                                                          |
 
 
 ### System Config #3 (DGX-1)
@@ -730,4 +730,4 @@ The SDK shall support the following system configurations for a given target rel
 | Docker CE                | 19.03.13+ ([2020-09-16](https://docs.docker.com/engine/release-notes/19.03/#190313)) |
 | NVIDIA Docker            | [v2.5.0+](https://github.com/NVIDIA/nvidia-docker/)                                  |
 | CUDA Compute Capability  | 7.0 or larger (Volta or newer, including Volta, Turing and Ampere families)          |
-| Python                   | Python 3.6+                                                                          |
+| Python                   | Python 3.7+                                                                          |
