@@ -31,7 +31,7 @@ Without using the MONAI Deploy App SDK Packager to automatically detect the depe
 monai>=0.6.0
 monai-deploy-app-sdk>=0.1.0
 nibabel
-numpy>=1.20
+numpy>=1.21
 pydicom>=1.4.2
 torch>=1.5
 ```

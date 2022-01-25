@@ -12,7 +12,7 @@
 COMMON_FOOTPRINT = """
     USER root
 
-    RUN pip install --no-cache-dir --upgrade setuptools==57.4.0 pip==21.2.4 wheel==0.37.0 monai-deploy-app-sdk==0.2.0
+    RUN pip install --no-cache-dir --upgrade setuptools==57.4.0 pip==21.2.4 wheel==0.37.0 numpy>=1.21
 
     RUN mkdir -p /etc/monai/ \\
      && mkdir -p /opt/monai/ \\
