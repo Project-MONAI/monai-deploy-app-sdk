@@ -12,7 +12,7 @@
 COMMON_FOOTPRINT = """
     USER root
 
-    RUN pip install --no-cache-dir --upgrade setuptools==57.4.0 pip==21.2.4 wheel==0.37.0 monai-deploy-app-sdk==0.2.0
+    RUN pip install --no-cache-dir --upgrade setuptools==57.4.0 pip==21.3.1 wheel==0.37.0 numpy>=1.21
 
     RUN mkdir -p /etc/monai/ \\
      && mkdir -p /opt/monai/ \\
@@ -34,9 +34,17 @@ COMMON_FOOTPRINT = """
      && rm -rf {executor_dir}/executor_pkg \\
      && chmod +x {executor_dir}/monai-exec
 
-    ENV PATH=/home/root/.local/bin:$PATH
+    ENV PATH=/root/.local/bin:$PATH
 
-    RUN pip install --no-cache-dir -r {map_requirements_path}
+    RUN pip install --no-cache-dir --user -r {map_requirements_path}
+
+    # Override monai-deploy-app-sdk module
+    COPY ./monai-deploy-app-sdk /root/.local/lib/python3.8/site-packages/monai/deploy/
+    RUN echo "User site package location: $(python3 -m site --user-site)" \\
+        && [ "$(python3 -m site --user-site)" != "/root/.local/lib/python3.8/site-packages" ] \\
+        && mkdir -p $(python3 -m site --user-site)/monai/deploy \\
+        && cp -r /root/.local/lib/python3.8/site-packages/monai/deploy/* $(python3 -m site --user-site)/monai/deploy/ \\
+        || true
 
     COPY ./map/app.json /etc/monai/
     COPY ./map/pkg.json /etc/monai/
