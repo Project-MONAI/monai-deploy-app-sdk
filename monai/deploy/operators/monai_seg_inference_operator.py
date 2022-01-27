@@ -227,12 +227,13 @@ class MonaiSegInferenceOperator(InferenceOperator):
                     out_ndarray = np.squeeze(out_ndarray, 0)
                     # NOTE: The domain Image object simply contains a Arraylike obj as image as of now.
                     #       When the original DICOM series is converted by the Series to Volume operator,
-                    #       using pydicom pixel_array, the 2D ndarray of each slice is transposed, and the
-                    #       depth/axial direction dim made the last. So once post-transforms have completed,
-                    #       the resultant ndarray for each slice needs to be transposed back, and the depth
-                    #       dim moved back to first, otherwise the seg ndarray would be flipped compared to
-                    #       the DICOM pixel array, causing the DICOM Seg Writer generate flipped seg images.
-                    out_ndarray = out_ndarray.T.astype(np.uint8)  # np.swapaxes(out_ndarray, 2, 0).astype(np.uint8)
+                    #       using pydicom pixel_array, the 2D ndarray of each slice has index order HW, and
+                    #       when all slices are stacked with depth as first axis, DHW. In the pre-transforms,
+                    #       the image gets transposed to WHD and used as such in the inference pipeline.
+                    #       So once post-transforms have completed, and the channel is squeezed out,
+                    #       the resultant ndarray for the prediction image needs to be transposed back, so the
+                    #       array index order is back to DHW, the same order as the in-memory input Image obj.
+                    out_ndarray = out_ndarray.T.astype(np.uint8)
                     print(f"Output Seg image numpy array shaped: {out_ndarray.shape}")
                     print(f"Output Seg image pixel max value: {np.amax(out_ndarray)}")
                     out_image = Image(out_ndarray, input_img_metadata)
@@ -280,8 +281,12 @@ class InMemImageReader(ImageReader):
     class simply converts a in-memory SDK Image object to the expected formats from ImageReader.
 
     The loaded data array will be in C order, for example, a 3D image NumPy array index order
-    will be `CDWH`. The actual data array loaded is to be the same as that from the
-    MONAI ITKReader, which can also load DICOM series.
+    will be `WHDC`. The actual data array loaded is to be the same as that from the
+    MONAI ITKReader, which can also load DICOM series. Furthermore, all Readers need to return the
+    array data the same way as the NibabelReader, i.e. a numpy array of index order WHDC with channel
+    being the last dim if present. More details are in the get_data() function.
+
+
     """
 
     def __init__(self, input_image: Image, channel_dim: Optional[int] = None, **kwargs):
@@ -304,13 +309,17 @@ class InMemImageReader(ImageReader):
         It constructs `affine`, `original_affine`, and `spatial_shape` and stores them in meta dict.
         A single image is loaded with a single set of metadata as of now.
 
-        The App SDK Image asnumpy function is expected to return a NumPy array of index order `DHW`.
+        The App SDK Image asnumpy() function is expected to return a numpy array of index order `DHW`.
         This is because in the DICOM serie to volume operator pydicom Dataset pixel_array is used to
-        to get per instance pixel NumPy array, with index order of `HW`. When all instances are stacked,
-        along the first axis, the Image NumPy array's index order is `DHW`. ITK array_view_from_image
-        and SimpleITK GetArrayViewFromImage also returns a Numpy array with index order of `DHW`.
-        This NumPy array is then transposed to be consistent with the NumPy array from NibabelReader,
-        which loads NIfTI image and gets NumPy array using the image's get_fdata() function.
+        to get per instance pixel numpy array, with index order of `HW`. When all instances are stacked,
+        along the first axis, the Image numpy array's index order is `DHW`. ITK array_view_from_image
+        and SimpleITK GetArrayViewFromImage also returns a numpy array with the index order of `DHW`.
+        The channel would be the last dim/index if present. In the ITKReader get_data(), this numpy array
+        is then transposed, and the channel axis moved to be last dim post transpose; this is to be
+        consistent with the numpy returned from NibabelReader get_data().
+
+        The NibabelReader loads NIfTI image and uses the get_fdata() function of the loaded image to get
+        the numpy array, which has the index order in WHD with the channel being the last dim if present.
 
         Args:
             input_image (Image): an App SDK Image object.
