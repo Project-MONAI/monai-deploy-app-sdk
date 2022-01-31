@@ -1,4 +1,4 @@
-# Copyright 2021 MONAI Consortium
+# Copyright 2021-2022 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -12,6 +12,7 @@
 .. autosummary::
     :toctree: _autosummary
 
+    ClaraVizOperator
     DICOMDataLoaderOperator
     DICOMSegmentationWriterOperator
     DICOMSeriesSelectorOperator
@@ -22,6 +23,7 @@
     PublisherOperator
 """
 
+from .clara_viz_operator import ClaraVizOperator
 from .dicom_data_loader_operator import DICOMDataLoaderOperator
 from .dicom_seg_writer_operator import DICOMSegmentationWriterOperator
 from .dicom_series_selector_operator import DICOMSeriesSelectorOperator
