@@ -5,6 +5,8 @@
 💡 If you want to know more about MONAI Deploy WG vision, overall structure, and guidelines, please read [MONAI Deploy](https://github.com/Project-MONAI/monai-deploy) main repo first.
 
 # MONAI Deploy App SDK
+[![License](https://img.shields.io/badge/license-Apache%202.0-green.svg)](LICENSE)
+
 
 MONAI Deploy App SDK offers a framework and associated tools to design, develop and verify AI-driven applications in the healthcare imaging domain.
 
