@@ -91,7 +91,7 @@ YouTube Video:
 
 ## Contributing
 
-For guidance on making a contribution to MONAI Deploy App SDK, see the [contributing guidelines](https://github.com/Project-MONAI/monai-deploy-app-sdk/blob/main/CONTRIBUTING.md).
+For guidance on making a contribution to MONAI Deploy App SDK, see the [contributing guidelines](https://github.com/Project-MONAI/monai-deploy/blob/main/CONTRIBUTING.md).
 
 ## Community
 
