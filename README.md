@@ -2,7 +2,7 @@
 <img src="https://raw.githubusercontent.com/Project-MONAI/MONAI/dev/docs/images/MONAI-logo-color.png" width="50%" alt='project-monai'>
 </p>
 
-💡 If you want to know more about MONAI Deploy WG vision, overall structure, and guidelines, please read <https://github.com/Project-MONAI/monai-deploy> first.
+💡 If you want to know more about MONAI Deploy WG vision, overall structure, and guidelines, please read [MONAI Deploy](https://github.com/Project-MONAI/monai-deploy) main repo first.
 
 # MONAI Deploy App SDK
 
