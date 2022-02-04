@@ -185,10 +185,10 @@ class STLConverter(object):
         else:
             try:
                 new_nda += (nda == class_ids).astype(np.uint8)
-            except ValueError:
+            except ValueError as err:
                 err_msg = "That was no valid value for class_id."
                 self._logger.error(err_msg)
-                raise ValueError(err_msg)
+                raise ValueError(err_msg) from err
 
         max_res = np.amin(res)
         target_shape = []
