@@ -13,13 +13,10 @@ import logging
 import os
 import shutil
 import tempfile
-from ast import Bytes
 from pathlib import Path
-from typing import Any
 
 import nibabel as nib
 import numpy as np
-from matplotlib import image
 
 from monai.deploy.utils.importutil import optional_import
 
