@@ -14,6 +14,7 @@ import os
 import shutil
 import tempfile
 from pathlib import Path
+from typing import Dict, Union
 
 import nibabel as nib
 import numpy as np
@@ -91,7 +92,7 @@ class STLConversionOperator(Operator):
         if not isinstance(op_output_config, DataPath):
             op_output.set(stl_bytes)
 
-    def _convert(self, image: Image, output_file: Path = None):
+    def _convert(self, image: Image, output_file: Union[Path, None] = None):
         """
         Args:
             image (Image): object with the image (ndarray in DHW) and its metadata dictionary.
@@ -128,7 +129,7 @@ class STLConverter(object):
     def convert(
         self,
         image: Image,
-        output_file: Path = None,
+        output_file: Union[Path, None] = None,
         class_ids=None,
         is_smooth=True,
         keep_largest_connected_component=True,
@@ -222,7 +223,7 @@ class STLConverter(object):
 
             final_file_path = output_file if output_file else os.path.join(temp_folder, "surface_mesh.stl")
             mesh_data.export(final_file_path)
-            with open(final_file_path, "rb") as r_file:
+            with open(str(final_file_path), "rb") as r_file:
                 stl_bytes = r_file.read()
         finally:
             shutil.rmtree(temp_folder)
@@ -279,7 +280,7 @@ class STLConverter(object):
             self._image = image
             self._dtype = dtype
 
-            self._props = {}
+            self._props: Dict = {}
             """ Properties may include some or all of the following
                 img_array
                 shape
