@@ -426,7 +426,7 @@ class DICOMTextSRWriterOperator(Operator):
         assert isinstance(n, int) and n <= 32, "Argument n must be an int, n <= 32."
         n = n if n >= 1 else 1
         range_start = 10 ** (n - 1)
-        range_end = (10 ** n) - 1
+        range_end = (10**n) - 1
         return randint(range_start, range_end)
 
 
