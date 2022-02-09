@@ -17,6 +17,7 @@
     DICOMSegmentationWriterOperator
     DICOMSeriesSelectorOperator
     DICOMSeriesToVolumeOperator
+    DICOMTextSRWriterOperator
     InferenceOperator
     MonaiSegInferenceOperator
     PNGConverterOperator
