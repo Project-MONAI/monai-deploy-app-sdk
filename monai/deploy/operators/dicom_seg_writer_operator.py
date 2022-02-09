@@ -111,8 +111,7 @@ class DICOMSegmentationWriterOperator(Operator):
         # In case the Image object is not in the input, and input is the seg image file folder path.
         if not isinstance(seg_image, Image):
             if isinstance(seg_image, DataPath):
-                input_path = op_input.get("segmentation_image").path
-                seg_image, _ = self.select_input_file(input_path)
+                seg_image, _ = self.select_input_file(seg_image.path)
             else:
                 raise ValueError("Input 'seg_image' is not Image or DataPath.")
 
