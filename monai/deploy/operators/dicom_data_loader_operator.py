@@ -24,6 +24,7 @@ get_testdata_file, _ = optional_import("pydicom.data", name="dcmread")
 FileSet, _ = optional_import("pydicom.fileset", name="FileSet")
 generate_uid, _ = optional_import("pydicom.uid", name="generate_uid")
 valuerep, _ = optional_import("pydicom", name="valuerep")
+InvalidDicomError, _ = optional_import("pydicom.errors", name="InvalidDicomError")
 
 
 @md.input("dicom_files", DataPath, IOType.DISK)
@@ -90,7 +91,10 @@ class DICOMDataLoaderOperator(Operator):
         sop_instances = []
 
         for file in files:
-            sop_instances.append(dcmread(file))
+            try:
+                sop_instances.append(dcmread(file))
+            except InvalidDicomError:
+                print(f"Failed to read {file}; file may not be a valid DICOM file")
 
         for sop_instance in sop_instances:
 
