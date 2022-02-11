@@ -47,7 +47,7 @@ class PNGConverterOperator(Operator):
         num_images = image_shape[0]
 
         for i in range(0, num_images):
-            input_data = image_data[:, :, i]
+            input_data = image_data[i, :, :]
             pil_image = PILImage.fromarray(input_data)
             if pil_image.mode != "RGB":
                 pil_image = pil_image.convert("RGB")
@@ -55,9 +55,11 @@ class PNGConverterOperator(Operator):
 
 
 def main():
-    op1 = DICOMSeriesToVolumeOperator()
-    data_path = "/home/rahul/medical-images/lung-ct-2/"
-    out_path = "/home/rahul/monai-output/"
+    from pathlib import Path
+
+    current_file_dir = Path(__file__).parent.resolve()
+    data_path = current_file_dir.joinpath("../../../examples/ai_spleen_seg_data/dcm")
+    out_path = "png-output"
     makedirs(out_path, exist_ok=True)
 
     files = []
@@ -67,8 +69,9 @@ def main():
         files,
     )
     study_list = loader._load_data(files)
-
     series = study_list[0].get_all_series()[0]
+
+    op1 = DICOMSeriesToVolumeOperator()
     op1.prepare_series(series)
     voxels = op1.generate_voxel_data(series)
     metadata = op1.create_metadata(series)
@@ -77,8 +80,8 @@ def main():
     op2 = PNGConverterOperator()
     op2.convert_and_save(image, out_path)
 
-    print(series)
-    # print(metadata.keys())
+    print(f"The loaded series object properties:\n{series}")
+    print(f"The converted Image object metadata:\n{metadata}")
 
 
 if __name__ == "__main__":
