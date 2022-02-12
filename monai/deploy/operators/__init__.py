@@ -22,6 +22,8 @@
     MonaiSegInferenceOperator
     PNGConverterOperator
     PublisherOperator
+    STLConversionOperator
+    STLConverter
 """
 
 from .clara_viz_operator import ClaraVizOperator
@@ -34,3 +36,4 @@ from .inference_operator import InferenceOperator
 from .monai_seg_inference_operator import MonaiSegInferenceOperator
 from .png_converter_operator import PNGConverterOperator
 from .publisher_operator import PublisherOperator
+from .stl_conversion_operator import STLConversionOperator, STLConverter

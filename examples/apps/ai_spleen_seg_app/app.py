@@ -18,6 +18,7 @@ from monai.deploy.operators.dicom_data_loader_operator import DICOMDataLoaderOpe
 from monai.deploy.operators.dicom_seg_writer_operator import DICOMSegmentationWriterOperator
 from monai.deploy.operators.dicom_series_selector_operator import DICOMSeriesSelectorOperator
 from monai.deploy.operators.dicom_series_to_volume_operator import DICOMSeriesToVolumeOperator
+from monai.deploy.operators.stl_conversion_operator import STLConversionOperator
 
 
 @resource(cpu=1, gpu=1, memory="7Gi")
@@ -46,8 +47,10 @@ class AISpleenSegApp(Application):
         series_to_vol_op = DICOMSeriesToVolumeOperator()
         # Model specific inference operator, supporting MONAI transforms.
         spleen_seg_op = SpleenSegOperator()
-        # Creates DICOM Seg writer with segment label name in a string list
+        # Create DICOM Seg writer with segment label name in a string list
         dicom_seg_writer = DICOMSegmentationWriterOperator(seg_labels=["Spleen"])
+        # Create the surface mesh STL conversion operator
+        stl_conversion_op = STLConversionOperator(output_file="stl/spleen.stl")
 
         # Create the processing pipeline, by specifying the upstream and downstream operators, and
         # ensuring the output from the former matches the input of the latter, in both name and type.
@@ -61,6 +64,8 @@ class AISpleenSegApp(Application):
             series_selector_op, dicom_seg_writer, {"study_selected_series_list": "study_selected_series_list"}
         )
         self.add_flow(spleen_seg_op, dicom_seg_writer, {"seg_image": "seg_image"})
+        # Add the STL conversion operator as another leaf operator taking as input the seg image.
+        self.add_flow(spleen_seg_op, stl_conversion_op, {"seg_image": "image"})
 
         self._logger.debug(f"End {self.compose.__name__}")
 
