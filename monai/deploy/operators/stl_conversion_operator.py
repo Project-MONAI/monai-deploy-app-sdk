@@ -14,7 +14,7 @@ import os
 import shutil
 import tempfile
 from pathlib import Path
-from typing import Dict, Union
+from typing import Dict, Optional
 
 import nibabel as nib
 import numpy as np
@@ -43,10 +43,10 @@ class STLConversionOperator(Operator):
     def __init__(
         self, output_file=None, class_id=None, is_smooth=True, keep_largest_connected_component=True, *args, **kwargs
     ):
-        """ "Creates an object to generate surface mesh in a STL file if the path is provided.
+        """Creates an object to generate a surface mesh and saves it as an STL file if the path is provided.
 
         Args:
-            output_file (str, optional): output stl file relative path. Default to None for no file output.
+            output_file (str, optional): output STL file relative path. Default to None for no file output.
             class_id (array, optional): Class label ids. Defaults to None.
             is_smooth (bool, optional): smoothing or not. Defaults to True.
             keep_largest_connected_component (bool, optional): Defaults to True.
@@ -92,7 +92,7 @@ class STLConversionOperator(Operator):
         if not isinstance(op_output_config, DataPath):
             op_output.set(stl_bytes)
 
-    def _convert(self, image: Image, output_file: Union[Path, None] = None):
+    def _convert(self, image: Image, output_file: Optional[Path] = None):
         """
         Args:
             image (Image): object with the image (ndarray in DHW) and its metadata dictionary.
@@ -121,7 +121,7 @@ class STLConverter(object):
     """Converts volumetric image to surface mesh in STL"""
 
     def __init__(self, *args, **kwargs):
-        """ "Creates an instance to generate surface mesh in STL with an Image object."""
+        """Creates an instance to generate a surface mesh in STL with an Image object."""
 
         super().__init__(*args, **kwargs)
         self._logger = logging.getLogger("{}.{}".format(__name__, type(self).__name__))
@@ -129,7 +129,7 @@ class STLConverter(object):
     def convert(
         self,
         image: Image,
-        output_file: Union[Path, None] = None,
+        output_file: Optional[Path] = None,
         class_ids=None,
         is_smooth=True,
         keep_largest_connected_component=True,
@@ -263,7 +263,7 @@ class STLConverter(object):
     class SpatialImage:
         """Object encapsulating a spatial volume image instance of Image.
 
-        Channel is not support in this version.
+        Channel is not supported in this version.
         """
 
         def __init__(self, image: Image, dtype=np.float32):
@@ -326,9 +326,6 @@ class STLConverter(object):
             Args:
                 key (str): key of the property
                 value: value of the property
-
-            Returns:
-
             """
             self._props[key] = value
 
