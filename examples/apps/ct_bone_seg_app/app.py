@@ -1,4 +1,4 @@
-# Copyright 2021 MONAI Consortium
+# Copyright 2022 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -14,24 +14,16 @@ from dicom_to_mhd import DicomToMhd
 from monai.deploy.core import Application, env, resource
 
 @resource(cpu=1, gpu=1)
-# pip_packages can be a string that is a path(str) to requirements.txt file or a list of packages.
-#@env(pip_packages=["scikit-image >= 0.17.2"])
 class App(Application):
     """This is a CT Bone application.
     """
 
-    # App's name. <class name>('App') if not specified.
     name = "ct_bone_app"
-    # App's description. <class docstring> if not specified.
     description = "CT Bone segmentation app."
-    # App's version. <git version tag> or '0.0.0' if not specified.
     version = "0.1.0"
 
     def compose(self):
         """This application has two operators.
-
-        Each operator has a single input and a single output port.
-        Each operator performs some kind of image processing function.
         """
         
         dcm_to_mhd = DicomToMhd()

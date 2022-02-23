@@ -1,4 +1,4 @@
-# Copyright 2021 MONAI Consortium
+# Copyright 2022 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -11,20 +11,13 @@
 
 import monai.deploy.core as md
 from monai.deploy.core import DataPath, ExecutionContext, Image, InputContext, IOType, Operator, OutputContext
-import sys, os
-
-lib_path = "/usr/local/lib"
-sys.path.append(lib_path)
-import clinical_algos as calg
-
+import os
 
 @md.input("image", DataPath, IOType.DISK)
 @md.output("image", DataPath, IOType.DISK)
-# If `pip_packages` is specified, the definition will be aggregated with the package dependency list of other
-# operators and the application in packaging time.
-# @md.env(pip_packages=["scikit-image >= 0.17.2"])
+@md.env(pip_packages=["patchelf", "clcat"])
 class CtBoneOperator(Operator):
-    """This Operator implements a CT Bone segmentation
+    """This Operator implements CT Bone segmentation
     """
 
     def compute(self, op_input: InputContext, op_output: OutputContext, context: ExecutionContext):
@@ -36,17 +29,15 @@ class CtBoneOperator(Operator):
             inputfile = os.path.join(input_path, "intermediate_mhd_data.mhd")
         elif input_path.is_file():
             inputfile = str(input_path)
-        
-        print(inputfile)
+        else:
+            raise("Input path invalid from input context")
 
         output_path = op_output.get().path
         output_path.mkdir(parents=True, exist_ok=True)
         outputfile = os.path.join(output_path, "bone_mask.mhd")
-        print(outputfile)
-
-        print("Entering Clara CAT Algorithms")
         
-        status = calg.ct_bone(inputfile, outputfile)
+        import clcat.ct_algos as cact
+        status = cact.ct_bone(inputfile, outputfile)
         
         if input_path.is_dir():
             os.remove(inputfile)

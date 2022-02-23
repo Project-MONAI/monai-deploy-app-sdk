@@ -1,4 +1,4 @@
-# Copyright 2021 MONAI Consortium
+# Copyright 2022 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -16,8 +16,6 @@ import os
 
 @md.input("image", DataPath, IOType.DISK)
 @md.output("image", DataPath, IOType.DISK)
-# If `pip_packages` is specified, the definition will be aggregated with the package dependency list of other
-# operators and the application in packaging time.
 @md.env(pip_packages=["SimpleITK==1.2.4"])
 class DicomToMhd(Operator):
     """
@@ -29,12 +27,9 @@ class DicomToMhd(Operator):
 
         input_path = op_input.get().path
         if input_path.is_dir():
-            print(input_path)
-            _current_dir = os.path.abspath(os.path.dirname(__file__))
-            op_output.set(DataPath(_current_dir))
+            current_file_dir = os.path.abspath(os.path.dirname(__file__))
+            op_output.set(DataPath(current_file_dir))
             output_path = op_output.get().path
-            if output_path.is_dir():
-                print(output_path)
             
             output_file_path = os.path.join(output_path, "intermediate_mhd_data.mhd")
 
@@ -45,12 +40,11 @@ class DicomToMhd(Operator):
             fixed = reader.Execute()
             sitk.WriteImage(fixed, output_file_path)
         else:
-            print("Input path is not a directory")
             if os.path.isfile(input_path):
                 extension = os.path.splitext(input_path)[1]
                 if extension == '.mhd':
-                    print("Input path is a MHD file")
-                    print("Setting output folder as input folder")
+                    # Input path is a MHD file
+                    # Setting output folder as input folder
                     op_output.set(DataPath(input_path))
                 else:
                     raise IOError('Unsupported extension')
