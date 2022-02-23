@@ -11,7 +11,7 @@
 
 import os
 
-import SimpleITK as sitk
+import SimpleITK as SITK
 
 import monai.deploy.core as md
 from monai.deploy.core import DataPath, ExecutionContext, InputContext, IOType, Operator, OutputContext
@@ -36,12 +36,12 @@ class DicomToMhd(Operator):
 
             output_file_path = os.path.join(output_path, "intermediate_mhd_data.mhd")
 
-            reader = sitk.ImageSeriesReader()
+            reader = SITK.ImageSeriesReader()
             dicom_names = reader.GetGDCMSeriesFileNames(str(input_path))
             reader.SetFileNames(dicom_names)
 
             fixed = reader.Execute()
-            sitk.WriteImage(fixed, output_file_path)
+            SITK.WriteImage(fixed, output_file_path)
         else:
             if os.path.isfile(input_path):
                 extension = os.path.splitext(input_path)[1]

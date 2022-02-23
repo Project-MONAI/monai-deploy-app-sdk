@@ -12,7 +12,7 @@
 import os
 
 import monai.deploy.core as md
-from monai.deploy.core import DataPath, ExecutionContext, Image, InputContext, IOType, Operator, OutputContext
+from monai.deploy.core import DataPath, ExecutionContext, InputContext, IOType, Operator, OutputContext
 
 
 @md.input("image", DataPath, IOType.DISK)
@@ -31,7 +31,7 @@ class CtBoneOperator(Operator):
         elif input_path.is_file():
             inputfile = str(input_path)
         else:
-            raise ("Input path invalid from input context")
+            raise IOError("Input path invalid from input context")
 
         output_path = op_output.get().path
         output_path.mkdir(parents=True, exist_ok=True)
@@ -47,4 +47,4 @@ class CtBoneOperator(Operator):
             os.remove(inputrawfile)
 
         if status != 0:
-            raise ("Bone segmentation failed")
+            raise Exception("Bone segmentation failed")
