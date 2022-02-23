@@ -9,9 +9,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import os
+
 import monai.deploy.core as md
 from monai.deploy.core import DataPath, ExecutionContext, Image, InputContext, IOType, Operator, OutputContext
-import os
+
 
 @md.input("image", DataPath, IOType.DISK)
 @md.output("image", DataPath, IOType.DISK)

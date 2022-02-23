@@ -9,10 +9,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import os
+
+import SimpleITK as sitk
+
 import monai.deploy.core as md
 from monai.deploy.core import DataPath, ExecutionContext, InputContext, IOType, Operator, OutputContext
-import SimpleITK as sitk
-import os
+
 
 @md.input("image", DataPath, IOType.DISK)
 @md.output("image", DataPath, IOType.DISK)

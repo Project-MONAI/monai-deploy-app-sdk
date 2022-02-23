@@ -11,7 +11,9 @@
 
 from ct_bone_operator import CtBoneOperator
 from dicom_to_mhd import DicomToMhd
-from monai.deploy.core import Application, env, resource
+
+from monai.deploy.core import Application, resource
+
 
 @resource(cpu=1, gpu=1)
 class App(Application):
