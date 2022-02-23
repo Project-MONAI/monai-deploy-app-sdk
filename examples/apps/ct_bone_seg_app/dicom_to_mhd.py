@@ -50,6 +50,3 @@ class DicomToMhd(Operator):
                     raise IOError('Unsupported extension')
             else:
                 raise IOError('Invalid input path')
-
-
-        
