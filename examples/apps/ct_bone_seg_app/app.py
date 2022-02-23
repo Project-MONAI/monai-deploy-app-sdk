@@ -17,21 +17,20 @@ from monai.deploy.core import Application, resource
 
 @resource(cpu=1, gpu=1)
 class App(Application):
-    """This is a CT Bone application.
-    """
+    """This is a CT Bone application."""
 
     name = "ct_bone_app"
     description = "CT Bone segmentation app."
     version = "0.1.0"
 
     def compose(self):
-        """This application has two operators.
-        """
-        
+        """This application has two operators."""
+
         dcm_to_mhd = DicomToMhd()
         bone_op = CtBoneOperator()
-        
+
         self.add_flow(dcm_to_mhd, bone_op)
+
 
 if __name__ == "__main__":
     App(do_run=True)

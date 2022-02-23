@@ -33,7 +33,7 @@ class DicomToMhd(Operator):
             current_file_dir = os.path.abspath(os.path.dirname(__file__))
             op_output.set(DataPath(current_file_dir))
             output_path = op_output.get().path
-            
+
             output_file_path = os.path.join(output_path, "intermediate_mhd_data.mhd")
 
             reader = sitk.ImageSeriesReader()
@@ -45,11 +45,11 @@ class DicomToMhd(Operator):
         else:
             if os.path.isfile(input_path):
                 extension = os.path.splitext(input_path)[1]
-                if extension == '.mhd':
+                if extension == ".mhd":
                     # Input path is a MHD file
                     # Setting output folder as input folder
                     op_output.set(DataPath(input_path))
                 else:
-                    raise IOError('Unsupported extension')
+                    raise IOError("Unsupported extension")
             else:
-                raise IOError('Invalid input path')
+                raise IOError("Invalid input path")

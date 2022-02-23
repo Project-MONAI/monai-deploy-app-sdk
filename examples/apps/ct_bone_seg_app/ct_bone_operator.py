@@ -19,32 +19,32 @@ from monai.deploy.core import DataPath, ExecutionContext, Image, InputContext, I
 @md.output("image", DataPath, IOType.DISK)
 @md.env(pip_packages=["patchelf", "clcat"])
 class CtBoneOperator(Operator):
-    """This Operator implements CT Bone segmentation
-    """
+    """This Operator implements CT Bone segmentation"""
 
     def compute(self, op_input: InputContext, op_output: OutputContext, context: ExecutionContext):
-        
+
         input_path = op_input.get().path
         inputfile = ""
-        
+
         if input_path.is_dir():
             inputfile = os.path.join(input_path, "intermediate_mhd_data.mhd")
         elif input_path.is_file():
             inputfile = str(input_path)
         else:
-            raise("Input path invalid from input context")
+            raise ("Input path invalid from input context")
 
         output_path = op_output.get().path
         output_path.mkdir(parents=True, exist_ok=True)
         outputfile = os.path.join(output_path, "bone_mask.mhd")
-        
+
         import clcat.ct_algos as cact
+
         status = cact.ct_bone(inputfile, outputfile)
-        
+
         if input_path.is_dir():
             os.remove(inputfile)
-            inputrawfile  = os.path.join(input_path, "intermediate_mhd_data.raw")
+            inputrawfile = os.path.join(input_path, "intermediate_mhd_data.raw")
             os.remove(inputrawfile)
 
         if status != 0:
-            raise("Bone segmentation failed")
+            raise ("Bone segmentation failed")
