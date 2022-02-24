@@ -29,6 +29,7 @@ class DicomToMhd(Operator):
         input_path = op_input.get().path
         if input_path.is_dir():
             import SimpleITK as SITK
+
             current_file_dir = os.path.abspath(os.path.dirname(__file__))
             op_output.set(DataPath(current_file_dir))
             output_path = op_output.get().path
