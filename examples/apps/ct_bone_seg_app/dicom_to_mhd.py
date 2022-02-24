@@ -14,6 +14,7 @@ import os
 import monai.deploy.core as md
 from monai.deploy.core import DataPath, ExecutionContext, InputContext, IOType, Operator, OutputContext
 
+
 @md.input("image", DataPath, IOType.DISK)
 @md.output("image", DataPath, IOType.DISK)
 @md.env(pip_packages=["SimpleITK==1.2.4"])
