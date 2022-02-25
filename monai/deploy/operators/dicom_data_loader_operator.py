@@ -10,6 +10,7 @@
 # limitations under the License.
 
 import os
+import logging
 from pathlib import Path
 from typing import List
 
@@ -34,11 +35,16 @@ class DICOMDataLoaderOperator(Operator):
     This operator loads a collection of DICOM Studies in memory
     given a directory which contains a list of SOP Instances.
     """
+    def __init__(self):
+
+        self._logger = logging.getLogger("{}.{}".format(__name__, type(self).__name__))
+        super().__init__()
 
     def compute(self, op_input: InputContext, op_output: OutputContext, context: ExecutionContext):
         """Performs computation for this operator and handlesI/O."""
 
         input_path = op_input.get().path
+
         dicom_study_list = self.load_data_to_studies(input_path)
         op_output.set(dicom_study_list, "dicom_study_list")
 
@@ -63,13 +69,14 @@ class DICOMDataLoaderOperator(Operator):
 
         files: List[str] = []
         self._list_files(input_path, files)
+
         return self._load_data(files)
 
     def _list_files(self, path, files: List[str]):
-        """Collects fully qualified names of all files recurvisely given a directory path.
+        """Collects fully qualified names of all files recursively given a directory path.
 
         Args:
-            path: A directoty containing DICOM SOP instances. It may have nested hirerarchical directories.
+            path: A directory containing DICOM SOP instances. It may have nested hierarchical directories.
             files: This method populates "files" with fully qualified names of files that belong to the specified directory.
         """
         for item in os.listdir(path):
@@ -90,7 +97,11 @@ class DICOMDataLoaderOperator(Operator):
         sop_instances = []
 
         for file in files:
-            sop_instances.append(dcmread(file))
+            try:
+                instance = dcmread(file)
+            except:
+                self._logger.debug(f"Failed to load DICOM file: {file}")
+            sop_instances.append(instance)
 
         for sop_instance in sop_instances:
 
