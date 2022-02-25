@@ -94,7 +94,7 @@ class SpleenSegOperator(Operator):
             [
                 LoadImaged(keys=my_key, reader=img_reader),
                 EnsureChannelFirstd(keys=my_key),
-                Spacingd(keys=my_key, pixdim=[1.0, 1.0, 1.0], mode=["blinear"], align_corners=True),
+                Spacingd(keys=my_key, pixdim=[1.0, 1.0, 1.0], mode=["bilinear"], align_corners=True),
                 ScaleIntensityRanged(keys=my_key, a_min=-57, a_max=164, b_min=0.0, b_max=1.0, clip=True),
                 CropForegroundd(keys=my_key, source_key=my_key),
                 ToTensord(keys=my_key),
