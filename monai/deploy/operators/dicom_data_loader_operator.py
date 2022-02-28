@@ -1,4 +1,4 @@
-# Copyright 2021 MONAI Consortium
+# Copyright 2021-2022 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -9,6 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import logging
 import os
 from pathlib import Path
 from typing import List
@@ -17,6 +18,7 @@ import monai.deploy.core as md
 from monai.deploy.core import DataPath, ExecutionContext, InputContext, IOType, Operator, OutputContext
 from monai.deploy.core.domain.dicom_series import DICOMSeries
 from monai.deploy.core.domain.dicom_study import DICOMStudy
+from monai.deploy.exceptions import ItemNotExistsError
 from monai.deploy.utils.importutil import optional_import
 
 dcmread, _ = optional_import("pydicom", name="dcmread")
@@ -24,6 +26,7 @@ get_testdata_file, _ = optional_import("pydicom.data", name="dcmread")
 FileSet, _ = optional_import("pydicom.fileset", name="FileSet")
 generate_uid, _ = optional_import("pydicom.uid", name="generate_uid")
 valuerep, _ = optional_import("pydicom", name="valuerep")
+InvalidDicomError, _ = optional_import("pydicom.errors", name="InvalidDicomError")
 
 
 @md.input("dicom_files", DataPath, IOType.DISK)
@@ -34,6 +37,16 @@ class DICOMDataLoaderOperator(Operator):
     This operator loads a collection of DICOM Studies in memory
     given a directory which contains a list of SOP Instances.
     """
+
+    def __init__(self, must_load: bool = True, *args, **kwargs):
+        """Creates an instance of this class
+
+        Args:
+            must_load (bool): If true, raise exception if no study is loaded.
+                              Defaults to True.
+        """
+        super().__init__(*args, **kwargs)
+        self._must_load = must_load
 
     def compute(self, op_input: InputContext, op_output: OutputContext, context: ExecutionContext):
         """Performs computation for this operator and handlesI/O."""
@@ -48,6 +61,7 @@ class DICOMDataLoaderOperator(Operator):
         It scans through the input directory for all SOP instances.
         It groups them by a collection of studies where each study contains one or more series.
         This method returns a list of studies.
+        If there is no studies loaded, an exception will be thrown if set to must load.
 
         Args:
             input_path (Path): The folder containing DICOM instance files.
@@ -57,19 +71,24 @@ class DICOMDataLoaderOperator(Operator):
 
         Raises:
             ValueError: If the folder to load files from does not exist.
+            ItemNotExistsError: If no studies loaded and must_load is True.
         """
         if not input_path.exists() or not input_path.is_dir():
             raise ValueError("Required input folder does not exist.")
 
         files: List[str] = []
         self._list_files(input_path, files)
-        return self._load_data(files)
+        dicom_studies = self._load_data(files)
+        if self._must_load and len(dicom_studies) < 1:
+            raise ItemNotExistsError(f"No study loaded from path {input_path}.")
+
+        return dicom_studies
 
     def _list_files(self, path, files: List[str]):
-        """Collects fully qualified names of all files recurvisely given a directory path.
+        """Collects fully qualified names of all files recursively given a directory path.
 
         Args:
-            path: A directoty containing DICOM SOP instances. It may have nested hirerarchical directories.
+            path: A directory containing DICOM SOP instances. It may have nested hirerarchical directories.
             files: This method populates "files" with fully qualified names of files that belong to the specified directory.
         """
         for item in os.listdir(path):
@@ -84,13 +103,21 @@ class DICOMDataLoaderOperator(Operator):
 
         Args:
             files: A list of file names that represents SOP Instances
+
+        Returns:
+            A list of DICOMStudy objects.
         """
         study_dict = {}
         series_dict = {}
         sop_instances = []
 
         for file in files:
-            sop_instances.append(dcmread(file))
+            try:
+                sop_instances.append(dcmread(file))
+            except InvalidDicomError:
+                logging.warning(
+                    "Ignored {file} because the dataset is not stored in accordance with the DICOM File Format."
+                )
 
         for sop_instance in sop_instances:
 
@@ -289,6 +316,17 @@ def test():
 
                 break
             break
+    # Test raising exception, or not, depending on if set to must_load.
+    non_dcm_dir = current_file_dir.parent / "utils"
+    print(f"{non_dcm_dir}")
+    try:
+        loader.load_data_to_studies(non_dcm_dir)
+    except ItemNotExistsError as ex:
+        print(f"Tested exception when no studies loaded & must_load is True: {ex}")
+
+    relaxed_loader = DICOMDataLoaderOperator(must_load=False)
+    study_list = relaxed_loader.load_data_to_studies(non_dcm_dir)
+    print(f"Loaded studies length of {len(study_list)} is OK when must_load is set to False.")
 
 
 if __name__ == "__main__":
