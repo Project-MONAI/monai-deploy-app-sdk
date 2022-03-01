@@ -332,7 +332,7 @@ class InMemImageReader(ImageReader):
             if not isinstance(i, Image):
                 raise TypeError("Only object of Image type is supported.")
 
-            # The Image asnumpy() retruns NumPy array similar to ITK array_view_from_image
+            # The Image asnumpy() returns NumPy array similar to ITK array_view_from_image
             # The array then needs to be transposed, as does in MONAI ITKReader, to align
             # with the output from Nibabel reader loading NIfTI files.
             data = i.asnumpy().T

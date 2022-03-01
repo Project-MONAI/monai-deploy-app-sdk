@@ -178,7 +178,7 @@ class DICOMSegmentationWriterOperator(Operator):
         return dcmread(file_path)
 
     def select_input_file(self, input_folder, extensions=SUPPORTED_EXTENSIONS):
-        """Select the inut files based on supported extensions.
+        """Select the input files based on supported extensions.
 
         Args:
             input_folder (string): the path of the folder containing the input file(s)
@@ -222,7 +222,7 @@ class DICOMSegmentationWriterOperator(Operator):
     def _get_label_list(self, stringfied_list_of_labels: str = ""):
         """Parse the string to get the label list.
 
-        If empty string is provided, a list of a single element is retured.
+        If empty string is provided, a list of a single element is returned.
 
         Args:
             stringfied_list_of_labels (str): string representing the list of segmentation labels.
@@ -299,7 +299,7 @@ def safe_get(ds, key):
     """Safely gets the tag value if present from the Dataset and logs failure.
 
     The safe get method of dict works for str, but not the hex key. The added
-    benefit of this funtion is that it logs the failure to get the keyed value.
+    benefit of this function is that it logs the failure to get the keyed value.
 
     Args:
         ds (Dataset): pydicom Dataset
@@ -464,7 +464,7 @@ def create_label_segments(dcm_output, seg_labels):
 
     segments = Sequence()
     # Assumes the label starts at 1 and increment sequentially.
-    # TODO: This part needs to be more deteministic, e.g. with a dict.
+    # TODO: This part needs to be more deterministic, e.g. with a dict.
     for lb, name in enumerate(seg_labels, 1):
         segment = create_label_segment(lb, name)
         segments.append(segment)

@@ -24,7 +24,7 @@ from monai.deploy.exceptions import ItemNotExistsError
 
 
 @md.input("dicom_study_list", List[DICOMStudy], IOType.IN_MEMORY)
-@md.input("selection_rules", Dict, IOType.IN_MEMORY)  # This overides the rules in the instance.
+@md.input("selection_rules", Dict, IOType.IN_MEMORY)  # This overrides the rules in the instance.
 @md.output("study_selected_series_list", List[StudySelectedSeries], IOType.IN_MEMORY)
 class DICOMSeriesSelectorOperator(Operator):
     """This operator selects a list of DICOM Series in a DICOM Study for a given set of selection rules.
