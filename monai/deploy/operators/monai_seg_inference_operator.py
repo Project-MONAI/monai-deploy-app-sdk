@@ -1,4 +1,4 @@
-# Copyright 2021 MONAI Consortium
+# Copyright 2021-2002 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -70,8 +70,8 @@ class MonaiSegInferenceOperator(InferenceOperator):
 
         Args:
             roi_size (Union[Sequence[int], int]): The tensor size used in inference.
-            pre_transforms (Compose): MONAI Compose oject used for pre-transforms.
-            post_transforms (Compose): MONAI Compose oject used for post-transforms.
+            pre_transforms (Compose): MONAI Compose object used for pre-transforms.
+            post_transforms (Compose): MONAI Compose object used for post-transforms.
             overlap (float): The overlap used in sliding window inference.
         """
 
@@ -132,7 +132,7 @@ class MonaiSegInferenceOperator(InferenceOperator):
     def _convert_dicom_metadata_datatype(self, metadata: Dict):
         """Converts metadata in pydicom types to the corresponding native types.
 
-        It is knwon that some values of the metadata are of the pydicom types, for images converted
+        It is known that some values of the metadata are of the pydicom types, for images converted
         from DICOM series. Need to use this function to convert the types with best effort and for
         the few knowns metadata attributes, until the following issue is addressed:
             https://github.com/Project-MONAI/monai-deploy-app-sdk/issues/185
@@ -264,7 +264,7 @@ class MonaiSegInferenceOperator(InferenceOperator):
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
 
     def predict(self, data: Any, *args, **kwargs) -> Union[Image, Any]:
-        """Prdicts results using the models(s) with input tensors.
+        """Predicts results using the models(s) with input tensors.
 
         This method must be overridden by a derived class.
 
@@ -310,7 +310,7 @@ class InMemImageReader(ImageReader):
         A single image is loaded with a single set of metadata as of now.
 
         The App SDK Image asnumpy() function is expected to return a numpy array of index order `DHW`.
-        This is because in the DICOM serie to volume operator pydicom Dataset pixel_array is used to
+        This is because in the DICOM series to volume operator pydicom Dataset pixel_array is used to
         to get per instance pixel numpy array, with index order of `HW`. When all instances are stacked,
         along the first axis, the Image numpy array's index order is `DHW`. ITK array_view_from_image
         and SimpleITK GetArrayViewFromImage also returns a numpy array with the index order of `DHW`.
