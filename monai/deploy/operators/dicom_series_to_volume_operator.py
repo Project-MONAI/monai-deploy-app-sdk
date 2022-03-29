@@ -250,7 +250,13 @@ class DICOMSeriesToVolumeOperator(Operator):
                 vr = pixel_spacing_de.value[0]
                 vc = pixel_spacing_de.value[1]
         except KeyError:
-            pass
+            try:
+                imager_pixel_spacing_de = s_1[0x0018, 0x1164]
+                if imager_pixel_spacing_de is not None:
+                    vr = imager_pixel_spacing_de.value[0]
+                    vc = imager_pixel_spacing_de.value[1]
+            except KeyError:
+                pass
 
         x1 = 0.0
         y1 = 0.0
