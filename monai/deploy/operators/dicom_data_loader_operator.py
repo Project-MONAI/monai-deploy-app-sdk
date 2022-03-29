@@ -261,7 +261,13 @@ class DICOMDataLoaderOperator(Operator):
                 series.row_pixel_spacing = pixel_spacing_de.value[0]
                 series.col_pixel_spacing = pixel_spacing_de.value[1]
         except KeyError:
-            pass
+            try:
+                imager_pixel_spacing_de = sop_instance[0x0018, 0x1164]
+                if imager_pixel_spacing_de is not None:
+                    series.row_pixel_spacing = imager_pixel_spacing_de.value[0]
+                    series.col_pixel_spacing = imager_pixel_spacing_de.value[1]
+            except KeyError:
+                    pass
 
         try:
             image_orientation_paient_de = sop_instance[0x0020, 0x0037]
