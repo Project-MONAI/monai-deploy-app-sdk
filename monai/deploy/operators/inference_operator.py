@@ -51,7 +51,7 @@ class InferenceOperator(Operator):
 
     @abstractmethod
     def predict(self, data: Any) -> Union[Image, Any]:
-        """Prdicts results using the models(s) with input tensors.
+        """Predicts results using the models(s) with input tensors.
 
         This method must be overridden by a derived class.
 

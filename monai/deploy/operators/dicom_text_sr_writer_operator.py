@@ -103,7 +103,7 @@ class DICOMTextSRWriterOperator(Operator):
         *args,
         **kwargs,
     ):
-        """Class to write DICOM SR SOP Instance for AI textual result in memeory or in a file.
+        """Class to write DICOM SR SOP Instance for AI textual result in memory or in a file.
 
         Args:
             copy_tags (bool): True for copying DICOM attributes from a provided DICOMSeries.

@@ -137,7 +137,7 @@ class STLConverter(object):
         """
         Args:
             image (Image): object with the image (ndarray of DHW index order) and its metadata dictionary.
-            output_file (str): output stl file path. Default to None for not saving output file.
+            output_file (str): output STL file path. Default to None for not saving output file.
             class_id (array, optional): Class label id. Defaults to None.
             is_smooth (bool, optional): smoothing or not. Defaults to True.
             keep_largest_connected_component (bool, optional): Defaults to True.
@@ -211,7 +211,7 @@ class STLConverter(object):
             vert = itk_image.TransformContinuousIndexToPhysicalPoint(vert)
             verts[_j, :] = np.array(vert)
 
-        # Write out the stl file, and then load into trimesh
+        # Write out the STL file, and then load into trimesh
         try:
             temp_folder = tempfile.mkdtemp()
             raw_stl_filename = os.path.join(temp_folder, "temp.stl")
@@ -297,7 +297,7 @@ class STLConverter(object):
 
         @property
         def itk_image(self):
-            """ITK image oject created from the encapsulated image object, or None"""
+            """ITK image object created from the encapsulated image object, or None"""
             return self._props.get("itk_image", None)
 
         @property
@@ -307,12 +307,12 @@ class STLConverter(object):
 
         @property
         def spacing(self):
-            """Pixel spacing of orignal image, aka resolution, or None"""
+            """Pixel spacing of original image, aka resolution, or None"""
             return self._props.get("spacing", None)
 
         @property
         def original_affine(self):
-            """Oringal affine of the image, or None"""
+            """Original affine of the image, or None"""
             return self._props.get("original_affine", None)
 
         @property
@@ -377,7 +377,7 @@ class STLConverter(object):
             return img_array, affine, original_affine, shape, spacing, itk_image
 
         def _read_from_in_mem_image(self, image):
-            """Parse the in-memory image for the attibutes.
+            """Parse the in-memory image for the attributes.
 
             Args:
                 image (Image): App SDK Image instance.
@@ -399,7 +399,7 @@ class STLConverter(object):
                 if num_dims == 5:
                     img_array = np.squeeze(img_array)
                     if len(img_array.shape) != 4:
-                        raise ValueError("Cannot squeeze 5D image to 4D; oject doesn't support time based data.")
+                        raise ValueError("Cannot squeeze 5D image to 4D; object doesn't support time based data.")
 
                 if self.is_channels_first:
                     self._logger.info("4D image, channel first")
