@@ -27,7 +27,7 @@ PILImage, _ = optional_import("PIL", name="Image")
 @md.env(pip_packages=["Pillow >= 8.0.0"])
 class PNGConverterOperator(Operator):
     """
-    This operator writes out a 3D Volumtric Image to disk in a slice by slice manner
+    This operator writes out a 3D Volumetric Image to disk in a slice by slice manner
     """
 
     def compute(self, op_input: InputContext, op_output: OutputContext, context: ExecutionContext):
