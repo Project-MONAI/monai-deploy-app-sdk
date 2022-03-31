@@ -43,6 +43,15 @@ class DICOMSOPInstance(Domain):
         return self._sop.__getitem__(key)
 
     def get_pixel_array(self):
+        try:
+            pmi = self.get_native_sop_instance().PhotometricInterpretation
+            if pmi == "MONOCHROME1":
+                max_intensity = self._sop.pixel_array.max()
+                shape = self._sop.pixel_array.shape
+                mask = np.full(shape, max_intensity)
+                return mask - self._sop.pixel_array
+        except:
+            pass
         return self._sop.pixel_array
 
     def __str__(self):
