@@ -249,7 +249,14 @@ class DICOMDataLoaderOperator(Operator):
             pass
 
         try:
-            pixel_spacing_de = sop_instance[0x0028, 0x0030]
+            tag_pixel_spacing = "PixelSpacing"  # tag (0x0028, 0x0030)
+            tag_imager_pixel_spacing = "ImagerPixelSpacing"  # tag (0x0018, 0x1164)
+            if tag_pixel_spacing in sop_instance:
+                pixel_spacing_de = sop_instance[tag_pixel_spacing]
+            elif tag_imager_pixel_spacing in sop_instance:
+                pixel_spacing_de = sop_instance[tag_imager_pixel_spacing]
+            else:
+                raise KeyError("Neither {tag_pixel_spacing} nor {tag_imager_pixel_spacing} in dataset header.")
             if pixel_spacing_de is not None:
                 series.row_pixel_spacing = pixel_spacing_de.value[0]
                 series.col_pixel_spacing = pixel_spacing_de.value[1]

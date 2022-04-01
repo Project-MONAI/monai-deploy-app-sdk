@@ -366,7 +366,7 @@ class InMemImageReader(ImageReader):
                 img_meta_dict["depth_pixel_spacing"],
             ]
         )
-        meta_dict["original_affine"] = np.asarray(img_meta_dict["nifti_affine_transform"])
+        meta_dict["original_affine"] = np.asarray(img_meta_dict.get("nifti_affine_transform", None))
         meta_dict["affine"] = meta_dict["original_affine"]
         # The spatial shape, again, referring to ITKReader, it is the WHD
         meta_dict["spatial_shape"] = np.asarray(img.asnumpy().T.shape)
