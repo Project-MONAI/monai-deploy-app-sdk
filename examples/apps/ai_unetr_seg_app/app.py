@@ -50,7 +50,9 @@ class AIUnetrSegApp(Application):
         # Create the publisher operator
         publisher_op = PublisherOperator()
         # Create the surface mesh STL conversion operator, for all segments
-        stl_conversion_op = STLConversionOperator(output_file="stl/multi-organs.stl", keep_largest_connected_component=False)
+        stl_conversion_op = STLConversionOperator(
+            output_file="stl/multi-organs.stl", keep_largest_connected_component=False
+        )
 
         # Create the processing pipeline, by specifying the upstream and downstream operators, and
         # ensuring the output from the former matches the input of the latter, in both name and type.
