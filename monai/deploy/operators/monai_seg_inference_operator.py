@@ -208,7 +208,7 @@ class MonaiSegInferenceOperator(InferenceOperator):
                 model = torch.jit.load(MonaiSegInferenceOperator.MODEL_LOCAL_PATH, map_location=device)
 
             dataset = Dataset(data=[{self._input_dataset_key: img_name}], transform=pre_transforms)
-            dataloader = DataLoader(dataset, batch_size=1, shuffle=False, num_workers=1)
+            dataloader = DataLoader(dataset, batch_size=1, shuffle=False, num_workers=0)
 
             with torch.no_grad():
                 for d in dataloader:
