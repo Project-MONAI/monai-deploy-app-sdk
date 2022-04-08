@@ -34,7 +34,7 @@ from monai.transforms import (
 
 @md.input("image", Image, IOType.IN_MEMORY)
 @md.output("seg_image", Image, IOType.IN_MEMORY)
-@md.env(pip_packages=["monai==0.6.0", "torch>=1.5", "numpy>=1.21", "nibabel"])
+@md.env(pip_packages=["monai>=0.8.1", "torch>=1.5", "numpy>=1.21", "nibabel"])
 class SpleenSegOperator(Operator):
     """Performs Spleen segmentation with a 3D image converted from a DICOM CT series.
 
