@@ -28,7 +28,7 @@ In the following sections, the UNETR Multi-organ Segmentation application will b
 ### Create the requirements file
 Without using the MONAI Deploy App SDK Packager to automatically detect the dependencies of an application, one has to explicitly create the `requierments.txt` file to be used in the `Dockerfile`. Create the `requirements.txt` file in the application's folder with the content shown below,
 ```bash
-monai>=0.6.0
+monai>=0.8.1
 monai-deploy-app-sdk>=0.1.0
 nibabel
 numpy>=1.21

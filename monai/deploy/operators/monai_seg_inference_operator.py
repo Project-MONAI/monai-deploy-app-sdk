@@ -43,7 +43,7 @@ __all__ = ["MonaiSegInferenceOperator", "InMemImageReader"]
 
 @md.input("image", Image, IOType.IN_MEMORY)
 @md.output("seg_image", Image, IOType.IN_MEMORY)
-@md.env(pip_packages=["monai==0.6.0", "torch>=1.5", "numpy>=1.21"])
+@md.env(pip_packages=["monai>=0.8.1", "torch>=1.5", "numpy>=1.21"])
 class MonaiSegInferenceOperator(InferenceOperator):
     """This segmentation operator uses MONAI transforms and Sliding Window Inference.
 
