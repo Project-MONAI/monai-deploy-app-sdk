@@ -153,7 +153,7 @@ class DICOMSegmentationWriterOperator(Operator):
             self.create_dicom_seg(seg_image_numpy, dicom_series, output_path)
             break
 
-    def create_dicom_seg(self, image: Image, dicom_series: DICOMSeries, file_path: Path):
+    def create_dicom_seg(self, image: np.ndarray, dicom_series: DICOMSeries, file_path: Path):
         file_path.parent.absolute().mkdir(parents=True, exist_ok=True)
 
         dicom_dataset_list = [i.get_native_sop_instance() for i in dicom_series.get_sop_instances()]
@@ -550,7 +550,7 @@ def set_pixel_meta(dicomOutput, input_ds):
 
     dicomOutput.Rows = input_ds.Rows
     dicomOutput.Columns = input_ds.Columns
-    dicomOutput.BitsAllocated = 8  # add_new(0x00280100, 'US', 8) # Bits allocated
+    dicomOutput.BitsAllocated = 1  # add_new(0x00280100, 'US', 8) # Bits allocated
     dicomOutput.BitsStored = 1
     dicomOutput.HighBit = 0
     dicomOutput.PixelRepresentation = 0

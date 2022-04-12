@@ -15,10 +15,10 @@ from unetr_seg_operator import UnetrSegOperator
 
 from monai.deploy.core import Application, resource
 from monai.deploy.operators.dicom_data_loader_operator import DICOMDataLoaderOperator
-from monai.deploy.operators.dicom_seg_writer_operator import DICOMSegmentationWriterOperator
 from monai.deploy.operators.dicom_series_selector_operator import DICOMSeriesSelectorOperator
 from monai.deploy.operators.dicom_series_to_volume_operator import DICOMSeriesToVolumeOperator
 from monai.deploy.operators.publisher_operator import PublisherOperator
+from monai.deploy.operators.stl_conversion_operator import STLConversionOperator
 
 
 @resource(cpu=1, gpu=1, memory="7Gi")
@@ -49,25 +49,11 @@ class AIUnetrSegApp(Application):
         unetr_seg_op = UnetrSegOperator()
         # Create the publisher operator
         publisher_op = PublisherOperator()
-
-        # Creates DICOM Seg writer with segment label name in a string list
-        dicom_seg_writer = DICOMSegmentationWriterOperator(
-            seg_labels=[
-                "spleen",
-                "rkid",
-                "lkid",
-                "gall",
-                "eso",
-                "liver",
-                "sto",
-                "aorta",
-                "IVC",
-                "veins",
-                "pancreas",
-                "rad",
-                "lad",
-            ]
+        # Create the surface mesh STL conversion operator, for all segments
+        stl_conversion_op = STLConversionOperator(
+            output_file="stl/multi-organs.stl", keep_largest_connected_component=False
         )
+
         # Create the processing pipeline, by specifying the upstream and downstream operators, and
         # ensuring the output from the former matches the input of the latter, in both name and type.
         self.add_flow(study_loader_op, series_selector_op, {"dicom_study_list": "dicom_study_list"})
@@ -75,16 +61,11 @@ class AIUnetrSegApp(Application):
             series_selector_op, series_to_vol_op, {"study_selected_series_list": "study_selected_series_list"}
         )
         self.add_flow(series_to_vol_op, unetr_seg_op, {"image": "image"})
+        self.add_flow(unetr_seg_op, stl_conversion_op, {"seg_image": "image"})
+
         # Add the publishing operator to save the input and seg images for Render Server.
         # Note the PublisherOperator has temp impl till a proper rendering module is created.
         self.add_flow(unetr_seg_op, publisher_op, {"saved_images_folder": "saved_images_folder"})
-        # Note below the dicom_seg_writer requires two inputs, each coming from a upstream operator.
-        # Also note that the DICOMSegmentationWriterOperator may throw exception with some inputs.
-        #   Bug has been created to track the issue.
-        self.add_flow(
-            series_selector_op, dicom_seg_writer, {"study_selected_series_list": "study_selected_series_list"}
-        )
-        self.add_flow(unetr_seg_op, dicom_seg_writer, {"seg_image": "seg_image"})
 
         self._logger.debug(f"End {self.compose.__name__}")
 
