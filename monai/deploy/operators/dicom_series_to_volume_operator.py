@@ -110,13 +110,14 @@ class DICOMSeriesToVolumeOperator(Operator):
         photometric_interpretation = (
             slices[0].get_native_sop_instance().get("PhotometricInterpretation", "").strip().upper()
         )
+        presentation_lut_shape = slices[0].get_native_sop_instance().get("PresentationLUTShape", "").strip().upper()
 
         if not photometric_interpretation:
             logging.warning("Cannot get value of attribute Photometric Interpretation.")
 
         if photometric_interpretation != "MONOCHROME2":
-            if photometric_interpretation == "MONOCHROME1":
-                logging.debug(f"Inverting intensity of MONOCHROME1 image.")
+            if photometric_interpretation == "MONOCHROME1" or presentation_lut_shape == "INVERSE":
+                logging.debug("Applying INVERSE transformation as required for MONOCHROME1 image.")
                 vol_data = vol_data * -1 + np.max(vol_data)
             else:
                 raise ValueError(
