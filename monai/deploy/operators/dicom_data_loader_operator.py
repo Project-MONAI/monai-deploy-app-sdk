@@ -114,9 +114,9 @@ class DICOMDataLoaderOperator(Operator):
         for file in files:
             try:
                 sop_instances.append(dcmread(file))
-            except InvalidDicomError:
+            except InvalidDicomError as ex:
                 logging.warning(
-                    "Ignored {file} because the dataset is not stored in accordance with the DICOM File Format."
+                    f"Ignored {file}, reason being: {ex}"
                 )
 
         for sop_instance in sop_instances:
