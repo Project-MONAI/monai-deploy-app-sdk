@@ -115,9 +115,7 @@ class DICOMDataLoaderOperator(Operator):
             try:
                 sop_instances.append(dcmread(file))
             except InvalidDicomError as ex:
-                logging.warning(
-                    f"Ignored {file}, reason being: {ex}"
-                )
+                logging.warning(f"Ignored {file}, reason being: {ex}")
 
         for sop_instance in sop_instances:
 
