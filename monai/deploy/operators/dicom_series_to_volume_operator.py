@@ -118,7 +118,7 @@ class DICOMSeriesToVolumeOperator(Operator):
         if photometric_interpretation != "MONOCHROME2":
             if photometric_interpretation == "MONOCHROME1" or presentation_lut_shape == "INVERSE":
                 logging.debug("Applying INVERSE transformation as required for MONOCHROME1 image.")
-                vol_data = vol_data * -1 + np.max(vol_data)
+                vol_data = np.amax(vol_data) - vol_data
             else:
                 raise ValueError(
                     f"Cannot process pixel data with Photometric Interpretation of {photometric_interpretation}."
