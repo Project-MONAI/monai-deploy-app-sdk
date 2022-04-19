@@ -19,6 +19,8 @@ import monai.deploy.core as md
 from monai.deploy.core import ExecutionContext, Image, InputContext, IOType, Operator, OutputContext
 from monai.deploy.core.domain.dicom_series_selection import StudySelectedSeries
 
+from pydicom.pixel_data_handlers import util
+
 
 @md.input("study_selected_series_list", List[StudySelectedSeries], IOType.IN_MEMORY)
 @md.output("image", Image, IOType.IN_MEMORY)
