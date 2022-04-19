@@ -98,24 +98,16 @@ class DICOMSeriesToVolumeOperator(Operator):
         # so the final 3D NumPy array will have index order of [DHW]. This is consistent
         # with the NumPy array returned from the ITK GetArrayViewFromImage on the image
         # loaded from the same DICOM series.
-        vol_data = np.stack([s.get_pixel_array() for s in slices], axis=0)
-        vol_data = vol_data.astype(np.int16)
-
-        # Rescale Intercept and Slope attributes might be missing, but safe to assume defaults.
-        try:
-            intercept = slices[0][0x0028, 0x1052].value
-        except KeyError:
-            intercept = 0
-
-        try:
-            slope = slices[0][0x0028, 0x1053].value
-        except KeyError:
-            slope = 1
-
-        if slope != 1:
-            vol_data = slope * vol_data.astype(np.float64)
-            vol_data = vol_data.astype(np.int16)
-        vol_data += np.int16(intercept)
+        pixel_arrays = []
+        for s in slices:
+            native_sop_instance = s.get_native_sop_instance()
+            # Apply rescale operation (if required, otherwise returns pixel_array unchanged)
+            rescaled_pixel_array = util.apply_modality_lut(native_sop_instance.pixel_array, native_sop_instance)
+            if self._apply_voi_lut:
+                # Apply windowing operation (if required, otherwise returns pixel_array unchanged)
+                rescaled_pixel_array = util.apply_voi_lut(rescaled_pixel_array, native_sop_instance)
+            pixel_arrays.append(rescaled_pixel_array)
+        vol_data = np.stack(pixel_arrays, axis=0)
         return np.array(vol_data, dtype=np.int16)
 
     def create_volumetric_image(self, vox_data, metadata):
