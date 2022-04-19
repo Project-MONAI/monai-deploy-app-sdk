@@ -32,6 +32,15 @@ class DICOMSeriesToVolumeOperator(Operator):
     Channel is limited to 1 as of now, and `C` is absent in the NumPy array.
     """
 
+    def __init__(self, apply_voi_lut: bool = False, *args, **kwargs):
+         """Creates an instance of this class
+         Args:
+             apply_voi_lut (bool): If true, tries to apply VOI LUT to voxel data.
+                                   Defaults to False.
+         """
+         super().__init__(*args, **kwargs)
+         self._apply_voi_lut = apply_voi_lut
+
     def compute(self, op_input: InputContext, op_output: OutputContext, context: ExecutionContext):
         """Performs computation for this operator and handles I/O."""
 
