@@ -84,7 +84,7 @@ class DICOMSeriesToVolumeOperator(Operator):
         return study_selected_series_list[0].selected_series[0].image
 
     def generate_voxel_data(self, series):
-        """Applies rescale slope and rescale intercept to the pixels.
+        """Applies rescale operation and also VOI LUT to the pixels, if required.
 
         Args:
             series: DICOM Series for which the pixel data needs to be extracted.
