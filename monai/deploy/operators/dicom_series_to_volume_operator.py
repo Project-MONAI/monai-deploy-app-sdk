@@ -18,8 +18,9 @@ import numpy as np
 import monai.deploy.core as md
 from monai.deploy.core import ExecutionContext, Image, InputContext, IOType, Operator, OutputContext
 from monai.deploy.core.domain.dicom_series_selection import StudySelectedSeries
+from monai.deploy.utils.importutil import optional_import
 
-from pydicom.pixel_data_handlers import util
+util, _ = optional_import("pydicom.pixel_data_handlers", name="util")
 
 
 @md.input("study_selected_series_list", List[StudySelectedSeries], IOType.IN_MEMORY)
