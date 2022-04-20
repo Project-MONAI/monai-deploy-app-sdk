@@ -18,6 +18,9 @@ import numpy as np
 import monai.deploy.core as md
 from monai.deploy.core import ExecutionContext, Image, InputContext, IOType, Operator, OutputContext
 from monai.deploy.core.domain.dicom_series_selection import StudySelectedSeries
+from monai.deploy.utils.importutil import optional_import
+
+util, _ = optional_import("pydicom.pixel_data_handlers", name="util")
 
 
 @md.input("study_selected_series_list", List[StudySelectedSeries], IOType.IN_MEMORY)
@@ -29,6 +32,15 @@ class DICOMSeriesToVolumeOperator(Operator):
     The data array will be a 3D image NumPy array with index order of `DHW`.
     Channel is limited to 1 as of now, and `C` is absent in the NumPy array.
     """
+
+    def __init__(self, apply_voi_lut: bool = False, *args, **kwargs):
+        """Creates an instance of this class
+        Args:
+            apply_voi_lut (bool): If true, tries to apply VOI LUT to voxel data.
+                                  Defaults to False.
+        """
+        super().__init__(*args, **kwargs)
+        self._apply_voi_lut = apply_voi_lut
 
     def compute(self, op_input: InputContext, op_output: OutputContext, context: ExecutionContext):
         """Performs computation for this operator and handles I/O."""
@@ -73,7 +85,7 @@ class DICOMSeriesToVolumeOperator(Operator):
         return study_selected_series_list[0].selected_series[0].image
 
     def generate_voxel_data(self, series):
-        """Applies rescale slope and rescale intercept to the pixels.
+        """Applies rescale operation and also VOI LUT to the pixels, if required.
 
         Args:
             series: DICOM Series for which the pixel data needs to be extracted.
@@ -87,24 +99,16 @@ class DICOMSeriesToVolumeOperator(Operator):
         # so the final 3D NumPy array will have index order of [DHW]. This is consistent
         # with the NumPy array returned from the ITK GetArrayViewFromImage on the image
         # loaded from the same DICOM series.
-        vol_data = np.stack([s.get_pixel_array() for s in slices], axis=0)
-        vol_data = vol_data.astype(np.int16)
-
-        # Rescale Intercept and Slope attributes might be missing, but safe to assume defaults.
-        try:
-            intercept = slices[0][0x0028, 0x1052].value
-        except KeyError:
-            intercept = 0
-
-        try:
-            slope = slices[0][0x0028, 0x1053].value
-        except KeyError:
-            slope = 1
-
-        if slope != 1:
-            vol_data = slope * vol_data.astype(np.float64)
-            vol_data = vol_data.astype(np.int16)
-        vol_data += np.int16(intercept)
+        pixel_arrays = []
+        for s in slices:
+            native_sop_instance = s.get_native_sop_instance()
+            # Apply rescale operation (if required, otherwise returns pixel_array unchanged)
+            rescaled_pixel_array = util.apply_modality_lut(native_sop_instance.pixel_array, native_sop_instance)
+            if self._apply_voi_lut:
+                # Apply windowing operation (if required, otherwise returns pixel_array unchanged)
+                rescaled_pixel_array = util.apply_voi_lut(rescaled_pixel_array, native_sop_instance)
+            pixel_arrays.append(rescaled_pixel_array)
+        vol_data = np.stack(pixel_arrays, axis=0)
         return np.array(vol_data, dtype=np.int16)
 
     def create_volumetric_image(self, vox_data, metadata):
