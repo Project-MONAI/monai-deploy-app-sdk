@@ -10,6 +10,7 @@
 # limitations under the License.
 
 import copy
+import logging
 import math
 from typing import Dict, List, Union
 
@@ -75,6 +76,10 @@ class DICOMSeriesToVolumeOperator(Operator):
     def generate_voxel_data(self, series):
         """Applies rescale slope and rescale intercept to the pixels.
 
+        Supports monochrome image only for now. Photometric Interpretation attribute,
+        tag (0028,0004), is considered. Both MONOCHROME2 (IDENTITY) and MONOCHROME1 (INVERSE)
+        result in an output image where The minimum sample value is intended to be displayed as black.
+
         Args:
             series: DICOM Series for which the pixel data needs to be extracted.
 
@@ -89,6 +94,35 @@ class DICOMSeriesToVolumeOperator(Operator):
         # loaded from the same DICOM series.
         vol_data = np.stack([s.get_pixel_array() for s in slices], axis=0)
         vol_data = vol_data.astype(np.int16)
+
+        # For now we support monochrome image only, for which DICOM Photometric Interpretation
+        # (0028,0004) has defined terms, MONOCHROME1 and MONOCHROME2, with the former being:
+        #   Pixel data represent a single monochrome image plane. The minimum sample value is
+        #   intended to be displayed as white after any VOI gray scale transformations have been
+        #   performed. See PS3.4. This value may be used only when Samples per Pixel (0028,0002)
+        #   has a value of 1. May be used for pixel data in a Native (uncompressed) or Encapsulated
+        #   (compressed) format; see Section 8.2 in PS3.5.
+        # and for the latter "The minimum sample value is intended to be displayed as black"
+        #
+        # In this function, pixel data will be interpreted as if MONOCHROME2, hence inverting
+        # MONOCHROME1 for the final voxel data.
+
+        photometric_interpretation = (
+            slices[0].get_native_sop_instance().get("PhotometricInterpretation", "").strip().upper()
+        )
+        presentation_lut_shape = slices[0].get_native_sop_instance().get("PresentationLUTShape", "").strip().upper()
+
+        if not photometric_interpretation:
+            logging.warning("Cannot get value of attribute Photometric Interpretation.")
+
+        if photometric_interpretation != "MONOCHROME2":
+            if photometric_interpretation == "MONOCHROME1" or presentation_lut_shape == "INVERSE":
+                logging.debug("Applying INVERSE transformation as required for MONOCHROME1 image.")
+                vol_data = np.amax(vol_data) - vol_data
+            else:
+                raise ValueError(
+                    f"Cannot process pixel data with Photometric Interpretation of {photometric_interpretation}."
+                )
 
         # Rescale Intercept and Slope attributes might be missing, but safe to assume defaults.
         try:
