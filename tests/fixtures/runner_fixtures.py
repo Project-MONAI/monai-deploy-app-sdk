@@ -112,6 +112,28 @@ def faux_pkg_manifest():
 
 
 @pytest.fixture(scope="session")
+def faux_pkg_manifest_with_shm():
+    pkg_manifest = json.loads(
+        """{
+        "sdk-version": "0.0.0",
+        "models": [
+            {
+            "name": "spleen-segmentation",
+            "path": "/var/opt/monai/models/spleen_model/data.ts"
+            }
+        ],
+        "resources": {
+            "cpu": 1,
+            "memory": "4Gi",
+            "shared-memory": "2Gi"
+        }
+        }
+    """
+    )
+    yield pkg_manifest
+
+
+@pytest.fixture(scope="session")
 def faux_app_manifest_with_absolute_path():
     """App manifest with absolute input and output paths"""
     app_manifest = json.loads(
