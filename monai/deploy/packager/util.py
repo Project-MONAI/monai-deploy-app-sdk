@@ -28,7 +28,7 @@ from monai.deploy.utils.spinner import ProgressSpinner
 
 logger = logging.getLogger("app_packager")
 
-executor_url = "https://globalcdn.nuget.org/packages/monai.deploy.executor.0.1.0-prealpha.0.nupkg"
+executor_url = "https://globalcdn.nuget.org/packages/monai.deploy.executor.0.1.0-prealpha.4.nupkg"
 
 
 def verify_base_image(base_image: str) -> str:
