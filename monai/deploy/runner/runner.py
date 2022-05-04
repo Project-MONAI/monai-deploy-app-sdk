@@ -114,6 +114,7 @@ def run_app(map_name: str, input_path: Path, output_path: Path, app_info: dict, 
     # cmd += " -v {}:{} -v {}:{} {}".format(
     #     input_path.absolute(), map_input, output_path.absolute(), map_output, map_name
     # )
+    logger.debug("Executing command: %s", cmd)
 
     return run_cmd(cmd)
 
