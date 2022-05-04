@@ -236,6 +236,8 @@ def build_image(args: dict, temp_dir: str):
         docker_build_cmd += " --no-cache"
     proc = subprocess.Popen(docker_build_cmd, stdout=subprocess.PIPE, shell=True)
 
+    logger.debug("Docker image build command: %s", docker_build_cmd)
+
     spinner = ProgressSpinner("Building MONAI Application Package... ")
     spinner.start()
 
