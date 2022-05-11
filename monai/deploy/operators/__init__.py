@@ -19,6 +19,7 @@
     DICOMSeriesToVolumeOperator
     DICOMTextSRWriterOperator
     InferenceOperator
+    BundleOperator
     MonaiSegInferenceOperator
     PNGConverterOperator
     PublisherOperator
@@ -33,6 +34,7 @@ from .dicom_series_selector_operator import DICOMSeriesSelectorOperator
 from .dicom_series_to_volume_operator import DICOMSeriesToVolumeOperator
 from .dicom_text_sr_writer_operator import DICOMTextSRWriterOperator, EquipmentInfo, ModelInfo
 from .inference_operator import InferenceOperator
+from .monai_bundle_operator import BundleOperator, create_bundle_operator
 from .monai_seg_inference_operator import MonaiSegInferenceOperator
 from .png_converter_operator import PNGConverterOperator
 from .publisher_operator import PublisherOperator
