@@ -27,6 +27,7 @@ from monai.deploy.core import (
     InputContext,
     IOType,
     OutputContext,
+    Operator
 )
 
 from .inference_operator import InferenceOperator
@@ -64,17 +65,18 @@ def get_bundle_config(bundle_path, config_names):
     return parser
 
 
-DISALLOWED_TRANSFORMS = ["LoadImage", "SaveImage"]
+DISALLOW_LOAD_SAVE = ["LoadImage", "SaveImage"]
+DISALLOW_SAVE = ["SaveImage"]
 
 
-def filter_compose(compose):
+def filter_compose(compose, disallowed_prefixes):
     """
-    Remove transforms from the given Compose object which shouldn't be used in an Operator.
+    Remove transforms from the given Compose object whose names begin with `disallowed_prefixes`.
     """
     filtered = []
     for t in compose.transforms:
         tname = type(t).__name__
-        if not any(dis in tname for dis in DISALLOWED_TRANSFORMS):
+        if not any(dis in tname for dis in disallowed_prefixes):
             filtered.append(t)
 
     return Compose(filtered)
@@ -127,18 +129,20 @@ class BundleOperator(InferenceOperator):
         self._inputs = meta["network_data_format"]["inputs"]
         self._outputs = meta["network_data_format"]["outputs"]
 
-        self._preproc = self._get_compose(preproc_name)
-        self._postproc = self._get_compose(postproc_name)
+        self._preproc = self._get_compose(
+            preproc_name, DISALLOW_LOAD_SAVE if in_type==IOType.IN_MEMORY else DISALLOW_SAVE
+        )
+        self._postproc = self._get_compose(postproc_name, DISALLOW_LOAD_SAVE)
 
         self._add_inputs(self._inputs, in_type)
         self._add_outputs(self._outputs, out_type)
 
-    def _get_compose(self, obj_name):
+    def _get_compose(self, obj_name, disallowed_prefixes):
         """Get a Compose object containing a sequence fo transforms from item `obj_name` in `self.parser`."""
 
         if self.parser.get(obj_name) is not None:
             compose = self.parser.get_parsed_content(obj_name)
-            return filter_compose(compose)
+            return filter_compose(compose, disallowed_prefixes)
 
         return Compose([])
 
