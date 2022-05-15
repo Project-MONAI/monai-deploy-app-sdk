@@ -9,14 +9,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import copy
-import datetime
-import json
-import logging
 import os
 from pathlib import Path
 from random import randint
-from typing import List, Optional, Union
+from typing import List, Union
 
 import numpy as np
 
