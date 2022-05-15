@@ -38,7 +38,7 @@ from monai.transforms import (
 class SpleenSegOperator(Operator):
     """Performs Spleen segmentation with a 3D image converted from a DICOM CT series.
 
-    This operator makes use of the App SDK MonaiSegInferenceOperator in a compsition approach.
+    This operator makes use of the App SDK MonaiSegInferenceOperator in a composition approach.
     It creates the pre-transforms as well as post-transforms with MONAI dictionary based transforms.
     Note that the App SDK InMemImageReader, derived from MONAI ImageReader, is passed to LoadImaged.
     This derived reader is needed to parse the in memory image object, and return the expected data structure.
