@@ -59,16 +59,13 @@ class DICOMSegmentationWriterOperator(Operator):
         super().__init__(*args, **kwargs)
         """Instantiates the DICOM Seg Writer instance with optional list of segment label strings.
 
-        A string can be used instead of a numerical value for a segment in the segmentation image.
-        As of now, integer values are supported for segment mask, and it is further required that the named
-        segment will start with 1 and increment sequentially if there are additional segments, while the
-        background is of value 0. The caller needs to pass in a string list, whose length corresponds
-        to the number of actual segments. The position index + 1 would be the corresponding segment's
-        numerical value.
+        Each unique, non-zero integer value in the segmentation image represents a segment that must be
+        described by an item of the segment descriptions list with the corresponding segment number.
+        Items in the list must be arranged starting at segment number 1 and increasing by 1.
 
         For example, in the CT Spleen Segmentation application, the whole image background has a value
         of 0, and the Spleen segment of value 1. This then only requires the caller to pass in a list
-        containing a single string, which is used as label for the Spleen in the DICOM Seg instance.
+        containing a segment description, which is used as label for the Spleen in the DICOM Seg instance.
 
         Note: this interface is subject to change. It is planned that a new object will encapsulate the
         segment label information, including label value, name, description etc.
