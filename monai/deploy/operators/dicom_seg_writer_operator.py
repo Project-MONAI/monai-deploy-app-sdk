@@ -12,7 +12,7 @@
 import os
 from pathlib import Path
 from random import randint
-from typing import List, Union
+from typing import TYPE_CHECKING, List, Union
 
 import numpy as np
 
@@ -28,6 +28,10 @@ Sequence, _ = optional_import("pydicom.sequence", name="Sequence")
 hd, _ = optional_import("highdicom")
 sitk, _ = optional_import("SimpleITK")
 codes, _ = optional_import("pydicom.sr.codedict", name="codes")
+if TYPE_CHECKING:
+    from highdicom.seg import SegmentDescription
+else:
+    SegmentDescription, _ = optional_import("highdicom.seg", name="SegmentDescription")
 
 import monai.deploy.core as md
 from monai.deploy.core import DataPath, ExecutionContext, Image, InputContext, IOType, Operator, OutputContext
@@ -51,7 +55,7 @@ class DICOMSegmentationWriterOperator(Operator):
     # Suffix to add to file name to indicate DICOM Seg dcm file.
     DICOMSEG_SUFFIX = "-DICOMSEG"
 
-    def __init__(self, segment_descriptions: List[hd.seg.SegmentDescription], *args, **kwargs):
+    def __init__(self, segment_descriptions: List[SegmentDescription], *args, **kwargs):
         super().__init__(*args, **kwargs)
         """Instantiates the DICOM Seg Writer instance with optional list of segment label strings.
 
