@@ -12,6 +12,7 @@
 import zipfile
 import os
 import json
+import pickle
 from glob import glob
 from typing import Any, Dict, Sequence, Union
 
@@ -79,7 +80,9 @@ def filter_compose(compose, disallowed_prefixes):
         if not any(dis in tname for dis in disallowed_prefixes):
             filtered.append(t)
 
-    return Compose(filtered)
+    # return Compose(filtered)
+    compose.transforms=tuple(filtered)
+    return compose
 
 
 def is_map_compose(compose):
@@ -99,14 +102,22 @@ class BundleOperator(InferenceOperator):
     A number of methods are provided which define parts of functionality relating to this behaviour, users may wish
     to overwrite these to change behaviour is needed for specific bundles.
     """
+    
+    known_io_data_types={
+        "image": Image,  # Image object
+        "series": np.ndarray,
+        "tuples": np.ndarray,
+        "probabilities": Dict[str, Any]  # dictionary containing probabilities and predicted labels
+    }
+    
     def __init__(
         self,
         parser,
-        in_type=IOType.IN_MEMORY,
-        out_type=IOType.IN_MEMORY,
-        preproc_name="preprocessing",
-        postproc_name="postprocessing",
-        inferer_name="inferer",
+        in_type:IOType=IOType.IN_MEMORY,
+        out_type:IOType=IOType.IN_MEMORY,
+        preproc_name:str="preprocessing",
+        postproc_name:str="postprocessing",
+        inferer_name:str="inferer",
     ):
         super().__init__()
         self.parser = parser
@@ -145,42 +156,71 @@ class BundleOperator(InferenceOperator):
             return filter_compose(compose, disallowed_prefixes)
 
         return Compose([])
+    
+    def _get_io_data_type(self,conf):
+        """
+        Get the input/output type of the given input or output metadata dictionary. The known Python types for input
+        or output types are given in the dictionary `BundleOperator.known_io_data_types` which relate type names to
+        the actual type. if `conf["type"]` is an actual object that's not a string then this is assumed to be the 
+        type specifier and is returned. The fallback type is `bytes` which indicates the value is a pickled object.
+        
+        Args:
+            conf: configuration dictionary for an input or output from the "network_data_format" metadata section
+            
+        Returns:
+            A concrete type associated with this input/output type, this can be Image or np.ndarray or a Python type
+        """
+        ctype = conf["type"]
+        if ctype in self.known_io_data_types:  # known type name from the specification
+            return self.known_io_data_types[ctype]
+        elif isinstance(ctype,type):  # type object 
+            return ctype
+        else:  # don't know, something that hasn't been figured out
+            return object
 
     def _add_inputs(self, inputs_dict, in_type):
         """Add inputs specified in self._inputs."""
 
         for iname, conf in inputs_dict.items():
-            itype = conf["type"].lower()
-            io_type = Image if itype == "image" else DataPath
+            io_type = self._get_io_data_type(conf) 
+            
+            # anything that's not an Image that's stored to disk must be a DataPath
+            # if io_type!=Image and in_type==IOType.DISK:
+            #     io_type=DataPath
+                
             self.add_input(iname, io_type, in_type)
 
     def _add_outputs(self, outputs_dict, out_type):
         """Add outputs specified in self._outputs."""
 
         for oname, conf in outputs_dict.items():
-            otype = conf["type"].lower()
-            io_type = Image if otype == "image" else DataPath
+            io_type = self._get_io_data_type(conf)
+            
+            # anything that's not an Image that's stored to disk must be a DataPath
+            # if io_type!=Image and out_type==IOType.DISK:
+            #     io_type=DataPath
+                
             self.add_output(oname, io_type, out_type)
 
     def compute(self, op_input: InputContext, op_output: OutputContext, context: ExecutionContext):
         first_input_name, *other_names = list(self._inputs.keys())
-        inputs = {k: op_input.get(k).asnumpy() for k in self._inputs.keys()}
+        # inputs = {k: op_input.get(k).asnumpy() for k in self._inputs.keys()}
 
         with torch.no_grad():
+            inputs = {name: self._receive_input(name,op_input, context) for name in self._inputs.keys()}
             inputs = self.pre_process(inputs)
+            first_input=inputs.pop(first_input_name)[None].to(self._device)  # select first input
 
-            first_input = inputs[first_input_name][None].to(self._device)  # select first input
             # select other tensor inputs
-            other_inputs = {k: inputs[k][None].to(self._device) for k in other_names if isinstance(v, torch.Tensor)}
+            other_inputs = {k: v[None].to(self._device) for k,v in inputs.items() if isinstance(v, torch.Tensor)}
             # select other non-tensor inputs
             other_inputs.update({k: inputs[k] for k in other_names if not isinstance(v, torch.Tensor)})
 
-            model = torch.jit.load(context.models.get().path, map_location=self._device).eval()
-            # model = context.models.get() # get a TorchScriptModel object
+            network = torch.jit.load(context.models.get().path, map_location=self._device).eval()
 
-            outputs = self.predict(data=first_input, network=model, **other_inputs)
+            outputs = self.predict(data=first_input, network=network, **other_inputs)
 
-            outputs = self.post_process(outputs)
+            outputs = self.post_process(outputs[0])
 
         if isinstance(outputs, (tuple, list)):
             output_dict = dict(zip(self._outputs.keys(), outputs))
@@ -189,8 +229,8 @@ class BundleOperator(InferenceOperator):
         else:
             output_dict = outputs
 
-        for name, out in output_dict.items():
-            self._send_output(out[0], name, op_output, context)
+        for name in self._outputs.keys():
+            self._send_output(output_dict[name], name, op_output, context)
             
     def predict(self, data: Any, network: Any, *args, **kwargs) -> Union[Image, Any]:
         """Predict output using the inferer."""
@@ -217,35 +257,83 @@ class BundleOperator(InferenceOperator):
 
             return self._postproc(outputs_dict)
         else:
-            if isinstance(outputs, (list, tuple)):
+            if isinstance(data, (list, tuple)):
                 return list(map(self._postproc, data))
 
             return self._postproc(data)
+        
+    def _receive_input(self, name: str, op_input: InputContext, context: ExecutionContext):
+        """Extract the input value for the given input name."""
+        in_conf=self._inputs[name]
+        itype=self._get_io_data_type(in_conf)
+        value = op_input.get(name)
+        
+        if isinstance(value, Image):
+            value=value.asnumpy()
+        elif isinstance(value, DataPath):
+            path=str(value.path)
+            
+            if itype == np.ndarray:
+                value=np.load(path)
+            else:
+                value=pickle.load(path)
+                
+        # else value is some other object from memory
+            
+        if isinstance(value, np.ndarray):
+            value=torch.from_numpy(value).to(self._device)
+        
+        return value
 
     def _send_output(self, value, name: str, op_output: OutputContext, context: ExecutionContext):
         """Send the given output value to the output context."""
-        otype = self._outputs[name]["type"].lower()
-
-        if otype == "image":
-            pass  # nothing to do for image?
-        elif otype == "probabilities":
+        out_conf=self._outputs[name]
+        otype=self._get_io_data_type(out_conf)
+        
+        if otype == Image:
+            result=Image(value.cpu().numpy())
+        elif otype == np.ndarray:
+            result=np.asarray(value)
+        elif out_conf["type"] == "probabilities":
             _, value_class = value.max(dim=0)
-            value = self._outputs[name]["channel_def"][str(value_class.item())]
-        else:
-            raise ValueError(f"Unknown output type {otype}")
+            prediction = [out_conf["channel_def"][str(int(v))] for v in value.flatten()]
 
-        try:
-            op_output.set(value, name)
-        except:
-            path = f"{str(op_output.get().path)}/{name}"
+            result={"result":prediction, "probabilities": value.cpu().numpy()}
+        elif isinstance(value, torch.tensor):
+            result=value.cpu().numpy()
+            
+        op_output.set(result, name)
+        
+        
+#         otype = self._outputs[name]["type"].lower()
 
-            if isinstance(value, torch.Tensor):
-                torch.save(value, f"{path}.pt")
-            elif isinstance(value, np.ndarray):
-                np.save(f"{path}.npy", value)
-            else:
-                with open(f"{path}.json", "w") as fp:
-                    json.dump({"result": value}, fp)
+#         if otype == "image":
+#             if isinstance(value, torch.Tensor):
+#                 value=value.cpu().numpy()
+                
+#             value=Image(value)
+            
+#         elif otype == "probabilities":
+#             _, value_class = value.max(dim=0)
+#             value = self._outputs[name]["channel_def"][str(value_class.item())]
+#         else:
+#             raise ValueError(f"Unknown output type {otype}")
+
+#         try:
+#             op_output.set(value, name)
+#         except:
+#             raise
+#             path = f"{str(op_output.get().path)}/{name}"
+
+#             if isinstance(value, Image):
+#                 torch.save(value.asnumpy(), f"{path}.pt")
+#             if isinstance(value, torch.Tensor):
+#                 torch.save(value, f"{path}.pt")
+#             elif isinstance(value, np.ndarray):
+#                 np.save(f"{path}.npy", value)
+#             else:
+#                 with open(f"{path}.json", "w") as fp:
+#                     json.dump({"result": value}, fp)
 
 
 def create_bundle_operator(bundle_path, config_names, in_type=IOType.IN_MEMORY, out_type=IOType.IN_MEMORY):
