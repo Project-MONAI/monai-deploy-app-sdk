@@ -9,11 +9,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import os
-import zipfile
-import tempfile
 import json
+import os
+import tempfile
 
+# from types import NoneType
+import zipfile
 from pathlib import Path
 from threading import Lock
 from typing import Any, Dict, List, Optional, Sequence, Union
@@ -39,6 +40,7 @@ Compose_, _ = optional_import("monai.transforms", name="Compose")
 MapTransform_, _ = optional_import("monai.transforms", name="MapTransform")
 LoadImaged_, _ = optional_import("monai.transforms", name="LoadImaged")
 ConfigParser_, _ = optional_import("monai.bundle", name="ConfigParser")
+SimpleInferer, _ = optional_import("monai.inferers", name="SimpleInferer")
 # Dynamic class is not handled so make it Any for now: https://github.com/python/mypy/issues/2477
 Compose: Any = Compose_
 MapTransform: Any = MapTransform_
@@ -56,7 +58,10 @@ from .inference_operator import InferenceOperator
 __all__ = ["MonaiBundleInferenceOperator", "InMemImageReader"]
 
 # TODO: For now, assuming single input and single output, but need to change
-@md.env(pip_packages=["monai>=0.8.1", "torch>=1.10.02", "numpy>=1.21"])
+@md.input("image", Image, IOType.IN_MEMORY)
+@md.output("seg_image", Image, IOType.IN_MEMORY)
+#@md.env(pip_packages=["monai>=0.9.0", "torch>=1.10.02", "numpy>=1.21"])
+@md.env(pip_packages=["monai-weekly>=0.9.dev2221", "torch>=1.10.02", "numpy>=1.21"])
 class MonaiBundleInferenceOperator(InferenceOperator):
     """This segmentation operator uses MONAI transforms and Sliding Window Inference.
 
@@ -75,50 +80,40 @@ class MonaiBundleInferenceOperator(InferenceOperator):
         bundle_path: Optional[str] = None,
         preproc_name: Optional[str] = "preprocessing",
         postproc_name: Optional[str] = "postprocessing",
-        pre_transforms: Optional[Compose] = None ,
+        inferer_name: Optional[str] = "inferer",
+        pre_transforms: Optional[Compose] = None,
         post_transforms: Optional[Compose] = None,
-        roi_size: Union[Sequence[int], int] = (96, 96, 96,),
+        roi_size: Union[Sequence[int], int] = (
+            96,
+            96,
+            96,
+        ),
         overlap: float = 0.5,
         *args,
         **kwargs,
     ):
-        """Creates a instance of this class.
-
-        Args:
-            model_name (Optional[str]): The name of the model in the MONAI Bundle.
-            bundle_path: Optional[str]: Path of the MONAI Bundle, overridden by model loader.
-            preproc_name: Optional[str]: Inference config item name for "preprocessing".
-            postproc_name: Optional[str]: Inference config name for "postprocessing".
-            pre_transforms (Compose): MONAI Compose object used for pre-transforms.
-            post_transforms (Compose): MONAI Compose object used for post-transforms.
-            roi_size (Union[Sequence[int], int]): The tensor size used in inference.
-            overlap (float): The overlap used in sliding window inference.
-        """
 
         super().__init__(*args, **kwargs)
         self._executing = False
         self._lock = Lock()
         self._model_name = model_name if model_name else ""
-        self._bundle_path = Path(bundle_path).expanduser().resolve() \
-            if bundle_path and len(bundle_path) > 0 else None
+        self._bundle_path = Path(bundle_path).expanduser().resolve() if bundle_path and len(bundle_path) > 0 else None
         self._preproc_name = preproc_name
         self._postproc_name = postproc_name
+        self._inferer_name = inferer_name
         self._parser = None  # Delay init till execution context is set.
         self._pre_transform = pre_transforms
         self._post_transforms = post_transforms
+        self._inferer = None
 
-        #TODO MQ to clean up
+        # TODO MQ to clean up
         self._input_dataset_key = "image"
         self._pred_dataset_key = "pred"
         self._input_image = None  # Image will come in when compute is called.
         self._reader: Any = None
 
-        self._roi_size = ensure_tuple(roi_size)
-        self.overlap = overlap
-
     @property
     def model_name(self) -> str:
-        """The name of the model in the MONAI Bundle."""
         return self._model_name
 
     @model_name.setter
@@ -198,21 +193,20 @@ class MonaiBundleInferenceOperator(InferenceOperator):
         name = bundle_path.stem
         parser = ConfigParser()
 
+        print(f"bundle path: {bundle_path}")
         with tempfile.TemporaryDirectory() as td:
             archive = zipfile.ZipFile(str(bundle_path), "r")
             archive.extract(name + "/extra/metadata.json", td)
             archive.extract(name + "/extra/inference.json", td)
 
-            os.rename(f"{td}/{name}/extra/inference.json", f"{td}/{name}/extra/config.json")
-
             parser.read_meta(f=f"{td}/{name}/extra/metadata.json")
-            parser.read_config(f=f"{td}/{name}/extra/config.json")
+            parser.read_config(f=f"{td}/{name}/extra/inference.json")
 
             parser.parse()
 
         return parser
 
-    def _filter_compose(self, compose:Compose):
+    def _filter_compose(self, compose: Compose):
         """
         Remove transforms from the given Compose object which shouldn't be used in an Operator.
         """
@@ -260,6 +254,12 @@ class MonaiBundleInferenceOperator(InferenceOperator):
         # Load the ConfigParser
         self.parser = self._get_bundle_config(self.bundle_path)
 
+        # Get the inferer
+        if self._parser.get(self._inferer_name) is not None:
+            self._inferer = self._parser.get_parsed_content(self._inferer_name)
+        else:
+            self._inferer = SimpleInferer()
+
         try:
             input_image = op_input.get()
             if not input_image:
@@ -270,12 +270,12 @@ class MonaiBundleInferenceOperator(InferenceOperator):
             img_name = str(input_img_metadata.get("SeriesInstanceUID", "Img_in_context"))
 
             self._reader = InMemImageReader(input_image)  # For convering Image to MONAI expected format
-            pre_transforms: Compose = \
-                self._pre_transform if self._pre_transform else self.pre_process(self._reader)
-            post_transforms: Compose = \
+            pre_transforms: Compose = self._pre_transform if self._pre_transform else self.pre_process(self._reader)
+            post_transforms: Compose = (
                 self._post_transforms if self._post_transforms else self.post_process(pre_transforms)
+            )
 
-            #TODO: From bundle config
+            # TODO: From bundle config
             device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
             dataset = Dataset(data=[{self._input_dataset_key: img_name}], transform=pre_transforms)
@@ -284,14 +284,7 @@ class MonaiBundleInferenceOperator(InferenceOperator):
             with torch.no_grad():
                 for d in dataloader:
                     images = d[self._input_dataset_key].to(device)
-                    sw_batch_size = 4
-                    d[self._pred_dataset_key] = sliding_window_inference(
-                        inputs=images,
-                        roi_size=self._roi_size,
-                        sw_batch_size=sw_batch_size,
-                        overlap=self.overlap,
-                        predictor=model,
-                    )
+                    d[self._pred_dataset_key] = self._inferer(inputs=images, network=model)
                     d = [post_transforms(i) for i in decollate_batch(d)]
                     out_ndarray = d[0][self._pred_dataset_key].cpu().numpy()
                     # Need to squeeze out the channel dim fist
@@ -327,7 +320,7 @@ class MonaiBundleInferenceOperator(InferenceOperator):
             self._pre_transform = Compose([])  # Could there be a scenario with no pre_processing?
 
         # Need to add the loadimage transform, single dataset key for now.
-        # TODO: MQ to find a better solution
+        # TODO: MQ to find a better solution, or use Compose callable directly instead of dataloader
         load_image_transform = LoadImaged(keys=self.input_dataset_key, reader=img_reader)
         self._pre_transform.transforms = (load_image_transform,) + self._pre_transform.transforms
 
@@ -399,7 +392,7 @@ class InMemImageReader(ImageReader):
         consistent with the numpy returned from NibabelReader get_data().
 
         The NibabelReader loads NIfTI image and uses the get_fdata() function of the loaded image to get
-        the numpy array, which has the index order in WHD with the channel being the last dim if present.
+        the numpy array, which has the index order in WHD with the channel being the last dim_get_compose if present.
 
         Args:
             input_image (Image): an App SDK Image object.
@@ -413,7 +406,7 @@ class InMemImageReader(ImageReader):
                 raise TypeError("Only object of Image type is supported.")
 
             # The Image asnumpy() returns NumPy array similar to ITK array_view_from_image
-            # The array then needs to be transposed, as does in MONAI ITKReader, to align
+            # The array then needs to be transposed, as does in MONAI ITKReader, to align_get_compose
             # with the output from Nibabel reader loading NIfTI files.
             data = i.asnumpy().T
             img_array.append(data)

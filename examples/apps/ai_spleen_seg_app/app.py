@@ -11,13 +11,14 @@
 
 import logging
 
-from spleen_seg_operator import SpleenSegOperator
+#from spleen_seg_operator import SpleenSegOperator
 
 from monai.deploy.core import Application, resource
 from monai.deploy.operators.dicom_data_loader_operator import DICOMDataLoaderOperator
 from monai.deploy.operators.dicom_seg_writer_operator import DICOMSegmentationWriterOperator
 from monai.deploy.operators.dicom_series_selector_operator import DICOMSeriesSelectorOperator
 from monai.deploy.operators.dicom_series_to_volume_operator import DICOMSeriesToVolumeOperator
+from monai.deploy.operators.monai_bundle_inference_operator import MonaiBundleInferenceOperator
 from monai.deploy.operators.stl_conversion_operator import STLConversionOperator
 
 
@@ -46,7 +47,7 @@ class AISpleenSegApp(Application):
         series_selector_op = DICOMSeriesSelectorOperator(Sample_Rules_Text)
         series_to_vol_op = DICOMSeriesToVolumeOperator()
         # Model specific inference operator, supporting MONAI transforms.
-        spleen_seg_op = SpleenSegOperator()
+        bundle_spleen_seg_op = MonaiBundleInferenceOperator(model_name="model")
         # Create DICOM Seg writer with segment label name in a string list
         dicom_seg_writer = DICOMSegmentationWriterOperator(seg_labels=["Spleen"])
         # Create the surface mesh STL conversion operator
@@ -58,14 +59,14 @@ class AISpleenSegApp(Application):
         self.add_flow(
             series_selector_op, series_to_vol_op, {"study_selected_series_list": "study_selected_series_list"}
         )
-        self.add_flow(series_to_vol_op, spleen_seg_op, {"image": "image"})
+        self.add_flow(series_to_vol_op, bundle_spleen_seg_op, {"image": ""})
         # Note below the dicom_seg_writer requires two inputs, each coming from a upstream operator.
         self.add_flow(
             series_selector_op, dicom_seg_writer, {"study_selected_series_list": "study_selected_series_list"}
         )
-        self.add_flow(spleen_seg_op, dicom_seg_writer, {"seg_image": "seg_image"})
+        self.add_flow(bundle_spleen_seg_op, dicom_seg_writer, {"": "seg_image"})
         # Add the STL conversion operator as another leaf operator taking as input the seg image.
-        self.add_flow(spleen_seg_op, stl_conversion_op, {"seg_image": "image"})
+        self.add_flow(bundle_spleen_seg_op, stl_conversion_op, {"": "image"})
 
         self._logger.debug(f"End {self.compose.__name__}")
 

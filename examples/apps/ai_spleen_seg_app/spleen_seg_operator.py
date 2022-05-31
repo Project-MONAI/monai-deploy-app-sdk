@@ -26,15 +26,17 @@ class SpleenSegOperator(Operator):
     """Performs Spleen segmentation with a 3D image converted from a DICOM CT series.
 
     This operator makes use of the App SDK MonaiBundleInferenceOperator in a composition approach.
-    Loading of the model, and predicting using in-proc PyTorch inference is done by MonaiBundleInferenceOperator.
+    Parsing of the bundle, transforms and inference are done in the MonaiBundleInferenceOperator.
+
+    Single named input of Image type and single named output of Image type are supported here.
+    Mapping of the I/O of the operator to the "keys" in MONAI transforms is not supported yet.
     """
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, model_name:str = "", *args, **kwargs):
 
         self.logger = logging.getLogger("{}.{}".format(__name__, type(self).__name__))
         super().__init__(*args, **kwargs)
-        self._input_dataset_key = "image"
-        self._pred_dataset_key = "pred"
+        self._model_name = model_name
 
     def compute(self, op_input: InputContext, op_output: OutputContext, context: ExecutionContext):
 
@@ -43,17 +45,7 @@ class SpleenSegOperator(Operator):
             raise ValueError("Input image is not found.")
 
         # Delegates inference and saving output to the built-in operator.
-        infer_operator = MonaiBundleInferenceOperator(
-            roi_size=(
-                96,
-                96,
-                96,
-            ),
-        )
-
-        # Setting the keys used in the dictironary based transforms may change.
-        infer_operator.input_dataset_key = self._input_dataset_key
-        infer_operator.pred_dataset_key = self._pred_dataset_key
+        infer_operator = MonaiBundleInferenceOperator(self._model_name)
 
         # Now let the built-in operator handles the work with the I/O spec and execution context.
         infer_operator.compute(op_input, op_output, context)
