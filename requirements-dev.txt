@@ -23,7 +23,7 @@ pytest==6.2.4
 pytest-cov==2.12.1
 pytest-lazy-fixture==0.6.3
 cucim~=21.06; platform_system == "Linux"
-monai>=0.8.1
+monai>=0.9.0
 docker>=5.0.0
 pydicom>=1.4.2
 SimpleITK>=2.0.0
@@ -33,3 +33,4 @@ scikit-image >= 0.17.2
 nibabel >= 3.2.1
 numpy-stl >= 2.12.0
 trimesh >= 3.8.11
+torch>=1.10.0

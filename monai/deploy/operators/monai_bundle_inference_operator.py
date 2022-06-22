@@ -1,4 +1,4 @@
-# Copyright 2021-2002 MONAI Consortium
+# Copyright 2002 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -10,107 +10,285 @@
 # limitations under the License.
 
 import json
+import logging
 import os
-import tempfile
-
-# from types import NoneType
+import pickle
+import time
 import zipfile
+from http.client import OK
+from multiprocessing.sharedctypes import Value
 from pathlib import Path
 from threading import Lock
-from typing import Any, Dict, List, Optional, Sequence, Union
+from typing import Any, Dict, List, Optional, Tuple, Type, Union
 
 import numpy as np
-
-from monai.deploy.utils.importutil import optional_import
-from monai.transforms.io.dictionary import LoadImageD
-
-torch, _ = optional_import("torch", "1.5")
-np_str_obj_array_pattern, _ = optional_import("torch.utils.data._utils.collate", name="np_str_obj_array_pattern")
-Dataset, _ = optional_import("monai.data", name="Dataset")
-DataLoader, _ = optional_import("monai.data", name="DataLoader")
-ImageReader_, image_reader_ok_ = optional_import("monai.data", name="ImageReader")
-# Dynamic class is not handled so make it Any for now: https://github.com/python/mypy/issues/2477
-ImageReader: Any = ImageReader_
-if not image_reader_ok_:
-    ImageReader = object  # for 'class InMemImageReader(ImageReader):' to work
-decollate_batch, _ = optional_import("monai.data", name="decollate_batch")
-sliding_window_inference, _ = optional_import("monai.inferers", name="sliding_window_inference")
-ensure_tuple, _ = optional_import("monai.utils", name="ensure_tuple")
-Compose_, _ = optional_import("monai.transforms", name="Compose")
-MapTransform_, _ = optional_import("monai.transforms", name="MapTransform")
-LoadImaged_, _ = optional_import("monai.transforms", name="LoadImaged")
-ConfigParser_, _ = optional_import("monai.bundle", name="ConfigParser")
-SimpleInferer, _ = optional_import("monai.inferers", name="SimpleInferer")
-# Dynamic class is not handled so make it Any for now: https://github.com/python/mypy/issues/2477
-Compose: Any = Compose_
-MapTransform: Any = MapTransform_
-LoadImaged: Any = LoadImaged_
-ConfigParser: Any = ConfigParser_
-
-simple_inference, _ = optional_import("monai.inferers", name="simple_inference")
-sliding_window_inference, _ = optional_import("monai.inferers", name="sliding_window_inference")
+from genericpath import exists
 
 import monai.deploy.core as md
-from monai.deploy.core import ExecutionContext, Image, InputContext, IOType, OutputContext
+from monai.deploy.core import DataPath, ExecutionContext, Image, InputContext, IOType, OutputContext
+from monai.deploy.core.operator import OperatorEnv
+from monai.deploy.exceptions import ItemNotExistsError
+from monai.deploy.utils.importutil import optional_import
 
 from .inference_operator import InferenceOperator
 
-__all__ = ["MonaiBundleInferenceOperator", "InMemImageReader"]
+nibabel, _ = optional_import("nibabel", "3.2.1")
+torch, _ = optional_import("torch", "1.10.0")
 
-# TODO: For now, assuming single input and single output, but need to change
-@md.input("image", Image, IOType.IN_MEMORY)
-@md.output("seg_image", Image, IOType.IN_MEMORY)
-#@md.env(pip_packages=["monai>=0.9.0", "torch>=1.10.02", "numpy>=1.21"])
-@md.env(pip_packages=["monai-weekly>=0.9.dev2221", "torch>=1.10.02", "numpy>=1.21"])
+PostFix, _ = optional_import("monai.utils.enums", name="PostFix")  # For the default meta_key_postfix
+first, _ = optional_import("monai.utils.misc", name="first")
+Compose_, _ = optional_import("monai.transforms", name="Compose")
+ConfigParser_, _ = optional_import("monai.bundle", name="ConfigParser")
+MapTransform_, _ = optional_import("monai.transforms", name="MapTransform")
+SimpleInferer, _ = optional_import("monai.inferers", name="SimpleInferer")
+
+# Dynamic class is not handled so make it Any for now: https://github.com/python/mypy/issues/2477
+Compose: Any = Compose_
+MapTransform: Any = MapTransform_
+ConfigParser: Any = ConfigParser_
+
+__all__ = ["MonaiBundleInferenceOperator", "IOMapping", "BundleConfigNames"]
+
+
+def get_bundle_config(bundle_path, config_names):
+    """
+    Gets the configuration parser from the specified Torchscript bundle file path.
+    """
+
+    def _read_from_archive(archive, root_name: str, relative_path: str, path_list: List[str]):
+        """A helper function for reading a file in an zip archive.
+
+        Tries to read with the full path of # a archive file, if error, then find the relative
+        path and then read the file.
+        """
+        content_text = None
+        try:
+            content_text = archive.read(f"{root_name}/{relative_path}")
+        except KeyError:
+            logging.debug(f"Trying to find the metadata/config file in the bundle archive: {relative_path}.")
+            for n in path_list:
+                if relative_path in n:
+                    content_text = archive.read(n)
+                    break
+            if content_text is None:
+                raise
+
+        return content_text
+
+    if isinstance(config_names, str):
+        config_names = [config_names]
+
+    name, _ = os.path.splitext(os.path.basename(bundle_path))
+    parser = ConfigParser()
+
+    # Parser to read the required metadata and extra config contents from the archive
+    with zipfile.ZipFile(bundle_path, "r") as archive:
+        name_list = archive.namelist()
+        metadata_relative_path = "extra/metadata.json"
+        metadata_text = _read_from_archive(archive, name, metadata_relative_path, name_list)
+        parser.read_meta(f=json.loads(metadata_text))
+
+        for cn in config_names:
+            config_relative_path = f"extra/{cn}.json"
+            config_text = _read_from_archive(archive, name, config_relative_path, name_list)
+            parser.read_config(f=json.loads(config_text))
+
+    parser.parse()
+
+    return parser
+
+
+DISALLOW_LOAD_SAVE = ["LoadImage", "SaveImage"]
+DISALLOW_SAVE = ["SaveImage"]
+
+
+def filter_compose(compose, disallowed_prefixes):
+    """
+    Removes transforms from the given Compose object whose names begin with `disallowed_prefixes`.
+    """
+    filtered = []
+    for t in compose.transforms:
+        tname = type(t).__name__
+        if not any(dis in tname for dis in disallowed_prefixes):
+            filtered.append(t)
+
+    compose.transforms = tuple(filtered)
+    return compose
+
+
+def is_map_compose(compose):
+    """
+    Returns True if the given Compose object uses MapTransform instances.
+    """
+    return isinstance(first(compose.transforms), MapTransform)
+
+
+class IOMapping:
+    """This object holds an I/O definition for an operator."""
+
+    def __init__(
+        self,
+        label: str,
+        data_type: Type,
+        storage_type: IOType,
+    ):
+        """Creates an object holding an operator I/O definitions.
+
+        Limitations apply with the combination of data_type and storage_type, which will
+        be validated at runtime.
+
+        Args:
+            label (str): Label for the operator input or output.
+            data_type (Type): Datatype of the I/O data content.
+            storage_type (IOType): The storage type expected, i.e. IN_MEMORY or DISK.
+        """
+        self.label: str = label
+        self.data_type: Type = data_type
+        self.storage_type: IOType = storage_type
+
+
+class BundleConfigNames:
+    """This object holds the name of relevant config items used in a MONAI Bundle."""
+
+    def __init__(
+        self,
+        preproc_name: str = "preprocessing",
+        postproc_name: str = "postprocessing",
+        inferer_name: str = "inferer",
+        config_names: Union[List[str], Tuple[str], str] = ["inference"],
+    ) -> None:
+        """Creates an object holding the names of relevant config items in a MONAI Bundle.
+
+        This object holds the names of the config items in a MONAI Bundle that will need to be
+        parsed by the inference operator for automating the object creations and inference.
+        Defaults values are provided per conversion, so the arguments only need to be set as needed.
+
+        Args:
+            preproc_name (str, optional): Name of the config item for pre-processing transforms.
+                                          Defaults to "preprocessing".
+            postproc_name (str, optional): Name of the config item for post-processing transforms.
+                                           Defaults to "postprocessing".
+            inferer_name (str, optional): Name of the config item for inferer.
+                                          Defaults to "inferer".
+            config_names (List[str], optional): Name of config file(s) in the Bundle for parsing.
+                                                Defaults to ["inference"]. File ext must be .json.
+        """
+
+        def _ensure_str_list(config_names):
+            names = []
+            if isinstance(config_names, (List, Tuple)):
+                if len(config_names) < 1:
+                    raise ValueError("At least one config name must be provided.")
+                names = [str(name) for name in config_names]
+            else:
+                names = [str(config_names)]
+
+            return names
+
+        self.preproc_name: str = preproc_name
+        self.postproc_name: str = postproc_name
+        self.inferer_name: str = inferer_name
+        self.config_names: List[str] = _ensure_str_list(config_names)
+
+
+# The operator env decorator defines the required pip packages commonly used in the Bundles.
+# The MONAI Deploy App SDK packager currently relies on the App to consolidate all required packages in order to
+# install them in the MAP Docker image.
+# TODO: Dynamically setting the pip_packages env on init requires the bundle path be passed in. Apps using this
+#       operator may choose to pass in a accessible bundle path at development and packaging stage. Ideally,
+#       the bundle path should be passed in by the Packager, e.g. via env var, when the App is initialized.
+#       As of now, the Packager only passes in the model path after the App including all operators are init'ed.
+@md.env(pip_packages=["monai>=0.9.0", "torch>=1.10.02", "numpy>=1.21", "nibabel>=3.2.1"])
 class MonaiBundleInferenceOperator(InferenceOperator):
-    """This segmentation operator uses MONAI transforms and Sliding Window Inference.
+    """This inference operator automates the inference operation for a given MONAI Bundle.
 
-    This operator preforms pre-transforms on a input image, inference
-    using a given model, and post-transforms. The segmentation image is saved
-    as a named Image object in memory.
+    This inference operator configures itself based on the parsed data from a MONAI bundle file. This file is included
+    with a MAP as a Torchscript file with added bundle metadata or a zipped bundle with weights. The class will
+    configure how to do pre- and post-processing, inference, which device to use, state its inputs, outputs, and
+    dependencies. Its compute method is meant to be general purpose to most any bundle such that it will handle
+    any input specified in the bundle and produce output as specified, using the inference object the bundle defines.
+    A number of methods are provided which define parts of functionality relating to this behavior, users may wish
+    to overwrite these to change behavior is needed for specific bundles.
 
-    If specified in the post transforms, results may also be saved to disk.
+    The input(s) and output(s) for this operator need to be provided when an instance is created, and their labels need
+    to correspond to the bundle network input and output names, which are also used as the keys in the pre and post processing.
+
+    For image input and output, the type is the `Image` class. For output of probabilities, the type is `Dict`.
+
+    This operator is expected to be linked with both upstream and downstream operators, e.g. receiving an `Image` object from
+    the `DICOMSeriesToVolumeOperator`, and passing a segmentation `Image` to the `DICOMSegmentationWriterOperator`.
+    In such cases, the I/O storage type can only be `IN_MEMORY` due to the restrictions imposed by the application executor.
+    However, when used as the first operator in an application, its input storage type needs to be `DISK`, and the file needs
+    to be a Python pickle file, e.g. containing an `Image` instance. When used as the last operator, its output storage type
+    also needs to `DISK` with the path being the application's output folder, and the operator's output will be saved as
+    a pickle file whose name is the same as the output name.
     """
 
     DISALLOWED_TRANSFORMS = ["LoadImage", "SaveImage"]
 
+    known_io_data_types = {
+        "image": Image,  # Image object
+        "series": np.ndarray,
+        "tuples": np.ndarray,
+        "probabilities": Dict[str, Any],  # dictionary containing probabilities and predicted labels
+    }
+
     def __init__(
         self,
+        input_mapping: List[IOMapping],
+        output_mapping: List[IOMapping],
         model_name: Optional[str] = "",
         bundle_path: Optional[str] = None,
-        preproc_name: Optional[str] = "preprocessing",
-        postproc_name: Optional[str] = "postprocessing",
-        inferer_name: Optional[str] = "inferer",
-        pre_transforms: Optional[Compose] = None,
-        post_transforms: Optional[Compose] = None,
-        roi_size: Union[Sequence[int], int] = (
-            96,
-            96,
-            96,
-        ),
-        overlap: float = 0.5,
+        bundle_config_names: BundleConfigNames = BundleConfigNames(),
         *args,
         **kwargs,
     ):
+        """_summary_
+
+        Args:
+            input_mapping (List[IOMapping]): Define the inputs' name, type, and storage type.
+            output_mapping (List[IOMapping]): Defines the outputs' name, type, and storage type.
+            model_name (Optional[str], optional): Name of the model/bundle, needed in multi-model case. Defaults to "".
+            bundle_path (Optional[str], optional): For completing . Defaults to None.
+            bundle_config_names (BundleConfigNames, optional): Relevant config item names in a the bundle. Defaults to BundleConfigNames().
+        """
 
         super().__init__(*args, **kwargs)
         self._executing = False
         self._lock = Lock()
-        self._model_name = model_name if model_name else ""
-        self._bundle_path = Path(bundle_path).expanduser().resolve() if bundle_path and len(bundle_path) > 0 else None
-        self._preproc_name = preproc_name
-        self._postproc_name = postproc_name
-        self._inferer_name = inferer_name
-        self._parser = None  # Delay init till execution context is set.
-        self._pre_transform = pre_transforms
-        self._post_transforms = post_transforms
-        self._inferer = None
 
-        # TODO MQ to clean up
-        self._input_dataset_key = "image"
-        self._pred_dataset_key = "pred"
-        self._input_image = None  # Image will come in when compute is called.
-        self._reader: Any = None
+        self._model_name = model_name.strip() if isinstance(model_name, str) else ""
+        self._bundle_config_names = bundle_config_names
+        self._input_mapping = input_mapping
+        self._output_mapping = output_mapping
+
+        self._parser = None  # Needs known bundle path, either on init or when compute function is called.
+        self._inferer = None  # Will be set during bundle parsing.
+        self._init_completed = False
+
+        # Need to set the operator's input(s) and output(s). Even when the bundle parsing is done in init,
+        # there is still a need to define what op inputs/outputs map to what keys in the bundle config,
+        # along with the op input/output storage type.
+        # Also, the App Executor needs to set the IO context of the operator before calling the compute function.
+        self._add_inputs(self._input_mapping)
+        self._add_outputs(self._output_mapping)
+
+        # Complete the init if the bundle path is known, otherwise delay till the compute function is called
+        # and try to get the model/bundle path from the execution context.
+        try:
+            self._bundle_path = (
+                Path(bundle_path).expanduser().resolve() if bundle_path and len(bundle_path.strip()) > 0 else None
+            )
+
+            if self._bundle_path and self._bundle_path.exists():
+                self._init_config(self._bundle_config_names.config_names)
+                self._init_completed = True
+            else:
+                logging.debug(f"Bundle path, {self._bundle_path}, not valid. Will get it in the execution context.")
+                self._bundle_path = None
+        except Exception:
+            logging.warn("Bundle parsing is not completed on init, delayed till this operator is called to execute.")
+            self._bundle_path = None
 
     @property
     def model_name(self) -> str:
@@ -118,7 +296,7 @@ class MonaiBundleInferenceOperator(InferenceOperator):
 
     @model_name.setter
     def model_name(self, name: str):
-        if not name or len(name) == 0:
+        if not name or isinstance(name, str):
             raise ValueError(f"Value, {name}, must be a non-empty string.")
         self._model_name = name
 
@@ -145,293 +323,366 @@ class MonaiBundleInferenceOperator(InferenceOperator):
         else:
             raise ValueError(f"Value must be a valid ConfigParser object.")
 
-    ##
-
-    @property
-    def input_dataset_key(self):
-        """This is the input image key name used in dictionary based MONAI pre-transforms."""
-        return self._input_dataset_key
-
-    @input_dataset_key.setter
-    def input_dataset_key(self, val: str):
-        if not val or len(val) < 1:
-            raise ValueError("Value cannot be None or blank.")
-        self._input_dataset_key = val
-
-    @property
-    def pred_dataset_key(self):
-        """This is the prediction key name used in dictionary based MONAI post-transforms."""
-        return self._pred_dataset_key
-
-    @pred_dataset_key.setter
-    def pred_dataset_key(self, val: str):
-        if not val or len(val) < 1:
-            raise ValueError("Value cannot be None or blank.")
-        self._pred_dataset_key = val
-
-    @property
-    def overlap(self):
-        """This is the overlap used during sliding window inference"""
-        return self._overlap
-
-    @overlap.setter
-    def overlap(self, val: float):
-        if val < 0 or val > 1:
-            raise ValueError("Overlap must be between 0 and 1.")
-        self._overlap = val
-
-    def _get_bundle_config(self, bundle_path: Path) -> ConfigParser:
-        """Get the MONAI configuration parser from the specified MONAI Bundle file path.
+    def _init_config(self, config_names):
+        """Completes the init with a known path to the MONAI Bundle
 
         Args:
-            bundle_path (Path): Path of the MONAI Bundle
+            config_names ([str]): Names of the config (files) in the bundle
+        """
+
+        parser = get_bundle_config(str(self._bundle_path), config_names)
+        self._parser = parser
+
+        meta = self.parser["_meta_"]
+
+        # When this function is NOT called by the __init__, setting the pip_packages env here
+        # will not get dependencies to the App SDK Packager to install the packages in the MAP.
+        pip_packages = ["monai"] + [f"{k}=={v}" for k, v in meta["optional_packages_version"].items()]
+        if self._env:
+            self._env.pip_packages.extend(pip_packages)  # Duplicates will be figured out on use.
+        else:
+            self._env = OperatorEnv(pip_packages=pip_packages)
+
+        if parser.get("device") is not None:
+            self._device = parser.get_parsed_content("device")
+        else:
+            self._device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+        if parser.get(self._bundle_config_names.inferer_name) is not None:
+            self._inferer = parser.get_parsed_content(self._bundle_config_names.inferer_name)
+        else:
+            self._inferer = SimpleInferer()
+
+        self._inputs = meta["network_data_format"]["inputs"]
+        self._outputs = meta["network_data_format"]["outputs"]
+
+        # Given the restriction on operator I/O storage type, and known use cases, the I/O storage type of
+        # this operator is limited to IN_MEMRORY objects, so we will remove the LoadImage and SaveImage
+        self._preproc = self._get_compose(self._bundle_config_names.preproc_name, DISALLOW_LOAD_SAVE)
+        self._postproc = self._get_compose(self._bundle_config_names.postproc_name, DISALLOW_LOAD_SAVE)
+
+        # Need to find out the meta_key_postfix. The key name of the input concatenated with this postfix
+        # will be the key name for the metadata for the input.
+        # Customized metadata key names are not supported as of now.
+        self._meta_key_postfix = self._get_meta_key_postfix(self._preproc)
+
+        logging.debug(f"Effective transforms in pre-processing: {[type(t).__name__ for t in self._preproc.transforms]}")
+        logging.debug(
+            f"Effective Transforms in post-processing: {[type(t).__name__ for t in self._preproc.transforms]}"
+        )
+
+    def _get_compose(self, obj_name, disallowed_prefixes):
+        """Gets a Compose object containing a sequence fo transforms from item `obj_name` in `self._parser`."""
+
+        if self._parser.get(obj_name) is not None:
+            compose = self._parser.get_parsed_content(obj_name)
+            return filter_compose(compose, disallowed_prefixes)
+
+        return Compose([])
+
+    def _get_meta_key_postfix(self, compose: Compose, key_name: str = "meta_key_postfix") -> str:
+        post_fix = PostFix.meta()
+        if compose and key_name:
+            for t in compose.transforms:
+                if isinstance(t, MapTransform) and hasattr(t, key_name):
+                    post_fix = getattr(t, key_name)
+                    # For some reason the attr is a tuple
+                    if isinstance(post_fix, tuple):
+                        post_fix = post_fix[0]
+                    break
+
+        return post_fix
+
+    def _get_io_data_type(self, conf):
+        """
+        Gets the input/output type of the given input or output metadata dictionary. The known Python types for input
+        or output types are given in the dictionary `BundleOperator.known_io_data_types` which relate type names to
+        the actual type. if `conf["type"]` is an actual object that's not a string then this is assumed to be the
+        type specifier and is returned. The fallback type is `bytes` which indicates the value is a pickled object.
+
+        Args:
+            conf: configuration dictionary for an input or output from the "network_data_format" metadata section
 
         Returns:
-            ConfigParser: MONAI Bundle config parser
-        """
-        # The final path component, without its suffix, is expected to the model name
-        name = bundle_path.stem
-        parser = ConfigParser()
-
-        print(f"bundle path: {bundle_path}")
-        with tempfile.TemporaryDirectory() as td:
-            archive = zipfile.ZipFile(str(bundle_path), "r")
-            archive.extract(name + "/extra/metadata.json", td)
-            archive.extract(name + "/extra/inference.json", td)
-
-            parser.read_meta(f=f"{td}/{name}/extra/metadata.json")
-            parser.read_config(f=f"{td}/{name}/extra/inference.json")
-
-            parser.parse()
-
-        return parser
-
-    def _filter_compose(self, compose: Compose):
-        """
-        Remove transforms from the given Compose object which shouldn't be used in an Operator.
+            A concrete type associated with this input/output type, this can be Image or np.ndarray or a Python type
         """
 
-        if not compose:
-            return Compose([])  # Could just bounce the None input back.
+        # The Bundle's network_data_format for inputs and outputs does not indicate the storage type, i.e. IN_MEMORY
+        # or DISK, for the input(s) and output(s) of the operators. Configuration is required, though limited to
+        # IN_MEMORY for now.
+        # Certain association and transform are also required. The App SDK IN_MEMORY I/O can hold
+        # Any type, so if the type match and content format matches, data can simply be used as is, however, with
+        # the Type being Image, the object needs to be converted before being used as the expected "image" type.
+        ctype = conf["type"]
+        if ctype in self.known_io_data_types:  # known type name from the specification
+            return self.known_io_data_types[ctype]
+        elif isinstance(ctype, type):  # type object
+            return ctype
+        else:  # don't know, something that hasn't been figured out
+            return object
 
-        filtered = []
-        for t in compose.transforms:
-            tname = type(t).__name__
-            if not any(dis in tname for dis in self.DISALLOWED_TRANSFORMS):
-                filtered.append(t)
+    def _add_inputs(self, input_mapping: List[IOMapping]):
+        """Adds operator inputs as specified."""
 
-        return Compose(filtered)
+        [self.add_input(v.label, v.data_type, v.storage_type) for v in input_mapping]
+
+    def _add_outputs(self, output_mapping: List[IOMapping]):
+        """Adds operator outputs as specified."""
+
+        [self.add_output(v.label, v.data_type, v.storage_type) for v in output_mapping]
 
     def compute(self, op_input: InputContext, op_output: OutputContext, context: ExecutionContext):
-        """Infers with the input image and save the predicted image to output
+        """Infers with the input(s) and saves the prediction result(s) to output
 
         Args:
             op_input (InputContext): An input context for the operator.
             op_output (OutputContext): An output context for the operator.
             context (ExecutionContext): An execution context for the operator.
         """
-        with self._lock:
-            if self._executing:
-                raise RuntimeError("Operator is already executing.")
+
+        # Try to get the Model object and its path from the context.
+        #   If operator is not fully initialized, use model path as bundle path to finish it.
+        # If Model not loaded, but bundle path exists, load model, just in case.
+        #
+        # `context.models.get(model_name)` returns a model instance if exists.
+        # If model_name is not specified and only one model exists, it returns that model.
+        model = context.models.get(self._model_name) if context.models else None
+        if model:
+            if not self._init_completed:
+                with self._lock:
+                    if not self._init_completed:
+                        self._bundle_path = model.path
+                        self._init_config(self._bundle_config_names.config_names)
+                        self._init_completed
+        elif self._bundle_path:
+            logging.debug(f"Model network not loaded. Trying to load from model path: {self._bundle_path}")
+            model = torch.jit.load(self.bundle_path, map_location=self._device).eval()
+        else:
+            raise IOError("Model network is not load and model file not found.")
+
+        first_input_name, *other_names = list(self._inputs.keys())
+
+        with torch.no_grad():
+            inputs = {}
+
+            start = time.time()
+            for name in self._inputs.keys():
+                value, metadata = self._receive_input(name, op_input, context)
+                inputs[name] = value
+                if metadata:
+                    inputs[(f"{name}_{self._meta_key_postfix}")] = metadata
+
+            inputs = self.pre_process(inputs)
+            first_input = inputs.pop(first_input_name)[None].to(self._device)  # select first input
+            input_metadata = inputs.get(f"{first_input_name}_{self._meta_key_postfix}", None)
+
+            # select other tensor inputs
+            other_inputs = {k: v[None].to(self._device) for k, v in inputs.items() if isinstance(v, torch.Tensor)}
+            # select other non-tensor inputs
+            other_inputs.update({k: inputs[k] for k in other_names if not isinstance(inputs[k], torch.Tensor)})
+            logging.debug(f"Ingest and Pre-processing elapsed time (seconds): {time.time() - start}")
+
+            start = time.time()
+            outputs = self.predict(data=first_input, network=model, **other_inputs)
+            logging.debug(f"Inference elapsed time (seconds): {time.time() - start}")
+
+            # TODO: Does this work for models where multiple outputs are returned?
+            # Note that the inputs are needed because the invert transform requires it.
+            start = time.time()
+            outputs = self.post_process(outputs[0], inputs)
+            logging.debug(f"Post-processing elapsed time (seconds): {time.time() - start}")
+        if isinstance(outputs, (tuple, list)):
+            output_dict = dict(zip(self._outputs.keys(), outputs))
+        elif not isinstance(outputs, dict):
+            output_dict = {first(self._outputs.keys()): outputs}
+        else:
+            output_dict = outputs
+
+        for name in self._outputs.keys():
+            # Note that the input metadata needs to be passed.
+            # Please see the comments in the called function for the reasons.
+            self._send_output(output_dict[name], name, input_metadata, op_output, context)
+
+    def predict(self, data: Any, network: Any, *args, **kwargs) -> Union[Image, Any]:
+        """Predicts output using the inferer."""
+        return self._inferer(inputs=data, network=network, *args, **kwargs)
+
+    def pre_process(self, data: Any) -> Union[Image, Any]:
+        """Processes the input dictionary with the stored transform sequence `self._preproc`."""
+
+        if is_map_compose(self._preproc):
+            return self._preproc(data)
+        return {k: self._preproc(v) for k, v in data.items()}
+
+    def post_process(self, data: Any, inputs: Dict) -> Union[Image, Any]:
+        """Processes the output list/dictionary with the stored transform sequence `self._postproc`."""
+
+        if is_map_compose(self._postproc):
+            if isinstance(data, (list, tuple)):
+                outputs_dict = dict(zip(data, self._outputs.keys()))
+            elif not isinstance(data, dict):
+                oname = first(self._outputs.keys())
+                outputs_dict = {oname: data}
             else:
-                self._executing = True
+                outputs_dict = data
 
-        # If present, get the compliant model from context, else, from bundle path if given
-        model = None
-        if context.models:
-            # `context.models.get(model_name)` returns a model instance if exists.
-            # If model_name is not specified and only one model exists, it returns that model.
-            model = context.models.get(self.model_name)
-            if model:
-                self.bundle_path = model.path
-        if not model and self.bundle_path:
-            print(f"Loading TorchScript model from: {self.bundle_path}")
-            model = torch.jit.load(self.bundle_path, map_location=device)
-
-        if not model:
-            raise IOError("Cannot find model file.")
-
-        # Load the ConfigParser
-        self.parser = self._get_bundle_config(self.bundle_path)
-
-        # Get the inferer
-        if self._parser.get(self._inferer_name) is not None:
-            self._inferer = self._parser.get_parsed_content(self._inferer_name)
+            # Need to add back the inputs including metadata as they are needed by the invert transform.
+            outputs_dict.update(inputs)
+            logging.debug(f"Effective output dict keys: {outputs_dict.keys()}")
+            return self._postproc(outputs_dict)
         else:
-            self._inferer = SimpleInferer()
+            if isinstance(data, (list, tuple)):
+                return list(map(self._postproc, data))
 
+            return self._postproc(data)
+
+    def _receive_input(self, name: str, op_input: InputContext, context: ExecutionContext):
+        """Extracts the input value for the given input name."""
+
+        # The op_input can have the storage type of IN_MEMORY with the data type being Image or others,
+        # as well as the other type of DISK with data type being DataPath.
+        # The problem is, the op_input object does not have an attribute for the storage type, which
+        # needs to be inferred from data type, with DataPath meaning DISK storage type. The file
+        # content type may be interpreted from the bundle's network input type, but it is indirect
+        # as the op_input is the input for processing transforms, not necessarily directly for the network.
+        in_conf = self._inputs[name]
+        itype = self._get_io_data_type(in_conf)
+        value = op_input.get(name)
+
+        metadata = None
+        if isinstance(value, DataPath):
+            if not value.path.exists():
+                raise ValueError(f"Input path, {value.path}, does not exist.")
+
+            file_path = value.path / name
+            # The named input can only be a folder as of now, but just in case things change.
+            if value.path.is_file():
+                file_path = value.path
+            elif not file_path.exists() and value.path.is_dir:
+                # Expect one and only one file exists for use.
+                files = [f for f in value.path.glob("*") if f.is_file()]
+                if len(files) != 1:
+                    raise ValueError(f"Input path, {value.path}, should have one and only one file.")
+
+                file_path = files[0]
+
+            # Only Python pickle file and or numpy file are supported as of now.
+            with open(file_path, "rb") as f:
+                if itype == np.ndarray:
+                    value = np.load(file_path, allow_pickle=True)
+                else:
+                    value = pickle.load(f)
+
+        # Once extracted, the input data may be further processed depending on its actual type.
+        if isinstance(value, Image):
+            # Need to get the image ndarray as well as metadata
+            value, metadata = self._convert_from_image(value)
+            logging.debug(f"Shape of the converted input image: {value.shape}")
+            logging.debug(f"Metadata of the converted input image: {metadata}")
+        elif isinstance(value, np.ndarray):
+            value = torch.from_numpy(value).to(self._device)
+
+        # else value is some other object from memory
+
+        return value, metadata
+
+    def _send_output(self, value, name: str, metadata: Dict, op_output: OutputContext, context: ExecutionContext):
+        """Send the given output value to the output context."""
+
+        logging.debug(f"Setting output {name}")
+
+        out_conf = self._outputs[name]
+        otype = self._get_io_data_type(out_conf)
+
+        if otype == Image:
+            # The value must be torch.tensor or ndarray. Note also that by convention the image/tensor
+            # out of the MONAI post processing is [CWHD] with dim for batch already squeezed out.
+            # Prediction image, e.g. segmentation image, needs to have its dimensions
+            # rearranged to fit the conventions used by Image class, i.e. [DHW], without channel dim.
+            # Also, based on known use cases, e.g. prediction being seg image and the downstream
+            # operators expect the data type to be unit8, conversion needs to be done as well.
+            # Metadata, such as pixel spacing and orientation, also needs to be set in the Image object,
+            # which is why metadata is expected to be passed in.
+            # TODO: Revisit when multi-channel images are supported.
+
+            if isinstance(value, torch.Tensor):
+                value = value.cpu().numpy()
+            elif not isinstance(value, np.ndarray):
+                raise TypeError("arg 1 must be of type torch.Tensor or ndarray.")
+
+            logging.debug(f"Output {name} numpy image shape: {value.shape}")
+            result = Image(np.swapaxes(np.squeeze(value, 0), 0, 2).astype(np.uint8), metadata=metadata)
+            logging.debug(f"Converted Image shape: {result.asnumpy().shape}")
+        elif otype == np.ndarray:
+            result = np.asarray(value)
+        elif out_conf["type"] == "probabilities":
+            _, value_class = value.max(dim=0)
+            prediction = [out_conf["channel_def"][str(int(v))] for v in value.flatten()]
+
+            result = {"result": prediction, "probabilities": value.cpu().numpy()}
+        elif isinstance(value, torch.Tensor):
+            result = value.cpu().numpy()
+
+        # The operator output currently has many limitation depending on if the operator is
+        # a leaf node or not. The get method throws for non-leaf node, irrespective of storage type,
+        # and for leaf node if the storage type is IN_MEMORY.
         try:
-            input_image = op_input.get()
-            if not input_image:
-                raise ValueError("Input is None.")
+            op_output_config = op_output.get(name)
+            if isinstance(op_output_config, DataPath):
+                output_file = op_output_config.path / name
+                output_file.parent.mkdir(exist_ok=True)
+                # Save pickle file
+                with open(output_file, "wb") as wf:
+                    pickle.dump(result, wf)
 
-            input_img_metadata = input_image.metadata()
-            # Need to give a name to the image as in-mem Image obj has no name.
-            img_name = str(input_img_metadata.get("SeriesInstanceUID", "Img_in_context"))
+                # Cannot (re)set/modify the op_output path to the actual file like below
+                # op_output.set(str(output_file), name)
+            else:
+                op_output.set(result, name)
+        except ItemNotExistsError:
+            # The following throws if the output storage type is DISK, but The OutputContext
+            # currently does not expose the storage type. Try and let it throw if need be.
+            op_output.set(result, name)
 
-            self._reader = InMemImageReader(input_image)  # For convering Image to MONAI expected format
-            pre_transforms: Compose = self._pre_transform if self._pre_transform else self.pre_process(self._reader)
-            post_transforms: Compose = (
-                self._post_transforms if self._post_transforms else self.post_process(pre_transforms)
-            )
-
-            # TODO: From bundle config
-            device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
-            dataset = Dataset(data=[{self._input_dataset_key: img_name}], transform=pre_transforms)
-            dataloader = DataLoader(dataset, batch_size=1, shuffle=False, num_workers=0)
-
-            with torch.no_grad():
-                for d in dataloader:
-                    images = d[self._input_dataset_key].to(device)
-                    d[self._pred_dataset_key] = self._inferer(inputs=images, network=model)
-                    d = [post_transforms(i) for i in decollate_batch(d)]
-                    out_ndarray = d[0][self._pred_dataset_key].cpu().numpy()
-                    # Need to squeeze out the channel dim fist
-                    out_ndarray = np.squeeze(out_ndarray, 0)
-                    # NOTE: The domain Image object simply contains a Arraylike obj as image as of now.
-                    #       When the original DICOM series is converted by the Series to Volume operator,
-                    #       using pydicom pixel_array, the 2D ndarray of each slice has index order HW, and
-                    #       when all slices are stacked with depth as first axis, DHW. In the pre-transforms,
-                    #       the image gets transposed to WHD and used as such in the inference pipeline.
-                    #       So once post-transforms have completed, and the channel is squeezed out,
-                    #       the resultant ndarray for the prediction image needs to be transposed back, so the
-                    #       array index order is back to DHW, the same order as the in-memory input Image obj.
-                    out_ndarray = out_ndarray.T.astype(np.uint8)
-                    print(f"Output Seg image numpy array shaped: {out_ndarray.shape}")
-                    print(f"Output Seg image pixel max value: {np.amax(out_ndarray)}")
-                    out_image = Image(out_ndarray, input_img_metadata)
-                    op_output.set(out_image)
-        finally:
-            # Reset state on completing this method execution.
-            with self._lock:
-                self._executing = False
-
-    def pre_process(self, img_reader) -> Union[Any, Image, Compose]:
-        """Transforms input before being used for predicting on a model."""
-
-        if not self.parser:
-            raise RuntimeError("ConfigParser object is None.")
-
-        if self.parser.get(self._preproc_name) is not None:
-            preproc = self.parser.get_parsed_content(self._preproc_name)
-            self._pre_transform = self._filter_compose(preproc)
-        else:
-            self._pre_transform = Compose([])  # Could there be a scenario with no pre_processing?
-
-        # Need to add the loadimage transform, single dataset key for now.
-        # TODO: MQ to find a better solution, or use Compose callable directly instead of dataloader
-        load_image_transform = LoadImaged(keys=self.input_dataset_key, reader=img_reader)
-        self._pre_transform.transforms = (load_image_transform,) + self._pre_transform.transforms
-
-        return self._pre_transform
-
-    def post_process(self, pre_transforms: Compose, out_dir: str = "./infer_out") -> Union[Any, Image, Compose]:
-        """Transforms the prediction results from the model(s)."""
-
-        if self.parser.get(self._postproc_name) is not None:
-            postproc = self.parser.get_parsed_content(self._postproc_name)
-            self._post_transforms = self._filter_compose(postproc)
-        else:
-            self._post_transforms = Compose([])
-        return self._post_transforms
-
-    def predict(self, data: Any, *args, **kwargs) -> Union[Image, Any]:
-        """Predicts results using the models(s) with input tensors.
-
-        This method must be overridden by a derived class.
-
-        Raises:
-            NotImplementedError: When the subclass does not override this method.
-        """
-        raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
-
-
-class InMemImageReader(ImageReader):
-    """Converts the App SDK Image object from memory.
-
-    This is derived from MONAI ImageReader. Instead of reading image from file system, this
-    class simply converts a in-memory SDK Image object to the expected formats from ImageReader.
-
-    The loaded data array will be in C order, for example, a 3D image NumPy array index order
-    will be `WHDC`. The actual data array loaded is to be the same as that from the
-    MONAI ITKReader, which can also load DICOM series. Furthermore, all Readers need to return the
-    array data the same way as the NibabelReader, i.e. a numpy array of index order WHDC with channel
-    being the last dim if present. More details are in the get_data() function.
-
-
-    """
-
-    def __init__(self, input_image: Image, channel_dim: Optional[int] = None, **kwargs):
-        super().__init__()
-        self.input_image = input_image
-        self.kwargs = kwargs
-        self.channel_dim = channel_dim
-
-    def verify_suffix(self, filename: Union[Sequence[str], str]) -> bool:
-        return True
-
-    def read(self, data: Union[Sequence[str], str], **kwargs) -> Union[Sequence[Any], Any]:
-        # Really does not have anything to do. Simply return the Image object
-        return self.input_image
-
-    def get_data(self, input_image):
-        """Extracts data array and meta data from loaded image and return them.
-
-        This function returns two objects, first is numpy array of image data, second is dict of meta data.
-        It constructs `affine`, `original_affine`, and `spatial_shape` and stores them in meta dict.
-        A single image is loaded with a single set of metadata as of now.
-
-        The App SDK Image asnumpy() function is expected to return a numpy array of index order `DHW`.
-        This is because in the DICOM series to volume operator pydicom Dataset pixel_array is used to
-        to get per instance pixel numpy array, with index order of `HW`. When all instances are stacked,
-        along the first axis, the Image numpy array's index order is `DHW`. ITK array_view_from_image
-        and SimpleITK GetArrayViewFromImage also returns a numpy array with the index order of `DHW`.
-        The channel would be the last dim/index if present. In the ITKReader get_data(), this numpy array
-        is then transposed, and the channel axis moved to be last dim post transpose; this is to be
-        consistent with the numpy returned from NibabelReader get_data().
-
-        The NibabelReader loads NIfTI image and uses the get_fdata() function of the loaded image to get
-        the numpy array, which has the index order in WHD with the channel being the last dim_get_compose if present.
-
-        Args:
-            input_image (Image): an App SDK Image object.
-        """
-
-        img_array: List[np.ndarray] = []
-        compatible_meta: Dict = {}
-
-        for i in ensure_tuple(input_image):
-            if not isinstance(i, Image):
-                raise TypeError("Only object of Image type is supported.")
-
-            # The Image asnumpy() returns NumPy array similar to ITK array_view_from_image
-            # The array then needs to be transposed, as does in MONAI ITKReader, to align_get_compose
-            # with the output from Nibabel reader loading NIfTI files.
-            data = i.asnumpy().T
-            img_array.append(data)
-            header = self._get_meta_dict(i)
-            _copy_compatible_dict(header, compatible_meta)
-
-        # Stacking image is not really needed, as there is one image only.
-        return _stack_images(img_array, compatible_meta), compatible_meta
-
-    def _get_meta_dict(self, img: Image) -> Dict:
-        """
-        Gets the metadata of the image and converts to dict type.
+    def _convert_from_image(self, img: Image) -> Tuple[np.ndarray, Dict]:
+        """Converts the Image object to the expected numpy array with metadata dictionary.
 
         Args:
             img: A SDK Image object.
         """
+
+        # The Image class provides a numpy array and a metadata dict without a defined set of keys.
+        # In most scenarios, if not all, DICOM series is converted to Image by the
+        # DICOMSeriesToVolumeOperator, but the generated metadata lacks the specifics keys expected
+        # by the MONAI transforms. So there is need to convert the Image object.
+        # Also, there is not a defined key to express the source or producer of an Image object, so,
+        # one has to inspect certain keys, based on known conversion, to infer the producer.
+        # An issues already exists for the improvement of the Image class.
+
+        img_meta_dict: Dict = img.metadata()
+
+        if (
+            not img_meta_dict
+            or ("spacing" in img_meta_dict and "original_affine" in img_meta_dict)
+            or "row_pixel_spacing" not in img_meta_dict
+        ):
+
+            return img.asnumpy(), img_meta_dict
+        else:
+            return self._convert_from_image_dicom_source(img)
+
+    def _convert_from_image_dicom_source(self, img: Image) -> Tuple[np.ndarray, Dict]:
+        """Converts the Image object to the expected numpy array with metadata dictionary.
+
+        Args:
+            img: A SDK Image object converted from DICOM instances.
+        """
+
         img_meta_dict: Dict = img.metadata()
         meta_dict = {key: img_meta_dict[key] for key in img_meta_dict.keys()}
 
-        # Will have to derive some key metadata as the SDK Image lacks the necessary interfaces.
-        # So, for now have to get to the Image generator, namely DICOMSeriesToVolumeOperator, and
-        # rely on its published metadata.
-
-        # Referring to the MONAI ITKReader, the spacing is simply a NumPy array from the ITK image
-        # GetSpacing, in WHD.
+        # The MONAI ImageReader, e.g. the ITKReader, arranges the image spatial dims in WHD,
+        # so the "spacing" needs to be expressed in such an order too, as expected by the transforms.
         meta_dict["spacing"] = np.asarray(
             [
                 img_meta_dict["row_pixel_spacing"],
@@ -441,42 +692,16 @@ class InMemImageReader(ImageReader):
         )
         meta_dict["original_affine"] = np.asarray(img_meta_dict.get("nifti_affine_transform", None))
         meta_dict["affine"] = meta_dict["original_affine"]
-        # The spatial shape, again, referring to ITKReader, it is the WHD
-        meta_dict["spatial_shape"] = np.asarray(img.asnumpy().T.shape)
-        # Well, no channel as the image data shape is forced to the the same as spatial shape
+
+        # Similarly the Image ndarray has dim order DHW, to be rearranged to WHD.
+        # TODO: Need to revisit this once multi-channel image is supported and the Image class itself
+        #       is enhanced to provide attributes or functions for channel and dim order details.
+        converted_image = np.swapaxes(img.asnumpy(), 0, 2)
+
+        # The spatial shape is then that of the converted image, in WHD
+        meta_dict["spatial_shape"] = np.asarray(converted_image.shape)
+
+        # Well, now channel for now.
         meta_dict["original_channel_dim"] = "no_channel"
 
-        return meta_dict
-
-
-# Reuse MONAI code for the derived ImageReader
-def _copy_compatible_dict(from_dict: Dict, to_dict: Dict):
-    if not isinstance(to_dict, dict):
-        raise ValueError(f"to_dict must be a Dict, got {type(to_dict)}.")
-    if not to_dict:
-        for key in from_dict:
-            datum = from_dict[key]
-            if isinstance(datum, np.ndarray) and np_str_obj_array_pattern.search(datum.dtype.str) is not None:
-                continue
-            to_dict[key] = datum
-    else:
-        affine_key, shape_key = "affine", "spatial_shape"
-        if affine_key in from_dict and not np.allclose(from_dict[affine_key], to_dict[affine_key]):
-            raise RuntimeError(
-                "affine matrix of all images should be the same for channel-wise concatenation. "
-                f"Got {from_dict[affine_key]} and {to_dict[affine_key]}."
-            )
-        if shape_key in from_dict and not np.allclose(from_dict[shape_key], to_dict[shape_key]):
-            raise RuntimeError(
-                "spatial_shape of all images should be the same for channel-wise concatenation. "
-                f"Got {from_dict[shape_key]} and {to_dict[shape_key]}."
-            )
-
-
-def _stack_images(image_list: List, meta_dict: Dict):
-    if len(image_list) <= 1:
-        return image_list[0]
-    if meta_dict.get("original_channel_dim", None) not in ("no_channel", None):
-        raise RuntimeError("can not read a list of images which already have channel dimension.")
-    meta_dict["original_channel_dim"] = 0
-    return np.stack(image_list, axis=0)
+        return converted_image, meta_dict

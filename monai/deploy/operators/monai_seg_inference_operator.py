@@ -62,6 +62,7 @@ class MonaiSegInferenceOperator(InferenceOperator):
         roi_size: Union[Sequence[int], int],
         pre_transforms: Compose,
         post_transforms: Compose,
+        model_name: Optional[str] = "",
         overlap: float = 0.5,
         *args,
         **kwargs,
@@ -72,6 +73,7 @@ class MonaiSegInferenceOperator(InferenceOperator):
             roi_size (Union[Sequence[int], int]): The tensor size used in inference.
             pre_transforms (Compose): MONAI Compose object used for pre-transforms.
             post_transforms (Compose): MONAI Compose object used for post-transforms.
+            model_name (str, optional): Name of the model. Default to "" for single model app.
             overlap (float): The overlap used in sliding window inference.
         """
 
@@ -85,6 +87,7 @@ class MonaiSegInferenceOperator(InferenceOperator):
         self._roi_size = ensure_tuple(roi_size)
         self._pre_transform = pre_transforms
         self._post_transforms = post_transforms
+        self._model_name = model_name.strip() if isinstance(model_name, str) else ""
         self.overlap = overlap
 
     @property
@@ -202,7 +205,7 @@ class MonaiSegInferenceOperator(InferenceOperator):
             if context.models:
                 # `context.models.get(model_name)` returns a model instance if exists.
                 # If model_name is not specified and only one model exists, it returns that model.
-                model = context.models.get()
+                model = context.models.get(self._model_name)
             else:
                 print(f"Loading TorchScript model from: {MonaiSegInferenceOperator.MODEL_LOCAL_PATH}")
                 model = torch.jit.load(MonaiSegInferenceOperator.MODEL_LOCAL_PATH, map_location=device)
