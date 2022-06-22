@@ -152,7 +152,7 @@ class BundleConfigNames:
         preproc_name: str = "preprocessing",
         postproc_name: str = "postprocessing",
         inferer_name: str = "inferer",
-        config_names: Union[List[str], Tuple[str], str] = ["inference"],
+        config_names: Union[List[str], Tuple[str], str] = "inference",
     ) -> None:
         """Creates an object holding the names of relevant config items in a MONAI Bundle.
 
