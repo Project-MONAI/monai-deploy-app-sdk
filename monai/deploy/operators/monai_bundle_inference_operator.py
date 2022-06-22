@@ -15,14 +15,11 @@ import os
 import pickle
 import time
 import zipfile
-from http.client import OK
-from multiprocessing.sharedctypes import Value
 from pathlib import Path
 from threading import Lock
 from typing import Any, Dict, List, Optional, Tuple, Type, Union
 
 import numpy as np
-from genericpath import exists
 
 import monai.deploy.core as md
 from monai.deploy.core import DataPath, ExecutionContext, Image, InputContext, IOType, OutputContext
@@ -239,7 +236,7 @@ class MonaiBundleInferenceOperator(InferenceOperator):
         output_mapping: List[IOMapping],
         model_name: Optional[str] = "",
         bundle_path: Optional[str] = None,
-        bundle_config_names: BundleConfigNames = BundleConfigNames(),
+        bundle_config_names: BundleConfigNames = None,
         *args,
         **kwargs,
     ):
@@ -248,9 +245,11 @@ class MonaiBundleInferenceOperator(InferenceOperator):
         Args:
             input_mapping (List[IOMapping]): Define the inputs' name, type, and storage type.
             output_mapping (List[IOMapping]): Defines the outputs' name, type, and storage type.
-            model_name (Optional[str], optional): Name of the model/bundle, needed in multi-model case. Defaults to "".
+            model_name (Optional[str], optional): Name of the model/bundle, needed in multi-model case.
+                                                  Defaults to "".
             bundle_path (Optional[str], optional): For completing . Defaults to None.
-            bundle_config_names (BundleConfigNames, optional): Relevant config item names in a the bundle. Defaults to BundleConfigNames().
+            bundle_config_names (BundleConfigNames, optional): Relevant config item names in a the bundle.
+                                                               Defaults to None.
         """
 
         super().__init__(*args, **kwargs)
@@ -258,7 +257,7 @@ class MonaiBundleInferenceOperator(InferenceOperator):
         self._lock = Lock()
 
         self._model_name = model_name.strip() if isinstance(model_name, str) else ""
-        self._bundle_config_names = bundle_config_names
+        self._bundle_config_names = bundle_config_names if bundle_config_names else BundleConfigNames()
         self._input_mapping = input_mapping
         self._output_mapping = output_mapping
 
@@ -321,7 +320,7 @@ class MonaiBundleInferenceOperator(InferenceOperator):
         if parser and isinstance(parser, ConfigParser):
             self._parser = parser
         else:
-            raise ValueError(f"Value must be a valid ConfigParser object.")
+            raise ValueError("Value must be a valid ConfigParser object.")
 
     def _init_config(self, config_names):
         """Completes the init with a known path to the MONAI Bundle
