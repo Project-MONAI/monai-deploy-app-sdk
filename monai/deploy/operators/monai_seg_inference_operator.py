@@ -10,7 +10,7 @@
 # limitations under the License.
 
 from threading import Lock
-from typing import Any, Dict, List, Optional, Sequence, Union
+from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
 
@@ -31,7 +31,6 @@ ensure_tuple, _ = optional_import("monai.utils", name="ensure_tuple")
 Compose_, _ = optional_import("monai.transforms", name="Compose")
 # Dynamic class is not handled so make it Any for now: https://github.com/python/mypy/issues/2477
 Compose: Any = Compose_
-sliding_window_inference, _ = optional_import("monai.inferers", name="sliding_window_inference")
 
 import monai.deploy.core as md
 from monai.deploy.core import ExecutionContext, Image, InputContext, IOType, OutputContext
@@ -246,30 +245,44 @@ class MonaiSegInferenceOperator(InferenceOperator):
             with self._lock:
                 self._executing = False
 
-    def pre_process(self, img_reader) -> Union[Any, Image, Compose]:
+    def pre_process(self, data: Any, *args, **kwargs) -> Union[Any, Image, Tuple[Any, ...], Dict[Any, Any]]:
         """Transforms input before being used for predicting on a model.
 
         This method must be overridden by a derived class.
+        Expected return is monai.transforms.Compose.
+
+        Args:
+            data(monai.data.ImageReader): Reader used in LoadImage to load `monai.deploy.core.Image` as the input.
+
+        Returns:
+            monai.transforms.Compose encapsulating pre transforms
 
         Raises:
             NotImplementedError: When the subclass does not override this method.
         """
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
 
-    def post_process(self, pre_transforms: Compose, out_dir: str = "./infer_out") -> Union[Any, Image, Compose]:
+    def post_process(self, data: Any, *args, **kwargs) -> Union[Any, Image, Tuple[Any, ...], Dict[Any, Any]]:
         """Transforms the prediction results from the model(s).
 
         This method must be overridden by a derived class.
+        Expected return is monai.transforms.Compose.
+
+        Args:
+            data(monai.transforms.Compose): The pre-processing transforms in a Compose object.
+
+        Returns:
+            monai.transforms.Compose encapsulating post-processing transforms.
 
         Raises:
             NotImplementedError: When the subclass does not override this method.
         """
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
 
-    def predict(self, data: Any, *args, **kwargs) -> Union[Image, Any]:
+    def predict(self, data: Any, *args, **kwargs) -> Union[Image, Any, Tuple[Any, ...], Dict[Any, Any]]:
         """Predicts results using the models(s) with input tensors.
 
-        This method must be overridden by a derived class.
+        This method is currently not used in this class, instead monai.inferers.sliding_window_inference is used.
 
         Raises:
             NotImplementedError: When the subclass does not override this method.

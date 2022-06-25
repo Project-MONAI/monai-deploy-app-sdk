@@ -34,6 +34,7 @@ torch, _ = optional_import("torch", "1.10.0")
 
 PostFix, _ = optional_import("monai.utils.enums", name="PostFix")  # For the default meta_key_postfix
 first, _ = optional_import("monai.utils.misc", name="first")
+ensure_tuple, _ = optional_import("monai.utils", name="ensure_tuple")
 Compose_, _ = optional_import("monai.transforms", name="Compose")
 ConfigParser_, _ = optional_import("monai.bundle", name="ConfigParser")
 MapTransform_, _ = optional_import("monai.transforms", name="MapTransform")
@@ -236,7 +237,7 @@ class MonaiBundleInferenceOperator(InferenceOperator):
         output_mapping: List[IOMapping],
         model_name: Optional[str] = "",
         bundle_path: Optional[str] = None,
-        bundle_config_names: BundleConfigNames = None,
+        bundle_config_names: Optional[BundleConfigNames] = None,
         *args,
         **kwargs,
     ):
@@ -261,9 +262,9 @@ class MonaiBundleInferenceOperator(InferenceOperator):
         self._input_mapping = input_mapping
         self._output_mapping = output_mapping
 
-        self._parser = None  # Needs known bundle path, either on init or when compute function is called.
-        self._inferer = None  # Will be set during bundle parsing.
-        self._init_completed = False
+        self._parser: ConfigParser = None  # Needs known bundle path, either on init or when compute function is called.
+        self._inferer: Any = None  # Will be set during bundle parsing.
+        self._init_completed: bool = False
 
         # Need to set the operator's input(s) and output(s). Even when the bundle parsing is done in init,
         # there is still a need to define what op inputs/outputs map to what keys in the bundle config,
@@ -288,6 +289,9 @@ class MonaiBundleInferenceOperator(InferenceOperator):
         except Exception:
             logging.warn("Bundle parsing is not completed on init, delayed till this operator is called to execute.")
             self._bundle_path = None
+
+        # Lazy init of model network till execution time when the context is fully set.
+        self._model_network: Any = None
 
     @property
     def model_name(self) -> str:
@@ -390,7 +394,7 @@ class MonaiBundleInferenceOperator(InferenceOperator):
                         post_fix = post_fix[0]
                     break
 
-        return post_fix
+        return str(post_fix)
 
     def _get_io_data_type(self, conf):
         """
@@ -441,28 +445,32 @@ class MonaiBundleInferenceOperator(InferenceOperator):
 
         # Try to get the Model object and its path from the context.
         #   If operator is not fully initialized, use model path as bundle path to finish it.
-        # If Model not loaded, but bundle path exists, load model, just in case.
+        # If Model not loaded, but bundle path exists, load model; edge case for local dev.
         #
         # `context.models.get(model_name)` returns a model instance if exists.
         # If model_name is not specified and only one model exists, it returns that model.
-        model = context.models.get(self._model_name) if context.models else None
-        if model:
+
+        self._model_network = context.models.get(self._model_name) if context.models else None
+        if self._model_network:
             if not self._init_completed:
                 with self._lock:
                     if not self._init_completed:
-                        self._bundle_path = model.path
+                        self._bundle_path = self._model_network.path
                         self._init_config(self._bundle_config_names.config_names)
                         self._init_completed
         elif self._bundle_path:
+            # For the case of local dev/testing when the bundle path is not passed in as an exec cmd arg.
+            # When run as a MAP docker, the bundle file is expected to be in the context, even if the model
+            # network is loaded on a remote inference server (when the feature is introduced).
             logging.debug(f"Model network not loaded. Trying to load from model path: {self._bundle_path}")
-            model = torch.jit.load(self.bundle_path, map_location=self._device).eval()
+            self._model_network = torch.jit.load(self.bundle_path, map_location=self._device).eval()
         else:
             raise IOError("Model network is not load and model file not found.")
 
         first_input_name, *other_names = list(self._inputs.keys())
 
         with torch.no_grad():
-            inputs = {}
+            inputs: Any = {}  # Use type Any to quiet MyPy type checking complaints.
 
             start = time.time()
             for name in self._inputs.keys():
@@ -482,13 +490,13 @@ class MonaiBundleInferenceOperator(InferenceOperator):
             logging.debug(f"Ingest and Pre-processing elapsed time (seconds): {time.time() - start}")
 
             start = time.time()
-            outputs = self.predict(data=first_input, network=model, **other_inputs)
+            outputs: Any = self.predict(data=first_input, **other_inputs)  # Use type Any to quiet MyPy complaints.
             logging.debug(f"Inference elapsed time (seconds): {time.time() - start}")
 
             # TODO: Does this work for models where multiple outputs are returned?
             # Note that the inputs are needed because the invert transform requires it.
             start = time.time()
-            outputs = self.post_process(outputs[0], inputs)
+            outputs = self.post_process(ensure_tuple(outputs)[0], preprocessed_inputs=inputs)
             logging.debug(f"Post-processing elapsed time (seconds): {time.time() - start}")
         if isinstance(outputs, (tuple, list)):
             output_dict = dict(zip(self._outputs.keys(), outputs))
@@ -502,19 +510,27 @@ class MonaiBundleInferenceOperator(InferenceOperator):
             # Please see the comments in the called function for the reasons.
             self._send_output(output_dict[name], name, input_metadata, op_output, context)
 
-    def predict(self, data: Any, network: Any, *args, **kwargs) -> Union[Image, Any]:
+    def predict(self, data: Any, *args, **kwargs) -> Union[Image, Any, Tuple[Any, ...], Dict[Any, Any]]:
         """Predicts output using the inferer."""
-        return self._inferer(inputs=data, network=network, *args, **kwargs)
 
-    def pre_process(self, data: Any) -> Union[Image, Any]:
+        return self._inferer(inputs=data, network=self._model_network, *args, **kwargs)
+
+    def pre_process(self, data: Any, *args, **kwargs) -> Union[Image, Any, Tuple[Any, ...], Dict[Any, Any]]:
         """Processes the input dictionary with the stored transform sequence `self._preproc`."""
 
         if is_map_compose(self._preproc):
             return self._preproc(data)
         return {k: self._preproc(v) for k, v in data.items()}
 
-    def post_process(self, data: Any, inputs: Dict) -> Union[Image, Any]:
-        """Processes the output list/dictionary with the stored transform sequence `self._postproc`."""
+    def post_process(self, data: Any, *args, **kwargs) -> Union[Image, Any, Tuple[Any, ...], Dict[Any, Any]]:
+        """Processes the output list/dictionary with the stored transform sequence `self._postproc`.
+
+        The "processed_inputs", in fact the metadata in it, need to be passed in so that the
+        invertible transforms in the post processing can work properly.
+        """
+
+        # Expect the inputs be passed in so that the inversion can work.
+        inputs = kwargs.get("preprocessed_inputs", {})
 
         if is_map_compose(self._postproc):
             if isinstance(data, (list, tuple)):
@@ -585,7 +601,7 @@ class MonaiBundleInferenceOperator(InferenceOperator):
 
         return value, metadata
 
-    def _send_output(self, value, name: str, metadata: Dict, op_output: OutputContext, context: ExecutionContext):
+    def _send_output(self, value: Any, name: str, metadata: Dict, op_output: OutputContext, context: ExecutionContext):
         """Send the given output value to the output context."""
 
         logging.debug(f"Setting output {name}")
@@ -610,7 +626,7 @@ class MonaiBundleInferenceOperator(InferenceOperator):
                 raise TypeError("arg 1 must be of type torch.Tensor or ndarray.")
 
             logging.debug(f"Output {name} numpy image shape: {value.shape}")
-            result = Image(np.swapaxes(np.squeeze(value, 0), 0, 2).astype(np.uint8), metadata=metadata)
+            result: Any = Image(np.swapaxes(np.squeeze(value, 0), 0, 2).astype(np.uint8), metadata=metadata)
             logging.debug(f"Converted Image shape: {result.asnumpy().shape}")
         elif otype == np.ndarray:
             result = np.asarray(value)
