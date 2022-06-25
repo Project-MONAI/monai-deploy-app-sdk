@@ -189,6 +189,8 @@ class BundleConfigNames:
         self.config_names: List[str] = _ensure_str_list(config_names)
 
 
+DEFAULT_BundleConfigNames = BundleConfigNames()
+
 # The operator env decorator defines the required pip packages commonly used in the Bundles.
 # The MONAI Deploy App SDK packager currently relies on the App to consolidate all required packages in order to
 # install them in the MAP Docker image.
@@ -222,8 +224,6 @@ class MonaiBundleInferenceOperator(InferenceOperator):
     a pickle file whose name is the same as the output name.
     """
 
-    DISALLOWED_TRANSFORMS = ["LoadImage", "SaveImage"]
-
     known_io_data_types = {
         "image": Image,  # Image object
         "series": np.ndarray,
@@ -231,13 +231,15 @@ class MonaiBundleInferenceOperator(InferenceOperator):
         "probabilities": Dict[str, Any],  # dictionary containing probabilities and predicted labels
     }
 
+    kw_preprocessed_inputs = "preprocessed_inputs"
+
     def __init__(
         self,
         input_mapping: List[IOMapping],
         output_mapping: List[IOMapping],
         model_name: Optional[str] = "",
-        bundle_path: Optional[str] = None,
-        bundle_config_names: Optional[BundleConfigNames] = None,
+        bundle_path: Optional[str] = "",
+        bundle_config_names: Optional[BundleConfigNames] = DEFAULT_BundleConfigNames,
         *args,
         **kwargs,
     ):
@@ -391,7 +393,7 @@ class MonaiBundleInferenceOperator(InferenceOperator):
                     post_fix = getattr(t, key_name)
                     # For some reason the attr is a tuple
                     if isinstance(post_fix, tuple):
-                        post_fix = post_fix[0]
+                        post_fix = str(post_fix[0])
                     break
 
         return str(post_fix)
@@ -496,7 +498,8 @@ class MonaiBundleInferenceOperator(InferenceOperator):
             # TODO: Does this work for models where multiple outputs are returned?
             # Note that the inputs are needed because the invert transform requires it.
             start = time.time()
-            outputs = self.post_process(ensure_tuple(outputs)[0], preprocessed_inputs=inputs)
+            kw_args = {self.kw_preprocessed_inputs: inputs}
+            outputs = self.post_process(ensure_tuple(outputs)[0], **kw_args)
             logging.debug(f"Post-processing elapsed time (seconds): {time.time() - start}")
         if isinstance(outputs, (tuple, list)):
             output_dict = dict(zip(self._outputs.keys(), outputs))
@@ -530,7 +533,7 @@ class MonaiBundleInferenceOperator(InferenceOperator):
         """
 
         # Expect the inputs be passed in so that the inversion can work.
-        inputs = kwargs.get("preprocessed_inputs", {})
+        inputs = kwargs.get(self.kw_preprocessed_inputs, {})
 
         if is_map_compose(self._postproc):
             if isinstance(data, (list, tuple)):
