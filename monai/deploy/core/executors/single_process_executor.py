@@ -36,11 +36,11 @@ class SingleProcessExecutor(Executor):
     def run(self):
         """Run the app.
 
-        This method retrieves the root nodes of the graph traveres through the
-        graph in a depth first approach.
-        Retrieves output from an upstream operator at a particular output port.
-        Sets the right input to a downstrem operator at the right input port.
-        Executes the operators.
+        This method executes operators of the graph in topological order:
+
+        - If a node (operator) is a root node, its input is treated as a data path (DataPath, IOType.DISK).
+        - If a node (operator) is a leaf node, its output is treated as a data path (DataPath, IOType.DISK).
+        - After the execution of an operator, the output of the operator is used as the input of the next operator.
         """
         app_context = self.app.context
         # Take paths as absolute paths
