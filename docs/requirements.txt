@@ -24,6 +24,7 @@ plotly
 nibabel
 monai
 pydicom
+highdicom>=0.16.0
 sphinx-autodoc-typehints==1.12.0
 sphinxcontrib-applehelp==1.0.2
 sphinxcontrib-devhelp==1.0.2

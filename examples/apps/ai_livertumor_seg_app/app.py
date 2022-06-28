@@ -19,6 +19,10 @@ from monai.deploy.operators.dicom_seg_writer_operator import DICOMSegmentationWr
 from monai.deploy.operators.dicom_series_selector_operator import DICOMSeriesSelectorOperator
 from monai.deploy.operators.dicom_series_to_volume_operator import DICOMSeriesToVolumeOperator
 from monai.deploy.operators.publisher_operator import PublisherOperator
+from monai.deploy.utils.importutil import optional_import
+
+hd, _ = optional_import("highdicom")
+codes, _ = optional_import("pydicom.sr.codedict", name="codes")
 
 
 @resource(cpu=1, gpu=1, memory="7Gi")
@@ -41,6 +45,33 @@ class AILiverTumorApp(Application):
         """Creates the app specific operators and chain them up in the processing DAG."""
 
         self._logger.debug(f"Begin {self.compose.__name__}")
+
+        # The segment descriptions are needed to describe the two segments
+        liver_segment_description = hd.seg.SegmentDescription(
+            segment_number=1,
+            segment_label="Liver",
+            segmented_property_category=codes.SCT.Organ,
+            segmented_property_type=codes.SCT.Liver,
+            algorithm_type=hd.seg.SegmentAlgorithmTypeValues.AUTOMATIC,
+            algorithm_identification=hd.AlgorithmIdentificationSequence(
+                name="MONAI Deploy Liver Tumor Segmentation Example",
+                family=codes.DCM.ArtificialIntelligence,
+                version=version_str,
+            ),
+        )
+        tumor_segment_description = hd.seg.SegmentDescription(
+            segment_number=2,
+            segment_label="Liver Tumor",
+            segmented_property_category=codes.SCT.MorphologicallyAbnormalStructure,
+            segmented_property_type=codes.SCT.Tumor,
+            algorithm_type=hd.seg.SegmentAlgorithmTypeValues.AUTOMATIC,
+            algorithm_identification=hd.AlgorithmIdentificationSequence(
+                name="MONAI Deploy Liver Tumor Segmentation Example",
+                family=codes.DCM.ArtificialIntelligence,
+                version=version_str,
+            ),
+        )
+
         # Creates the custom operator(s) as well as SDK built-in operator(s).
         study_loader_op = DICOMDataLoaderOperator()
         series_selector_op = DICOMSeriesSelectorOperator()
@@ -53,9 +84,9 @@ class AILiverTumorApp(Application):
 
         # Creates DICOM Seg writer with segment label name in a string list
         dicom_seg_writer = DICOMSegmentationWriterOperator(
-            seg_labels=[
-                "Liver",
-                "Tumor",
+            segment_descriptions=[
+                liver_segment_description,
+                tumor_segment_description,
             ]
         )
         # Create the processing pipeline, by specifying the upstream and downstream operators, and

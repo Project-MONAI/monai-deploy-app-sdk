@@ -19,6 +19,10 @@ from monai.deploy.operators.dicom_seg_writer_operator import DICOMSegmentationWr
 from monai.deploy.operators.dicom_series_selector_operator import DICOMSeriesSelectorOperator
 from monai.deploy.operators.dicom_series_to_volume_operator import DICOMSeriesToVolumeOperator
 from monai.deploy.operators.stl_conversion_operator import STLConversionOperator
+from monai.deploy.utils.importutil import optional_import
+
+hd, _ = optional_import("highdicom")
+codes, _ = optional_import("pydicom.sr.codedict", name="codes")
 
 
 @resource(cpu=1, gpu=1, memory="7Gi")
@@ -41,6 +45,26 @@ class AISpleenSegApp(Application):
 
         self._logger.debug(f"Begin {self.compose.__name__}")
 
+        try:
+            version_str = get_sdk_semver()  # SDK Version
+        except Exception:
+            version_str = "0.1"  # Fall back to the initial version
+
+        segment_descriptions = [
+            hd.seg.SegmentDescription(
+                segment_number=1,
+                segment_label="Spleen",
+                segmented_property_category=codes.SCT.Organ,
+                segmented_property_type=codes.SCT.Spleen,
+                algorithm_type=hd.seg.SegmentAlgorithmTypeValues.AUTOMATIC,
+                algorithm_identification=hd.AlgorithmIdentificationSequence(
+                    name="MONAI Deploy Spleen Segmentation Example",
+                    family=codes.DCM.ArtificialIntelligence,
+                    version=version_str,
+                ),
+            )
+        ]
+
         # Creates the custom operator(s) as well as SDK built-in operator(s).
         study_loader_op = DICOMDataLoaderOperator()
         series_selector_op = DICOMSeriesSelectorOperator(Sample_Rules_Text)
@@ -48,7 +72,7 @@ class AISpleenSegApp(Application):
         # Model specific inference operator, supporting MONAI transforms.
         spleen_seg_op = SpleenSegOperator()
         # Create DICOM Seg writer with segment label name in a string list
-        dicom_seg_writer = DICOMSegmentationWriterOperator(seg_labels=["Spleen"])
+        dicom_seg_writer = DICOMSegmentationWriterOperator(segment_descriptions)
         # Create the surface mesh STL conversion operator
         stl_conversion_op = STLConversionOperator(output_file="stl/spleen.stl")
 
