@@ -36,7 +36,9 @@ __all__ = ["STLConversionOperator", "STLConverter"]
 
 @md.input("image", Image, IOType.IN_MEMORY)
 @md.output("stl_output", DataPath, IOType.DISK)
-@md.env(pip_packages=["numpy>=1.21", "nibabel >= 3.2.1", "numpy-stl>=2.12.0", "scikit-image>=0.17.2", "trimesh>=3.8.11"])
+@md.env(
+    pip_packages=["numpy>=1.21", "nibabel >= 3.2.1", "numpy-stl>=2.12.0", "scikit-image>=0.17.2", "trimesh>=3.8.11"]
+)
 class STLConversionOperator(Operator):
     """Converts volumetric image to surface mesh in STL format, file output only."""
 
