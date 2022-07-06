@@ -424,6 +424,7 @@ class MonaiBundleInferenceOperator(InferenceOperator):
         elif isinstance(ctype, type):  # type object
             return ctype
         else:  # don't know, something that hasn't been figured out
+            logging.warn(f"I/O data type, {ctype}, is not a known/supported type. Return as Type object.")
             return object
 
     def _add_inputs(self, input_mapping: List[IOMapping]):

@@ -94,7 +94,7 @@ class LiverTumorSegOperator(Operator):
             pre_transforms,
             post_transforms,
             overlap=0.6,
-            model_name="  ",
+            model_name="",
         )
 
         # Setting the keys used in the dictironary based transforms may change.
