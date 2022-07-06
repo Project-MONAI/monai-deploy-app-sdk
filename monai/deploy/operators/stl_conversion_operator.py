@@ -16,11 +16,11 @@ import tempfile
 from pathlib import Path
 from typing import Dict, Optional
 
-import nibabel as nib
 import numpy as np
 
 from monai.deploy.utils.importutil import optional_import
 
+nib, _ = optional_import("nibabel")
 sitk, _ = optional_import("SimpleITK")
 label, _ = optional_import("skimage.measure", name="label")
 measure, _ = optional_import("skimage", name="measure")
@@ -36,7 +36,10 @@ __all__ = ["STLConversionOperator", "STLConverter"]
 
 @md.input("image", Image, IOType.IN_MEMORY)
 @md.output("stl_output", DataPath, IOType.DISK)
-@md.env(pip_packages=["numpy>=1.21", "numpy-stl>=2.12.0", "scikit-image>=0.17.2", "trimesh>=3.8.11"])
+# nibabel is required by the dependent class STLConverter.
+@md.env(
+    pip_packages=["numpy>=1.21", "nibabel >= 3.2.1", "numpy-stl>=2.12.0", "scikit-image>=0.17.2", "trimesh>=3.8.11"]
+)
 class STLConversionOperator(Operator):
     """Converts volumetric image to surface mesh in STL format, file output only."""
 
