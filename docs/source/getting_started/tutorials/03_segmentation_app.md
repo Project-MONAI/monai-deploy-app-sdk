@@ -15,7 +15,7 @@ jupyter-lab
 ```
 
 ## Executing from Jupyter Notebook
-
+Please note that the example code used in the Jupyter Notebook is based on an earlier version of the segmentation application, hence not the same as the latest source code on Github, e.g. not using MONAI Bundle inference operator.
 ```{toctree}
 :maxdepth: 4
 
@@ -43,7 +43,7 @@ jupyter-lab
 ```
 
 ## Executing from Shell
-
+Please note that this part of the example uses the latest application source code on Github, as well as the corresponding test data.
 ```bash
 # Clone the github project (the latest version of main branch only)
 git clone --branch main --depth 1 https://github.com/Project-MONAI/monai-deploy-app-sdk.git
@@ -53,17 +53,18 @@ cd monai-deploy-app-sdk
 # Install monai-deploy-app-sdk package
 pip install monai-deploy-app-sdk
 
-# Download/Extract ai_spleen_seg_data zip file from https://drive.google.com/file/d/1GC_N8YQk_mOWN02oOzAU_2YDmNRWk--n/view?usp=sharing
+# Download/Extract ai_spleen_bundle_data zip file from https://drive.google.com/file/d/1cJq0iQh_yzYIxVElSlVa141aEmHZADJh/view?usp=sharing
 
-# Download ai_spleen_seg_data.zip
+# Download ai_spleen_bundle_data.zip
 pip install gdown
-gdown https://drive.google.com/uc?id=1GC_N8YQk_mOWN02oOzAU_2YDmNRWk--n
+gdown https://drive.google.com/uc?id=1cJq0iQh_yzYIxVElSlVa141aEmHZADJh
 
-# After downloading ai_spleen_seg_data.zip from the web browser or using gdown,
-unzip -o ai_spleen_seg_data_updated_1203.zip
+# After downloading ai_spleen_bundle_data.zip from the web browser or using gdown,
+unzip -o ai_spleen_bundle_data.zip
 
-# Install necessary packages from the app
-pip install monai pydicom SimpleITK Pillow nibabel
+# Install necessary packages from the app; note that numpy-stl and trimesh are only
+# needed if the application uses the STL Conversion Operator
+pip install monai pydicom SimpleITK Pillow nibabel scikit-image numpy-stl trimesh
 
 # Local execution of the app
 python examples/apps/ai_spleen_seg_app/app.py -i dcm/ -o output -m model.ts
