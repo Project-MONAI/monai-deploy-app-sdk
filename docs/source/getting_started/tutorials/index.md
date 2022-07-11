@@ -9,4 +9,5 @@
 03_segmentation_app
 04_mis_tutorial
 05_full_tutorial
+06_monai_bundle_app
 ```
