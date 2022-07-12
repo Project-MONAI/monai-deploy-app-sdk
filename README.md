@@ -62,6 +62,8 @@ monai-deploy run simple_app:latest input output
 
 ### [Tutorials](https://docs.monai.io/projects/monai-deploy-app-sdk/en/latest/getting_started/tutorials/index.html)
 
+Tutorials are provided to help getting started with the App SDK, to name but a few below.
+
 #### [1) Creating a simple image processing app](https://docs.monai.io/projects/monai-deploy-app-sdk/en/latest/getting_started/tutorials/01_simple_app.html)
 
 #### [2) Creating MedNIST Classifier app](https://docs.monai.io/projects/monai-deploy-app-sdk/en/latest/getting_started/tutorials/02_mednist_app.html)
