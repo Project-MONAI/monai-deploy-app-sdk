@@ -1,4 +1,4 @@
-# 3) Creating a Segmentation app consuming a MONAI Bundle
+# 6) Creating a Segmentation app consuming a MONAI Bundle
 
 ## Setup
 
