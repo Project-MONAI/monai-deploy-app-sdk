@@ -81,6 +81,8 @@ YouTube Video:
 
 ### [5) Building and deploying Segmentation app with MONAI Inference Service (MIS)](https://docs.monai.io/projects/monai-deploy-app-sdk/en/latest/getting_started/tutorials/05_full_tutorial.html)
 
+### [6) Creating a Segmentation app consuming a MONAI Bundle](https://docs.monai.io/projects/monai-deploy-app-sdk/en/0.4.0/getting_started/tutorials/06_monai_bundle_app.html)
+
 ### [Examples](https://docs.monai.io/projects/monai-deploy-app-sdk/en/latest/getting_started/examples.html)
 
 <https://github.com/Project-MONAI/monai-deploy-app-sdk/tree/main/examples/apps> has example apps that you can see.
