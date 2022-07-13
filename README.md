@@ -62,6 +62,8 @@ monai-deploy run simple_app:latest input output
 
 ### [Tutorials](https://docs.monai.io/projects/monai-deploy-app-sdk/en/latest/getting_started/tutorials/index.html)
 
+Tutorials are provided to help getting started with the App SDK, to name but a few below.
+
 #### [1) Creating a simple image processing app](https://docs.monai.io/projects/monai-deploy-app-sdk/en/latest/getting_started/tutorials/01_simple_app.html)
 
 #### [2) Creating MedNIST Classifier app](https://docs.monai.io/projects/monai-deploy-app-sdk/en/latest/getting_started/tutorials/02_mednist_app.html)
@@ -80,6 +82,8 @@ YouTube Video:
 ### [4) Deploying Segmentation app with MONAI Inference Service (MIS)](https://docs.monai.io/projects/monai-deploy-app-sdk/en/latest/getting_started/tutorials/04_mis_tutorial.html)
 
 ### [5) Building and deploying Segmentation app with MONAI Inference Service (MIS)](https://docs.monai.io/projects/monai-deploy-app-sdk/en/latest/getting_started/tutorials/05_full_tutorial.html)
+
+### [6) Creating a Segmentation app consuming a MONAI Bundle](https://docs.monai.io/projects/monai-deploy-app-sdk/en/0.4.0/getting_started/tutorials/06_monai_bundle_app.html)
 
 ### [Examples](https://docs.monai.io/projects/monai-deploy-app-sdk/en/latest/getting_started/examples.html)
 
