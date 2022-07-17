@@ -9,5 +9,8 @@ CLI commands, e.g.
     └── spleen_model
         └── model.ts
 
-Note that the name of a subfolder, which contains the TorchScript file, is used as the
+Note:
+1. The name of a subfolder, which contains the TorchScript file, is used as the
 model name within the app on retrieving the model's network and path etc.
+
+2. The TorchScript files of MONAI Bundle can be downloaded from MONAI Model Zoo.
