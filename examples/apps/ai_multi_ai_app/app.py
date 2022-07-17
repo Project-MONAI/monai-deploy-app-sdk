@@ -19,7 +19,8 @@ from monai.deploy.operators.dicom_seg_writer_operator import DICOMSegmentationWr
 from monai.deploy.operators.dicom_series_selector_operator import DICOMSeriesSelectorOperator
 from monai.deploy.operators.dicom_series_to_volume_operator import DICOMSeriesToVolumeOperator
 from monai.deploy.operators.monai_bundle_inference_operator import IOMapping, MonaiBundleInferenceOperator
-from monai.deploy.operators.stl_conversion_operator import STLConversionOperator  # import as needed.
+
+# from monai.deploy.operators.stl_conversion_operator import STLConversionOperator  # import as needed.
 
 
 @resource(cpu=1, gpu=1, memory="7Gi")
