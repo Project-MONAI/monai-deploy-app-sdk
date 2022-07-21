@@ -31,11 +31,8 @@ from monai.deploy.operators.stl_conversion_operator import STLConversionOperator
 @env(pip_packages=["torch>=1.12.0"])
 # pip_packages can be a string that is a path(str) to requirements.txt file or a list of packages.
 # The monai pkg is not required by this class, instead by the included operators.
-
-
 class App(Application):
-    """
-    This example demonstrates how to create a multi-model/multi-AI application.
+    """This example demonstrates how to create a multi-model/multi-AI application.
 
     The important steps are:
         1. Place the model TorchScripts in a defined folder structure, see below for details
