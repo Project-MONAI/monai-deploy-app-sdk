@@ -11,7 +11,7 @@
 
 import logging
 
-from monai.deploy.core import Application, resource
+from monai.deploy.core import Application, env, resource
 from monai.deploy.core.domain import Image
 from monai.deploy.core.io_type import IOType
 from monai.deploy.operators.dicom_data_loader_operator import DICOMDataLoaderOperator
@@ -19,14 +19,51 @@ from monai.deploy.operators.dicom_seg_writer_operator import DICOMSegmentationWr
 from monai.deploy.operators.dicom_series_selector_operator import DICOMSeriesSelectorOperator
 from monai.deploy.operators.dicom_series_to_volume_operator import DICOMSeriesToVolumeOperator
 from monai.deploy.operators.monai_bundle_inference_operator import IOMapping, MonaiBundleInferenceOperator
-
-# from monai.deploy.operators.stl_conversion_operator import STLConversionOperator  # import as needed.
+from monai.deploy.operators.stl_conversion_operator import STLConversionOperator  # import as needed.
 
 
 @resource(cpu=1, gpu=1, memory="7Gi")
+# Enforcing torch>=1.12.0 because one of the Bundles/TorchScripts, Pancreas CT Seg, was created
+# with this version, and would fail to jit.load with lower version of torch.
+# The Bundle Inference Operator as of now only requires torch>=1.10.2, and does not yet dynamically
+# parse the MONAI bundle to get the required pip package or ver on initialization, hence it does not set
+# its own @env decorator accordingly when the app is being packaged into a MONAI Package.
+@env(pip_packages=["torch>=1.12.0"])
 # pip_packages can be a string that is a path(str) to requirements.txt file or a list of packages.
 # The monai pkg is not required by this class, instead by the included operators.
+
+
 class App(Application):
+    """
+    This example demonstrates how to create a multi-model/multi-AI application.
+
+    The important steps are:
+        1. Place the model TorchScripts in a defined folder structure, see below for details
+        2. Pass the model name to the inference operator instance in the app
+        3. Connect the input to and output from the inference operators, as required by the app
+
+    Required Model Folder Structure:
+        1. The model TorchScripts, be it MONAI Bundle compliant or not, must be placed in
+           a parent folder, whose path is used as the path to the model(s) on app execution
+        2. Each TorchScript file needs to be in a sub-folder, whose name is the model name
+
+    An example is shown below, where the `parent_foler` name can be the app's own choosing, and
+    the sub-folder names become model names, `pancreas_ct_dints` and `spleen_model`, respectively.
+
+        <parent_fodler>
+        ├── pancreas_ct_dints
+        │   └── model.ts
+        └── spleen_model
+            └── model.ts
+
+    Note:
+    1. The TorchScript files of MONAI Bundles can be downloaded from MONAI Model Zoo, at
+       https://github.com/Project-MONAI/model-zoo/tree/dev/models
+    2. The input DICOM instances are from a DICOM Series of CT Abdomen, similar to the ones
+       used in the Spleen Segmentation example
+    3. This example is purely for technical demonstration, not for clinical use
+    """
+
     def __init__(self, *args, **kwargs):
         """Creates an application instance."""
         self._logger = logging.getLogger("{}.{}".format(__name__, type(self).__name__))
@@ -80,8 +117,8 @@ class App(Application):
 
         # Feed the input image to all inference operators
         self.add_flow(series_to_vol_op, bundle_spleen_seg_op, {"image": "image"})
-        # TODO: The Pancreas CT Seg bundle fails to load for now, have to comment out and wait till fixed.
-        # self.add_flow(series_to_vol_op, bundle_pancrea_seg_op, {"image": "image"})
+        # The Pancreas CT Seg bundle requires PyTorch 1.12.0 to avoid failure to load.
+        self.add_flow(series_to_vol_op, bundle_pancrea_seg_op, {"image": "image"})
 
         # Create DICOM Seg for one of the inference output
         # Note below the dicom_seg_writer requires two inputs, each coming from a upstream operator.
@@ -92,11 +129,10 @@ class App(Application):
 
         # Create the surface mesh STL conversion operator and add it to the app execution flow, if needed, by
         # uncommenting the following lines.
-        # stl_conversion_op = STLConversionOperator(
-        #     output_file="stl/pancreas_tumor.stl",
-        #     keep_largest_connected_component=False,
-        #     )
-        # self.add_flow(bundle_pancrea_seg_op, stl_conversion_op, {"pred": "image"})
+        stl_conversion_op = STLConversionOperator(
+            output_file="stl/pancreas_tumor.stl",
+        )
+        self.add_flow(bundle_pancrea_seg_op, stl_conversion_op, {"pred": "image"})
 
         logging.info(f"End {self.compose.__name__}")
 
