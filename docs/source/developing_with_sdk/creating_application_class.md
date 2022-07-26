@@ -54,7 +54,7 @@ In `compose()` method, operators are instantiated and connected through <a href=
 
 > add_flow(upstream_op, downstream_op, io_map=None)
 
-`io_map` is a dictionary of mapping from the source operator's label to the destination operator's label(s) and its type is `Dict[str, str|Set[str]]`.
+`io_map` is a dictionary of mapping from the upstream operator's label to the downstream operator's label(s) and its type is `Dict[str, str|Set[str]]`.
 
 We can skip specifying `io_map` if both the number of `upstream_op`'s outputs and the number of `downstream_op`'s inputs are one.
 For example, if Operators named `task1` and `task2` has only one input and output (with the label `image`), `self.add_flow(task1, task2)` is same with `self.add_flow(task1, task2, {"image": "image"})` or `self.add_flow(task1, task2, {"image": {"image"}})`.

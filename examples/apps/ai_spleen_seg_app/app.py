@@ -71,7 +71,7 @@ class AISpleenSegApp(Application):
             series_selector_op, series_to_vol_op, {"study_selected_series_list": "study_selected_series_list"}
         )
         self.add_flow(series_to_vol_op, bundle_spleen_seg_op, {"image": "image"})
-        # Note below the dicom_seg_writer requires two inputs, each coming from a upstream operator.
+        # Note below the dicom_seg_writer requires two inputs, each coming from an upstream operator.
         self.add_flow(
             series_selector_op, dicom_seg_writer, {"study_selected_series_list": "study_selected_series_list"}
         )

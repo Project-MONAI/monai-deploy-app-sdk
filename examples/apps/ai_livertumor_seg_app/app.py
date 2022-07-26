@@ -68,7 +68,7 @@ class AILiverTumorApp(Application):
         # Add the publishing operator to save the input and seg images for Render Server.
         # Note the PublisherOperator has temp impl till a proper rendering module is created.
         self.add_flow(unetr_seg_op, publisher_op, {"saved_images_folder": "saved_images_folder"})
-        # Note below the dicom_seg_writer requires two inputs, each coming from a upstream operator.
+        # Note below the dicom_seg_writer requires two inputs, each coming from an upstream operator.
         self.add_flow(
             series_selector_op, dicom_seg_writer, {"study_selected_series_list": "study_selected_series_list"}
         )

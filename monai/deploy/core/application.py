@@ -192,8 +192,8 @@ class Application(ABC):
         Args:
             upstream_op (Operator): An instance of the upstream operator of type Operator.
             downstream_op (Operator): An instance of the downstream operator of type Operator.
-            io_map (Optional[Dict[str, Union[str, Set[str]]]]): A dictionary of mapping from the source operator's label
-                                                                 to the destination operator's label(s).
+            io_map (Optional[Dict[str, Union[str, Set[str]]]]): A dictionary of mapping from the upstream operator's label
+                                                                 to the downstream operator's label(s).
         """
 
         # Ensure that the upstream and downstream operators are valid
