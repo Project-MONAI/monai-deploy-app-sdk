@@ -58,7 +58,7 @@ class AILiverTumorApp(Application):
                 "Tumor",
             ]
         )
-        # Create the processing pipeline, by specifying the upstream and downstream operators, and
+        # Create the processing pipeline, by specifying the source and destination operators, and
         # ensuring the output from the former matches the input of the latter, in both name and type.
         self.add_flow(study_loader_op, series_selector_op, {"dicom_study_list": "dicom_study_list"})
         self.add_flow(
@@ -68,7 +68,7 @@ class AILiverTumorApp(Application):
         # Add the publishing operator to save the input and seg images for Render Server.
         # Note the PublisherOperator has temp impl till a proper rendering module is created.
         self.add_flow(unetr_seg_op, publisher_op, {"saved_images_folder": "saved_images_folder"})
-        # Note below the dicom_seg_writer requires two inputs, each coming from an upstream operator.
+        # Note below the dicom_seg_writer requires two inputs, each coming from a source operator.
         self.add_flow(
             series_selector_op, dicom_seg_writer, {"study_selected_series_list": "study_selected_series_list"}
         )

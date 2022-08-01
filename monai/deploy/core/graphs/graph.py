@@ -28,21 +28,21 @@ class Graph(ABC):
         """Add an edge to the graph.
 
         Args:
-            op_u (Operator): An upstream operator.
-            op_v (Operator): A downstream operator.
-            io_map (Dict[str, Set[str]]): A dictionary of mapping from the upstream operator's label to the downstream
+            op_u (Operator): A source operator.
+            op_v (Operator): A destination operator.
+            io_map (Dict[str, Set[str]]): A dictionary of mapping from the source operator's label to the destination
                                           operator's label(s).
         """
         pass
 
     @abstractmethod
     def get_io_map(self, op_u: Operator, op_v) -> Dict[str, Set[str]]:
-        """Get a mapping from the upstream operator's output label to the downstream operator's input label.
+        """Get a mapping from the source operator's output label to the destination operator's input label.
         Args:
-            op_u (Operator): An upstream operator.
-            op_v (Operator): A downstream operator.
+            op_u (Operator): A source operator.
+            op_v (Operator): A destination operator.
         Returns:
-            A dictionary of mapping from the upstream operator's output label to the downstream operator's
+            A dictionary of mapping from the source operator's output label to the destination operator's
             input label(s).
         """
         pass

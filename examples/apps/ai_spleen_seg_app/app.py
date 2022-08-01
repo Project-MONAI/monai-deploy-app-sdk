@@ -64,14 +64,14 @@ class AISpleenSegApp(Application):
         # Create DICOM Seg writer with segment label name in a string list
         dicom_seg_writer = DICOMSegmentationWriterOperator(seg_labels=["Spleen"])
 
-        # Create the processing pipeline, by specifying the upstream and downstream operators, and
+        # Create the processing pipeline, by specifying the source and destination operators, and
         # ensuring the output from the former matches the input of the latter, in both name and type.
         self.add_flow(study_loader_op, series_selector_op, {"dicom_study_list": "dicom_study_list"})
         self.add_flow(
             series_selector_op, series_to_vol_op, {"study_selected_series_list": "study_selected_series_list"}
         )
         self.add_flow(series_to_vol_op, bundle_spleen_seg_op, {"image": "image"})
-        # Note below the dicom_seg_writer requires two inputs, each coming from an upstream operator.
+        # Note below the dicom_seg_writer requires two inputs, each coming from a source operator.
         self.add_flow(
             series_selector_op, dicom_seg_writer, {"study_selected_series_list": "study_selected_series_list"}
         )
