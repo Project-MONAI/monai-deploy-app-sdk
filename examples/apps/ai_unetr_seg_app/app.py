@@ -54,7 +54,7 @@ class AIUnetrSegApp(Application):
             output_file="stl/multi-organs.stl", keep_largest_connected_component=False
         )
 
-        # Create the processing pipeline, by specifying the upstream and downstream operators, and
+        # Create the processing pipeline, by specifying the source and destination operators, and
         # ensuring the output from the former matches the input of the latter, in both name and type.
         self.add_flow(study_loader_op, series_selector_op, {"dicom_study_list": "dicom_study_list"})
         self.add_flow(

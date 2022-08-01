@@ -215,7 +215,7 @@ class MonaiBundleInferenceOperator(InferenceOperator):
 
     For image input and output, the type is the `Image` class. For output of probabilities, the type is `Dict`.
 
-    This operator is expected to be linked with both upstream and downstream operators, e.g. receiving an `Image` object from
+    This operator is expected to be linked with both source and destination operators, e.g. receiving an `Image` object from
     the `DICOMSeriesToVolumeOperator`, and passing a segmentation `Image` to the `DICOMSegmentationWriterOperator`.
     In such cases, the I/O storage type can only be `IN_MEMORY` due to the restrictions imposed by the application executor.
     However, when used as the first operator in an application, its input storage type needs to be `DISK`, and the file needs
@@ -618,7 +618,7 @@ class MonaiBundleInferenceOperator(InferenceOperator):
             # out of the MONAI post processing is [CWHD] with dim for batch already squeezed out.
             # Prediction image, e.g. segmentation image, needs to have its dimensions
             # rearranged to fit the conventions used by Image class, i.e. [DHW], without channel dim.
-            # Also, based on known use cases, e.g. prediction being seg image and the downstream
+            # Also, based on known use cases, e.g. prediction being seg image and the destination
             # operators expect the data type to be unit8, conversion needs to be done as well.
             # Metadata, such as pixel spacing and orientation, also needs to be set in the Image object,
             # which is why metadata is expected to be passed in.

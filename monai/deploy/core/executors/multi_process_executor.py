@@ -38,10 +38,10 @@
 #                     # Figure out how to deal with duplicate nodes
 #                     q.put(e[1])
 #                     edge_data = g.get_edge_data(e[0], e[1])
-#                     output = node.get_output(edge_data["upstream_op_port"])
-#                     key1 = (e[0].get_uid(), "output", edge_data["upstream_op_port"])
+#                     output = node.get_output(edge_data["source_op_port"])
+#                     key1 = (e[0].get_uid(), "output", edge_data["source_op_port"])
 #                     self._storage.store(key1, output)
-#                     key2 = (e[1].get_uid(), "input", edge_data["downstream_op_port"])
+#                     key2 = (e[1].get_uid(), "input", edge_data["destination_op_port"])
 #                     self._storage.store(key2, output)
 
 #     def _launch_operator(self, op):

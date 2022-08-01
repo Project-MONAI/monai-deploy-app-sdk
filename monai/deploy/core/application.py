@@ -182,35 +182,35 @@ class Application(ABC):
         self._graph.add_operator(operator)
 
     def add_flow(
-        self, upstream_op: Operator, downstream_op: Operator, io_map: Optional[Dict[str, Union[str, Set[str]]]] = None
+        self, source_op: Operator, destination_op: Operator, io_map: Optional[Dict[str, Union[str, Set[str]]]] = None
     ):
-        """Adds a flow from upstream to downstream.
+        """Adds a flow from source to destination.
 
-        An output port of the upstream operator is connected to one of the
-        input ports of a downstream operators.
+        An output port of the source operator is connected to one of the
+        input ports of a destination operators.
 
         Args:
-            upstream_op (Operator): An instance of the upstream operator of type Operator.
-            downstream_op (Operator): An instance of the downstream operator of type Operator.
+            source_op (Operator): An instance of the source operator of type Operator.
+            destination_op (Operator): An instance of the destination operator of type Operator.
             io_map (Optional[Dict[str, Union[str, Set[str]]]]): A dictionary of mapping from the source operator's label
                                                                  to the destination operator's label(s).
         """
 
-        # Ensure that the upstream and downstream operators are valid
-        upstream_op.ensure_valid()
-        downstream_op.ensure_valid()
+        # Ensure that the source and destination operators are valid
+        source_op.ensure_valid()
+        destination_op.ensure_valid()
 
-        op_output_labels = upstream_op.op_info.get_labels(IO.OUTPUT)
-        op_input_labels = downstream_op.op_info.get_labels(IO.INPUT)
+        op_output_labels = source_op.op_info.get_labels(IO.OUTPUT)
+        op_input_labels = destination_op.op_info.get_labels(IO.INPUT)
         if not io_map:
             if len(op_output_labels) > 1:
                 raise IOMappingError(
-                    f"The upstream operator has more than one output port "
+                    f"The source operator has more than one output port "
                     f"({', '.join(op_output_labels)}) so mapping should be specified explicitly!"
                 )
             if len(op_input_labels) > 1:
                 raise IOMappingError(
-                    f"The downstream operator has more than one output port ({', '.join(op_input_labels)}) "
+                    f"The destination operator has more than one output port ({', '.join(op_input_labels)}) "
                     f"so mapping should be specified explicitly!"
                 )
             io_map = {"": {""}}
@@ -221,14 +221,14 @@ class Application(ABC):
             if isinstance(v, str):
                 io_maps[k] = {v}
 
-        # Verify that the upstream & downstream operator have the input and output ports specified by the io_map
+        # Verify that the source & destination operator have the input and output ports specified by the io_map
         output_labels = list(io_maps.keys())
 
         if len(op_output_labels) == 1 and len(output_labels) != 1:
             raise IOMappingError(
-                f"The upstream operator({upstream_op.name}) has only one port with label "
+                f"The source operator({source_op.name}) has only one port with label "
                 f"'{next(iter(op_output_labels))}' but io_map specifies {len(output_labels)} "
-                f"labels({', '.join(output_labels)}) to the upstream operator's output port"
+                f"labels({', '.join(output_labels)}) to the source operator's output port"
             )
 
         for output_label in output_labels:
@@ -239,7 +239,7 @@ class Application(ABC):
                     del io_maps[output_label]
                     break
                 raise IOMappingError(
-                    f"The upstream operator({upstream_op.name}) has no output port with label '{output_label}'. "
+                    f"The source operator({source_op.name}) has no output port with label '{output_label}'. "
                     f"It should be one of ({', '.join(op_output_labels)})."
                 )
 
@@ -249,9 +249,9 @@ class Application(ABC):
 
             if len(op_input_labels) == 1 and len(input_labels) != 1:
                 raise IOMappingError(
-                    f"The downstream operator({downstream_op.name}) has only one port with label "
+                    f"The destination operator({destination_op.name}) has only one port with label "
                     f"'{next(iter(op_input_labels))}' but io_map specifies {len(input_labels)} "
-                    f"labels({', '.join(input_labels)}) to the downstream operator's input port"
+                    f"labels({', '.join(input_labels)}) to the destination operator's input port"
                 )
 
             for input_label in input_labels:
@@ -262,11 +262,11 @@ class Application(ABC):
                         input_labels.add(next(iter(op_input_labels)))
                         break
                     raise IOMappingError(
-                        f"The downstream operator({downstream_op.name}) has no input port with label '{input_label}'. "
+                        f"The destination operator({destination_op.name}) has no input port with label '{input_label}'. "
                         f"It should be one of ({', '.join(op_input_labels)})."
                     )
 
-        self._graph.add_flow(upstream_op, downstream_op, io_maps)
+        self._graph.add_flow(source_op, destination_op, io_maps)
 
     def get_package_info(self, model_path: Union[str, Path] = "") -> Dict:
         """Returns the package information of this application.
