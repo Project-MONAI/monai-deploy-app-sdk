@@ -89,7 +89,7 @@ MONAI Deploy App SDK 0.1.0
 
 ## [REQ] Representing Workflow With DAG
 
-The SDK shall enable dependencies among upstream and downstream operators in an application using a DAG so that app workflow can be modeled unambiguously. The SDK shall provide a mechanism to link an output port of an upstream operator to an input port of a downstream operator to form the DAG.
+The SDK shall enable dependencies among source and destination operators in an application using a DAG so that app workflow can be modeled unambiguously. The SDK shall provide a mechanism to link an output port of a source operator to an input port of a destination operator to form the DAG.
 
 ### Background
 
@@ -397,7 +397,7 @@ MONAI Deploy App SDK 0.1.0
 
 ## [REQ] Loading a DICOM 2d/3d dataset into a unified domain object
 
-The SDK shall enable applications to load a 2D/3D imaging dataset belonging to a single DICOM series into a unified "Image" domain object so that downstream operators can process this domain object based on the application's needs such as transformation and inference.
+The SDK shall enable applications to load a 2D/3D imaging dataset belonging to a single DICOM series into a unified "Image" domain object so that destination operators can process this domain object based on the application's needs such as transformation and inference.
 
 ### Background
 
