@@ -90,6 +90,7 @@ class App(Application):
         # during init to provide the optional packages info, parsed from the bundle, to the packager
         # for it to install the packages in the MAP docker image.
         # Setting output IOType to DISK only works only for leaf operators, not the case in this example.
+        # When multiple models/bundles are supported, create an inference operator for each.
         bundle_spleen_seg_op = MonaiBundleInferenceOperator(
             input_mapping=[IOMapping("image", Image, IOType.IN_MEMORY)],
             output_mapping=[IOMapping("pred", Image, IOType.IN_MEMORY)],
