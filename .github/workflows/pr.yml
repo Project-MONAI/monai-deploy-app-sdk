@@ -27,6 +27,7 @@ jobs:
       - name: Check formatting
         run: |
           source .venv/bin/activate
+          python3 -m pip freeze
           ./run check -f
       - name: Run Unit tests
         run: |
