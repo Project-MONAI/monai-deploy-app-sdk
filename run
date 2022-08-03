@@ -397,7 +397,7 @@ clean() {
     # Uninstall the development package
     if [ -n "${VIRTUAL_ENV}" ] || [ -n "${CONDA_PREFIX}" ]; then
         c_echo W "Uninstalling MONAI Deploy App SDK installation..."
-        run_command ${MONAI_PY_EXE} -m pip uninstall monai-deploy-app-sdk
+        run_command ${MONAI_PY_EXE} -m pip uninstall -y monai-deploy-app-sdk
     fi
 
     local monai_package_path=$(${MONAI_PY_EXE} $TOP/monai/deploy/utils/importutil.py dist_module_path monai)
