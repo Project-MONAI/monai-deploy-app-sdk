@@ -1,0 +1,21 @@
+version: "3"
+services:
+  ai_service:
+    image: ${PARTNER_NAME:-nvidia}-${SERVICE_NAME:-ai_spleen_seg_app}:${VERSION:-0.1.0}
+    build:
+      context: ${CONTEXT:-.}
+      args:
+        PARTNER_NAME: NVIDIA
+        SERVICE_NAME: ai_spleen_seg_app
+        VERSION: 0.1.0
+        MONAI_APP_MODULE: app.spleen_seg
+    dns: 0.0.0.0
+    environment:
+      requestPort: ${PORT:-7777}
+      subscriptionKey: AiSvcTestKey
+      tempDir: /var/data
+    ports:
+      - "5000:${PORT:-7777}"
+    tmpfs:
+      - /var/data
+    user: "${CONTAINER_UID:-20225}:${CONTAINER_GID:-20225}"

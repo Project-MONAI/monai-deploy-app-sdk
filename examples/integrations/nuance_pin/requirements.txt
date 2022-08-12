@@ -1,0 +1,3 @@
+monai-deploy-app-sdk>=0.4.0
+monai>=0.9.1
+pydicom==2.3.0
