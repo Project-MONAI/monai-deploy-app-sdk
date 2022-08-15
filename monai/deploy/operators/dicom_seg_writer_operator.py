@@ -12,7 +12,7 @@
 import os
 from pathlib import Path
 from random import randint
-from typing import List, Optional, Sequence, Union
+from typing import TYPE_CHECKING, List, Optional, Sequence, Union
 
 import numpy as np
 from typeguard import typechecked
@@ -25,10 +25,14 @@ generate_uid, _ = optional_import("pydicom.uid", name="generate_uid")
 ImplicitVRLittleEndian, _ = optional_import("pydicom.uid", name="ImplicitVRLittleEndian")
 Dataset, _ = optional_import("pydicom.dataset", name="Dataset")
 FileDataset, _ = optional_import("pydicom.dataset", name="FileDataset")
-hd, _ = optional_import("highdicom")
 sitk, _ = optional_import("SimpleITK")
 codes, _ = optional_import("pydicom.sr.codedict", name="codes")
-Code, _ = optional_import("pydicom.sr.coding", name="Code")
+if TYPE_CHECKING:
+    import highdicom as hd
+    from pydicom.sr.coding import Code
+else:
+    Code, _ = optional_import("pydicom.sr.coding", name="Code")
+    hd, _ = optional_import("highdicom")
 
 import monai.deploy.core as md
 from monai.deploy.core import DataPath, ExecutionContext, Image, InputContext, IOType, Operator, OutputContext
@@ -92,14 +96,8 @@ class SegmentDescription:
         self._segmented_property_type = segmented_property_type
         self._tracking_id = tracking_id
 
-        if anatomic_regions is not None:
-            self._anatomic_regions = anatomic_regions
-        else:
-            self._anatomic_regions = None
-        if primary_anatomic_structures is not None:
-            self._primary_anatomic_structures = primary_anatomic_structures
-        else:
-            self._primary_anatomic_structures = None
+        self._anatomic_regions = anatomic_regions
+        self._primary_anatomic_structures = primary_anatomic_structures
 
         # Generate a UID if one was not provided
         if tracking_id is not None and tracking_uid is None:
