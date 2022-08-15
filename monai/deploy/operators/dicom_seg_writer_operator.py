@@ -37,7 +37,6 @@ from monai.deploy.core.domain.dicom_series_selection import StudySelectedSeries
 
 
 class SegmentDescription:
-
     @typechecked
     def __init__(
         self,
@@ -50,7 +49,7 @@ class SegmentDescription:
         tracking_id: Optional[str] = None,
         tracking_uid: Optional[str] = None,
         anatomic_regions: Optional[Sequence[Code]] = None,
-        primary_anatomic_structures: Optional[Sequence[Code]] = None
+        primary_anatomic_structures: Optional[Sequence[Code]] = None,
     ):
         """Class encapsulating the description of a segment within the segmentation.
 
@@ -176,10 +175,7 @@ class DICOMSegmentationWriterOperator(Operator):
             segmentation.
         """
 
-        self._seg_descs = [
-            sd.to_segment_description(n)
-            for n, sd in enumerate(segment_descriptions, 1)
-        ]
+        self._seg_descs = [sd.to_segment_description(n) for n, sd in enumerate(segment_descriptions, 1)]
 
     def compute(self, op_input: InputContext, op_output: OutputContext, context: ExecutionContext):
         """Performs computation for this operator and handles I/O.
