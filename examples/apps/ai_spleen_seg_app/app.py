@@ -11,6 +11,9 @@
 
 import logging
 
+# Required for setting SegmentDescription attributes. Direct import as this is not part of App SDK package.
+from pydicom.sr.codedict import codes
+
 from monai.deploy.core import Application, resource
 from monai.deploy.core.domain import Image
 from monai.deploy.core.io_type import IOType
@@ -22,8 +25,6 @@ from monai.deploy.operators.monai_bundle_inference_operator import IOMapping, Mo
 
 # from monai.deploy.operators.stl_conversion_operator import STLConversionOperator  # import as needed.
 
-# Required for setting SegmentDescription attributes. Direct import as this is not part of App SDK package.
-from pydicom.sr.codedict import codes
 
 @resource(cpu=1, gpu=1, memory="7Gi")
 # pip_packages can be a string that is a path(str) to requirements.txt file or a list of packages.
@@ -78,7 +79,7 @@ class AISpleenSegApp(Application):
                 algorithm_name="volumetric (3D) segmentation of the spleen from CT image",
                 algorithm_family=codes.DCM.ArtificialIntelligence,
                 algorithm_version="0.1.0",
-           )
+            )
         ]
         dicom_seg_writer = DICOMSegmentationWriterOperator(segment_descriptions=segment_descriptions)
 
