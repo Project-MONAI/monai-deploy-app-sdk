@@ -15,11 +15,11 @@ Minimum software requirements:
 - [Docker Compose](https://docs.docker.com/compose/install/)
 - [Nuance PIN SDK](https://www.nuance.com/healthcare/diagnostics-solutions/precision-imaging-network.html)
 
-<note>
+<div class="note">
 
 Nuance PIN SDK does not require host installation to make the example app work. We will explore options in the [Quickstart](#quickstart) section 
 
-</note>
+</div>
 
 (quickstart)=
 ## Quickstart
