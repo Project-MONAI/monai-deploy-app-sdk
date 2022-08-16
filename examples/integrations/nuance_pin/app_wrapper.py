@@ -42,7 +42,6 @@ It meets all of the necessary requirements, but performs trivial actions.
 import glob
 import os
 from importlib import import_module
-from pathlib import Path
 from typing import List
 
 import pydicom
@@ -68,8 +67,19 @@ class MONAIAppWrapper(AiJobProcessor):
 
     @classmethod
     def initialize_class(cls):
-        script_folder = Path(__file__).expanduser().resolve().absolute().parent
-        cls.model_path = script_folder / os.getenv("AI_MODEL_PATH", "model.ts")
+        cls.model_path = os.getenv("AI_MODEL_PATH", "/app/model/model.ts")
+        if not os.path.exists(cls.model_path):
+            raise FileNotFoundError(f"Could not find model file in path `{cls.model_path}`")
+        cls.logger.info(f"Model path: {cls.model_path}")
+
+        monai_app_class_module = cls.monai_app_module.rsplit('.', 1)[0]
+        monai_app_class_name = cls.monai_app_module.rsplit('.', 1)[1]
+        if not cls.monai_app_module:
+            raise ValueError("MONAI App to be run has not been specificed in `MONAI_APP_CLASSPATH` environment variable")
+
+        monai_app_class = getattr(import_module(monai_app_class_module), monai_app_class_name)
+        if monai_app_class is None:
+            raise ModuleNotFoundError(f"The class `{cls.monai_app_module}` was not found")
 
     def process_study(self):
         self.logger.info("Starting Processing")
@@ -79,20 +89,24 @@ class MONAIAppWrapper(AiJobProcessor):
 
         if not hasattr(MONAIAppWrapper, 'input_path') or self.input_path is None:
             self.input_path = self.ai_job.image_folder
+            self.logger.info(f"Input path: {self.input_path}")
 
         if not hasattr(MONAIAppWrapper, 'output_path') or self.output_path is None:
             self.output_path = self.ai_job.output_folder
+            self.logger.info(f"Output path: {self.output_path}")
 
         # create the inference app instance to run on this subprocess
         self.logger.info("Running MONAI App")
 
         if not hasattr(MONAIAppWrapper, 'monai_app_instance') or self.monai_app_instance is None:
-            monai_app_class_module = self.monai_app_module.rsplit('.')[0]
-            monai_app_class_name = self.monai_app_module.rsplit('.')[1]
+            monai_app_class_module = self.monai_app_module.rsplit('.', 1)[0]
+            monai_app_class_name = self.monai_app_module.rsplit('.', 1)[1]
             monai_app_class = getattr(import_module(monai_app_class_module), monai_app_class_name)
             self.monai_app_instance = monai_app_class(do_run=False)
 
-        print(f"MONAI App Info: {self.monai_app_instance.get_package_info()}")
+        self.logger.info(f"MONAI App Info: {self.monai_app_instance.get_package_info()}")
+        self.logger.info(f"MONAI working directory: {self.ai_job.folder}")
+
         self.monai_app_instance.run(
             log_level=self.logger.level,
             input=self.input_path,

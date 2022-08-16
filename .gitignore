@@ -137,3 +137,6 @@ output
 # Sphinx temporary files
 docs/notebooks
 _autosummary
+
+# model files
+*.ts
