@@ -51,18 +51,16 @@ from result import ResultStatus
 
 class MONAIAppWrapper(AiJobProcessor):
 
-    partner_name = os.environ['AI_PARTNER_NAME']
-    service_name = os.environ['AI_SVC_NAME']
-    service_version = os.environ['AI_SVC_VERSION']
+    partner_name = os.environ["AI_PARTNER_NAME"]
+    service_name = os.environ["AI_SVC_NAME"]
+    service_version = os.environ["AI_SVC_VERSION"]
 
-    monai_app_module = os.environ['MONAI_APP_CLASSPATH']
+    monai_app_module = os.environ["MONAI_APP_CLASSPATH"]
 
     def filter_image(self, image: pydicom.Dataset) -> bool:
         return True
 
-    def select_series(
-        self, image_series_list: List[Series]
-    ) -> List[Series]:
+    def select_series(self, image_series_list: List[Series]) -> List[Series]:
         return image_series_list
 
     @classmethod
@@ -72,10 +70,12 @@ class MONAIAppWrapper(AiJobProcessor):
             raise FileNotFoundError(f"Could not find model file in path `{cls.model_path}`")
         cls.logger.info(f"Model path: {cls.model_path}")
 
-        monai_app_class_module = cls.monai_app_module.rsplit('.', 1)[0]
-        monai_app_class_name = cls.monai_app_module.rsplit('.', 1)[1]
+        monai_app_class_module = cls.monai_app_module.rsplit(".", 1)[0]
+        monai_app_class_name = cls.monai_app_module.rsplit(".", 1)[1]
         if not cls.monai_app_module:
-            raise ValueError("MONAI App to be run has not been specificed in `MONAI_APP_CLASSPATH` environment variable")
+            raise ValueError(
+                "MONAI App to be run has not been specificed in `MONAI_APP_CLASSPATH` environment variable"
+            )
 
         monai_app_class = getattr(import_module(monai_app_class_module), monai_app_class_name)
         if monai_app_class is None:
@@ -83,24 +83,22 @@ class MONAIAppWrapper(AiJobProcessor):
 
     def process_study(self):
         self.logger.info("Starting Processing")
-        self.logger.info(
-            f"{len(self.ai_job.prior_studies)} images in prior studies"
-        )
+        self.logger.info(f"{len(self.ai_job.prior_studies)} images in prior studies")
 
-        if not hasattr(MONAIAppWrapper, 'input_path') or self.input_path is None:
+        if not hasattr(MONAIAppWrapper, "input_path") or self.input_path is None:
             self.input_path = self.ai_job.image_folder
             self.logger.info(f"Input path: {self.input_path}")
 
-        if not hasattr(MONAIAppWrapper, 'output_path') or self.output_path is None:
+        if not hasattr(MONAIAppWrapper, "output_path") or self.output_path is None:
             self.output_path = self.ai_job.output_folder
             self.logger.info(f"Output path: {self.output_path}")
 
         # create the inference app instance to run on this subprocess
         self.logger.info("Running MONAI App")
 
-        if not hasattr(MONAIAppWrapper, 'monai_app_instance') or self.monai_app_instance is None:
-            monai_app_class_module = self.monai_app_module.rsplit('.', 1)[0]
-            monai_app_class_name = self.monai_app_module.rsplit('.', 1)[1]
+        if not hasattr(MONAIAppWrapper, "monai_app_instance") or self.monai_app_instance is None:
+            monai_app_class_module = self.monai_app_module.rsplit(".", 1)[0]
+            monai_app_class_name = self.monai_app_module.rsplit(".", 1)[1]
             monai_app_class = getattr(import_module(monai_app_class_module), monai_app_class_name)
             self.monai_app_instance = monai_app_class(do_run=False)
 
