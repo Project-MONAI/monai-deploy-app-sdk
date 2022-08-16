@@ -67,9 +67,9 @@ class AISpleenSegApp(Application):
             output_mapping=[IOMapping("pred", Image, IOType.IN_MEMORY)],
         )
 
-        # Create DICOM Seg writer providing the required segment description for each segment.
-        # The actual algorithm and the pertinent organ/tissue need to be used, also
-        # algorithm_name and algorithm_version are of DICOM VR LO type, limited to 64 chars, per
+        # Create DICOM Seg writer providing the required segment description for each segment with
+        # the actual algorithm and the pertinent organ/tissue. The segment_label, algorithm_name,
+        # and algorithm_version are of DICOM VR LO type, limited to 64 chars.
         # https://dicom.nema.org/medical/dicom/current/output/chtml/part05/sect_6.2.html
         segment_descriptions = [
             SegmentDescription(

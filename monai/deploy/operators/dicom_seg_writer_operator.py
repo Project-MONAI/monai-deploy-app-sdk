@@ -59,7 +59,10 @@ class SegmentDescription:
 
         Args:
         segment_label: str
-            Label of the segment.
+            User-defined label identifying this segment,
+            DICOM VR Long String (LO) (see C.8.20-4
+            https://dicom.nema.org/medical/Dicom/current/output/chtml/part03/sect_C.8.20.4.html
+            "Segment Description Macro Attributes")
         segmented_property_category: pydicom.sr.coding.Code
             Category of the property the segment represents,
             e.g. ``Code("49755003", "SCT", "Morphologically Abnormal
@@ -71,6 +74,19 @@ class SegmentDescription:
             e.g. ``Code("108369006", "SCT", "Neoplasm")`` (see CID 7151
             http://dicom.nema.org/medical/dicom/current/output/chtml/part16/sect_CID_7151.html
             "Segmentation Property Types")
+        algorithm_name: str
+            Name of algorithm used to generate the segment, also as the name assigned by a
+            manufacturer to a specific software algorithm,
+            DICOM VR Long String (LO) (see C.8.20-2
+            https://dicom.nema.org/medical/dicom/2019a/output/chtml/part03/sect_C.8.20.2.html
+            "Segmentation Image Module Attribute", and see 10-19
+            https://dicom.nema.org/medical/dicom/2020b/output/chtml/part03/sect_10.16.html
+            "Algorithm Identification Macro Attributes")
+        algorithm_version: str
+            The software version identifier assigned by a manufacturer to a specific software algorithm,
+            DICOM VR Long String (LO) (see 10-19
+            https://dicom.nema.org/medical/dicom/2020b/output/chtml/part03/sect_10.16.html
+            "Algorithm Identification Macro Attributes")
         tracking_id: Optional[str], optional
             Tracking identifier (unique only with the domain of use).
         tracking_uid: Optional[str], optional
