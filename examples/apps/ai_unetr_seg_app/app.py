@@ -11,10 +11,13 @@
 
 import logging
 
+# Required for setting SegmentDescription attributes. Direct import as this is not part of App SDK package.
+from pydicom.sr.codedict import codes
 from unetr_seg_operator import UnetrSegOperator
 
 from monai.deploy.core import Application, resource
 from monai.deploy.operators.dicom_data_loader_operator import DICOMDataLoaderOperator
+from monai.deploy.operators.dicom_seg_writer_operator import DICOMSegmentationWriterOperator, SegmentDescription
 from monai.deploy.operators.dicom_series_selector_operator import DICOMSeriesSelectorOperator
 from monai.deploy.operators.dicom_series_to_volume_operator import DICOMSeriesToVolumeOperator
 from monai.deploy.operators.publisher_operator import PublisherOperator
@@ -54,6 +57,50 @@ class AIUnetrSegApp(Application):
             output_file="stl/multi-organs.stl", keep_largest_connected_component=False
         )
 
+        # Create DICOM Seg writer providing the required segment description for each segment with
+        # the actual algorithm and the pertinent organ/tissue.
+        # The segment_label, algorithm_name, and algorithm_version are limited to 64 chars.
+        # https://dicom.nema.org/medical/dicom/current/output/chtml/part05/sect_6.2.html
+
+        _algorithm_name = "3D multi-organ segmentation from CT image"
+        _algorithm_family = codes.DCM.ArtificialIntelligence
+        _algorithm_version = "0.1.0"
+
+        # List of (Segment name, [Code menaing str]), not including background which is value of 0.
+        # User must provide correct codes, which can be looked at, e.g.
+        # https://bioportal.bioontology.org/ontologies/SNOMEDCT
+        # Alternatively, consult the concept and code dictionaries in PyDicom
+
+        organs = [
+            ("Spleen",),
+            ("Right Kidney", "Kidney"),
+            ("Left Kideny", "Kidney"),
+            ("Gallbladder",),
+            ("Esophagus",),
+            ("Liver",),
+            ("Stomach",),
+            ("Aorta",),
+            ("Inferior vena cava", "InferiorVenaCava"),
+            ("Portal and Splenic Veins", "SplenicVein"),
+            ("Pancreas",),
+            ("Right adrenal gland", "AdrenalGland"),
+            ("Left adrenal gland", "AdrenalGland"),
+        ]
+
+        segment_descriptions = [
+            SegmentDescription(
+                segment_label=organ[0],
+                segmented_property_category=codes.SCT.Organ,
+                segmented_property_type=codes.SCT.__getattr__(organ[1] if len(organ) > 1 else organ[0]),
+                algorithm_name=_algorithm_name,
+                algorithm_family=_algorithm_family,
+                algorithm_version=_algorithm_version,
+            )
+            for organ in organs
+        ]
+
+        dicom_seg_writer = DICOMSegmentationWriterOperator(segment_descriptions)
+
         # Create the processing pipeline, by specifying the source and destination operators, and
         # ensuring the output from the former matches the input of the latter, in both name and type.
         self.add_flow(study_loader_op, series_selector_op, {"dicom_study_list": "dicom_study_list"})
@@ -66,6 +113,12 @@ class AIUnetrSegApp(Application):
         # Add the publishing operator to save the input and seg images for Render Server.
         # Note the PublisherOperator has temp impl till a proper rendering module is created.
         self.add_flow(unetr_seg_op, publisher_op, {"saved_images_folder": "saved_images_folder"})
+
+        # Note below the dicom_seg_writer requires two inputs, each coming from a source operator.
+        self.add_flow(
+            series_selector_op, dicom_seg_writer, {"study_selected_series_list": "study_selected_series_list"}
+        )
+        self.add_flow(unetr_seg_op, dicom_seg_writer, {"seg_image": "seg_image"})
 
         self._logger.debug(f"End {self.compose.__name__}")
 
