@@ -198,7 +198,7 @@ DEFAULT_BundleConfigNames = BundleConfigNames()
 #       operator may choose to pass in a accessible bundle path at development and packaging stage. Ideally,
 #       the bundle path should be passed in by the Packager, e.g. via env var, when the App is initialized.
 #       As of now, the Packager only passes in the model path after the App including all operators are init'ed.
-@md.env(pip_packages=["monai>=0.9.0", "torch>=1.10.02", "numpy>=1.21", "nibabel>=3.2.1"])
+@md.env(pip_packages=["monai==0.9.0", "torch>=1.10.02", "numpy>=1.21", "nibabel>=3.2.1"])
 class MonaiBundleInferenceOperator(InferenceOperator):
     """This inference operator automates the inference operation for a given MONAI Bundle.
 

@@ -11,11 +11,14 @@
 
 import logging
 
+# Required for setting SegmentDescription attributes. Direct import as this is not part of App SDK package.
+from pydicom.sr.codedict import codes
+
 from monai.deploy.core import Application, resource
 from monai.deploy.core.domain import Image
 from monai.deploy.core.io_type import IOType
 from monai.deploy.operators.dicom_data_loader_operator import DICOMDataLoaderOperator
-from monai.deploy.operators.dicom_seg_writer_operator import DICOMSegmentationWriterOperator
+from monai.deploy.operators.dicom_seg_writer_operator import DICOMSegmentationWriterOperator, SegmentDescription
 from monai.deploy.operators.dicom_series_selector_operator import DICOMSeriesSelectorOperator
 from monai.deploy.operators.dicom_series_to_volume_operator import DICOMSeriesToVolumeOperator
 from monai.deploy.operators.monai_bundle_inference_operator import IOMapping, MonaiBundleInferenceOperator
@@ -56,13 +59,29 @@ class AISpleenSegApp(Application):
         # during init to provide the optional packages info, parsed from the bundle, to the packager
         # for it to install the packages in the MAP docker image.
         # Setting output IOType to DISK only works only for leaf operators, not the case in this example.
+        #
+        # Pertinent MONAI Bundle:
+        #   https://github.com/Project-MONAI/model-zoo/tree/dev/models/spleen_ct_segmentation
         bundle_spleen_seg_op = MonaiBundleInferenceOperator(
             input_mapping=[IOMapping("image", Image, IOType.IN_MEMORY)],
             output_mapping=[IOMapping("pred", Image, IOType.IN_MEMORY)],
         )
 
-        # Create DICOM Seg writer with segment label name in a string list
-        dicom_seg_writer = DICOMSegmentationWriterOperator(seg_labels=["Spleen"])
+        # Create DICOM Seg writer providing the required segment description for each segment with
+        # the actual algorithm and the pertinent organ/tissue. The segment_label, algorithm_name,
+        # and algorithm_version are of DICOM VR LO type, limited to 64 chars.
+        # https://dicom.nema.org/medical/dicom/current/output/chtml/part05/sect_6.2.html
+        segment_descriptions = [
+            SegmentDescription(
+                segment_label="Spleen",
+                segmented_property_category=codes.SCT.Organ,
+                segmented_property_type=codes.SCT.Spleen,
+                algorithm_name="volumetric (3D) segmentation of the spleen from CT image",
+                algorithm_family=codes.DCM.ArtificialIntelligence,
+                algorithm_version="0.1.0",
+            )
+        ]
+        dicom_seg_writer = DICOMSegmentationWriterOperator(segment_descriptions=segment_descriptions)
 
         # Create the processing pipeline, by specifying the source and destination operators, and
         # ensuring the output from the former matches the input of the latter, in both name and type.
