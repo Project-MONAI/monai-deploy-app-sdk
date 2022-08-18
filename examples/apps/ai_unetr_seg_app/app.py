@@ -66,9 +66,10 @@ class AIUnetrSegApp(Application):
         _algorithm_family = codes.DCM.ArtificialIntelligence
         _algorithm_version = "0.1.0"
 
-        # List of (Segment name, [SNOMED CT Code]), not including background which is value of 0.
-        # User can look up SNOMED CT codes at, e.g.
+        # List of (Segment name, [Code menaing str]), not including background which is value of 0.
+        # User must provide correct codes, which can be looked at, e.g.
         # https://bioportal.bioontology.org/ontologies/SNOMEDCT
+        # Alternatively, consult the concept and code dictionaries in PyDicom
 
         organs = [
             ("Spleen",),
@@ -79,18 +80,18 @@ class AIUnetrSegApp(Application):
             ("Liver",),
             ("Stomach",),
             ("Aorta",),
-            ("Inferior vena cava", "Organ"),  # Cannot find SNOMED CT code
-            ("Portal and Splenic Veins", "Vein"),
+            ("Inferior vena cava", "InferiorVenaCava"),
+            ("Portal and Splenic Veins", "SplenicVein"),
             ("Pancreas",),
-            ("Right adrenal gland", "Organ"),  # Cannot find SNOMED CT code
-            ("Left adrenal gland", "Organ"),
+            ("Right adrenal gland", "AdrenalGland"),
+            ("Left adrenal gland", "AdrenalGland"),
         ]
 
         segment_descriptions = [
             SegmentDescription(
                 segment_label=organ[0],
                 segmented_property_category=codes.SCT.Organ,
-                segmented_property_type=codes.SCT.__getattr__(organ[1] if len(organ) > 1 else organ[0]),  # Not ideal.
+                segmented_property_type=codes.SCT.__getattr__(organ[1] if len(organ) > 1 else organ[0]),
                 algorithm_name=_algorithm_name,
                 algorithm_family=_algorithm_family,
                 algorithm_version=_algorithm_version,
