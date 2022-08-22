@@ -460,7 +460,7 @@ class MonaiBundleInferenceOperator(InferenceOperator):
                     if not self._init_completed:
                         self._bundle_path = self._model_network.path
                         self._init_config(self._bundle_config_names.config_names)
-                        self._init_completed
+                        self._init_completed = True
         elif self._bundle_path:
             # For the case of local dev/testing when the bundle path is not passed in as an exec cmd arg.
             # When run as a MAP docker, the bundle file is expected to be in the context, even if the model
