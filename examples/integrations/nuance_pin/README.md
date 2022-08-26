@@ -42,7 +42,7 @@ nuance_pin
     └── requirements.txt        # libraries required for the example integration to work
 ```
 
-We will place the spleen segmentation mode in the `nuance_pin/model` folder and use that as the location for the code in `app/spleen_seg.py`, however,
+We will place the spleen segmentation model in the `nuance_pin/model` folder and use that as the location for the code in `app/spleen_seg.py`, however,
 this is not a hard restriction. The developer may choose a location of their own within the `nuance_pin` subtree, but this change requires updating the
 `MODEL_PATH` variable in `docker-compose.yml`.
 
