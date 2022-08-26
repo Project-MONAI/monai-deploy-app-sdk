@@ -106,7 +106,7 @@ python -m AiSvcTest -i ~/Downloads/dcm -o ~/Downloads/dcm/out -s http://localhos
 ### Running the Example App on the Host
 
 Alternatively the user may choose to run the Nuance PIn service directly on the host. For this we must install the following:
-- Nuance PIN AI Serivce libraries
+- Nuance PIN AI Service libraries
 - Libraries in the `requirements.txt`
 
 ```bash
