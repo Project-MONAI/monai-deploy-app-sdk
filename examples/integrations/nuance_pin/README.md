@@ -151,7 +151,7 @@ python -m AiSvcTest -i ~/Downloads/dcm -o ~/Downloads/dcm/out -s http://localhos
 
 ### Bring Your Own MONAI App
 
-This example integration may be modified to fit any existing MONAI app, however, they may be caveats.
+This example integration may be modified to fit any existing MONAI app, however, there may be caveats.
 
 Nuance PIN requires all artifacts present in the output folder to be also added into the `resultsManifest.json` output file
 to consider the run successful. To see what this means in practical terms, check the `resultManifest.json` output from the
