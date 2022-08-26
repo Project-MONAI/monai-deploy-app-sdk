@@ -24,7 +24,6 @@ from monai.deploy.operators.monai_bundle_inference_operator import IOMapping, Mo
 
 
 @resource(cpu=1, gpu=1, memory="7Gi")
-# pip_packages can be a string that is a path(str) to requirements.txt file or a list of packages.
 # The monai pkg is not required by this class, instead by the included operators.
 class AISpleenSegApp(Application):
     def __init__(self, *args, **kwargs):
