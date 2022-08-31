@@ -30,6 +30,8 @@ if __name__ == "__main__":
     for idx, dir in enumerate(input_dirs):
         try:
             output_path = app_output_path / f"{dir.name}_output"
+            # Note: the work_dir should be mapped to the host drive when used in
+            #       a container for better performance.
             work_dir = f".unetr_app_workdir{idx}"
             work_dirs.extend(work_dir)
 
@@ -46,7 +48,7 @@ if __name__ == "__main__":
             traceback.print_exc()
         finally:
             # Remove the workdir; alternatively do this later, if storage space is not a concern.
-            shutil.rmtree(work_dir)
+            shutil.rmtree(work_dir, ignore_errors=True)
 
     # Alternative. Explicitly remove the working dirs at the end of main.
     # [shutil.rmtree(work_dir, ignore_errors=True) for work_dir in work_dirs]

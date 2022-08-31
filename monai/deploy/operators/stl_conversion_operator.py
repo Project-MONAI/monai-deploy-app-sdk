@@ -30,7 +30,7 @@ resize, _ = optional_import("skimage.transform", name="resize")
 trimesh, _ = optional_import("trimesh")
 
 import monai.deploy.core as md
-from monai.deploy.core import DataPath, ExecutionContext, Image, InputContext, IOType, Operator, OutputContext
+from monai.deploy.core import ExecutionContext, Image, InputContext, IOType, Operator, OutputContext
 
 __all__ = ["STLConversionOperator", "STLConverter"]
 
@@ -95,7 +95,7 @@ class STLConversionOperator(Operator):
         stl_bytes = self._convert(input_image, _output_file)
 
         try:
-            # TODO: Need a way to find if the operator is run as leaf node in order to complete
+            # TODO: Need a way to find if the operator is run as leaf node in order to
             #       avoid setting in_memory object.
             if isinstance(self.op_info.storage_type, IOType.IN_MEMORY):
                 op_output.set(stl_bytes)
