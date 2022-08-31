@@ -97,7 +97,7 @@ class STLConversionOperator(Operator):
         try:
             # TODO: Need a way to find if the operator is run as leaf node in order to
             #       avoid setting in_memory object.
-            if self.op_info.get_storage_type() == IOType.IN_MEMORY:
+            if self.op_info.get_storage_type("output", "stl_output") == IOType.IN_MEMORY:
                 op_output.set(stl_bytes)
         except Exception as ex:
             self._logger.warn(f"In_memory output cannot be used when run as non-leaf operator. {ex}")
