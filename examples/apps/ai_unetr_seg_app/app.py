@@ -10,6 +10,7 @@
 # limitations under the License.
 
 import logging
+from typing import List
 
 # Required for setting SegmentDescription attributes. Direct import as this is not part of App SDK package.
 from pydicom.sr.codedict import codes
@@ -155,7 +156,7 @@ if __name__ == "__main__":
     input_dirs = [path for path in app_input_path.iterdir() if path.is_dir()]
 
     # Set the output path for each run under the app's output path, and do run
-    work_dirs = []
+    work_dirs: List[str] = []  # strings resprenting folder path
     for idx, dir in enumerate(input_dirs):
         try:
             output_path = app_output_path / f"{dir.name}_output"

@@ -2,6 +2,7 @@ import logging
 import shutil
 import traceback
 from pathlib import Path
+from typing import List
 
 from app import AIUnetrSegApp
 
@@ -26,7 +27,7 @@ if __name__ == "__main__":
     input_dirs = [path for path in app_input_path.iterdir() if path.is_dir()]
 
     # Set the output path for each run under the app's output path, and do run
-    work_dirs = []
+    work_dirs: List[str] = []  # strings resprenting folder path
     for idx, dir in enumerate(input_dirs):
         try:
             output_path = app_output_path / f"{dir.name}_output"
