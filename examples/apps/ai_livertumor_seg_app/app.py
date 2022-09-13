@@ -21,7 +21,29 @@ from monai.deploy.operators.dicom_data_loader_operator import DICOMDataLoaderOpe
 from monai.deploy.operators.dicom_seg_writer_operator import DICOMSegmentationWriterOperator, SegmentDescription
 from monai.deploy.operators.dicom_series_selector_operator import DICOMSeriesSelectorOperator
 from monai.deploy.operators.dicom_series_to_volume_operator import DICOMSeriesToVolumeOperator
-from monai.deploy.operators.publisher_operator import PublisherOperator
+
+# from monai.deploy.operators.publisher_operator import PublisherOperator
+
+# This is a sample series selection rule in JSON, simply selecting CT series.
+# If the study has more than 1 CT series, then all of them will be selected.
+# Please see more detail in DICOMSeriesSelectorOperator.
+# For list of string values, e.g. "ImageType": ["PRIMARY", "ORIGINAL"], it is a match if all elements
+# are all in the multi-value attribute of the DICOM series.
+
+Sample_Rules_Text = """
+{
+    "selections": [
+        {
+            "name": "CT Series",
+            "conditions": {
+                "Modality": "(?i)CT",
+                "ImageType": ["PRIMARY", "ORIGINAL"],
+                "PhotometricInterpretation": "MONOCHROME2"
+            }
+        }
+    ]
+}
+"""
 
 
 @resource(cpu=1, gpu=1, memory="7Gi")
@@ -46,13 +68,13 @@ class AILiverTumorApp(Application):
         self._logger.debug(f"Begin {self.compose.__name__}")
         # Creates the custom operator(s) as well as SDK built-in operator(s).
         study_loader_op = DICOMDataLoaderOperator()
-        series_selector_op = DICOMSeriesSelectorOperator()
+        series_selector_op = DICOMSeriesSelectorOperator(rules=Sample_Rules_Text)
         series_to_vol_op = DICOMSeriesToVolumeOperator()
         # Model specific inference operator, supporting MONAI transforms.
         liver_tumor_seg_op = LiverTumorSegOperator()
 
         # Create the publisher operator
-        publisher_op = PublisherOperator()
+        # publisher_op = PublisherOperator()
 
         # Create DICOM Seg writer providing the required segment description for each segment with
         # the actual algorithm and the pertinent organ/tissue.
@@ -94,7 +116,7 @@ class AILiverTumorApp(Application):
         self.add_flow(series_to_vol_op, liver_tumor_seg_op, {"image": "image"})
         # Add the publishing operator to save the input and seg images for Render Server.
         # Note the PublisherOperator has temp impl till a proper rendering module is created.
-        self.add_flow(liver_tumor_seg_op, publisher_op, {"saved_images_folder": "saved_images_folder"})
+        # self.add_flow(liver_tumor_seg_op, publisher_op, {"saved_images_folder": "saved_images_folder"})
         # Note below the dicom_seg_writer requires two inputs, each coming from a source operator.
         self.add_flow(
             series_selector_op, dicom_seg_writer, {"study_selected_series_list": "study_selected_series_list"}
