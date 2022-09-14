@@ -23,6 +23,27 @@ from monai.deploy.operators.dicom_series_selector_operator import DICOMSeriesSel
 from monai.deploy.operators.dicom_series_to_volume_operator import DICOMSeriesToVolumeOperator
 from monai.deploy.operators.publisher_operator import PublisherOperator
 
+# This is a sample series selection rule in JSON, simply selecting CT series.
+# If the study has more than 1 CT series, then all of them will be selected.
+# Please see more detail in DICOMSeriesSelectorOperator.
+# For list of string values, e.g. "ImageType": ["PRIMARY", "ORIGINAL"], it is a match if all elements
+# are all in the multi-value attribute of the DICOM series.
+
+Sample_Rules_Text = """
+{
+    "selections": [
+        {
+            "name": "CT Series",
+            "conditions": {
+                "Modality": "(?i)CT",
+                "ImageType": ["PRIMARY", "ORIGINAL"],
+                "PhotometricInterpretation": "MONOCHROME2"
+            }
+        }
+    ]
+}
+"""
+
 
 @resource(cpu=1, gpu=1, memory="7Gi")
 # pip_packages can be a string that is a path(str) to requirements.txt file or a list of packages.
@@ -46,7 +67,7 @@ class AILiverTumorApp(Application):
         self._logger.debug(f"Begin {self.compose.__name__}")
         # Creates the custom operator(s) as well as SDK built-in operator(s).
         study_loader_op = DICOMDataLoaderOperator()
-        series_selector_op = DICOMSeriesSelectorOperator()
+        series_selector_op = DICOMSeriesSelectorOperator(rules=Sample_Rules_Text)
         series_to_vol_op = DICOMSeriesToVolumeOperator()
         # Model specific inference operator, supporting MONAI transforms.
         liver_tumor_seg_op = LiverTumorSegOperator()
