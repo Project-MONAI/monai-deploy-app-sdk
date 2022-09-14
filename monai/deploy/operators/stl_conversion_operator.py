@@ -13,6 +13,7 @@ import logging
 import os
 import shutil
 import tempfile
+from ast import Bytes
 from pathlib import Path
 from typing import Dict, Optional
 
@@ -29,19 +30,23 @@ resize, _ = optional_import("skimage.transform", name="resize")
 trimesh, _ = optional_import("trimesh")
 
 import monai.deploy.core as md
-from monai.deploy.core import DataPath, ExecutionContext, Image, InputContext, IOType, Operator, OutputContext
+from monai.deploy.core import ExecutionContext, Image, InputContext, IOType, Operator, OutputContext
 
 __all__ = ["STLConversionOperator", "STLConverter"]
 
 
 @md.input("image", Image, IOType.IN_MEMORY)
-@md.output("stl_output", DataPath, IOType.DISK)
+@md.output("stl_output", Bytes, IOType.IN_MEMORY)  # Only available when run as non-leaf operator
 # nibabel is required by the dependent class STLConverter.
 @md.env(
     pip_packages=["numpy>=1.21", "nibabel >= 3.2.1", "numpy-stl>=2.12.0", "scikit-image>=0.17.2", "trimesh>=3.8.11"]
 )
 class STLConversionOperator(Operator):
-    """Converts volumetric image to surface mesh in STL format, file output only."""
+    """Converts volumetric image to surface mesh in STL format, file output only.
+
+    Only when used as a non-leaf operator is the output of STL binary stored in memory idenfied by the output label.
+    If a file path is provided, the STL binary will be saved in the the application's output folder of the current run.
+    """
 
     def __init__(
         self, output_file=None, class_id=None, is_smooth=True, keep_largest_connected_component=True, *args, **kwargs
@@ -59,7 +64,7 @@ class STLConversionOperator(Operator):
         self._class_id = class_id
         self._is_smooth = is_smooth
         self._keep_largest_connected_component = keep_largest_connected_component
-        self._output_file = output_file if output_file and len(output_file) > 0 else None
+        self._output_file = output_file if output_file and len(str(output_file)) > 0 else None
 
         self._converter = STLConverter(*args, **kwargs)
 
@@ -67,8 +72,9 @@ class STLConversionOperator(Operator):
         """Gets the input (image), processes it and sets results in the output.
 
         When used in a leaf operator, this function cannot set its output as in-memory object due to
-        current limitation, and only file output, for DataPath IOType_DISK, will be saved in the
-        op_output path, which is mapped to the application's output path by the execution engine.
+        current limitation.
+        If a file path is provided, the STL binary will be saved in the the application's output
+        folder of the current run.
 
         Args:
             op_input (InputContext): An input context for the operator.
@@ -80,20 +86,21 @@ class STLConversionOperator(Operator):
         if not input_image:
             raise ValueError("Input is None.")
 
-        op_output_config = op_output.get()
-        if self._output_file and len(self._output_file) > 0:
-            # The file output folder is either the op_output or app's output depending on output types.
-            output_folder = (
-                op_output_config.path if isinstance(op_output_config, DataPath) else context.output.get().path
-            )
-            self._output_file = output_folder / self._output_file
-            self._output_file.parent.mkdir(exist_ok=True)
-            self._logger.info(f"Output will be saved in file {self._output_file}.")
+        # Use the app's current run output folder as parent to the STL output path.
+        if self._output_file and len(str(self._output_file)) > 0:
+            _output_file = context.output.get().path / self._output_file
+            _output_file.parent.mkdir(parents=True, exist_ok=True)
+            self._logger.info(f"Output will be saved in file {_output_file}.")
 
-        stl_bytes = self._convert(input_image, self._output_file)
+        stl_bytes = self._convert(input_image, _output_file)
 
-        if not isinstance(op_output_config, DataPath):
-            op_output.set(stl_bytes)
+        try:
+            # TODO: Need a way to find if the operator is run as leaf node in order to
+            #       avoid setting in_memory object.
+            if self.op_info.get_storage_type("output", "stl_output") == IOType.IN_MEMORY:
+                op_output.set(stl_bytes)
+        except Exception as ex:
+            self._logger.warn(f"In_memory output cannot be used when run as non-leaf operator. {ex}")
 
     def _convert(self, image: Image, output_file: Optional[Path] = None):
         """
@@ -152,12 +159,8 @@ class STLConverter(object):
         if not image or not isinstance(image, Image):
             raise ValueError("image is not a Image object.")
 
-        if not isinstance(output_file, Path):
-            raise ValueError("output_file is not a Path")
-
-        # Ensure output file's folder exists
-        if output_file.parent:
-            output_file.parent.mkdir(exist_ok=True)
+        if isinstance(output_file, Path):
+            output_file.parent.mkdir(parents=True, exist_ok=True)
 
         s_image = self.SpatialImage(image)
         nda = s_image.image_array
