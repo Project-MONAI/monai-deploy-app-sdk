@@ -21,7 +21,6 @@ from monai.deploy.operators.dicom_data_loader_operator import DICOMDataLoaderOpe
 from monai.deploy.operators.dicom_seg_writer_operator import DICOMSegmentationWriterOperator, SegmentDescription
 from monai.deploy.operators.dicom_series_selector_operator import DICOMSeriesSelectorOperator
 from monai.deploy.operators.dicom_series_to_volume_operator import DICOMSeriesToVolumeOperator
-
 from monai.deploy.operators.publisher_operator import PublisherOperator
 
 # This is a sample series selection rule in JSON, simply selecting CT series.

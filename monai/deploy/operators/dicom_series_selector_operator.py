@@ -228,7 +228,7 @@ class DICOMSeriesSelectorOperator(Operator):
                         attr_value = [series.get_sop_instances()[0].get_native_sop_instance()[key].repval]
                         series_attr.update({key: attr_value})
                     except Exception:
-                        logging.info(f"        Attribute {key} not at instance leve either.")
+                        logging.info(f"        Attribute {key} not at instance level either.")
 
                 if not attr_value:
                     matched = False
