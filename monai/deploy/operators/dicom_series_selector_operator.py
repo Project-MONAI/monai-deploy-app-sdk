@@ -219,7 +219,17 @@ class DICOMSeriesSelectorOperator(Operator):
                     continue
                 # Try getting the attribute value from Study and current Series prop dict
                 attr_value = series_attr.get(key, None)
-                logging.info(f"    Series attribute value: {attr_value}")
+                logging.info(f"    Series attribute {key} value: {attr_value}")
+
+                # If not found, try the best at the native instance level for string VR
+                # This is mainly for attributes like ImageType
+                if not attr_value:
+                    try:
+                        attr_value = [series.get_sop_instances()[0].get_native_sop_instance()[key].repval]
+                        series_attr.update({key: attr_value})
+                    except Exception:
+                        logging.info(f"        Attribute {key} not at instance level either.")
+
                 if not attr_value:
                     matched = False
                 elif isinstance(attr_value, numbers.Number):
@@ -233,12 +243,13 @@ class DICOMSeriesSelectorOperator(Operator):
                         if re.search(value_to_match, attr_value, re.IGNORECASE):
                             matched = True
                 elif isinstance(attr_value, list):
-                    meta_data_set = {str(element).lower() for element in attr_value}
+                    # Assume multi value string attributes
+                    meta_data_list = str(attr_value).lower()
                     if isinstance(value_to_match, list):
                         value_set = {str(element).lower() for element in value_to_match}
-                        matched = all(val in meta_data_set for val in value_set)
+                        matched = all(val in meta_data_list for val in value_set)
                     elif isinstance(value_to_match, (str, numbers.Number)):
-                        matched = str(value_to_match).lower() in meta_data_set
+                        matched = str(value_to_match).lower() in meta_data_list
                 else:
                     raise NotImplementedError(f"Not support for matching on this type: {type(value_to_match)}")
 
