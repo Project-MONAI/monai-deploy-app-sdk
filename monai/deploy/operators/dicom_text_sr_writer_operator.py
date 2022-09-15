@@ -13,7 +13,7 @@ import datetime
 import logging
 from pathlib import Path
 from random import randint
-from typing import Dict, List, Text, Union
+from typing import Dict, List, Optional, Text, Union
 
 from monai.deploy.utils.importutil import optional_import
 
@@ -273,8 +273,8 @@ class DICOMTextSRWriterOperator(Operator):
         copy_tags: bool,
         modality_type: str,
         sop_class_uid: str,
-        model_info: Union[ModelInfo, None] = None,
-        equipment_info: Union[EquipmentInfo, None] = None,
+        model_info: Optional[ModelInfo] = None,
+        equipment_info: Optional[EquipmentInfo] = None,
     ):
         """Writes DICOM object common modules with or without a reference DCIOM Series
 
