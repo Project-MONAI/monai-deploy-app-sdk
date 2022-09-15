@@ -13,7 +13,7 @@ import datetime
 import logging
 from pathlib import Path
 from random import randint
-from typing import Dict, List, Optional, Text, Union
+from typing import Dict, List, Text, Union
 
 from monai.deploy.utils.importutil import optional_import
 
@@ -273,8 +273,8 @@ class DICOMTextSRWriterOperator(Operator):
         copy_tags: bool,
         modality_type: str,
         sop_class_uid: str,
-        model_info: Optional[ModelInfo] = None,
-        equipment_info: Optional[EquipmentInfo] = None,
+        model_info: ModelInfo = None,
+        equipment_info: EquipmentInfo = None,
     ):
         """Writes DICOM object common modules with or without a reference DCIOM Series
 
@@ -328,7 +328,7 @@ class DICOMTextSRWriterOperator(Operator):
         file_meta.MediaStorageSOPInstanceUID = my_sop_instance_uid
         file_meta.TransferSyntaxUID = ImplicitVRLittleEndian  # 1.2.840.10008.1.2, Little Endian Implicit VR
         file_meta.ImplementationClassUID = "1.2.40.0.13.1.1.1"  # Made up. Not registered.
-        file_meta.ImplementationVersionName = equipment_info.software_version_number
+        file_meta.ImplementationVersionName = equipment_info.software_version_number if equipment_info else ""
 
         # Write modules to data set
         ds = Dataset()
