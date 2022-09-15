@@ -16,7 +16,6 @@ from random import randint
 from typing import Dict, List, Text, Union
 
 from monai.deploy.utils.importutil import optional_import
-from monai.deploy.utils.version import get_sdk_semver
 
 dcmread, _ = optional_import("pydicom", name="dcmread")
 dcmwrite, _ = optional_import("pydicom.filewriter", name="dcmwrite")
@@ -31,6 +30,7 @@ from monai.deploy.core import DataPath, ExecutionContext, InputContext, IOType, 
 from monai.deploy.core.domain.dicom_series import DICOMSeries
 from monai.deploy.core.domain.dicom_series_selection import StudySelectedSeries
 from monai.deploy.exceptions import ItemNotExistsError
+from monai.deploy.utils.version import get_sdk_semver
 
 
 # Utility classes considered to be moved into Domain module
@@ -69,19 +69,20 @@ class EquipmentInfo(object):
         manufacturer: str = "MONAI Deploy",
         manufacturer_model: str = "MONAI Deploy App SDK",
         series_number: str = "0000",
-        software_version_number: str = "0.2",
+        software_version_number: str = "",
     ):
 
         self.manufacturer = manufacturer if isinstance(manufacturer, str) else ""
         self.manufacturer_model = manufacturer_model if isinstance(manufacturer_model, str) else ""
         self.series_number = series_number if isinstance(series_number, str) else ""
-        try:
-            version_str = get_sdk_semver()  # SDK Version
-        except Exception:
-            version_str = "0.2"  # Fall back to the initial version
-        self.software_version_number = (
-            software_version_number if isinstance(software_version_number, str) else version_str
-        )
+        if software_version_number:
+            self.software_version_number = software_version_number
+        else:
+            try:
+                version_str = get_sdk_semver()  # SDK Version
+            except Exception:
+                version_str = ""  # Fall back to the initial version
+            self.software_version_number = version_str
 
 
 # The SR writer operator class
@@ -129,12 +130,17 @@ class DICOMTextSRWriterOperator(Operator):
         #   "OT" for PDF
         #   "SR" for Structured Report.
         # Media Storage SOP Class UID, e.g.,
+        #   "1.2.840.10008.5.1.4.1.1.88.11" for Basic Text SR Storage
         #   "1.2.840.10008.5.1.4.1.1.104.1" for Encapsulated PDF Storage,
         #   "1.2.840.10008.5.1.4.1.1.88.34" for Comprehensive 3D SR IOD
         #   "1.2.840.10008.5.1.4.1.1.66.4" for Segmentation Storage
         self.modality_type = "SR"
-        self.sop_class_uid = "1.2.840.10008.5.1.4.1.1.88.34"
-        self.implementation_version_name = "MONAI Deploy App SDK 0.2"
+        self.sop_class_uid = "1.2.840.10008.5.1.4.1.1.88.11"
+        # Equipment version may be different from contributing equipment version
+        try:
+            self.software_version_number = get_sdk_semver()  # SDK Version
+        except Exception:
+            self.software_version_number = ""
         self.operators_name = f"AI Algorithm {self.model_info.name}"
 
     def compute(self, op_input: InputContext, op_output: OutputContext, context: ExecutionContext):
@@ -230,6 +236,7 @@ class DICOMTextSRWriterOperator(Operator):
         ds_concept_name_code.CodeMeaning = "Diagnostic Imaging Report"
         seq_concept_name_code.append(ds_concept_name_code)
         ds.ConceptNameCodeSequence = seq_concept_name_code
+        ds.ContinuityOfContent = "CONTINUOUS"  # continuous textual flow of Content Items in the container
         ds.TextValue = content_text  # self._content_to_string(content_file)
 
         # For now, only allow str Keywords and str value
@@ -321,7 +328,7 @@ class DICOMTextSRWriterOperator(Operator):
         file_meta.MediaStorageSOPInstanceUID = my_sop_instance_uid
         file_meta.TransferSyntaxUID = ImplicitVRLittleEndian  # 1.2.840.10008.1.2, Little Endian Implicit VR
         file_meta.ImplementationClassUID = "1.2.40.0.13.1.1.1"  # Made up. Not registered.
-        file_meta.ImplementationVersionName = "MONAI Deploy App SDK 0.2"
+        file_meta.ImplementationVersionName = equipment_info.software_version_number
 
         # Write modules to data set
         ds = Dataset()
@@ -360,9 +367,9 @@ class DICOMTextSRWriterOperator(Operator):
         # Equipment Module, mandatory
         if equipment_info:
             ds.Manufacturer = equipment_info.manufacturer
-            ds.ManufacturerModel = equipment_info.manufacturer_model
+            ds.ManufacturerModelName = equipment_info.manufacturer_model
             ds.SeriesNumber = equipment_info.series_number
-            ds.SoftwareVersionNumber = equipment_info.software_version_number
+            ds.SoftwareVersions = equipment_info.software_version_number
 
         # SOP Common Module, mandatory
         ds.InstanceCreationDate = date_now_dcm
@@ -408,12 +415,12 @@ class DICOMTextSRWriterOperator(Operator):
             # '(121014, DCM, “Device Observer Manufacturer")'
             ds_contributing_equipment.Manufacturer = model_info.creator
             # u'(121015, DCM, “Device Observer Model Name")'
-            ds_contributing_equipment.ManufacturerModel = model_info.name
+            ds_contributing_equipment.ManufacturerModelName = model_info.name
             # u'(111003, DCM, “Algorithm Version")'
-            ds_contributing_equipment.SoftwareVersionNumber = model_info.version
+            ds_contributing_equipment.SoftwareVersions = model_info.version
             ds_contributing_equipment.DeviceUID = model_info.uid  # u'(121012, DCM, “Device Observer UID")'
             seq_contributing_equipment.append(ds_contributing_equipment)
-            ds.ContributingequipmentSequence = seq_contributing_equipment
+            ds.ContributingEquipmentSequence = seq_contributing_equipment
 
         logging.debug("DICOM common modules written:\n{}".format(ds))
 
@@ -435,15 +442,18 @@ def test():
     from monai.deploy.operators.dicom_series_selector_operator import DICOMSeriesSelectorOperator
 
     current_file_dir = Path(__file__).parent.resolve()
-    data_path = current_file_dir.joinpath("../../../examples/ai_spleen_seg_data/dcm")
+    data_path = current_file_dir.joinpath("../../../inputs/livertumor_ct/dcm/1-CT_series_liver_tumor_from_nii014")
     out_path = current_file_dir.joinpath("../../../examples/output_sr_op")
-    test_report_text = "Dummy AI classification resutls."
+    test_report_text = "Tumors detected in Liver using MONAI Liver Tumor Seg model."
     test_copy_tags = True
 
     loader = DICOMDataLoaderOperator()
     series_selector = DICOMSeriesSelectorOperator()
     sr_writer = DICOMTextSRWriterOperator(
-        copy_tags=test_copy_tags, model_info=None, custom_tags={"SeriesDescription": "New AI Series"}
+        copy_tags=test_copy_tags,
+        model_info=None,
+        equipment_info=EquipmentInfo(software_version_number="0.4"),
+        custom_tags={"SeriesDescription": "Textual report from AI algorithm. Not for clinical use."},
     )
 
     # Testing with the main entry functions
