@@ -11,11 +11,11 @@
 
 import logging
 
-from app.inference import LungNoduleSegOperator
+from app.inference import CovidDetectionInferenceOperator
+# from app.upload_dicom import NuancePINUploadDicom
 
 from monai.deploy.core import Application, resource
 from monai.deploy.operators.dicom_data_loader_operator import DICOMDataLoaderOperator
-from monai.deploy.operators.dicom_seg_writer_operator import DICOMSegmentationWriterOperator
 from monai.deploy.operators.dicom_series_selector_operator import DICOMSeriesSelectorOperator
 from monai.deploy.operators.dicom_series_to_volume_operator import DICOMSeriesToVolumeOperator
 
@@ -23,9 +23,11 @@ from monai.deploy.operators.dicom_series_to_volume_operator import DICOMSeriesTo
 @resource(cpu=1, gpu=1, memory="7Gi")
 # The monai pkg is not required by this class, instead by the included operators.
 class CovidLesionSegApp(Application):
-    def __init__(self, *args, **kwargs):
+    def __init__(self, upload_document, upload_gsps, *args, **kwargs):
         """Creates an application instance."""
         self._logger = logging.getLogger("{}.{}".format(__name__, type(self).__name__))
+        self.upload_document = upload_document
+        self.upload_gsps = upload_gsps
         super().__init__(*args, **kwargs)
 
     def run(self, *args, **kwargs):
@@ -39,27 +41,32 @@ class CovidLesionSegApp(Application):
 
         logging.info(f"Begin {self.compose.__name__}")
 
+        dicom_selection_rules = """
+        {
+            "selections": [
+                {
+                    "name": "CT Series",
+                    "conditions": {
+                        "StudyDescription": "(.*?)",
+                        "Modality": "(?i)CT",
+                        "SeriesDescription": "(.*?)"
+                    }
+                }
+            ]
+        }
+        """
+
         # Create the custom operator(s) as well as SDK built-in operator(s).
         study_loader_op = DICOMDataLoaderOperator()
-        series_selector_op = DICOMSeriesSelectorOperator(Sample_Rules_Text)
+        series_selector_op = DICOMSeriesSelectorOperator(dicom_selection_rules)
         series_to_vol_op = DICOMSeriesToVolumeOperator()
-        seg_op = LungNoduleSegOperator()
+        detection_op = CovidDetectionInferenceOperator()
+        # upload_document_op = NuancePINUploadDicom(self.upload_document, self.upload_gsps)
 
-        # Create DICOM Seg writer with segment label name in a string list
-        dicom_seg_writer = DICOMSegmentationWriterOperator(seg_labels=["Spleen"])
-
-        # Create the processing pipeline, by specifying the upstream and downstream operators, and
-        # ensuring the output from the former matches the input of the latter, in both name and type.
         self.add_flow(study_loader_op, series_selector_op, {"dicom_study_list": "dicom_study_list"})
-        self.add_flow(
-            series_selector_op, series_to_vol_op, {"study_selected_series_list": "study_selected_series_list"}
-        )
-        self.add_flow(series_to_vol_op, seg_op, {"image": "image"})
-        # Note below the dicom_seg_writer requires two inputs, each coming from a upstream operator.
-        self.add_flow(
-            series_selector_op, dicom_seg_writer, {"study_selected_series_list": "study_selected_series_list"}
-        )
-        self.add_flow(seg_op, dicom_seg_writer, {"pred": "seg_image"})
+        self.add_flow(series_selector_op, series_to_vol_op, {"study_selected_series_list": "study_selected_series_list"})
+        self.add_flow(series_to_vol_op, detection_op, {"image": "image"})
+        # self.add_flow(dectection_op, boxes_to_gsps_op, {"boxes", "boxes"})
 
         logging.info(f"End {self.compose.__name__}")
 

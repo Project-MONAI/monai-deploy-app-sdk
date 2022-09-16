@@ -39,7 +39,6 @@ It meets all of the necessary requirements, but performs trivial actions.
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import glob
 import os
 from importlib import import_module
 from typing import List
@@ -100,7 +99,7 @@ class MONAIAppWrapper(AiJobProcessor):
             monai_app_class_module = self.monai_app_module.rsplit(".", 1)[0]
             monai_app_class_name = self.monai_app_module.rsplit(".", 1)[1]
             monai_app_class = getattr(import_module(monai_app_class_module), monai_app_class_name)
-            self.monai_app_instance = monai_app_class(do_run=False)
+            self.monai_app_instance = monai_app_class(do_run=False, upload_document=self.upload_document, upload_gsps=self.upload_gsps_dicom)
 
         self.logger.info(f"MONAI App Info: {self.monai_app_instance.get_package_info()}")
         self.logger.info(f"MONAI working directory: {self.ai_job.folder}")
@@ -112,17 +111,6 @@ class MONAIAppWrapper(AiJobProcessor):
             model=self.model_path,
             workdir=self.ai_job.folder,
         )
-
-        dcm_files = glob.glob(f"{os.path.sep}".join([f"{self.output_path}", "**", "*.dcm"]), recursive=True)
-
-        for dcm_file in dcm_files:
-            ds = pydicom.dcmread(dcm_file)
-            series_uid = ds[0x0020000D].value
-
-            self.upload_dicom(
-                os.path.join(self.output_path, dcm_file),
-                series_uid=series_uid,
-            )
 
         self.logger.info("MONAI App complete")
 
