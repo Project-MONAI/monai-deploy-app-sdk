@@ -9,27 +9,29 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from monai.deploy.operators.monai_seg_inference_operator import InMemImageReader
-from monai.transforms import (
-    Compose,
-    DeleteItemsd,
-    EnsureTyped,
-    Orientationd,
-    ScaleIntensityRanged,
-    AddChanneld,
-    Spacingd,
-    EnsureChannelFirstd,
-    LoadImaged,
-)
-from monai.transforms.utility.dictionary import ToDeviced, ToTensord
-from monai.deploy.utils.importutil import optional_import
 import logging
 
 import torch
 
 import monai.deploy.core as md
+from monai.apps.detection.networks.retinanet_detector import RetinaNetDetector
 from monai.apps.detection.transforms.dictionary import AffineBoxToWorldCoordinated, ClipBoxToImaged, ConvertBoxModed
-from monai.deploy.core import ExecutionContext, Image, InputContext, IOType, OutputContext, Operator
+from monai.apps.detection.utils.anchor_utils import AnchorGeneratorWithAnchorShape
+from monai.deploy.core import ExecutionContext, Image, InputContext, IOType, Operator, OutputContext
+from monai.deploy.operators.monai_seg_inference_operator import InMemImageReader
+from monai.deploy.utils.importutil import optional_import
+from monai.transforms import (
+    AddChanneld,
+    Compose,
+    DeleteItemsd,
+    EnsureChannelFirstd,
+    EnsureTyped,
+    LoadImaged,
+    Orientationd,
+    ScaleIntensityRanged,
+    Spacingd,
+)
+from monai.transforms.utility.dictionary import ToDeviced, ToTensord
 
 sliding_window_inference, _ = optional_import("monai.inferers", name="sliding_window_inference")
 
@@ -45,13 +47,41 @@ class CovidDetectionInferenceOperator(Operator):
         super().__init__()
         self._input_dataset_key = "image"
         self._pred_box_regression = "box_regression"
-        self._pred_classification = "box_classification"
+        self._pred_label = "box_label"
+        self._pred_score = "box_score"
         self._pred_labels = "labels"
 
         # preload the model
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        print(f"Loading TorchScript model from: {model_path}")
+
+        self.logger.info(f"Loading TorchScript model from: {model_path}")
         self.model = torch.jit.load(model_path, map_location=self.device)
+
+        self.logger.info("Loading model into RetinaNetDetector")
+        self.returned_layers = [1, 2]
+        self.base_achor_shapes = [[6, 8, 4], [8, 6, 5], [10, 10, 6]]
+        anchor_generator = AnchorGeneratorWithAnchorShape(
+            feature_map_scales=[2**l for l in range(len(self.returned_layers) + 1)],
+            base_anchor_shapes=self.base_achor_shapes,
+        )
+        self.detector = RetinaNetDetector(
+            network=self.model,
+            anchor_generator=anchor_generator,
+        )
+        self.detector.set_box_selector_parameters(
+            score_thresh=0.02,
+            topk_candidates_per_level=1000,
+            nms_thresh=0.22,
+            detections_per_img=100,
+        )
+        self.detector.set_sliding_window_inferer(
+            roi_size=[192, 192, 80],
+            overlap=0.25,
+            sw_batch_size=1,
+            mode="gaussian",
+            device="cpu",
+        )
+        self.detector.eval()
 
     def compute(self, op_input: InputContext, op_output: OutputContext, context: ExecutionContext):
 
@@ -70,23 +100,18 @@ class CovidDetectionInferenceOperator(Operator):
                     image_reader,
                 )
             )
-            pred_boxes = self.model(processed_image[self._input_dataset_key])
-            # processed_image[self._pred_box_regression] = pred_boxes['box_regression']
-            # processed_image[self._pred_classification] = pred_boxes['classification']
-            # processed_image[self._pred_labels] = ('box_regression', 'classification')
-            # pred_boxes = self.post_process()(
-            #     [
-            #         {
-            #             self._pred_box_regression: pred_boxes['box_regression'][i],
-            #             self._pred_classification: pred_boxes['classification'][i],
-            #             self._input_dataset_key: processed_image['image'],
-            #             self._pred_labels: processed_image[self._pred_labels],
-            #         } for i in range(len(pred_boxes))
-            #     ]
-            # )
-            # pred_boxes = self.post_process()(processed_image)
 
-            print(f"Output array shaped: {pred_boxes.shape}")
+            inference_outputs = self.detector(processed_image[self._input_dataset_key], use_inferer=True)
+
+            pred_boxes = []
+            processed_image[self._input_dataset_key] = torch.squeeze(processed_image[self._input_dataset_key], dim=0)
+            for inference_output in inference_outputs:
+                processed_image[self._pred_box_regression] = inference_output[self.detector.target_box_key]
+                processed_image[self._pred_labels] = inference_output[self.detector.target_label_key],
+                processed_image[self._pred_score] = inference_output[self.detector.pred_score_key],
+
+                pred_boxes.append(self.post_process()(processed_image))
+
             op_output.set(pred_boxes, "boxes")
 
     def pre_process(self, img_reader) -> Compose:
@@ -133,23 +158,20 @@ class CovidDetectionInferenceOperator(Operator):
     def post_process(self) -> Compose:
         """Composes transforms for postprocessing the prediction results."""
 
-        image_key = self._input_dataset_key
-        pred_key = self._pred_box_regression
-        label_key = self._pred_labels
         return Compose(
             [
                 ClipBoxToImaged(
-                    box_keys=pred_key,
-                    box_ref_image_keys=image_key,
-                    label_keys=label_key
+                    box_keys=self._pred_box_regression,
+                    box_ref_image_keys=self._input_dataset_key,
+                    label_keys=[self._pred_labels, self._pred_score]
                 ),
                 AffineBoxToWorldCoordinated(
-                    box_keys=pred_key,
-                    box_ref_image_keys=image_key,
+                    box_keys=self._pred_box_regression,
+                    box_ref_image_keys=self._input_dataset_key,
                     affine_lps_to_ras=True,
                 ),
                 ConvertBoxModed(
-                    box_keys=pred_key,
+                    box_keys=self._pred_box_regression,
                     src_mode="xyzxyz",
                     dst_mode="cccwhd"
                 ),
