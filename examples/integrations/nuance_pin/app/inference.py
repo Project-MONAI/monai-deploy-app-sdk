@@ -10,6 +10,7 @@
 # limitations under the License.
 
 import logging
+from typing import Dict, List, Optional
 
 import torch
 
@@ -18,6 +19,7 @@ from monai.apps.detection.networks.retinanet_detector import RetinaNetDetector
 from monai.apps.detection.transforms.dictionary import AffineBoxToWorldCoordinated, ClipBoxToImaged, ConvertBoxModed
 from monai.apps.detection.utils.anchor_utils import AnchorGeneratorWithAnchorShape
 from monai.deploy.core import ExecutionContext, Image, InputContext, IOType, Operator, OutputContext
+from monai.deploy.core.domain import Domain
 from monai.deploy.operators.monai_seg_inference_operator import InMemImageReader
 from monai.deploy.utils.importutil import optional_import
 from monai.transforms import (
@@ -36,8 +38,38 @@ from monai.transforms.utility.dictionary import ToDeviced, ToTensord
 sliding_window_inference, _ = optional_import("monai.inferers", name="sliding_window_inference")
 
 
+class DetectionResult(Domain):
+    def __init__(self, box_data: torch.Tensor, label_data: torch.Tensor, score_data: torch.Tensor, metadata: Optional[Dict] = None):
+        super().__init__(metadata)
+        self._box_data = box_data
+        self._label_data = label_data
+        self._score_data = score_data
+
+    @property
+    def box_data(self):
+        return self._box_data
+
+    @property
+    def label_data(self):
+        return self._label_data
+
+    @property
+    def score_data(self):
+        return self._score_data
+
+
+class DetectionResultList(Domain):
+    def __init__(self, detection_list: List[DetectionResult], metadata: Optional[Dict] = None):
+        super().__init__(metadata)
+        self._detection_list = detection_list
+
+    @property
+    def detection_list(self):
+        return self._detection_list
+
+
 @md.input("image", Image, IOType.IN_MEMORY)
-@md.output("boxes", Image, IOType.IN_MEMORY)
+@md.output("boxes", DetectionResultList, IOType.IN_MEMORY)
 @md.env(pip_packages=["monai>=0.8.1", "torch>=1.5", "numpy>=1.21", "nibabel"])
 class CovidDetectionInferenceOperator(Operator):
 
@@ -77,7 +109,7 @@ class CovidDetectionInferenceOperator(Operator):
         self.detector.set_sliding_window_inferer(
             roi_size=[192, 192, 80],
             overlap=0.25,
-            sw_batch_size=1,
+            sw_batch_size=8,
             mode="gaussian",
             device="cpu",
         )
@@ -110,9 +142,14 @@ class CovidDetectionInferenceOperator(Operator):
                 processed_image[self._pred_labels] = inference_output[self.detector.target_label_key]
                 processed_image[self._pred_score] = inference_output[self.detector.pred_score_key]
 
-                pred_boxes.append(self.post_process()(processed_image))
+                processed_image = self.post_process()(processed_image)
+                pred_boxes.append(DetectionResult(
+                    box_data=processed_image[self._pred_box_regression],
+                    label_data=processed_image[self._pred_labels],
+                    score_data=processed_image[self._pred_score],
+                ))
 
-            op_output.set(pred_boxes, "boxes")
+            op_output.set(DetectionResultList(pred_boxes), "boxes")
 
     def pre_process(self, img_reader) -> Compose:
         """Composes transforms for preprocessing input before predicting on a model."""
