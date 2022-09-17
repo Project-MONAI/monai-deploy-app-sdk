@@ -107,8 +107,8 @@ class CovidDetectionInferenceOperator(Operator):
             processed_image[self._input_dataset_key] = torch.squeeze(processed_image[self._input_dataset_key], dim=0)
             for inference_output in inference_outputs:
                 processed_image[self._pred_box_regression] = inference_output[self.detector.target_box_key]
-                processed_image[self._pred_labels] = inference_output[self.detector.target_label_key],
-                processed_image[self._pred_score] = inference_output[self.detector.pred_score_key],
+                processed_image[self._pred_labels] = inference_output[self.detector.target_label_key]
+                processed_image[self._pred_score] = inference_output[self.detector.pred_score_key]
 
                 pred_boxes.append(self.post_process()(processed_image))
 
