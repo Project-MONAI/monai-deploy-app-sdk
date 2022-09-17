@@ -47,9 +47,7 @@ class CovidLesionSegApp(Application):
                 {
                     "name": "CT Series",
                     "conditions": {
-                        "StudyDescription": "(.*?)",
-                        "Modality": "(?i)CT",
-                        "SeriesDescription": "(.*?)"
+                        "Modality": "CT"
                     }
                 }
             ]
