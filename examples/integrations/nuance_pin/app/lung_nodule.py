@@ -11,7 +11,8 @@
 
 import logging
 
-from app.inference import CovidDetectionInferenceOperator
+from app.inference import LungNoduleInferenceOperator
+from app.post_inference_ops import GenerateGSPSOp
 # from app.upload_dicom import NuancePINUploadDicom
 
 from monai.deploy.core import Application, resource
@@ -58,12 +59,15 @@ class LungNoduleDetectionApp(Application):
         study_loader_op = DICOMDataLoaderOperator()
         series_selector_op = DICOMSeriesSelectorOperator(dicom_selection_rules)
         series_to_vol_op = DICOMSeriesToVolumeOperator()
-        detection_op = CovidDetectionInferenceOperator()
+        detection_op = LungNoduleInferenceOperator()
+        gsps_op = GenerateGSPSOp()
         # upload_document_op = NuancePINUploadDicom(self.upload_document, self.upload_gsps)
 
         self.add_flow(study_loader_op, series_selector_op, {"dicom_study_list": "dicom_study_list"})
         self.add_flow(series_selector_op, series_to_vol_op, {"study_selected_series_list": "study_selected_series_list"})
         self.add_flow(series_to_vol_op, detection_op, {"image": "image"})
+        self.add_flow(detection_op, gsps_op, {"detections": "detection_predictions"})
+        self.add_flow(series_selector_op, gsps_op, {"study_selected_series_list": "original_dicom"})
         # self.add_flow(dectection_op, boxes_to_gsps_op, {"boxes", "boxes"})
 
         logging.info(f"End {self.compose.__name__}")
