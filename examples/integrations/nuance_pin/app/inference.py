@@ -73,9 +73,9 @@ class DetectionResultList(Domain):
 
 
 @md.input("image", Image, IOType.IN_MEMORY)
-@md.output("boxes", DetectionResultList, IOType.IN_MEMORY)
+@md.output("detections", DetectionResultList, IOType.IN_MEMORY)
 @md.env(pip_packages=["monai>=0.8.1", "torch>=1.5", "numpy>=1.21", "nibabel"])
-class CovidDetectionInferenceOperator(Operator):
+class LungNoduleInferenceOperator(Operator):
 
     def __init__(self, model_path: str = "model/model.ts"):
 
@@ -154,7 +154,7 @@ class CovidDetectionInferenceOperator(Operator):
                     score_data=processed_image[self._pred_score].numpy(),
                 ))
 
-            op_output.set(DetectionResultList(pred_boxes), "boxes")
+            op_output.set(DetectionResultList(pred_boxes), "detections")
 
     def pre_process(self, img_reader) -> Compose:
         """Composes transforms for preprocessing input before predicting on a model."""
