@@ -16,7 +16,7 @@ import torch
 
 import monai.deploy.core as md
 from monai.apps.detection.networks.retinanet_detector import RetinaNetDetector
-from monai.apps.detection.transforms.dictionary import AffineBoxToWorldCoordinated, ClipBoxToImaged, ConvertBoxModed
+from monai.apps.detection.transforms.dictionary import AffineBoxToWorldCoordinated, ClipBoxToImaged, ConvertBoxModed, AffineBoxToImageCoordinated
 from monai.apps.detection.utils.anchor_utils import AnchorGeneratorWithAnchorShape
 from monai.deploy.core import ExecutionContext, Image, InputContext, IOType, Operator, OutputContext
 from monai.deploy.core.domain import Domain
@@ -207,15 +207,21 @@ class LungNoduleInferenceOperator(Operator):
                     box_ref_image_keys=self._input_dataset_key,
                     label_keys=[self._pred_labels, self._pred_score]
                 ),
-                AffineBoxToWorldCoordinated(
-                    box_keys=self._pred_box_regression,
+                # AffineBoxToWorldCoordinated(
+                #     box_keys=self._pred_box_regression,
+                #     box_ref_image_keys=self._input_dataset_key,
+                #     affine_lps_to_ras=True,
+                # ),
+                AffineBoxToImageCoordinated(
+                    box_keys=[self._pred_box_regression],
                     box_ref_image_keys=self._input_dataset_key,
+                    image_meta_key_postfix="meta_dict",
                     affine_lps_to_ras=True,
                 ),
-                ConvertBoxModed(
-                    box_keys=self._pred_box_regression,
-                    src_mode="xyzxyz",
-                    dst_mode="cccwhd"
-                ),
+                # ConvertBoxModed(
+                #     box_keys=self._pred_box_regression,
+                #     src_mode="xyzxyz",
+                #     dst_mode="cccwhd"
+                # ),
             ]
         )
