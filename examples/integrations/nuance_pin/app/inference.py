@@ -25,7 +25,6 @@ from monai.deploy.utils.importutil import optional_import
 from monai.transforms import (
     AddChanneld,
     Compose,
-    DeleteItemsd,
     EnsureChannelFirstd,
     EnsureTyped,
     LoadImaged,
@@ -39,11 +38,16 @@ sliding_window_inference, _ = optional_import("monai.inferers", name="sliding_wi
 
 
 class DetectionResult(Domain):
-    def __init__(self, box_data: torch.Tensor, label_data: torch.Tensor, score_data: torch.Tensor, metadata: Optional[Dict] = None):
+    def __init__(self, realworld_box_data, box_data, label_data, score_data, metadata: Optional[Dict] = None):
         super().__init__(metadata)
         self._box_data = box_data
+        self._realworld_box_data = realworld_box_data
         self._label_data = label_data
         self._score_data = score_data
+
+    @property
+    def realworld_box_data(self):
+        return self._realworld_box_data
 
     @property
     def box_data(self):
@@ -144,9 +148,10 @@ class CovidDetectionInferenceOperator(Operator):
 
                 processed_image = self.post_process()(processed_image)
                 pred_boxes.append(DetectionResult(
-                    box_data=processed_image[self._pred_box_regression],
-                    label_data=processed_image[self._pred_labels],
-                    score_data=processed_image[self._pred_score],
+                    realworld_box_data=processed_image[self._pred_box_regression].numpy(),
+                    box_data=inference_output[self.detector.target_box_key].numpy(),
+                    label_data=processed_image[self._pred_labels].numpy(),
+                    score_data=processed_image[self._pred_score].numpy(),
                 ))
 
             op_output.set(DetectionResultList(pred_boxes), "boxes")
@@ -212,8 +217,5 @@ class CovidDetectionInferenceOperator(Operator):
                     src_mode="xyzxyz",
                     dst_mode="cccwhd"
                 ),
-                DeleteItemsd(
-                    keys=self._input_dataset_key
-                )
             ]
         )

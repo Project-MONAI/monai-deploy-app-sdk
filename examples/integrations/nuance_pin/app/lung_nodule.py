@@ -22,7 +22,7 @@ from monai.deploy.operators.dicom_series_to_volume_operator import DICOMSeriesTo
 
 @resource(cpu=1, gpu=1, memory="7Gi")
 # The monai pkg is not required by this class, instead by the included operators.
-class CovidLesionSegApp(Application):
+class LungNoduleDetectionApp(Application):
     def __init__(self, upload_document, upload_gsps, *args, **kwargs):
         """Creates an application instance."""
         self._logger = logging.getLogger("{}.{}".format(__name__, type(self).__name__))
@@ -78,4 +78,4 @@ if __name__ == "__main__":
     #     monai-deploy exec app.py -i input -m model/model.ts
     #
     logging.basicConfig(level=logging.DEBUG)
-    app_instance = CovidLesionSegApp(do_run=True)
+    app_instance = LungNoduleDetectionApp(do_run=True)
