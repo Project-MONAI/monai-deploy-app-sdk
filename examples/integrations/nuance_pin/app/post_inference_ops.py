@@ -9,16 +9,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from datetime import datetime
+import os
+from random import randint
 from typing import List
 
-import pydicom
+import highdicom as hd
+import numpy as np
+import logging
 from app.inference import DetectionResult, DetectionResultList
-from pydicom.uid import generate_uid
 
 import monai.deploy.core as md
 from monai.deploy.core import DataPath, ExecutionContext, InputContext, IOType, Operator, OutputContext
-from monai.deploy.core.domain.dicom_series import DICOMSeries
 from monai.deploy.core.domain.dicom_series_selection import StudySelectedSeries
 
 
@@ -29,65 +30,88 @@ class GenerateGSPSOp(Operator):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-
-    def generate_gsps(self, study: StudySelectedSeries, image_ds: DICOMSeries, detection_list: List[DetectionResult]) -> pydicom.Dataset:
-
-        slice_coords = [inst.first_pixel_on_slice_normal[2] for inst in image_ds.get_sop_instances()]
-
-        gsps_ds: pydicom.Dataset = pydicom.Dataset()
-        gsps_ds.add_new(0x00080016, 'UI', '1.2.840.10008.5.1.4.1.1.11.1')  # SOPClassUID ==  GSPS
-        gsps_ds.add_new(0x0020000D, 'UI', study.StudyInstanceUID)  # StudyInstanceUID
-        gsps_ds.add_new(0x0020000E, 'UI', image_ds.SeriesInstanceUID)  # SeriesInstanceUID
-        gsps_ds.add_new(0x00080018, 'UI', generate_uid())  # SOP Instance UID
-
-        # gsps_ds.add_new(0x0010020, 'LO', image_ds[0x00100020].value)  # PatientId
-        # gsps_ds.add_new(0x00100010, 'PN', image_ds[0x00100010].value)  # PatientName
-        # gsps_ds.add_new(0x00100030, 'DA', image_ds[0x00100030].value)  # PatientBirthdate
-        # gsps_ds.add_new(0x00100040, 'CS', image_ds[0x00100040].value)  # PatientSex
-
-        gsps_ds.add_new(0x00080020, 'DA', datetime.utcnow().strftime("%Y%m%d"))  # StudyDate
-        gsps_ds.add_new(0x00080030, 'TM', datetime.utcnow().strftime("%Y%m%d"))  # StudyTime
-        gsps_ds.add_new(0x00080050, 'SH', study.AccessionNumber)  # AccessionNumber
-        # gsps_ds.add_new(0x00080090, 'PN', image_ds[0x00080090].value)  # PhysicianName
-        gsps_ds.add_new(0x00200010, 'SH', study.StudyID)  # StudyID
-        gsps_ds.add_new(0x00200011, 'IS', image_ds.SeriesNumber)  # SeriesNumber
-
-        gsps_ds.add_new(0x00080060, 'CS', image_ds.Modality)  # Modality
-        gsps_ds.add_new(0x00080070, 'LO', 'MONAI')  # Manufacturer
-
-        gsps_ds.add_new(0x00700082, 'DA', datetime.utcnow().strftime("%Y%m%d"))  # PresentationCreationDate
-        gsps_ds.add_new(0x00700083, 'TM', datetime.utcnow().strftime("%Y%m%d"))  # PresentationCreationTime
-
-        gsps_ds.add_new(0x00081115, 'SQ', series)  # ReferencedSeriesSequence
-
-        series: pydicom.Dataset = pydicom.Dataset()
-        series.add_new(0x0020000E, 'UI', image_ds.SeriesInstanceUID)  # SeriesInstanceUID
-        series.add_new(0x00081140, 'SQ', [image_ds.SeriesInstanceUID])  # ReferencedImageSequence
-
-        findings = []
-        for detection in detection_list:
-
-            affected_slice_idx = [idx for idx, slice_coord in enumerate(slice_coords) if slice_coord >= detection[3] and slice_coord <= detection[4]]
-
-            # add geometric annotations from detector findings
-            displayedArea: pydicom.Dataset = pydicom.Dataset()
-            displayedArea.add_new(0x00700052, 'SL', f"{detection[0]}\\{detection[1]}")  # DisplayedAreaTopLeftHandCorner
-            displayedArea.add_new(0x00700053, 'SL', f"{detection[2]}\\{detection[3]}")  # DisplayedAreaBottomRightHandCorner
-            displayedArea.add_new(0x00700100, 'CS', "TRUE SIZE")  # PresentationSizeMode
-
-            findings.append(displayedArea)
-
-        gsps_ds.add_new(0x0070005A, 'SQ', findings)
-
-        gsps_ds.add_new(0x00282000, 'OB', b'\x00\x00\x00\x01')  # ICCProfile
+        self.logger = logging.getLogger("{}.{}".format(__name__, type(self).__name__))
 
     def compute(self, op_input: InputContext, op_output: OutputContext, context: ExecutionContext):
 
         selected_study = op_input.get("original_dicom")[0]  # assuming a single study
-        detection_result: DetectionResultList = op_input.get("detection_predictions")
+        selected_series = selected_study.selected_series[0]  # assuming a single series
+        detection_result: DetectionResult = op_input.get("detection_predictions").detection_list[0]
         output_path = op_output.get("gsps_files").path
 
-        for series, detections in zip(selected_study.selected_series, detection_result.detection_list):
-            gsps_ds = self.generate_gsps(selected_study.study, series.series, detections)
+        # slice_coords = [inst.first_pixel_on_slice_normal[2] for inst in selected_series.series.get_sop_instances()]
+        slice_coords = [inst for inst in range(len(selected_series.series.get_sop_instances()))]
 
-            pydicom.dcmwrite(output_path, gsps_ds)
+        for inst_num, (box_data, box_score) in enumerate(zip(detection_result.box_data, detection_result.score_data)):
+
+            polyline = hd.pr.GraphicObject(
+                graphic_type=hd.pr.GraphicTypeValues.POLYLINE,
+                graphic_data=np.array([
+                    [box_data[0], box_data[1]],
+                    [box_data[3], box_data[1]],
+                    [box_data[3], box_data[4]],
+                    [box_data[0], box_data[4]],
+                    [box_data[0], box_data[1]],
+                ]),  # coordinates of polyline vertices
+                units=hd.pr.AnnotationUnitsValues.PIXEL,  # units for graphic data
+                tracking_id='lung_nodule_MONAI',  # site-specific ID
+                tracking_uid=hd.UID()  # highdicom will generate a unique ID
+            )
+
+            _left = box_data[0] if box_data[0] < box_data[2] else box_data[2]
+            _right = box_data[2] if box_data[0] < box_data[2] else box_data[0]
+            _top = box_data[1] if box_data[1] < box_data[3] else box_data[3]
+            _bottom = box_data[3] if box_data[1] < box_data[3] else box_data[1]
+            self.logger.info(f"Box: {[_left, _top, _right, _bottom]}")
+
+            # text = hd.pr.TextObject(
+            #     text_value=f"{box_score:.2f}",
+            #     bounding_box=np.array(
+            #         [_left, _top, _right, _bottom]  # left, top, right, bottom
+            #     ),
+            #     units=hd.pr.AnnotationUnitsValues.PIXEL,  # units for bounding box
+            #     tracking_id='LungNoduleMONAI',  # site-specific ID
+            #     tracking_uid=hd.UID()  # highdicom will generate a unique ID
+            # )
+
+            layer = hd.pr.GraphicLayer(
+                layer_name='LUNG_NODULE',
+                order=1,
+                description='Lung Nodule Detection',
+            )
+
+            affected_slice_idx = [idx for idx, slice_coord in enumerate(slice_coords) if slice_coord >= box_data[2] and slice_coord <= box_data[5]]
+            ref_images = [selected_series.series.get_sop_instances()[idx].get_native_sop_instance() for idx in affected_slice_idx]
+            self.logger.info(f"Slice: {[box_data[2], box_data[5]]}, Instances: {affected_slice_idx}")
+
+            if not ref_images:
+                raise ValueError("Finding does not correspond to any series SOP instance")
+
+            # A GraphicAnnotation may contain multiple text and/or graphic objects
+            # and is rendered over all referenced images
+            annotation = hd.pr.GraphicAnnotation(
+                referenced_images=ref_images,
+                graphic_layer=layer,
+                # text_objects=[text],
+                graphic_objects=[polyline],
+            )
+
+            # Assemble the components into a GSPS object
+            gsps = hd.pr.GrayscaleSoftcopyPresentationState(
+                referenced_images=ref_images,
+                series_instance_uid=hd.UID(),
+                series_number=randint(1, 100000),
+                sop_instance_uid=hd.UID(),
+                instance_number=inst_num + 1,
+                manufacturer='MONAI',
+                manufacturer_model_name='lung_nodule_ct_detection',
+                software_versions='v1.1',
+                device_serial_number='',
+                content_label='ANNOTATIONS',
+                graphic_layers=[layer],
+                graphic_annotations=[annotation],
+                institution_name='MONAI',
+                institutional_department_name='Deploy',
+            )
+
+            gsps.save_as(os.path.join(output_path, f"gsps-{inst_num:04d}.dcm"))
