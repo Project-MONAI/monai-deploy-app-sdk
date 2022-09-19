@@ -113,7 +113,7 @@ class LungNoduleInferenceOperator(Operator):
         self.detector.set_sliding_window_inferer(
             roi_size=[192, 192, 80],
             overlap=0.25,
-            sw_batch_size=8,
+            sw_batch_size=4,
             mode="gaussian",
             device="cpu",
         )
