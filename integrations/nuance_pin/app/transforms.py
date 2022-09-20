@@ -146,38 +146,3 @@ class DetectionSaver(ClassificationSaver):
 
             with open(os.path.join(self.output_dir, self.filename), "w") as outfile:
                 json.dump(results, outfile, indent=4)
-
-
-class ScaleBoxToUnityImaged(MapTransform):
-    def __init__(
-        self,
-        box_keys: KeysCollection,
-        box_ref_image_keys: KeysCollection,
-        allow_missing_keys: bool = False,
-    ) -> None:
-        box_keys_tuple = ensure_tuple(box_keys)
-        if len(box_keys_tuple) != 1:
-            raise ValueError(
-                "Please provide a single key for box_keys.\
-                All label_keys are attached to this box_keys."
-            )
-        box_ref_image_keys_tuple = ensure_tuple(box_ref_image_keys)
-        if len(box_ref_image_keys_tuple) != 1:
-            raise ValueError(
-                "Please provide a single key for box_ref_image_keys.\
-                All box_keys and label_keys are attached to this box_ref_image_keys."
-            )
-        super().__init__(box_keys_tuple, allow_missing_keys)
-
-        self.box_keys = box_keys_tuple[0]
-        self.box_ref_image_keys = box_ref_image_keys_tuple[0]
-
-    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
-        d = dict(data)
-        spatial_size = d[self.box_ref_image_keys].shape[1:]
-
-        d[self.box_keys][..., 0:4:3] = d[self.box_keys][..., 0:4:3] / spatial_size[0]
-        d[self.box_keys][..., 1:5:3] = d[self.box_keys][..., 1:5:3] / spatial_size[1]
-        d[self.box_keys][..., 2:6:3] = d[self.box_keys][..., 2:6:3] / spatial_size[2]
-
-        return d

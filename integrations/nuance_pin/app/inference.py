@@ -35,13 +35,9 @@ from monai.transforms import (
     LoadImaged,
     Orientationd,
     ScaleIntensityRanged,
-    Spacingd,
     ToDeviced,
     ToTensord,
 )
-
-# from app.transforms import ScaleBoxToUnityImaged
-
 
 sliding_window_inference, _ = optional_import("monai.inferers", name="sliding_window_inference")
 
@@ -105,7 +101,7 @@ class LungNoduleInferenceOperator(Operator):
         self.returned_layers = [1, 2]
         self.base_achor_shapes = [[6, 8, 4], [8, 6, 5], [10, 10, 6]]
         anchor_generator = AnchorGeneratorWithAnchorShape(
-            feature_map_scales=[2**l for l in range(len(self.returned_layers) + 1)],
+            feature_map_scales=[1, 2, 4],
             base_anchor_shapes=self.base_achor_shapes,
         )
         self.detector = RetinaNetDetector(
@@ -113,7 +109,7 @@ class LungNoduleInferenceOperator(Operator):
             anchor_generator=anchor_generator,
         )
         self.detector.set_box_selector_parameters(
-            score_thresh=0.02,
+            score_thresh=0.1,
             topk_candidates_per_level=1000,
             nms_thresh=0.22,
             detections_per_img=100,
@@ -191,7 +187,6 @@ class LungNoduleInferenceOperator(Operator):
                     axcodes="RAS",
                 ),
                 AddChanneld(keys=image_key),
-                Spacingd(keys=image_key, pixdim=(0.703125, 0.703125, 1.25)),
                 ScaleIntensityRanged(image_key, a_min=-1024.0, a_max=300.0, b_min=0.0, b_max=1.0, clip=True),
                 EnsureTyped(image_key),
             ],
@@ -220,9 +215,5 @@ class LungNoduleInferenceOperator(Operator):
                     box_ref_image_keys=self._input_dataset_orig_key,
                     affine_lps_to_ras=True,
                 ),
-                # ScaleBoxToUnityImaged(
-                #     box_keys=self._pred_box_regression,
-                #     box_ref_image_keys=self._input_dataset_key,
-                # ),
             ]
         )
