@@ -21,13 +21,7 @@ from monai.config import IgniteInfo, KeysCollection
 from monai.config.type_definitions import NdarrayOrTensor
 from monai.handlers.classification_saver import ClassificationSaver
 from monai.transforms.transform import MapTransform
-from monai.utils import (
-    ensure_tuple,
-    evenly_divisible_all_gather,
-    min_version,
-    optional_import,
-    string_list_all_gather,
-)
+from monai.utils import ensure_tuple, evenly_divisible_all_gather, min_version, optional_import, string_list_all_gather
 
 idist, _ = optional_import("ignite", IgniteInfo.OPT_IMPORT_VERSION, min_version, "distributed")
 Events, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Events")
@@ -155,7 +149,6 @@ class DetectionSaver(ClassificationSaver):
 
 
 class ScaleBoxToUnityImaged(MapTransform):
-
     def __init__(
         self,
         box_keys: KeysCollection,

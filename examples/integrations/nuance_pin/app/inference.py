@@ -30,13 +30,13 @@ from monai.deploy.utils.importutil import optional_import
 from monai.transforms import (
     AddChanneld,
     Compose,
+    CopyItemsd,
     EnsureChannelFirstd,
     EnsureTyped,
     LoadImaged,
     Orientationd,
     ScaleIntensityRanged,
     Spacingd,
-    CopyItemsd,
     ToDeviced,
     ToTensord,
 )
@@ -82,7 +82,6 @@ class DetectionResultList(Domain):
 @md.output("detections", DetectionResultList, IOType.IN_MEMORY)
 @md.env(pip_packages=["monai>=0.8.1", "torch>=1.5", "numpy>=1.21", "nibabel"])
 class LungNoduleInferenceOperator(Operator):
-
     def __init__(self, model_path: str = "model/model.ts"):
 
         self.logger = logging.getLogger("{}.{}".format(__name__, type(self).__name__))
@@ -154,11 +153,13 @@ class LungNoduleInferenceOperator(Operator):
                 processed_image[self._pred_score] = inference_output[self.detector.pred_score_key]
 
                 processed_image = self.post_process()(processed_image)
-                pred_boxes.append(DetectionResult(
-                    box_data=processed_image[self._pred_box_regression].numpy(),
-                    label_data=processed_image[self._pred_labels].numpy(),
-                    score_data=processed_image[self._pred_score].numpy(),
-                ))
+                pred_boxes.append(
+                    DetectionResult(
+                        box_data=processed_image[self._pred_box_regression].numpy(),
+                        label_data=processed_image[self._pred_labels].numpy(),
+                        score_data=processed_image[self._pred_score].numpy(),
+                    )
+                )
 
             op_output.set(DetectionResultList(pred_boxes), "detections")
 
@@ -181,28 +182,15 @@ class LungNoduleInferenceOperator(Operator):
                 ToTensord(
                     keys=image_key,
                 ),
-                ToDeviced(
-                    keys=image_key,
-                    device='cuda'
-                ),
+                ToDeviced(keys=image_key, device="cuda"),
                 EnsureChannelFirstd(keys=image_key),
                 Orientationd(
                     keys=image_key,
                     axcodes="RAS",
                 ),
                 AddChanneld(keys=image_key),
-                Spacingd(
-                    keys=image_key,
-                    pixdim=(0.703125, 0.703125, 1.25)
-                ),
-                ScaleIntensityRanged(
-                    image_key,
-                    a_min=-1024.0,
-                    a_max=300.0,
-                    b_min=0.0,
-                    b_max=1.0,
-                    clip=True
-                ),
+                Spacingd(keys=image_key, pixdim=(0.703125, 0.703125, 1.25)),
+                ScaleIntensityRanged(image_key, a_min=-1024.0, a_max=300.0, b_min=0.0, b_max=1.0, clip=True),
                 EnsureTyped(image_key),
             ],
             unpack_items=True,

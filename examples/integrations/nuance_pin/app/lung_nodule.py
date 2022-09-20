@@ -63,7 +63,9 @@ class LungNoduleDetectionApp(Application):
         pin_report_op = CreatePINDiagnosticsReportOp(upload_doc_fn=self.upload_document)
 
         self.add_flow(study_loader_op, series_selector_op, {"dicom_study_list": "dicom_study_list"})
-        self.add_flow(series_selector_op, series_to_vol_op, {"study_selected_series_list": "study_selected_series_list"})
+        self.add_flow(
+            series_selector_op, series_to_vol_op, {"study_selected_series_list": "study_selected_series_list"}
+        )
         self.add_flow(series_to_vol_op, detection_op, {"image": "image"})
 
         self.add_flow(detection_op, pin_report_op, {"detections": "detection_predictions"})

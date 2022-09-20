@@ -99,7 +99,9 @@ class MONAIAppWrapper(AiJobProcessor):
             monai_app_class_module = self.monai_app_module.rsplit(".", 1)[0]
             monai_app_class_name = self.monai_app_module.rsplit(".", 1)[1]
             monai_app_class = getattr(import_module(monai_app_class_module), monai_app_class_name)
-            self.monai_app_instance = monai_app_class(do_run=False, upload_document=self.upload_document, upload_gsps=self.upload_gsps_dicom)
+            self.monai_app_instance = monai_app_class(
+                do_run=False, upload_document=self.upload_document, upload_gsps=self.upload_gsps_dicom
+            )
 
         self.logger.info(f"MONAI App Info: {self.monai_app_instance.get_package_info()}")
         self.logger.info(f"MONAI working directory: {self.ai_job.folder}")

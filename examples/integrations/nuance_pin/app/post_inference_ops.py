@@ -9,14 +9,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import functools
+import logging
 import os
 from random import randint
 from typing import List
 
+import diagnostic_report as dr
 import highdicom as hd
 import numpy as np
-import logging
 from ai_service.utility import JSON_MIME_TYPE
 from app.inference import DetectionResult, DetectionResultList
 
@@ -24,14 +24,11 @@ import monai.deploy.core as md
 from monai.deploy.core import DataPath, ExecutionContext, InputContext, IOType, Operator, OutputContext
 from monai.deploy.core.domain.dicom_series_selection import StudySelectedSeries
 
-import diagnostic_report as dr
-
 
 @md.input("original_dicom", List[StudySelectedSeries], IOType.IN_MEMORY)
 @md.input("detection_predictions", DetectionResultList, IOType.IN_MEMORY)
 @md.output("gsps_files", DataPath, IOType.DISK)
 class GenerateGSPSOp(Operator):
-
     def __init__(self, upload_gsps_fn, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.logger = logging.getLogger("{}.{}".format(__name__, type(self).__name__))
@@ -53,38 +50,44 @@ class GenerateGSPSOp(Operator):
 
             polyline = hd.pr.GraphicObject(
                 graphic_type=hd.pr.GraphicTypeValues.POLYLINE,
-                graphic_data=np.array([
-                    [box_data[0], box_data[1]],
-                    [box_data[3], box_data[1]],
-                    [box_data[3], box_data[4]],
-                    [box_data[0], box_data[4]],
-                    [box_data[0], box_data[1]],
-                ]),  # coordinates of polyline vertices
+                graphic_data=np.array(
+                    [
+                        [box_data[0], box_data[1]],
+                        [box_data[3], box_data[1]],
+                        [box_data[3], box_data[4]],
+                        [box_data[0], box_data[4]],
+                        [box_data[0], box_data[1]],
+                    ]
+                ),  # coordinates of polyline vertices
                 units=hd.pr.AnnotationUnitsValues.PIXEL,  # units for graphic data
-                tracking_id='lung_nodule_MONAI',  # site-specific ID
-                tracking_uid=hd.UID()  # highdicom will generate a unique ID
+                tracking_id="lung_nodule_MONAI",  # site-specific ID
+                tracking_uid=hd.UID(),  # highdicom will generate a unique ID
             )
 
             self.logger.info(f"Box: {[box_data[0], box_data[1], box_data[3], box_data[4]]}")
 
             text = hd.pr.TextObject(
                 text_value=f"{box_score:.2f}",
-                bounding_box=np.array(
-                    [box_data[0], box_data[1], box_data[3], box_data[4]]  # left, top, right, bottom
-                ),
+                bounding_box=np.array([box_data[0], box_data[1], box_data[3], box_data[4]]),  # left, top, right, bottom
                 units=hd.pr.AnnotationUnitsValues.PIXEL,  # units for bounding box
-                tracking_id='LungNoduleMONAI',  # site-specific ID
-                tracking_uid=hd.UID()  # highdicom will generate a unique ID
+                tracking_id="LungNoduleMONAI",  # site-specific ID
+                tracking_uid=hd.UID(),  # highdicom will generate a unique ID
             )
 
             layer = hd.pr.GraphicLayer(
-                layer_name='LUNG_NODULE',
+                layer_name="LUNG_NODULE",
                 order=1,
-                description='Lung Nodule Detection',
+                description="Lung Nodule Detection",
             )
 
-            affected_slice_idx = [idx for idx, slice_coord in enumerate(slice_coords) if slice_coord >= box_data[2] and slice_coord <= box_data[5]]
-            ref_images = [selected_series.series.get_sop_instances()[idx].get_native_sop_instance() for idx in affected_slice_idx]
+            affected_slice_idx = [
+                idx
+                for idx, slice_coord in enumerate(slice_coords)
+                if slice_coord >= box_data[2] and slice_coord <= box_data[5]
+            ]
+            ref_images = [
+                selected_series.series.get_sop_instances()[idx].get_native_sop_instance() for idx in affected_slice_idx
+            ]
             self.logger.info(f"Slice: {[box_data[2], box_data[5]]}, Instances: {affected_slice_idx}")
 
             if not ref_images:
@@ -107,15 +110,15 @@ class GenerateGSPSOp(Operator):
                 series_number=series_number,
                 sop_instance_uid=hd.UID(),
                 instance_number=inst_num + 1,
-                manufacturer='MONAI',
-                manufacturer_model_name='lung_nodule_ct_detection',
-                software_versions='v0.2.0',
-                device_serial_number='',
-                content_label='ANNOTATIONS',
+                manufacturer="MONAI",
+                manufacturer_model_name="lung_nodule_ct_detection",
+                software_versions="v0.2.0",
+                device_serial_number="",
+                content_label="ANNOTATIONS",
                 graphic_layers=[layer],
                 graphic_annotations=[annotation],
-                institution_name='MONAI',
-                institutional_department_name='Deploy',
+                institution_name="MONAI",
+                institutional_department_name="Deploy",
             )
 
             gsps.save_as(os.path.join(output_path, f"gsps-{inst_num:04d}.dcm"))
@@ -131,7 +134,6 @@ class GenerateGSPSOp(Operator):
 @md.input("detection_predictions", DetectionResultList, IOType.IN_MEMORY)
 @md.output("pin_report", DataPath, IOType.DISK)
 class CreatePINDiagnosticsReportOp(Operator):
-
     def __init__(self, upload_doc_fn, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.logger = logging.getLogger("{}.{}".format(__name__, type(self).__name__))
@@ -169,8 +171,14 @@ class CreatePINDiagnosticsReportOp(Operator):
 
         for box_data, box_score in zip(detection_result.box_data, detection_result.score_data):
 
-            affected_slice_idx = [idx for idx, slice_coord in enumerate(slice_coords) if slice_coord >= box_data[2] and slice_coord <= box_data[5]]
-            ref_images = [selected_series.series.get_sop_instances()[idx].get_native_sop_instance() for idx in affected_slice_idx]
+            affected_slice_idx = [
+                idx
+                for idx, slice_coord in enumerate(slice_coords)
+                if slice_coord >= box_data[2] and slice_coord <= box_data[5]
+            ]
+            ref_images = [
+                selected_series.series.get_sop_instances()[idx].get_native_sop_instance() for idx in affected_slice_idx
+            ]
             self.logger.info(f"Slice: {[box_data[2], box_data[5]]}, Instances: {affected_slice_idx}")
 
             for dcm_img in ref_images:
