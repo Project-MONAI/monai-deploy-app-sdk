@@ -46,6 +46,7 @@ ENV PATH="$VIRTUAL_ENV/bin:$PATH"
 RUN python -m pip install --upgrade pip && \
     python -m pip install --upgrade --no-cache-dir ${EXTRA_PYTHON_PACKAGES} -r requirements.txt && \
     python -m pip install --upgrade --no-cache-dir lib/ai_service-*-py3-none-any.whl && \
+    pip install --upgrade numpy && \
     rm -rf lib && \
     rm requirements.txt
 
