@@ -10,7 +10,7 @@ services:
         SERVICE_NAME: ai_spleen_seg_app
         VERSION: 0.1.0
         MODEL_PATH: /app/model/model.ts
-        MONAI_APP_MODULE: app.spleen_seg.AISpleenSegApp
+        MONAI_APP_MODULE: app.lung_nodule.LungNoduleDetectionApp
     dns: 0.0.0.0
     environment:
       requestPort: ${PORT:-7777}
