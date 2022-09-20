@@ -13,7 +13,7 @@ import logging
 from typing import Dict, List, Optional
 
 import torch
-from app.transforms import ScaleBoxToUnityImaged
+# from app.transforms import ScaleBoxToUnityImaged
 
 import monai.deploy.core as md
 from monai.apps.detection.networks.retinanet_detector import RetinaNetDetector
