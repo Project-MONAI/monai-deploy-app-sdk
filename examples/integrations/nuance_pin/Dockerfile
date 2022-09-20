@@ -24,15 +24,15 @@ ENV KEEP_FILES=YES
 # make sure all messages reach the console
 ENV PYTHONUNBUFFERED=1
 
-# copy and activate virtualenv
-# ENV VIRTUAL_ENV=/app/venv
-# COPY --from=foundation /opt/venv "${VIRTUAL_ENV}"
-# RUN . /opt/env/bin/activate
-# ENV PATH="${VIRTUAL_ENV}/bin:${PATH}"
-
 # copy MONAI app files
 COPY . /app/.
 WORKDIR /app
+
+# copy model file to model folder
+RUN wget -q https://github.com/Project-MONAI/model-zoo/releases/download/hosting_storage_v1/lung_nodule_ct_detection_v0.2.0.zip && \
+    unzip lung_nodule_ct_detection_v0.2.0.zip -d /tmp/ && \
+    cp /tmp/lung_nodule_ct_detection/models/model.ts model/. && \
+    rm -rf /tmp/lung_nodule_ct_detection
 
 # non-root aiserviceuser in group aiserviceuser with UserID and GroupID as 20225
 RUN groupadd -g 20225 -r aiserviceuser && useradd -u 20225 -r -g aiserviceuser aiserviceuser && chown -R aiserviceuser:aiserviceuser /app && \
