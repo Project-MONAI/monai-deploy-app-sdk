@@ -68,7 +68,7 @@ class GenerateGSPSOp(Operator):
 
             text = hd.pr.TextObject(
                 text_value=f"{box_score:.2f}",
-                bounding_box=np.array([box_data[0], box_data[1], box_data[3], box_data[4]]),  # left, top, right, bottom
+                bounding_box=([box_data[0], box_data[1], box_data[3], box_data[4]]),  # left, top, right, bottom
                 units=hd.pr.AnnotationUnitsValues.PIXEL,  # units for bounding box
                 tracking_id="LungNoduleMONAI",  # site-specific ID
                 tracking_uid=hd.UID(),  # highdicom will generate a unique ID

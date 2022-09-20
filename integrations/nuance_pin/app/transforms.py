@@ -12,16 +12,14 @@
 import json
 import os
 import warnings
-from typing import Callable, Dict, Hashable, List, Mapping, Optional, Union
+from typing import Any, Callable, Dict, List, Optional, Union
 
 import numpy as np
 import torch
 
-from monai.config import IgniteInfo, KeysCollection
-from monai.config.type_definitions import NdarrayOrTensor
+from monai.config import IgniteInfo
 from monai.handlers.classification_saver import ClassificationSaver
-from monai.transforms.transform import MapTransform
-from monai.utils import ensure_tuple, evenly_divisible_all_gather, min_version, optional_import, string_list_all_gather
+from monai.utils import evenly_divisible_all_gather, min_version, optional_import, string_list_all_gather
 
 idist, _ = optional_import("ignite", IgniteInfo.OPT_IMPORT_VERSION, min_version, "distributed")
 Events, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Events")
@@ -109,7 +107,7 @@ class DetectionSaver(ClassificationSaver):
         self.pred_label_key = pred_label_key
         self.pred_score_key = pred_score_key
 
-    def _finalize(self) -> None:
+    def _finalize(self, _engine: Any) -> None:
         """
         All gather classification results from ranks and save to json file.
 
