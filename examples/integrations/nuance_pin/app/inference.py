@@ -36,8 +36,10 @@ from monai.transforms import (
     Orientationd,
     ScaleIntensityRanged,
     Spacingd,
+    CopyItemsd,
+    ToDeviced,
+    ToTensord,
 )
-from monai.transforms.utility.dictionary import ToDeviced, ToTensord
 
 sliding_window_inference, _ = optional_import("monai.inferers", name="sliding_window_inference")
 
@@ -86,6 +88,7 @@ class LungNoduleInferenceOperator(Operator):
         self.logger = logging.getLogger("{}.{}".format(__name__, type(self).__name__))
         super().__init__()
         self._input_dataset_key = "image"
+        self._input_dataset_orig_key = "image_orig"
         self._pred_box_regression = "box_regression"
         self._pred_label = "box_label"
         self._pred_score = "box_score"
@@ -163,11 +166,17 @@ class LungNoduleInferenceOperator(Operator):
         """Composes transforms for preprocessing input before predicting on a model."""
 
         image_key = self._input_dataset_key
+        orig_image_key = self._input_dataset_orig_key
         return Compose(
             [
                 LoadImaged(
                     keys=image_key,
                     reader=img_reader,
+                    affine_lps_to_ras=True,
+                ),
+                CopyItemsd(
+                    keys=[image_key, f"{image_key}_meta_dict"],
+                    names=[orig_image_key, f"{orig_image_key}_meta_dict"],
                 ),
                 ToTensord(
                     keys=image_key,
@@ -218,12 +227,12 @@ class LungNoduleInferenceOperator(Operator):
                 ),
                 AffineBoxToImageCoordinated(
                     box_keys=[self._pred_box_regression],
-                    box_ref_image_keys=self._input_dataset_key,
+                    box_ref_image_keys=self._input_dataset_orig_key,
                     affine_lps_to_ras=True,
                 ),
-                ScaleBoxToUnityImaged(
-                    box_keys=self._pred_box_regression,
-                    box_ref_image_keys=self._input_dataset_key,
-                ),
+                # ScaleBoxToUnityImaged(
+                #     box_keys=self._pred_box_regression,
+                #     box_ref_image_keys=self._input_dataset_key,
+                # ),
             ]
         )
