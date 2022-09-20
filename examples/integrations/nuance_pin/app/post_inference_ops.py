@@ -9,6 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import functools
 import os
 from random import randint
 from typing import List
@@ -39,8 +40,9 @@ class GenerateGSPSOp(Operator):
         detection_result: DetectionResult = op_input.get("detection_predictions").detection_list[0]
         output_path = op_output.get("gsps_files").path
 
-        # slice_coords = [inst.first_pixel_on_slice_normal[2] for inst in selected_series.series.get_sop_instances()]
-        slice_coords = [inst for inst in range(len(selected_series.series.get_sop_instances()))]
+        slice_coords = [inst.first_pixel_on_slice_normal[2] for inst in selected_series.series.get_sop_instances()]
+        max_slice, min_slice = functools.reduce(lambda x, y: max(x, y), slice_coords), functools.reduce(lambda x, y: min(x, y), slice_coords)
+        slice_coords = [(s - min_slice + selected_series.image.metadata()['depth_pixel_spacing']) / (max_slice - min_slice) for s in slice_coords]
 
         for inst_num, (box_data, box_score) in enumerate(zip(detection_result.box_data, detection_result.score_data)):
 
@@ -53,26 +55,22 @@ class GenerateGSPSOp(Operator):
                     [box_data[0], box_data[4]],
                     [box_data[0], box_data[1]],
                 ]),  # coordinates of polyline vertices
-                units=hd.pr.AnnotationUnitsValues.PIXEL,  # units for graphic data
+                units=hd.pr.AnnotationUnitsValues.DISPLAY,  # units for graphic data
                 tracking_id='lung_nodule_MONAI',  # site-specific ID
                 tracking_uid=hd.UID()  # highdicom will generate a unique ID
             )
 
-            _left = box_data[0] if box_data[0] < box_data[2] else box_data[2]
-            _right = box_data[2] if box_data[0] < box_data[2] else box_data[0]
-            _top = box_data[1] if box_data[1] < box_data[3] else box_data[3]
-            _bottom = box_data[3] if box_data[1] < box_data[3] else box_data[1]
-            self.logger.info(f"Box: {[_left, _top, _right, _bottom]}")
+            self.logger.info(f"Box: {[box_data[0], box_data[1], box_data[3], box_data[4]]}")
 
-            # text = hd.pr.TextObject(
-            #     text_value=f"{box_score:.2f}",
-            #     bounding_box=np.array(
-            #         [_left, _top, _right, _bottom]  # left, top, right, bottom
-            #     ),
-            #     units=hd.pr.AnnotationUnitsValues.PIXEL,  # units for bounding box
-            #     tracking_id='LungNoduleMONAI',  # site-specific ID
-            #     tracking_uid=hd.UID()  # highdicom will generate a unique ID
-            # )
+            text = hd.pr.TextObject(
+                text_value=f"{box_score:.2f}",
+                bounding_box=np.array(
+                    [box_data[0], box_data[1], box_data[3], box_data[4]]  # left, top, right, bottom
+                ),
+                units=hd.pr.AnnotationUnitsValues.DISPLAY,  # units for bounding box
+                tracking_id='LungNoduleMONAI',  # site-specific ID
+                tracking_uid=hd.UID()  # highdicom will generate a unique ID
+            )
 
             layer = hd.pr.GraphicLayer(
                 layer_name='LUNG_NODULE',
@@ -92,7 +90,7 @@ class GenerateGSPSOp(Operator):
             annotation = hd.pr.GraphicAnnotation(
                 referenced_images=ref_images,
                 graphic_layer=layer,
-                # text_objects=[text],
+                text_objects=[text],
                 graphic_objects=[polyline],
             )
 

@@ -13,10 +13,15 @@ import logging
 from typing import Dict, List, Optional
 
 import torch
+from app.transforms import ScaleBoxToUnityImaged
 
 import monai.deploy.core as md
 from monai.apps.detection.networks.retinanet_detector import RetinaNetDetector
-from monai.apps.detection.transforms.dictionary import AffineBoxToWorldCoordinated, ClipBoxToImaged, ConvertBoxModed, AffineBoxToImageCoordinated
+from monai.apps.detection.transforms.dictionary import (
+    AffineBoxToImageCoordinated,
+    AffineBoxToWorldCoordinated,
+    ClipBoxToImaged,
+)
 from monai.apps.detection.utils.anchor_utils import AnchorGeneratorWithAnchorShape
 from monai.deploy.core import ExecutionContext, Image, InputContext, IOType, Operator, OutputContext
 from monai.deploy.core.domain import Domain
@@ -38,16 +43,15 @@ sliding_window_inference, _ = optional_import("monai.inferers", name="sliding_wi
 
 
 class DetectionResult(Domain):
-    def __init__(self, realworld_box_data, box_data, label_data, score_data, metadata: Optional[Dict] = None):
+    def __init__(self, box_data, label_data, score_data, metadata: Optional[Dict] = None):
         super().__init__(metadata)
         self._box_data = box_data
-        self._realworld_box_data = realworld_box_data
         self._label_data = label_data
         self._score_data = score_data
 
     @property
     def realworld_box_data(self):
-        return self._realworld_box_data
+        return self._box_data
 
     @property
     def box_data(self):
@@ -111,9 +115,9 @@ class LungNoduleInferenceOperator(Operator):
             detections_per_img=100,
         )
         self.detector.set_sliding_window_inferer(
-            roi_size=[192, 192, 80],
-            overlap=0.25,
-            sw_batch_size=4,
+            roi_size=[240, 240, 160],
+            overlap=0.5,
+            sw_batch_size=1,
             mode="gaussian",
             device="cpu",
         )
@@ -148,8 +152,7 @@ class LungNoduleInferenceOperator(Operator):
 
                 processed_image = self.post_process()(processed_image)
                 pred_boxes.append(DetectionResult(
-                    realworld_box_data=processed_image[self._pred_box_regression].numpy(),
-                    box_data=inference_output[self.detector.target_box_key].numpy(),
+                    box_data=processed_image[self._pred_box_regression].numpy(),
                     label_data=processed_image[self._pred_labels].numpy(),
                     score_data=processed_image[self._pred_score].numpy(),
                 ))
@@ -205,23 +208,22 @@ class LungNoduleInferenceOperator(Operator):
                 ClipBoxToImaged(
                     box_keys=self._pred_box_regression,
                     box_ref_image_keys=self._input_dataset_key,
-                    label_keys=[self._pred_labels, self._pred_score]
+                    label_keys=[self._pred_labels, self._pred_score],
+                    remove_empty=True,
                 ),
-                # AffineBoxToWorldCoordinated(
-                #     box_keys=self._pred_box_regression,
-                #     box_ref_image_keys=self._input_dataset_key,
-                #     affine_lps_to_ras=True,
-                # ),
+                AffineBoxToWorldCoordinated(
+                    box_keys=self._pred_box_regression,
+                    box_ref_image_keys=self._input_dataset_key,
+                    affine_lps_to_ras=True,
+                ),
                 AffineBoxToImageCoordinated(
                     box_keys=[self._pred_box_regression],
                     box_ref_image_keys=self._input_dataset_key,
-                    image_meta_key_postfix="meta_dict",
                     affine_lps_to_ras=True,
                 ),
-                # ConvertBoxModed(
-                #     box_keys=self._pred_box_regression,
-                #     src_mode="xyzxyz",
-                #     dst_mode="cccwhd"
-                # ),
+                ScaleBoxToUnityImaged(
+                    box_keys=self._pred_box_regression,
+                    box_ref_image_keys=self._input_dataset_key,
+                ),
             ]
         )
