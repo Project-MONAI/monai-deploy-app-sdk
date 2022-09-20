@@ -13,7 +13,6 @@ import logging
 from typing import Dict, List, Optional
 
 import torch
-# from app.transforms import ScaleBoxToUnityImaged
 
 import monai.deploy.core as md
 from monai.apps.detection.networks.retinanet_detector import RetinaNetDetector
@@ -40,6 +39,9 @@ from monai.transforms import (
     ToDeviced,
     ToTensord,
 )
+
+# from app.transforms import ScaleBoxToUnityImaged
+
 
 sliding_window_inference, _ = optional_import("monai.inferers", name="sliding_window_inference")
 
