@@ -32,7 +32,8 @@ WORKDIR /app
 RUN wget -q https://github.com/Project-MONAI/model-zoo/releases/download/hosting_storage_v1/lung_nodule_ct_detection_v0.2.0.zip && \
     unzip lung_nodule_ct_detection_v0.2.0.zip -d /tmp/ && \
     cp /tmp/lung_nodule_ct_detection/models/model.ts model/. && \
-    rm -rf /tmp/lung_nodule_ct_detection
+    rm -rf /tmp/lung_nodule_ct_detection && \
+    rm lung_nodule_ct_detection_v0.2.0.zip
 
 # non-root aiserviceuser in group aiserviceuser with UserID and GroupID as 20225
 RUN groupadd -g 20225 -r aiserviceuser && useradd -u 20225 -r -g aiserviceuser aiserviceuser && chown -R aiserviceuser:aiserviceuser /app && \

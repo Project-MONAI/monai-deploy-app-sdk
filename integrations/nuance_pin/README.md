@@ -2,14 +2,14 @@
 
 MONAI Deploy Apps can be deployed as Nuance PIN applications with minimal effort and near-zero coding.
 
-This folder includes an example MONAI app, AI-based Spleen Segmentation, which is wrapped in the Nuance PIN API.
-The Nuance PIN wrapper code allows MONAI app developer in most cases to deploy their existing MONAI apps in Nuance
-without code changes.
+This folder includes an example MONAI app, AI-based Lung Nodule Segmentation, which is wrapped by the Nuance PIN API.
+The Nuance PIN wrapper code allows MONAI app developer to deploy their existing MONAI apps in Nuance
+with minimal code changes.
 
 ## Prerequisites
 
 Before setting up and running the example MONAI spleen segmentation app to run as a Nuance PIN App, the use will need to install/download the following libraries.
-It is optional to use a GPU for the example app, however, it is recommended that a GPU is used for inference.
+It is optional to use a GPU for the example app, however, it is recommended that a GPU is used for inference as it is very computationally intensive.
 
 Minimum software requirements:
 - [Git](https://git-scm.com/book/en/v2/Getting-Started-Installing-Git)
@@ -21,12 +21,10 @@ Minimum software requirements:
 
 ## Quickstart
 
-This integration example already contains the AI Spleen segmentation code which is an exact copy of the code found under `examples/apps/ai_spleen_seg_app`. However, to make the example work properly we need to download the spleen segmentation model, and the data for local testing.
-
 If you are reading this guide on the MONAI Github repo, you will need to clone the MONAI repo and change the directory to the Nuance PIN integration path.
 ```bash
 git clone https://github.com/Project-MONAI/monai-deploy-app-sdk.git
-cd examples/integrations/nuance_pin
+cd integrations/nuance_pin
 ```
 
 In this folder you will see the following directory structure
@@ -42,35 +40,15 @@ nuance_pin
     └── requirements.txt        # libraries required for the example integration to work
 ```
 
-We will place the spleen segmentation model in the `nuance_pin/model` folder and use that as the location for the code in `app/spleen_seg.py`, however,
-this is not a hard restriction. The developer may choose a location of their own within the `nuance_pin` subtree, but this change requires updating the
-`MODEL_PATH` variable in `docker-compose.yml`.
+When building the base container image the [Lung Nodule Detection model](https://github.com/Project-MONAI/model-zoo/releases/download/hosting_storage_v1/lung_nodule_ct_detection_v0.2.0.zip), available from the [MONAI model zoo](https://github.com/Project-MONAI/model-zoo/releases/tag/hosting_storage_v1) will automatically download in the `model` folder. Should the developer choose a different location of their own within the `nuance_pin` subtree for their model, then an update to `MODEL_PATH` variable in `docker-compose.yml` is required.
 
-### Downloading Data and Model for Spleen Segmentation
+### Downloading Data for Spleen Segmentation
 
-To download the spleen model and test data you may follow the instructions in the MONAI Deploy [documentation](https://docs.monai.io/projects/monai-deploy-app-sdk/en/latest/getting_started/tutorials/03_segmentation_app.html#executing-from-shell). The steps are also summarized below:
+To download the test data you may follow the instructions in the [Lund Nodule Detection Documentation](https://github.com/Project-MONAI/model-zoo/tree/dev/models/lung_nodule_ct_detection#data).
 
-```bash
-# choose a download directory outside of the integration folder
-pushd ~/Downloads
+### Download Nuance PIN SDK
 
-# install gdown
-pip install gdown
-
-# download spleen data and model
-gdown https://drive.google.com/uc?id=1cJq0iQh_yzYIxVElSlVa141aEmHZADJh
-
-# After downloading ai_spleen_bundle_data.zip from the web browser or using gdown,
-unzip -o ai_spleen_bundle_data.zip
-
-popd
-
-# move the spleen model from the download directory to the integration folder model directory
-mv ~/Downloads/model.ts model/.
-```
-
-Next we must place the Nuance PIN `ai_service` wheel in the `nuance_pin/lib` folder. This would have been obtained
-in step 3 of of the [prerequisites](#prerequisites).
+Place the Nuance PIN `ai_service` wheel in the `nuance_pin/lib` folder. This can be obtained in the link provided in step 3 of of the [prerequisites](#prerequisites).
 
 ### Running the Example App in the Container
 
@@ -119,6 +97,13 @@ pip install ai_service-<version>-py3-none-any.whl
 
 # install requirements
 pip install -r requirements.txt
+
+# download the lung nodule detection model
+wget -q https://github.com/Project-MONAI/model-zoo/releases/download/hosting_storage_v1/lung_nodule_ct_detection_v0.2.0.zip && \
+unzip lung_nodule_ct_detection_v0.2.0.zip -d /tmp/ && \
+cp /tmp/lung_nodule_ct_detection/models/model.ts model/. && \
+rm -rf /tmp/lung_nodule_ct_detection && \
+rm lung_nodule_ct_detection_v0.2.0.zip
 
 # run the service
 export AI_PARTNER_NAME=NVIDIA
