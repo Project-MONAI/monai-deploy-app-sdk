@@ -41,7 +41,7 @@ class GenerateGSPSOp(Operator):
         detection_result: DetectionResult = op_input.get("detection_predictions").detection_list[0]
         output_path = op_output.get("gsps_files").path
 
-        slice_coords = [-inst.first_pixel_on_slice_normal[2] for inst in selected_series.series.get_sop_instances()]
+        slice_coords = list(range(len(selected_series.series.get_sop_instances())))
 
         series_uid = hd.UID()
         series_number = randint(1, 100000)
@@ -167,7 +167,7 @@ class CreatePINDiagnosticsReportOp(Operator):
             procedure_text="CT Chest wo IV Contrast",
         )
 
-        slice_coords = [-inst.first_pixel_on_slice_normal[2] for inst in selected_series.series.get_sop_instances()]
+        slice_coords = list(range(len(selected_series.series.get_sop_instances())))
 
         for box_data, box_score in zip(detection_result.box_data, detection_result.score_data):
 
