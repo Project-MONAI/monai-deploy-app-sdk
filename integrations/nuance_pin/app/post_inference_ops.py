@@ -119,10 +119,12 @@ class GenerateGSPSOp(Operator):
                 graphic_annotations=[annotation],
                 institution_name="MONAI",
                 institutional_department_name="Deploy",
-                voi_lut_transformations=[hd.pr.SoftcopyVOILUTTransformation(
-                    window_center=-550.0,
-                    window_width=1350.0,
-                )],
+                voi_lut_transformations=[
+                    hd.pr.SoftcopyVOILUTTransformation(
+                        window_center=-550.0,
+                        window_width=1350.0,
+                    )
+                ],
             )
 
             gsps.save_as(os.path.join(output_path, f"gsps-{inst_num:04d}.dcm"))
