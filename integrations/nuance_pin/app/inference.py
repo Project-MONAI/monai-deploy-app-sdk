@@ -35,6 +35,7 @@ from monai.transforms import (
     LoadImaged,
     Orientationd,
     ScaleIntensityRanged,
+    Spacingd,
     ToDeviced,
     ToTensord,
 )
@@ -182,6 +183,7 @@ class LungNoduleInferenceOperator(Operator):
                 ),
                 ToDeviced(keys=image_key, device="cuda"),
                 EnsureChannelFirstd(keys=image_key),
+                Spacingd(keys=image_key, pixdim=(0.703125, 0.703125, 1.25)),
                 Orientationd(
                     keys=image_key,
                     axcodes="RAS",
