@@ -10,6 +10,7 @@
 # limitations under the License.
 
 import logging
+from typing import Callable
 
 from app.inference import LungNoduleInferenceOperator
 from app.post_inference_ops import CreatePINDiagnosticsReportOp, GenerateGSPSOp
@@ -23,7 +24,7 @@ from monai.deploy.operators.dicom_series_to_volume_operator import DICOMSeriesTo
 @resource(cpu=1, gpu=1, memory="7Gi")
 # The monai pkg is not required by this class, instead by the included operators.
 class LungNoduleDetectionApp(Application):
-    def __init__(self, upload_document, upload_gsps, *args, **kwargs):
+    def __init__(self, upload_document: Callable, upload_gsps: Callable, *args, **kwargs):
         """Creates an application instance."""
         self._logger = logging.getLogger("{}.{}".format(__name__, type(self).__name__))
         self.upload_document = upload_document

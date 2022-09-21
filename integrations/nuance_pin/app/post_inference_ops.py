@@ -12,7 +12,7 @@
 import logging
 import os
 from random import randint
-from typing import List
+from typing import Callable, List
 
 import diagnostic_report as dr
 import highdicom as hd
@@ -29,7 +29,7 @@ from monai.deploy.core.domain.dicom_series_selection import StudySelectedSeries
 @md.input("detection_predictions", DetectionResultList, IOType.IN_MEMORY)
 @md.output("gsps_files", DataPath, IOType.DISK)
 class GenerateGSPSOp(Operator):
-    def __init__(self, upload_gsps_fn, *args, **kwargs):
+    def __init__(self, upload_gsps_fn: Callable, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.logger = logging.getLogger("{}.{}".format(__name__, type(self).__name__))
         self.upload_gsps = upload_gsps_fn
@@ -68,7 +68,7 @@ class GenerateGSPSOp(Operator):
 
             text = hd.pr.TextObject(
                 text_value=f"{box_score:.2f}",
-                bounding_box=([box_data[0], box_data[1], box_data[3], box_data[4]]),  # left, top, right, bottom
+                bounding_box=(box_data[0], box_data[1], box_data[3], box_data[4]),  # left, top, right, bottom
                 units=hd.pr.AnnotationUnitsValues.PIXEL,  # units for bounding box
                 tracking_id="LungNoduleMONAI",  # site-specific ID
                 tracking_uid=hd.UID(),  # highdicom will generate a unique ID
@@ -134,7 +134,7 @@ class GenerateGSPSOp(Operator):
 @md.input("detection_predictions", DetectionResultList, IOType.IN_MEMORY)
 @md.output("pin_report", DataPath, IOType.DISK)
 class CreatePINDiagnosticsReportOp(Operator):
-    def __init__(self, upload_doc_fn, *args, **kwargs):
+    def __init__(self, upload_doc_fn: Callable, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.logger = logging.getLogger("{}.{}".format(__name__, type(self).__name__))
         self.upload_doc = upload_doc_fn
