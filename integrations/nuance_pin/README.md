@@ -8,7 +8,7 @@ with minimal code changes.
 
 ## Prerequisites
 
-Before setting up and running the example MONAI spleen segmentation app to run as a Nuance PIN App, the use will need to install/download the following libraries.
+Before setting up and running the example MONAI spleen segmentation app to run as a Nuance PIN App, the user will need to install/download the following libraries.
 It is optional to use a GPU for the example app, however, it is recommended that a GPU is used for inference as it is very computationally intensive.
 
 Minimum software requirements:
