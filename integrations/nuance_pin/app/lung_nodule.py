@@ -87,4 +87,4 @@ if __name__ == "__main__":
     #     monai-deploy exec app.py -i input -m model/model.ts
     #
     logging.basicConfig(level=logging.DEBUG)
-    app_instance = LungNoduleDetectionApp(do_run=True)
+    app_instance = LungNoduleDetectionApp(lambda x: x, lambda x: x, do_run=True)
