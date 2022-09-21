@@ -1,0 +1,23 @@
+version: "3"
+services:
+  ai_service:
+    container_name: aiservice
+    image: ${PARTNER_NAME:-nvidia}-${SERVICE_NAME:-ai_lung_nodule_detection}:${VERSION:-0.1.0}
+    build:
+      context: ${CONTEXT:-.}
+      args:
+        PARTNER_NAME: MONAI
+        SERVICE_NAME: ai_lung_nodule_detection
+        VERSION: 0.1.0
+        MODEL_PATH: /app/model/model.ts
+        MONAI_APP_MODULE: app.lung_nodule.LungNoduleDetectionApp
+    dns: 0.0.0.0
+    environment:
+      requestPort: ${PORT:-7777}
+      subscriptionKey: AiSvcTestKey
+      tempDir: /tmp/data
+    ports:
+      - "5000:${PORT:-7777}"
+    tmpfs:
+      - /tmp/data
+    user: "${CONTAINER_UID:-20225}:${CONTAINER_GID:-20225}"
