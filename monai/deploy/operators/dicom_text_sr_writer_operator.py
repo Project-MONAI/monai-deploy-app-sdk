@@ -13,7 +13,7 @@ import datetime
 import logging
 from pathlib import Path
 from random import randint
-from typing import Dict, List, Text, Union
+from typing import Dict, List, Optional, Text, Union
 
 from monai.deploy.utils.importutil import optional_import
 
@@ -194,7 +194,7 @@ class DICOMTextSRWriterOperator(Operator):
         # Now ready to starting writing the DICOM instance
         self.write(result_text, dicom_series, output_dir)
 
-    def write(self, content_text, dicom_series: Union[DICOMSeries, None], output_dir: Path):
+    def write(self, content_text, dicom_series: Optional[DICOMSeries], output_dir: Path):
         """Writes DICOM object
 
         Args:
@@ -226,18 +226,43 @@ class DICOMTextSRWriterOperator(Operator):
         # imaging procedure analyzed, not the algorithm used.
 
         # Use text value for example
-        ds.ValueType = "TEXT"
+        ds.ValueType = "CONTAINER"
 
         # ConceptNameCode Sequence
         seq_concept_name_code = Sequence()
+        ds.ConceptNameCodeSequence = seq_concept_name_code
+
+        # Concept Name Code Sequence: Concept Name Code
         ds_concept_name_code = Dataset()
         ds_concept_name_code.CodeValue = "18748-4"
         ds_concept_name_code.CodingSchemeDesignator = "LN"
         ds_concept_name_code.CodeMeaning = "Diagnostic Imaging Report"
         seq_concept_name_code.append(ds_concept_name_code)
-        ds.ConceptNameCodeSequence = seq_concept_name_code
-        ds.ContinuityOfContent = "CONTINUOUS"  # continuous textual flow of Content Items in the container
-        ds.TextValue = content_text  # self._content_to_string(content_file)
+
+        ds.ContinuityOfContent = "SEPARATE"
+
+        # Content Sequence
+        content_sequence = Sequence()
+        ds.ContentSequence = content_sequence
+
+        # Content Sequence: Content 1
+        content1 = Dataset()
+        content1.RelationshipType = "CONTAINS"
+        content1.ValueType = "TEXT"
+
+        # Concept Name Code Sequence
+        concept_name_code_sequence = Sequence()
+        content1.ConceptNameCodeSequence = concept_name_code_sequence
+
+        # Concept Name Code Sequence: Concept Name Code 1
+        concept_name_code1 = Dataset()
+        concept_name_code1.CodeValue = "111412"  # or 111413 "Overall Assessment"
+        concept_name_code1.CodingSchemeDesignator = "DCM"
+        concept_name_code1.CodeMeaning = "Narrative Summary"  # or 111413 'Overall Assessment'
+        concept_name_code_sequence.append(concept_name_code1)
+
+        content1.TextValue = content_text  # The actual report content text
+        content_sequence.append(content1)
 
         # For now, only allow str Keywords and str value
         if self.custom_tags:
@@ -269,12 +294,12 @@ class DICOMTextSRWriterOperator(Operator):
     # TODO: The following function can be moved into Domain module as it's common.
     @staticmethod
     def write_common_modules(
-        dicom_series: Union[DICOMSeries, None],
+        dicom_series: Optional[DICOMSeries],
         copy_tags: bool,
         modality_type: str,
         sop_class_uid: str,
-        model_info: ModelInfo = None,
-        equipment_info: EquipmentInfo = None,
+        model_info: Optional[ModelInfo] = None,
+        equipment_info: Optional[EquipmentInfo] = None,
     ):
         """Writes DICOM object common modules with or without a reference DCIOM Series
 
@@ -311,6 +336,7 @@ class DICOMTextSRWriterOperator(Operator):
         dt_now = datetime.datetime.now()
         date_now_dcm = dt_now.strftime("%Y%m%d")
         time_now_dcm = dt_now.strftime("%H%M%S")
+        offset_from_utc = dt_now.astimezone().isoformat()[-6:].replace(":", "")  # '2022-09-27T22:36:20.143857-07:00'
 
         # Generate UIDs and descriptions
         my_sop_instance_uid = generate_uid()
@@ -342,6 +368,7 @@ class DICOMTextSRWriterOperator(Operator):
         # Use current time for now, but could potentially use the actual inference start time.
         ds.ContentDate = date_now_dcm
         ds.ContentTime = time_now_dcm
+        ds.TimezoneOffsetFromUTC = offset_from_utc
 
         # The date and time that the original generation of the data in the document started.
         ds.AcquisitionDateTime = date_now_dcm + time_now_dcm  # Result has just been created.
@@ -445,7 +472,7 @@ def test():
     data_path = current_file_dir.joinpath("../../../inputs/livertumor_ct/dcm/1-CT_series_liver_tumor_from_nii014")
     out_path = current_file_dir.joinpath("../../../examples/output_sr_op")
     test_report_text = "Tumors detected in Liver using MONAI Liver Tumor Seg model."
-    test_copy_tags = True
+    test_copy_tags = False
 
     loader = DICOMDataLoaderOperator()
     series_selector = DICOMSeriesSelectorOperator()
