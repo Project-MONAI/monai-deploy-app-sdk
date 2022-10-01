@@ -28,6 +28,8 @@ if not image_reader_ok_:
 decollate_batch, _ = optional_import("monai.data", name="decollate_batch")
 sliding_window_inference, _ = optional_import("monai.inferers", name="sliding_window_inference")
 ensure_tuple, _ = optional_import("monai.utils", name="ensure_tuple")
+MetaKeys, _ = optional_import("monai.utils", name="MetaKeys")
+SpaceKeys, _ = optional_import("monai.utils", name="SpaceKeys")
 Compose_, _ = optional_import("monai.transforms", name="Compose")
 # Dynamic class is not handled so make it Any for now: https://github.com/python/mypy/issues/2477
 Compose: Any = Compose_
@@ -42,7 +44,7 @@ __all__ = ["MonaiSegInferenceOperator", "InMemImageReader"]
 
 @md.input("image", Image, IOType.IN_MEMORY)
 @md.output("seg_image", Image, IOType.IN_MEMORY)
-@md.env(pip_packages=["monai==0.9.0", "torch>=1.5", "numpy>=1.21"])
+@md.env(pip_packages=["monai>=1.0.0", "torch>=1.5", "numpy>=1.21"])
 class MonaiSegInferenceOperator(InferenceOperator):
     """This segmentation operator uses MONAI transforms and Sliding Window Inference.
 
@@ -382,12 +384,15 @@ class InMemImageReader(ImageReader):
                 img_meta_dict["depth_pixel_spacing"],
             ]
         )
-        meta_dict["original_affine"] = np.asarray(img_meta_dict.get("nifti_affine_transform", None))
-        meta_dict["affine"] = meta_dict["original_affine"]
+
+        # Use define metadata kyes directly
+        meta_dict[MetaKeys.ORIGINAL_AFFINE] = np.asarray(img_meta_dict.get("nifti_affine_transform", None))
+        meta_dict[MetaKeys.AFFINE] = meta_dict[MetaKeys.ORIGINAL_AFFINE].copy()
+        meta_dict[MetaKeys.SPACE] = SpaceKeys.LPS  # not using SpaceKeys.RAS or affine_lps_to_ras
         # The spatial shape, again, referring to ITKReader, it is the WHD
-        meta_dict["spatial_shape"] = np.asarray(img.asnumpy().T.shape)
+        meta_dict[MetaKeys.SPATIAL_SHAPE] = np.asarray(img.asnumpy().T.shape)
         # Well, no channel as the image data shape is forced to the the same as spatial shape
-        meta_dict["original_channel_dim"] = "no_channel"
+        meta_dict[MetaKeys.ORIGINAL_CHANNEL_DIM] = "no_channel"
 
         return meta_dict
 
@@ -403,7 +408,7 @@ def _copy_compatible_dict(from_dict: Dict, to_dict: Dict):
                 continue
             to_dict[key] = datum
     else:
-        affine_key, shape_key = "affine", "spatial_shape"
+        affine_key, shape_key = MetaKeys.AFFINE, MetaKeys.SPATIAL_SHAPE
         if affine_key in from_dict and not np.allclose(from_dict[affine_key], to_dict[affine_key]):
             raise RuntimeError(
                 "affine matrix of all images should be the same for channel-wise concatenation. "
@@ -419,7 +424,9 @@ def _copy_compatible_dict(from_dict: Dict, to_dict: Dict):
 def _stack_images(image_list: List, meta_dict: Dict):
     if len(image_list) <= 1:
         return image_list[0]
-    if meta_dict.get("original_channel_dim", None) not in ("no_channel", None):
-        raise RuntimeError("can not read a list of images which already have channel dimension.")
-    meta_dict["original_channel_dim"] = 0
+    if meta_dict.get(MetaKeys.ORIGINAL_CHANNEL_DIM, None) not in ("no_channel", None):
+        channel_dim = int(meta_dict[MetaKeys.ORIGINAL_CHANNEL_DIM])
+        return np.concatenate(image_list, axis=channel_dim)
+    # stack at a new first dim as the channel dim, if `'original_channel_dim'` is unspecified
+    meta_dict[MetaKeys.ORIGINAL_CHANNEL_DIM] = 0
     return np.stack(image_list, axis=0)
