@@ -27,6 +27,7 @@
     PublisherOperator
     STLConversionOperator
     STLConverter
+    NiftiDataLoader
 """
 
 from .clara_viz_operator import ClaraVizOperator
@@ -38,6 +39,7 @@ from .dicom_text_sr_writer_operator import DICOMTextSRWriterOperator, EquipmentI
 from .inference_operator import InferenceOperator
 from .monai_bundle_inference_operator import BundleConfigNames, IOMapping, MonaiBundleInferenceOperator
 from .monai_seg_inference_operator import MonaiSegInferenceOperator
+from .nii_data_loader_operator import NiftiDataLoader
 from .png_converter_operator import PNGConverterOperator
 from .publisher_operator import PublisherOperator
 from .stl_conversion_operator import STLConversionOperator, STLConverter
