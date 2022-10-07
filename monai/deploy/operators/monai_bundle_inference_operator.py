@@ -18,7 +18,6 @@ import zipfile
 from pathlib import Path
 from threading import Lock
 from typing import Any, Dict, List, Optional, Tuple, Type, Union
-
 import numpy as np
 
 import monai.deploy.core as md
@@ -30,7 +29,7 @@ from monai.deploy.utils.importutil import optional_import
 from .inference_operator import InferenceOperator
 
 nibabel, _ = optional_import("nibabel", "3.2.1")
-torch, _ = optional_import("torch", "1.10.0")
+torch, _ = optional_import("torch", "1.10.2")
 
 NdarrayOrTensor, _ = optional_import("monai.config", name="NdarrayOrTensor")
 MetaTensor, _ = optional_import("monai.data.meta_tensor", name="MetaTensor")
@@ -50,6 +49,7 @@ SimpleInferer, _ = optional_import("monai.inferers", name="SimpleInferer")
 Compose: Any = Compose_
 MapTransform: Any = MapTransform_
 ConfigParser: Any = ConfigParser_
+
 
 __all__ = ["MonaiBundleInferenceOperator", "IOMapping", "BundleConfigNames"]
 
@@ -484,7 +484,7 @@ class MonaiBundleInferenceOperator(InferenceOperator):
             start = time.time()
             for name in self._inputs.keys():
                 # Input MetaTensor creation is based on the same logic in monai LoadImage
-                value: NdarrayOrTensor
+                # value: NdarrayOrTensor  # MyPy complaints
                 value, meta_data = self._receive_input(name, op_input, context)
                 value = convert_to_dst_type(value, dst=value)[0]
                 if not isinstance(meta_data, dict):
@@ -507,7 +507,6 @@ class MonaiBundleInferenceOperator(InferenceOperator):
             outputs: Any = self.predict(data=first_input, **other_inputs)  # Use type Any to quiet MyPy complaints.
             logging.debug(f"Inference elapsed time (seconds): {time.time() - start}")
 
-            # Need to revisit this for models with multiple outputs.
             # Note that the `inputs` are needed because the `invert` transform requires it. With metadata being
             # in the keyed MetaTensors of inputs, e.g. `image`, the whole inputs are needed.
             start = time.time()
@@ -525,7 +524,7 @@ class MonaiBundleInferenceOperator(InferenceOperator):
         for name in self._outputs.keys():
             # Note that the input metadata needs to be passed.
             # Please see the comments in the called function for the reasons.
-            self._send_output(output_dict[name], name, input_metadata, op_output, context)
+            self._send_output(output_dict[name], name, first_input_v.meta, op_output, context)
 
     def predict(self, data: Any, *args, **kwargs) -> Union[Image, Any, Tuple[Any, ...], Dict[Any, Any]]:
         """Predicts output using the inferer."""
