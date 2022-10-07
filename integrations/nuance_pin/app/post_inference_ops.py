@@ -18,6 +18,7 @@ import diagnostic_report as dr
 import highdicom as hd
 import numpy as np
 from ai_service.utility import JSON_MIME_TYPE
+from app.environment import PARTNER_NAME, SERVICE_NAME
 from app.inference import DetectionResult, DetectionResultList
 
 import monai.deploy.core as md
@@ -188,19 +189,27 @@ class CreatePINDiagnosticsReportOp(Operator):
             self.logger.info(f"Slice: {[box_data[2], box_data[5]]}, Instances: {affected_slice_idx}")
 
             for dcm_img in ref_images:
-                report.add_observation(
+                observation = report.add_observation(
                     derived_from=report.study,
                     observation_code="RID50149",
                     observation_text="Pulmonary nodule",
-                    note=f"Lung nodule present with probability {box_score:.2f}",
+                    note=f"Lung nodule present with probability {box_score:.2f}",  # is box_score associated with a specific image?
                     dcm=dcm_img,
                     observation_system="http://nuancepowerscribe.com/saf",
                 )
+                observation.set_probability(round(box_score * 100, 2))  # probability's unit of measure is percent
+                observation.set_summary(f"Lung nodule present with probability {box_score:.2f}")
+                if box_score > .98:
+                    observation.set_present_qualifier()
+                elif box_score > .15:
+                    observation.set_indeterminate_qualifier()
+                else:
+                    observation.set_absent_qualifier()
 
-        report.write_to_file(os.path.join(output_path, "diagnostic_report.json"))
+        report.write_to_file(os.path.join(output_path, f"{PARTNER_NAME}-{SERVICE_NAME}-FHIR.json"))
 
         self.upload_doc(
-            file=os.path.join(output_path, "diagnostic_report.json"),
+            file=os.path.join(output_path, f"{PARTNER_NAME}-{SERVICE_NAME}-FHIR.json"),
             content_type=JSON_MIME_TYPE,
             series_uid=selected_series.series.SeriesInstanceUID,
         )
