@@ -16,6 +16,7 @@ import numpy as np
 
 from monai.deploy.utils.importutil import optional_import
 
+MONAI_UTILS = "monai.utils"
 torch, _ = optional_import("torch", "1.5")
 np_str_obj_array_pattern, _ = optional_import("torch.utils.data._utils.collate", name="np_str_obj_array_pattern")
 Dataset, _ = optional_import("monai.data", name="Dataset")
@@ -27,9 +28,9 @@ if not image_reader_ok_:
     ImageReader = object  # for 'class InMemImageReader(ImageReader):' to work
 decollate_batch, _ = optional_import("monai.data", name="decollate_batch")
 sliding_window_inference, _ = optional_import("monai.inferers", name="sliding_window_inference")
-ensure_tuple, _ = optional_import("monai.utils", name="ensure_tuple")
-MetaKeys, _ = optional_import("monai.utils", name="MetaKeys")
-SpaceKeys, _ = optional_import("monai.utils", name="SpaceKeys")
+ensure_tuple, _ = optional_import(MONAI_UTILS, name="ensure_tuple")
+MetaKeys, _ = optional_import(MONAI_UTILS, name="MetaKeys")
+SpaceKeys, _ = optional_import(MONAI_UTILS, name="SpaceKeys")
 Compose_, _ = optional_import("monai.transforms", name="Compose")
 # Dynamic class is not handled so make it Any for now: https://github.com/python/mypy/issues/2477
 Compose: Any = Compose_
