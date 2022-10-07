@@ -37,7 +37,6 @@ from monai.transforms import (
     ScaleIntensityRanged,
     Spacingd,
     ToDeviced,
-    ToTensord,
 )
 
 sliding_window_inference, _ = optional_import("monai.inferers", name="sliding_window_inference")
@@ -177,9 +176,6 @@ class LungNoduleInferenceOperator(Operator):
                 CopyItemsd(
                     keys=[image_key, f"{image_key}_meta_dict"],
                     names=[orig_image_key, f"{orig_image_key}_meta_dict"],
-                ),
-                ToTensord(
-                    keys=image_key,
                 ),
                 ToDeviced(keys=image_key, device="cuda"),
                 EnsureChannelFirstd(keys=image_key),
