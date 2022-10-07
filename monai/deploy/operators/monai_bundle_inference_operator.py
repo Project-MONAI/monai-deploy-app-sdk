@@ -18,6 +18,7 @@ import zipfile
 from pathlib import Path
 from threading import Lock
 from typing import Any, Dict, List, Optional, Tuple, Type, Union
+
 import numpy as np
 
 import monai.deploy.core as md
