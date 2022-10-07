@@ -32,9 +32,15 @@ from .inference_operator import InferenceOperator
 nibabel, _ = optional_import("nibabel", "3.2.1")
 torch, _ = optional_import("torch", "1.10.0")
 
+NdarrayOrTensor, _ = optional_import("monai.config", name="NdarrayOrTensor")
+MetaTensor, _ = optional_import("monai.data.meta_tensor", name="MetaTensor")
 PostFix, _ = optional_import("monai.utils.enums", name="PostFix")  # For the default meta_key_postfix
 first, _ = optional_import("monai.utils.misc", name="first")
 ensure_tuple, _ = optional_import("monai.utils", name="ensure_tuple")
+convert_to_dst_type, _ = optional_import("monai.utils", name="convert_to_dst_type")
+Key, _ = optional_import("monai.utils", name="ImageMetaKey")
+MetaKeys, _ = optional_import("monai.utils", name="MetaKeys")
+SpaceKeys, _ = optional_import("monai.utils", name="SpaceKeys")
 Compose_, _ = optional_import("monai.transforms", name="Compose")
 ConfigParser_, _ = optional_import("monai.bundle", name="ConfigParser")
 MapTransform_, _ = optional_import("monai.transforms", name="MapTransform")
@@ -477,14 +483,19 @@ class MonaiBundleInferenceOperator(InferenceOperator):
 
             start = time.time()
             for name in self._inputs.keys():
-                value, metadata = self._receive_input(name, op_input, context)
+                # Input MetaTensor creation is based on the same logic in monai LoadImage
+                value: NdarrayOrTensor
+                value, meta_data = self._receive_input(name, op_input, context)
+                value = convert_to_dst_type(value, dst=value)[0]
+                if not isinstance(meta_data, dict):
+                    raise ValueError("`meta_data` must be a dict.")
+                value = MetaTensor.ensure_torch_and_prune_meta(value, meta_data)
                 inputs[name] = value
-                if metadata:
-                    inputs[(f"{name}_{self._meta_key_postfix}")] = metadata
+                # Named metadata dict not needed any more, as it is in the MetaTensor
 
             inputs = self.pre_process(inputs)
-            first_input = inputs.pop(first_input_name)[None].to(self._device)  # select first input
-            input_metadata = inputs.get(f"{first_input_name}_{self._meta_key_postfix}", None)
+            first_input_v = inputs[first_input_name]  # keep a copy of value for later use
+            first_input = inputs.pop(first_input_name)[None].to(self._device)
 
             # select other tensor inputs
             other_inputs = {k: v[None].to(self._device) for k, v in inputs.items() if isinstance(v, torch.Tensor)}
@@ -496,9 +507,11 @@ class MonaiBundleInferenceOperator(InferenceOperator):
             outputs: Any = self.predict(data=first_input, **other_inputs)  # Use type Any to quiet MyPy complaints.
             logging.debug(f"Inference elapsed time (seconds): {time.time() - start}")
 
-            # TODO: Does this work for models where multiple outputs are returned?
-            # Note that the inputs are needed because the invert transform requires it.
+            # Need to revisit this for models with multiple outputs.
+            # Note that the `inputs` are needed because the `invert` transform requires it. With metadata being
+            # in the keyed MetaTensors of inputs, e.g. `image`, the whole inputs are needed.
             start = time.time()
+            inputs[first_input_name] = first_input_v
             kw_args = {self.kw_preprocessed_inputs: inputs}
             outputs = self.post_process(ensure_tuple(outputs)[0], **kw_args)
             logging.debug(f"Post-processing elapsed time (seconds): {time.time() - start}")
@@ -709,8 +722,10 @@ class MonaiBundleInferenceOperator(InferenceOperator):
                 img_meta_dict["depth_pixel_spacing"],
             ]
         )
-        meta_dict["original_affine"] = np.asarray(img_meta_dict.get("nifti_affine_transform", None))
-        meta_dict["affine"] = meta_dict["original_affine"]
+        # Use defines MetaKeys directly
+        meta_dict[MetaKeys.ORIGINAL_AFFINE] = np.asarray(img_meta_dict.get("nifti_affine_transform", None))
+        meta_dict[MetaKeys.AFFINE] = meta_dict[MetaKeys.ORIGINAL_AFFINE].copy()
+        meta_dict[MetaKeys.SPACE] = SpaceKeys.LPS  # not using SpaceKeys.RAS or affine_lps_to_ras
 
         # Similarly the Image ndarray has dim order DHW, to be rearranged to WHD.
         # TODO: Need to revisit this once multi-channel image is supported and the Image class itself
@@ -718,9 +733,9 @@ class MonaiBundleInferenceOperator(InferenceOperator):
         converted_image = np.swapaxes(img.asnumpy(), 0, 2)
 
         # The spatial shape is then that of the converted image, in WHD
-        meta_dict["spatial_shape"] = np.asarray(converted_image.shape)
+        meta_dict[MetaKeys.SPATIAL_SHAPE] = np.asarray(converted_image.shape)
 
         # Well, now channel for now.
-        meta_dict["original_channel_dim"] = "no_channel"
+        meta_dict[MetaKeys.ORIGINAL_CHANNEL_DIM] = "no_channel"
 
         return converted_image, meta_dict
