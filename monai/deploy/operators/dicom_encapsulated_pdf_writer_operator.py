@@ -116,7 +116,7 @@ class DICOMEncapsulatedPDFWriterOperator(Operator):
         # Gets the input, prepares the output folder, and then delegates the processing.
         pdf_bytes: bytes = b""
         try:
-            pdf_bytes = (op_input.get("pdf_bytes"))
+            pdf_bytes = op_input.get("pdf_bytes")
         except ItemNotExistsError:
             try:
                 file_path = op_input.get("pdf_file")
