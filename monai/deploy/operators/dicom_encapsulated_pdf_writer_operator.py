@@ -191,7 +191,7 @@ class DICOMEncapsulatedPDFWriterOperator(Operator):
         ds.MIMETypeOfEncapsulatedDocument = "application/pdf"
         ds.EncapsulatedDocument = content_bytes
 
-        ## ConceptNameCode Sequence
+        # ConceptNameCode Sequence
         seq_concept_name_code = Sequence()
         ds_concept_name_code = Dataset()
         ds_concept_name_code.CodeValue = "18748-4"

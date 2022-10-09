@@ -9,10 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import datetime
 import logging
 from pathlib import Path
-from random import randint
 from typing import Dict, List, Optional, Text, Union
 
 from monai.deploy.utils.importutil import optional_import
