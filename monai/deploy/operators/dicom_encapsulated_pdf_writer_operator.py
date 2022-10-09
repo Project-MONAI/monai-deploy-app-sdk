@@ -9,15 +9,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import logging
 from ast import Bytes
 from io import BytesIO
-import logging
 from pathlib import Path
-from PyPDF2 import PdfReader
 from typing import Dict, List, Optional, Union
 
-from monai.deploy.utils.importutil import optional_import
+from PyPDF2 import PdfReader
 
+from monai.deploy.utils.importutil import optional_import
 
 dcmread, _ = optional_import("pydicom", name="dcmread")
 dcmwrite, _ = optional_import("pydicom.filewriter", name="dcmwrite")
@@ -87,8 +87,8 @@ class DICOMEncapsulatedPDFWriterOperator(Operator):
         #   "1.2.840.10008.5.1.4.1.1.88.34" for Comprehensive 3D SR IOD
         #   "1.2.840.10008.5.1.4.1.1.66.4" for Segmentation Storage
         #   '1.2.840.10008.5.1.4.1.1.104.1' for Encapsulated PDF Storage
-        self.modality_type = 'OT'
-        self.sop_class_uid = '1.2.840.10008.5.1.4.1.1.104.1'
+        self.modality_type = "OT"
+        self.sop_class_uid = "1.2.840.10008.5.1.4.1.1.104.1"
 
         # Equipment version may be different from contributing equipment version
         try:
@@ -181,22 +181,22 @@ class DICOMEncapsulatedPDFWriterOperator(Operator):
         # Encapsulated PDF specific
         # SC Equipment Module
         ds.Modality = self.modality_type
-        ds.ConversionType = u'SD'    # Describes the kind of image conversion, Scanned Doc
+        ds.ConversionType = "SD"  # Describes the kind of image conversion, Scanned Doc
 
         # Encapsulated Document Module
-        ds.VerificationFlag = u'UNVERIFIED'    # Not attested by a legally accountable person.
+        ds.VerificationFlag = "UNVERIFIED"  # Not attested by a legally accountable person.
 
-        ds.BurnedInAnnotation = u'YES'
-        ds.DocumentTitle = u'Generated Observations'
-        ds.MIMETypeOfEncapsulatedDocument = u'application/pdf'
+        ds.BurnedInAnnotation = "YES"
+        ds.DocumentTitle = "Generated Observations"
+        ds.MIMETypeOfEncapsulatedDocument = "application/pdf"
         ds.EncapsulatedDocument = content_bytes
 
         ## ConceptNameCode Sequence
         seq_concept_name_code = Sequence()
         ds_concept_name_code = Dataset()
-        ds_concept_name_code.CodeValue = u'18748-4'
-        ds_concept_name_code.CodingSchemeDesignator = u'LN'
-        ds_concept_name_code.CodeMeaning = u'Diagnostic Imaging Report'
+        ds_concept_name_code.CodeValue = "18748-4"
+        ds_concept_name_code.CodingSchemeDesignator = "LN"
+        ds_concept_name_code.CodeMeaning = "Diagnostic Imaging Report"
         seq_concept_name_code.append(ds_concept_name_code)
         ds.ConceptNameCodeSequence = seq_concept_name_code
 
@@ -213,7 +213,6 @@ class DICOMEncapsulatedPDFWriterOperator(Operator):
         # Instance file name is the same as the new SOP instance UID
         file_path = output_dir.joinpath(f"{ds.SOPInstanceUID}{DICOMEncapsulatedPDFWriterOperator.DCM_EXTENSION}")
         save_dcm_file(ds, file_path)
-
 
     def _is_pdf_bytes(self, content: bytes):
         try:

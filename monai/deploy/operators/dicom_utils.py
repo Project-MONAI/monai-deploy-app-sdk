@@ -36,6 +36,7 @@ __all__ = [
     "write_common_modules",
 ]
 
+
 class ModelInfo(object):
     """Class encapsulating AI model information, according to IHE AI Results (AIR) Rev 1.1.
 
@@ -88,6 +89,7 @@ class EquipmentInfo(object):
 
 
 # Utility functions
+
 
 def random_with_n_digits(n):
     """Random number generator to generate n digit int, where 1 <= n <= 32."""
