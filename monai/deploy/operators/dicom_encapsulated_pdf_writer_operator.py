@@ -114,9 +114,9 @@ class DICOMEncapsulatedPDFWriterOperator(Operator):
         """
 
         # Gets the input, prepares the output folder, and then delegates the processing.
-        pdf_bytes = ""
+        pdf_bytes: bytes = b""
         try:
-            pdf_bytes = bytes(op_input.get("pdf_bytes")).strip()
+            pdf_bytes = (op_input.get("pdf_bytes"))
         except ItemNotExistsError:
             try:
                 file_path = op_input.get("pdf_file")
@@ -126,7 +126,7 @@ class DICOMEncapsulatedPDFWriterOperator(Operator):
             with open(file_path.path, "rb") as f:
                 pdf_bytes = f.read().strip()
 
-        if not pdf_bytes or not len(pdf_bytes):
+        if not pdf_bytes or not len(pdf_bytes.strip()):
             raise IOError("Input is read but blank.")
 
         try:

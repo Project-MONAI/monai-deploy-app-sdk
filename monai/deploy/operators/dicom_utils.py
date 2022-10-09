@@ -13,7 +13,7 @@ import datetime
 import logging
 from pathlib import Path
 from random import randint
-from typing import Optional
+from typing import Any, Optional
 
 from monai.deploy.utils.importutil import optional_import
 
@@ -21,12 +21,15 @@ dcmread, _ = optional_import("pydicom", name="dcmread")
 dcmwrite, _ = optional_import("pydicom.filewriter", name="dcmwrite")
 generate_uid, _ = optional_import("pydicom.uid", name="generate_uid")
 ImplicitVRLittleEndian, _ = optional_import("pydicom.uid", name="ImplicitVRLittleEndian")
-Dataset, _ = optional_import("pydicom.dataset", name="Dataset")
+Dataset_, _ = optional_import("pydicom.dataset", name="Dataset")
 FileDataset, _ = optional_import("pydicom.dataset", name="FileDataset")
 Sequence, _ = optional_import("pydicom.sequence", name="Sequence")
 
 from monai.deploy.core.domain.dicom_series import DICOMSeries
 from monai.deploy.utils.version import get_sdk_semver
+
+# To address mypy complaint
+Dataset: Any = Dataset_
 
 __all__ = [
     "EquipmentInfo",
