@@ -28,9 +28,8 @@ from monai.deploy.core import DataPath, ExecutionContext, InputContext, IOType, 
 from monai.deploy.core.domain.dicom_series import DICOMSeries
 from monai.deploy.core.domain.dicom_series_selection import StudySelectedSeries
 from monai.deploy.exceptions import ItemNotExistsError
+from monai.deploy.operators.dicom_utils import EquipmentInfo, ModelInfo, save_dcm_file, write_common_modules
 from monai.deploy.utils.version import get_sdk_semver
-
-from .dicom_utils import EquipmentInfo, ModelInfo, save_dcm_file, write_common_modules
 
 
 # The SR writer operator class
@@ -236,6 +235,7 @@ class DICOMTextSRWriterOperator(Operator):
         # Instance file name is the same as the new SOP instance UID
         file_path = output_dir.joinpath(f"{ds.SOPInstanceUID}{DICOMTextSRWriterOperator.DCM_EXTENSION}")
         save_dcm_file(ds, file_path)
+        self._logger.info(f"DICOM SOP instance saved in {file_path}")
 
 
 def test():
