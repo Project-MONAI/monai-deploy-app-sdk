@@ -13,7 +13,7 @@ import logging
 from ast import Bytes
 from io import BytesIO
 from pathlib import Path
-from typing import Dict, List, Optional, Union
+from typing import Dict, List, Optional
 
 from PyPDF2 import PdfReader
 
