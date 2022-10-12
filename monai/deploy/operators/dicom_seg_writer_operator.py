@@ -9,10 +9,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import os
+import datetime
+import logging
 from pathlib import Path
 from random import randint
-from typing import TYPE_CHECKING, List, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Dict, List, Optional, Sequence, Union
 
 import numpy as np
 from typeguard import typechecked
@@ -166,10 +167,14 @@ class DICOMSegmentationWriterOperator(Operator):
     SUPPORTED_EXTENSIONS = [".nii", ".nii.gz", ".mhd"]
     # DICOM instance file extension. Case insensitive in string comparison.
     DCM_EXTENSION = ".dcm"
-    # Suffix to add to file name to indicate DICOM Seg dcm file.
-    DICOMSEG_SUFFIX = "-DICOMSEG"
 
-    def __init__(self, segment_descriptions: List[SegmentDescription], *args, **kwargs):
+    def __init__(
+        self,
+        segment_descriptions: List[SegmentDescription],
+        custom_tags: Optional[Dict[str, str]] = None,
+        *args,
+        **kwargs,
+    ):
         super().__init__(*args, **kwargs)
         """Instantiates the DICOM Seg Writer instance with optional list of segment label strings.
 
@@ -185,11 +190,14 @@ class DICOMSegmentationWriterOperator(Operator):
         segment label information, including label value, name, description etc.
 
         Args:
-            segment_descriptions: Object encapsulating the description of each segment present in the
-            segmentation.
+            segment_descriptions: List[SegmentDescription]
+                Object encapsulating the description of each segment present in the segmentation.
+            custom_tags: OptonalDict[str, str], optional
+                Dictionary for setting custom DICOM tags using Keywords and str values only
         """
 
         self._seg_descs = [sd.to_segment_description(n) for n, sd in enumerate(segment_descriptions, 1)]
+        self._custom_tags = custom_tags
 
     def compute(self, op_input: InputContext, op_output: OutputContext, context: ExecutionContext):
         """Performs computation for this operator and handles I/O.
@@ -241,13 +249,6 @@ class DICOMSegmentationWriterOperator(Operator):
         else:
             raise ValueError("'image' is not an Image object or a supported image file.")
 
-        # The output DICOM Seg instance file name is based on the actual or made-up input image file name.
-        output_filename = "{0}{1}{2}".format(
-            os.path.splitext(os.path.basename(input_path))[0],
-            DICOMSegmentationWriterOperator.DICOMSEG_SUFFIX,
-            DICOMSegmentationWriterOperator.DCM_EXTENSION,
-        )
-        output_path = output_dir / output_filename
         # Pick DICOM Series that was used as input for getting the seg image.
         # For now, first one in the list.
         for study_selected_series in study_selected_series_list:
@@ -255,11 +256,19 @@ class DICOMSegmentationWriterOperator(Operator):
                 raise ValueError("Element in input is not expected type, 'StudySelectedSeries'.")
             selected_series = study_selected_series.selected_series[0]
             dicom_series = selected_series.series
-            self.create_dicom_seg(seg_image_numpy, dicom_series, output_path)
+            self.create_dicom_seg(seg_image_numpy, dicom_series, output_dir)
             break
 
-    def create_dicom_seg(self, image: np.ndarray, dicom_series: DICOMSeries, file_path: Path):
-        file_path.parent.absolute().mkdir(parents=True, exist_ok=True)
+    def create_dicom_seg(self, image: np.ndarray, dicom_series: DICOMSeries, output_dir: Path):
+        # Generate SOP instance UID, and use it as dcm file name too
+        seg_sop_instance_uid = hd.UID()  # generate_uid() can be used too.
+
+        if not output_dir.is_dir():
+            try:
+                output_dir.mkdir(parents=True, exist_ok=True)
+            except Exception:
+                raise ValueError("output_dir {output_dir} does not exist and failed to be created.")
+        output_path = output_dir / f"{seg_sop_instance_uid}{DICOMSegmentationWriterOperator.DCM_EXTENSION}"
 
         dicom_dataset_list = [i.get_native_sop_instance() for i in dicom_series.get_sop_instances()]
 
@@ -275,18 +284,37 @@ class DICOMSegmentationWriterOperator(Operator):
             segment_descriptions=self._seg_descs,
             series_instance_uid=hd.UID(),
             series_number=random_with_n_digits(4),
-            sop_instance_uid=hd.UID(),
+            sop_instance_uid=seg_sop_instance_uid,
             instance_number=1,
             manufacturer="The MONAI Consortium",
             manufacturer_model_name="MONAI Deploy App SDK",
             software_versions=version_str,
             device_serial_number="0000",
         )
-        seg.save_as(file_path)
+
+        # Adding a few tags that are not in the Dataset
+        # Also try to set the custom tags that are of string type
+        dt_now = datetime.datetime.now()
+        seg.SeriesDate = dt_now.strftime("%Y%m%d")
+        seg.SeriesTime = dt_now.strftime("%H%M%S")
+        seg.TimezoneOffsetFromUTC = (
+            dt_now.astimezone().isoformat()[-6:].replace(":", "")
+        )  # '2022-09-27T22:36:20.143857-07:00'
+
+        if self._custom_tags:
+            for k, v in self._custom_tags.items():
+                if isinstance(k, str) and isinstance(v, str):
+                    try:
+                        seg.update({k: v})
+                    except Exception as ex:
+                        # Best effort for now.
+                        logging.warning(f"Tag {k} was not written, due to {ex}")
+
+        seg.save_as(output_path)
 
         try:
             # Test reading back
-            _ = self._read_from_dcm(str(file_path))
+            _ = self._read_from_dcm(str(output_path))
         except Exception as ex:
             print("DICOMSeg creation failed. Error:\n{}".format(ex))
             raise
@@ -356,8 +384,8 @@ def test():
     from monai.deploy.operators.dicom_series_to_volume_operator import DICOMSeriesToVolumeOperator
 
     current_file_dir = Path(__file__).parent.resolve()
-    data_path = current_file_dir.joinpath("../../../examples/ai_spleen_seg_data/dcm")
-    out_path = current_file_dir.joinpath("../../../examples/output_seg_op/dcm_seg_test.dcm")
+    data_path = current_file_dir.joinpath("../../../inputs/spleen_ct_tcia")
+    out_dir = Path("output_seg_op").absolute()
     segment_descriptions = [
         SegmentDescription(
             segment_label="Spleen",
@@ -385,7 +413,7 @@ def test():
     # Very crude thresholding
     image_numpy = (image.asnumpy() > 400).astype(np.uint8)
 
-    seg_writer.create_dicom_seg(image_numpy, series, Path(out_path).absolute())
+    seg_writer.create_dicom_seg(image_numpy, series, out_dir)
 
     # Testing with the main entry functions
     study_list = loader.load_data_to_studies(data_path.absolute())
@@ -394,7 +422,7 @@ def test():
     # Very crude thresholding
     image_numpy = (image.asnumpy() > 400).astype(np.uint8)
     image = Image(image_numpy)
-    seg_writer.process_images(image, study_selected_series_list, out_path.parent.absolute())
+    seg_writer.process_images(image, study_selected_series_list, out_dir)
 
 
 if __name__ == "__main__":

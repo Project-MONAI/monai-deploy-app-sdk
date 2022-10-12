@@ -81,7 +81,12 @@ class AISpleenSegApp(Application):
                 algorithm_version="0.1.0",
             )
         ]
-        dicom_seg_writer = DICOMSegmentationWriterOperator(segment_descriptions=segment_descriptions)
+
+        custom_tags = {"SeriesDescription": "AI generated Seg, not for clinical use."}
+
+        dicom_seg_writer = DICOMSegmentationWriterOperator(
+            segment_descriptions=segment_descriptions, custom_tags=custom_tags
+        )
 
         # Create the processing pipeline, by specifying the source and destination operators, and
         # ensuring the output from the former matches the input of the latter, in both name and type.
