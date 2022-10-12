@@ -15,6 +15,7 @@ import os
 import pickle
 import time
 import zipfile
+from copy import deepcopy
 from pathlib import Path
 from threading import Lock
 from typing import Any, Dict, List, Optional, Tuple, Type, Union
@@ -712,7 +713,7 @@ class MonaiBundleInferenceOperator(InferenceOperator):
         """
 
         img_meta_dict: Dict = img.metadata()
-        meta_dict = {key: img_meta_dict[key] for key in img_meta_dict.keys()}
+        meta_dict = deepcopy(img_meta_dict)
 
         # The MONAI ImageReader, e.g. the ITKReader, arranges the image spatial dims in WHD,
         # so the "spacing" needs to be expressed in such an order too, as expected by the transforms.

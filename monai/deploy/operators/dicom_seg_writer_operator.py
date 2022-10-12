@@ -267,7 +267,7 @@ class DICOMSegmentationWriterOperator(Operator):
             try:
                 output_dir.mkdir(parents=True, exist_ok=True)
             except Exception:
-                raise ValueError("output_dir {output_dir} does not exist and failed to be created.")
+                raise ValueError("output_dir {output_dir} does not exist and failed to be created.") from None
         output_path = output_dir / f"{seg_sop_instance_uid}{DICOMSegmentationWriterOperator.DCM_EXTENSION}"
 
         dicom_dataset_list = [i.get_native_sop_instance() for i in dicom_series.get_sop_instances()]
