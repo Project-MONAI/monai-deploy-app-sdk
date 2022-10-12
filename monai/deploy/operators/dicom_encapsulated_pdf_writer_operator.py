@@ -50,8 +50,8 @@ class DICOMEncapsulatedPDFWriterOperator(Operator):
         self,
         copy_tags: bool,
         model_info: ModelInfo,
-        equipment_info: Union[EquipmentInfo, None] = None,
-        custom_tags: Union[Dict[str, str], None] = None,
+        equipment_info: Optional[EquipmentInfo] = None,
+        custom_tags: Optional[Dict[str, str]] = None,
         *args,
         **kwargs,
     ):

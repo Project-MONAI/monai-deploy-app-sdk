@@ -11,7 +11,7 @@
 
 import logging
 from pathlib import Path
-from typing import Dict, List, Optional, Text, Union
+from typing import Dict, List, Optional, Text
 
 from monai.deploy.utils.importutil import optional_import
 
@@ -47,8 +47,8 @@ class DICOMTextSRWriterOperator(Operator):
         self,
         copy_tags: bool,
         model_info: ModelInfo,
-        equipment_info: Union[EquipmentInfo, None] = None,
-        custom_tags: Union[Dict[str, str], None] = None,
+        equipment_info: Optional[EquipmentInfo] = None,
+        custom_tags: Optional[Dict[str, str]] = None,
         *args,
         **kwargs,
     ):
