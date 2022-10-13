@@ -52,7 +52,7 @@ class DICOMSeriesToVolumeOperator(Operator):
                 raise ValueError("Element in input is not expected type, 'StudySelectedSeries'.")
             selected_series = study_selected_series.selected_series[0]
             dicom_series = selected_series.series
-            selection_name = selected_series.slection_name
+            selection_name = selected_series.selection_name
             self.prepare_series(dicom_series)
             metadata = self.create_metadata(dicom_series)
 
