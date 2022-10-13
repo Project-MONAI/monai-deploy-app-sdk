@@ -8,7 +8,7 @@ with minimal code changes.
 
 ## Prerequisites
 
-Before setting up and running the example MONAI spleen segmentation app to run as a Nuance PIN App, the user will need to install/download the following libraries.
+Before setting up and running the example MONAI lung nodule detection app to run as a Nuance PIN App, the user will need to install/download the following libraries.
 It is optional to use a GPU for the example app, however, it is recommended that a GPU is used for inference as it is very computationally intensive.
 
 Minimum software requirements:
@@ -30,9 +30,9 @@ cd integrations/nuance_pin
 In this folder you will see the following directory structure
 ```bash
 nuance_pin
-    ├── app                     # directory with MONAI app code
-    ├── lib                     # directory where we will place Nuance PIN wheels
-    ├── model                   # directory where we will place the model used by our MONAI app
+    ├── app/                    # directory with MONAI app code
+    ├── lib/                    # you should create this directory where we will place Nuance PIN wheels
+    ├── model/                  # directory where we will place the model used by our MONAI app
     ├── app_wrapper.py          # Nuance PIN wrapper code
     ├── docker-compose.yml      # docker compose runtime script
     ├── Dockerfile              # container image build script
@@ -48,7 +48,7 @@ To download the test data you may follow the instructions in the [Lund Nodule De
 
 ### Download Nuance PIN SDK
 
-Place the Nuance PIN `ai_service` wheel in the `nuance_pin/lib` folder. This can be obtained in the link provided in step 3 of of the [prerequisites](#prerequisites).
+Place the Nuance PIN `ai_service` wheel in the `nuance_pin/lib` folder. This can be obtained in the link provided in step 4 of of the [prerequisites](#prerequisites).
 
 ### Running the Example App in the Container
 
@@ -57,7 +57,7 @@ Now we are ready to build and start the container that runs our MONAI app as a N
 docker-compose up --build
 ```
 
-If the build is successful the a service will start on `localhost:5000`. We can verify the service is running
+If the build is successful the service will start on `localhost:5000`. We can verify the service is running
 by issuing a "live" request such as
 ```bash
 curl -v http://localhost:5000/aiservice/2/live && echo ""
