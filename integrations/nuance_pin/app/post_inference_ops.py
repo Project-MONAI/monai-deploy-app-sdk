@@ -55,10 +55,7 @@ class GenerateGSPSOp(Operator):
 
         annotations = []
 
-        all_ref_images = [
-            ins.get_native_sop_instance()
-            for ins in selected_series.series.get_sop_instances()
-        ]
+        all_ref_images = [ins.get_native_sop_instance() for ins in selected_series.series.get_sop_instances()]
         accession = all_ref_images[0].AccessionNumber
 
         for inst_num, (box_data, box_score) in enumerate(zip(detection_result.box_data, detection_result.score_data)):
