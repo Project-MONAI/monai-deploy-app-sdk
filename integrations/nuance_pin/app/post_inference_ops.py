@@ -189,17 +189,21 @@ class CreatePINDiagnosticsReportOp(Operator):
             self.logger.info(f"Slice: {[box_data[2], box_data[5]]}, Instances: {affected_slice_idx}")
 
             for dcm_img in ref_images:
+                message = f"Lung nodule present with probability {box_score:.2f}"
                 observation = report.add_observation(
-                    derived_from=report.study,
-                    observation_code="RID50149",
-                    observation_text="Pulmonary nodule",
-                    note=f"Lung nodule present with probability {box_score:.2f}",  # is box_score associated with a specific image?
+                    body_part_code="RID1301",
+                    body_part_text="lung",
                     dcm=dcm_img,
+                    derived_from=report.study,
+                    note=message,  # is box_score associated with a specific image?
+                    observation_code="RID50149",
                     observation_system="http://nuancepowerscribe.com/saf",
+                    observation_text="Pulmonary nodule",
                 )
                 observation.set_probability(round(box_score * 100, 2))  # probability's unit of measure is percent
-                observation.set_summary(f"Lung nodule present with probability {box_score:.2f}")
-                if box_score > .98:
+                observation.set_summary(message)
+                self.logger.info(message)
+                if box_score > .8:
                     observation.set_present_qualifier()
                 elif box_score > .15:
                     observation.set_indeterminate_qualifier()
