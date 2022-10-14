@@ -1,4 +1,4 @@
-FROM nvcr.io/nvidia/pytorch:21.07-py3 AS application
+FROM nvcr.io/nvidia/pytorch:21.07-py3 AS foundation
 
 ARG EXTRA_PYTHON_PACKAGES
 
