@@ -22,7 +22,7 @@ from monai.deploy.core import (
     Operator,
     OutputContext,
 )
-from monai.deploy.operators.dicom_text_sr_writer_operator import DICOMTextSRWriterOperator, EquipmentInfo, ModelInfo
+from monai.deploy.operators import DICOMTextSRWriterOperator, EquipmentInfo, ModelInfo
 from monai.transforms import AddChannel, Compose, EnsureType, ScaleIntensity
 
 MEDNIST_CLASSES = ["AbdomenCT", "BreastMRI", "CXR", "ChestCT", "Hand", "HeadCT"]

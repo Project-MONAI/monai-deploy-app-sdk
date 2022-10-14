@@ -27,14 +27,13 @@ from monai.transforms import (
     SaveImaged,
     ScaleIntensityRanged,
     Spacingd,
-    ToTensord,
 )
 
 
 @md.input("image", Image, IOType.IN_MEMORY)
 @md.output("seg_image", Image, IOType.IN_MEMORY)
 @md.output("saved_images_folder", DataPath, IOType.DISK)
-@md.env(pip_packages=["monai==0.9.0", "torch>=1.5", "numpy>=1.21", "nibabel"])
+@md.env(pip_packages=["monai>=1.0.0", "torch>=1.5", "numpy>=1.21", "nibabel"])
 class LiverTumorSegOperator(Operator):
     """Performs liver and tumor segmentation using a DL model with an image converted from a DICOM CT series.
 
@@ -121,7 +120,6 @@ class LiverTumorSegOperator(Operator):
                 Spacingd(keys=my_key, pixdim=(1.0, 1.0, 1.0), mode=("bilinear"), align_corners=True),
                 ScaleIntensityRanged(my_key, a_min=-21, a_max=189, b_min=0.0, b_max=1.0, clip=True),
                 CropForegroundd(my_key, source_key=my_key),
-                ToTensord(my_key),
             ]
         )
 
