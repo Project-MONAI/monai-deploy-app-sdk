@@ -63,7 +63,7 @@ class SelectedSeries(Domain):
         return self._series
 
     @property
-    def slection_name(self) -> str:
+    def selection_name(self) -> str:
         return self._name
 
     @property
@@ -144,6 +144,6 @@ class StudySelectedSeries(Domain):
         """
         if not isinstance(selected_series, SelectedSeries):
             raise ValueError("A SelectedSeries object is required.")
-        selected_series_list = self._select_series_dict.get(selected_series.slection_name, [])
+        selected_series_list = self._select_series_dict.get(selected_series.selection_name, [])
         selected_series_list.append(selected_series)
-        self._select_series_dict[selected_series.slection_name] = selected_series_list
+        self._select_series_dict[selected_series.selection_name] = selected_series_list

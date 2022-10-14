@@ -9,4 +9,4 @@ nibabel >= 3.2.1
 numpy-stl >= 2.12.0
 trimesh >= 3.8.11
 torch >= 1.10.0
-monai == 0.9.0
+monai >= 1.0.0

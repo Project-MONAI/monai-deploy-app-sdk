@@ -28,7 +28,6 @@ from monai.transforms import (
     SaveImaged,
     ScaleIntensityRanged,
     Spacingd,
-    ToTensord,
 )
 
 
@@ -114,7 +113,6 @@ class UnetrSegOperator(Operator):
                 Orientationd(keys=my_key, axcodes="RAS"),
                 ScaleIntensityRanged(my_key, a_min=-175, a_max=250, b_min=0.0, b_max=1.0, clip=True),
                 CropForegroundd(my_key, source_key=my_key),
-                ToTensord(my_key),
             ]
         )
 
