@@ -138,10 +138,11 @@ class GenerateGSPSOp(Operator):
             ],
         )
 
-        gsps.save_as(os.path.join(output_path, f"gsps.dcm"))
+        gsps_filename = os.path.join(output_path, "gsps.dcm")
+        gsps.save_as(gsps_filename)
 
         self.upload_gsps(
-            file=os.path.join(output_path, f"gsps.dcm"),
+            file=gsps_filename,
             document_detail="MONAI Lung Nodule Detection v0.2.0",
             series_uid=series_uid,
         )
