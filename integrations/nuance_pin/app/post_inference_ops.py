@@ -189,7 +189,8 @@ class CreatePINDiagnosticsReportOp(Operator):
             self.logger.info(f"Slice: {[box_data[2], box_data[5]]}, Instances: {affected_slice_idx}")
 
             for dcm_img in ref_images:
-                message = f"Lung nodule present with probability {box_score:.2f}"
+                box_score_percent = np.round(box_score * 100, decimals=2)
+                message = f"Lung nodule present with probability {box_score_percent}%"
                 observation = report.add_observation(
                     body_part_code="RID1301",
                     body_part_text="lung",
@@ -200,12 +201,12 @@ class CreatePINDiagnosticsReportOp(Operator):
                     observation_system="http://nuancepowerscribe.com/saf",
                     observation_text="Pulmonary nodule",
                 )
-                observation.set_probability(round(box_score * 100, 2))  # probability's unit of measure is percent
+                observation.set_probability(box_score_percent)  # probability's unit of measure is percent
                 observation.set_summary(message)
                 self.logger.info(message)
-                if box_score > .8:
+                if box_score_percent > 80:
                     observation.set_present_qualifier()
-                elif box_score > .15:
+                elif box_score_percent > 15:
                     observation.set_indeterminate_qualifier()
                 else:
                     observation.set_absent_qualifier()
