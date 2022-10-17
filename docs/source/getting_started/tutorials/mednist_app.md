@@ -1,4 +1,6 @@
-# 2) Creating MedNIST Classifier app
+# Creating MedNIST Classifier App
+
+This tutorial demos the process of packaging up a trained model using MONAI Deploy App SDK into an artifact which can be run as a local program performing inference, a workflow job doing the same, and a Docker containerized workflow execution.
 
 ## Setup
 

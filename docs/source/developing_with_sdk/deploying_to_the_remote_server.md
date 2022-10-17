@@ -1,11 +1,6 @@
-# Deploying to the remote server (coming soon)
+# Deploying and Hosting MONAI App Package
 
-As of v0.2.0, the SDK is not yet ready to deploy to the remote server (MONAI Deploy App Server).
-We are actively working on it.
-
-Meanwhile, you can use the following tutorial to deploy your model with the RESTful Inference Service -- [MONAI Inference Service (MIS)](https://github.com/Project-MONAI/monai-deploy-app-server/blob/main/components/inference-service/README.md).
-
-Please refer to the following tutorial for more details:
-
-- <a href="../getting_started/tutorials/04_mis_tutorial.html">4) Deploying Segmentation app with MONAI Inference Service (MIS)</a>
-- <a href="../getting_started/tutorials/05_full_tutorial.html">5) Building and deploying Segmentation app with MONAI Inference Service (MIS)</a>
+The MONAI Application Package, MAP, built and packaged using MONAI Deploy App SDK, can be deployed in multiple ways, each with different levels of integration with a hosting platform.
+- A MAP is an OCI compliant container, albeit requiring <a href="https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/overview.html"> Nvidia Container Toolkit </a> as it is based on the <a href="https://catalog.ngc.nvidia.com/orgs/nvidia/containers/pytorch">Nvidia PyTorch Python container image </a>. The hosting platforms, via their own tooling, can inspect the MAP metadata and ensure dependencies are satisfied on launching the MAP container, for example, an MAP can used in a Argo workflow.
+- A MAP runs "natively" on a platform, where the platform specific adaptor or shim embedded in the MAP can understand the MAP and the platform APIs thus manages the life cycle of the application per platform requests. At the onset, the only native execution planned is on the <a href="https://github.com/Project-MONAI/monai-deploy/releases">MONAI Deploy</a>. The support for other platforms is on the horizon.
+- As envisioned for the long the term, standardization of deployment package specification will be needed, so that1 compliant application packages should work on all compliant platforms. One of the initiatives in this area is the <a href="https://oam.dev/">Open Appication Model</a>, though the App SDK project is not yet actively investigating the integration.

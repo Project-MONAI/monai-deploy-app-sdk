@@ -1,4 +1,6 @@
-# 6) Creating a Segmentation app consuming a MONAI Bundle
+# Creating a Segmentation App Consuming a MONAI Bundle
+
+This tutorial shows how to create an organ segmentation application for a PyTorch model that has been trained with MONAI and packaged in the [MONAI Bundle](https://docs.monai.io/en/latest/bundle_intro.html) format.
 
 ## Setup
 

@@ -1,4 +1,6 @@
-# 3) Creating a Segmentation app
+# Creating a Segmentation App
+
+This tutorial shows how to create an organ segmentation application for a PyTorch model that has been trained with MONAI. Please note that the example code used in the Jupyter Notebook is based on an earlier version of the segmentation application, i.e., not using MONAI Bundle Inference Operator, and the code is not necessarily the same as the latest source code on Github.
 
 ## Setup
 
@@ -15,7 +17,7 @@ jupyter-lab
 ```
 
 ## Executing from Jupyter Notebook
-Please note that the example code used in the Jupyter Notebook is based on an earlier version of the segmentation application, hence not the same as the latest source code on Github, e.g. not using MONAI Bundle inference operator.
+
 ```{toctree}
 :maxdepth: 4
 
@@ -55,12 +57,12 @@ pip install monai-deploy-app-sdk
 
 # Download/Extract ai_spleen_bundle_data zip file from https://drive.google.com/file/d/1cJq0iQh_yzYIxVElSlVa141aEmHZADJh/view?usp=sharing
 
-# Download ai_spleen_bundle_data.zip
+# Download the zip file containing both the model and test data
 pip install gdown
-gdown https://drive.google.com/uc?id=1cJq0iQh_yzYIxVElSlVa141aEmHZADJh
+gdown https://drive.google.com/uc?id=1Uds8mEvdGNYUuvFpTtCQ8gNU97bAPCaQ
 
-# After downloading ai_spleen_bundle_data.zip from the web browser or using gdown,
-unzip -o ai_spleen_bundle_data.zip
+# After downloading the zip file using gdown (actual zip file name may differ)
+unzip -o ai_spleen_seg_bundle_data.zip
 
 # Install necessary packages from the app; note that numpy-stl and trimesh are only
 # needed if the application uses the STL Conversion Operator

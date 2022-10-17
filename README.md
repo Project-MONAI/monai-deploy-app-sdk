@@ -79,16 +79,15 @@ YouTube Video:
 - [Spleen Organ Segmentation - Jupyter Notebook Tutorial](https://www.youtube.com/watch?v=cqDVxzYt9lY)
 - [Spleen Organ Segmentation - Deep Dive](https://www.youtube.com/watch?v=nivgfD4pwWE)
 
-### [4) Deploying Segmentation app with MONAI Inference Service (MIS)](https://docs.monai.io/projects/monai-deploy-app-sdk/en/latest/getting_started/tutorials/04_mis_tutorial.html)
+### [4) Creating a Segmentation app](https://docs.monai.io/projects/monai-deploy-app-sdk/en/latest/getting_started/tutorials/03_segmentation_viz_app.html)
 
-### [5) Building and deploying Segmentation app with MONAI Inference Service (MIS)](https://docs.monai.io/projects/monai-deploy-app-sdk/en/latest/getting_started/tutorials/05_full_tutorial.html)
-
-### [6) Creating a Segmentation app consuming a MONAI Bundle](https://docs.monai.io/projects/monai-deploy-app-sdk/en/0.4.0/getting_started/tutorials/06_monai_bundle_app.html)
+### [5) Creating a Segmentation app consuming a MONAI Bundle](https://docs.monai.io/projects/monai-deploy-app-sdk/en/latest/getting_started/tutorials/06_monai_bundle_app.html)
 
 ### [Examples](https://docs.monai.io/projects/monai-deploy-app-sdk/en/latest/getting_started/examples.html)
 
 <https://github.com/Project-MONAI/monai-deploy-app-sdk/tree/main/examples/apps> has example apps that you can see.
 
+- ai_livertumor_seg_app
 - ai_spleen_seg_app
 - ai_unetr_seg_app
 - dicom_series_to_image_app

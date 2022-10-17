@@ -22,7 +22,25 @@ from .domain import Domain
 
 
 class Image(Domain):
+    """_summary_
+
+    Args:
+        Domain (_type_): _description_
+    """
+
     def __init__(self, data: Union[ArrayLike], metadata: Optional[Dict] = None):
+        """This class encapsulates array-lile object along with its associated metadata dictionary.
+
+        It is designed to represent an image object, without constraining the specific format of its data. Derived
+        classes should be created for more specific type of images.
+        The default implementation assumes the internal data object is a ndarray, and the metadata dictionary
+        is expected to hold the key attributes associated with the original image, e.g., for image converted
+        from DICOM instances, the pixel spacings, image orientation patient, etc.
+
+        Args:
+            data (Union[ArrayLike]): Numpy Array object.
+            metadata (Optional[Dict], optional): A dictionary of the object's metadata. Defaults to None.
+        """
         super().__init__(metadata)
         self._data = data
 
