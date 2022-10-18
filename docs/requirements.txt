@@ -1,7 +1,7 @@
 Sphinx==4.1.2
 sphinx-autobuild==2021.3.14
 myst-parser==0.15.2
-numpy==1.21.2  # CVE-2021-33430
+numpy>=1.21.2  # CVE-2021-33430
 matplotlib==3.3.4
 ipywidgets==7.6.4
 pandas==1.1.5
@@ -22,11 +22,13 @@ scipy
 scikit-image>=0.17.2
 plotly
 nibabel>=3.2.1
-monai>=0.9.0
+monai>=1.0.0
 torch>=1.10.0
 numpy-stl>=2.12.0
 trimesh>=3.8.11
 pydicom
+PyPDF2>=2.11.1
+highdicom>=0.18.2
 sphinx-autodoc-typehints==1.12.0
 sphinxcontrib-applehelp==1.0.2
 sphinxcontrib-devhelp==1.0.2
