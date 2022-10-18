@@ -78,7 +78,7 @@ graph TD
 
     click Package "./packaging_app.html" "Go to the document" _self
     click ExecPackage "./executing_packaged_app_locally.html" "Go to the document" _self
-    click DeployPackage "./deploying_to_the_remote_server.html" "Go to the document" _self
+    click DeployPackage "./deploying_and_hosting_map.html" "Go to the document" _self
 ```
 <!-- In the above caption text, it uses Unicode blank characters('⠀⠀') in front of the text to align to center (somehow, it is misaligned little bit) -->
 

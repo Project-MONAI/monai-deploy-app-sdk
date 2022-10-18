@@ -53,7 +53,7 @@ git clone --branch main --depth 1 https://github.com/Project-MONAI/monai-deploy-
 cd monai-deploy-app-sdk
 
 # Install monai-deploy-app-sdk package
-pip install monai-deploy-app-sdk
+pip install --upgrade monai-deploy-app-sdk
 
 # Download/Extract ai_spleen_bundle_data zip file from https://drive.google.com/file/d/1cJq0iQh_yzYIxVElSlVa141aEmHZADJh/view?usp=sharing
 
@@ -61,12 +61,12 @@ pip install monai-deploy-app-sdk
 pip install gdown
 gdown https://drive.google.com/uc?id=1Uds8mEvdGNYUuvFpTtCQ8gNU97bAPCaQ
 
-# After downloading the zip file using gdown (actual zip file name may differ)
+# After downloading it using gdown, unzip the zip file saved by gdown
 unzip -o ai_spleen_seg_bundle_data.zip
 
 # Install necessary packages from the app; note that numpy-stl and trimesh are only
 # needed if the application uses the STL Conversion Operator
-pip install monai pydicom SimpleITK Pillow nibabel scikit-image numpy-stl trimesh
+pip install monai pydicom highdicom SimpleITK Pillow nibabel scikit-image numpy-stl trimesh
 
 # Local execution of the app
 python examples/apps/ai_spleen_seg_app/app.py -i dcm/ -o output -m model.ts
