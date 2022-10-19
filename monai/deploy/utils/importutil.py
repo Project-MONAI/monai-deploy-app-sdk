@@ -280,8 +280,21 @@ def is_dist_editable(project_name: str) -> bool:
     if not hasattr(dist, "egg_info"):
         return False
     egg_info = Path(dist.egg_info)
-    if egg_info.is_dir() and egg_info.suffix == ".egg-info":
-        return True
+    if egg_info.is_dir():
+        if egg_info.suffix == ".egg-info":
+            return True
+        elif egg_info.suffix == ".dist-info":
+            if (egg_info / "direct_url.json").exists():
+                import json
+                # Check direct_url.json for "editable": true
+                # (https://packaging.python.org/en/latest/specifications/direct-url/)
+                with open(egg_info / "direct_url.json", "r") as f:
+                    data = json.load(f)
+                    try:
+                        if data["dir_info"]["editable"]:
+                            return True
+                    except KeyError:
+                        pass
     return False
 
 
