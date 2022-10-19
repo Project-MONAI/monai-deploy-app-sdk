@@ -28,10 +28,9 @@ This is an example AI Service.
 It meets all of the necessary requirements, but performs trivial actions.
 """
 
+import os
 from importlib import import_module
 
-import os
-import pydicom
 # Copyright 2022 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -45,6 +44,7 @@ import pydicom
 from pathlib import Path
 from typing import List
 
+import pydicom
 from ai_service import AiJobProcessor, AiService, Series
 from result import ResultStatus
 

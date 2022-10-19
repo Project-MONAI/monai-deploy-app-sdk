@@ -9,18 +9,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import highdicom as hd
 import logging
-import numpy as np
 import os
 from random import randint
 from typing import List, Optional
 
 import diagnostic_report as dr
-import monai.deploy.core as md
+import highdicom as hd
+import numpy as np
 from ai_service import AiJobProcessor
 from ai_service.utility import JSON_MIME_TYPE
 from app.inference import DetectionResult, DetectionResultList
+
+import monai.deploy.core as md
 from monai.deploy.core import DataPath, ExecutionContext, InputContext, IOType, Operator, OutputContext
 from monai.deploy.core.domain.dicom_series_selection import StudySelectedSeries
 
