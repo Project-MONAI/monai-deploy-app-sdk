@@ -305,7 +305,12 @@ class DICOMSegmentationWriterOperator(Operator):
             for k, v in self._custom_tags.items():
                 if isinstance(k, str) and isinstance(v, str):
                     try:
-                        seg[k].value = v
+                        if k in seg:
+                            data_element = seg.data_element(k)
+                            if data_element:
+                                data_element.value = v
+                        else:
+                            seg.update({k: v})  # type: ignore
                     except Exception as ex:
                         # Best effort for now.
                         logging.warning(f"Tag {k} was not written, due to {ex}")

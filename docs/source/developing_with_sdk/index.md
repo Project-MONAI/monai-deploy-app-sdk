@@ -11,5 +11,5 @@ creating_application_class
 executing_app_locally.ipynb
 packaging_app
 executing_packaged_app_locally
-deploying_to_the_remote_server
+deploying_and_hosting_map
 ```

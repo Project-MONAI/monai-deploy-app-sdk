@@ -1,4 +1,6 @@
-# 1) Creating a simple image processing app
+# Creating a simple image processing app
+
+This tutorial shows how to develop a simple image processing application can be created with MONAI Deploy App SDK.
 
 ## Setup
 

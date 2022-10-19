@@ -225,7 +225,13 @@ class DICOMSeriesSelectorOperator(Operator):
                 # This is mainly for attributes like ImageType
                 if not attr_value:
                     try:
-                        attr_value = [series.get_sop_instances()[0].get_native_sop_instance()[key].repval]
+                        # Can use some enhancements, especially multi-value where VM > 1
+                        elem = series.get_sop_instances()[0].get_native_sop_instance()[key]
+                        if elem.VM > 1:
+                            attr_value = [elem.repval]  # repval: str representation of the element’s value
+                        else:
+                            attr_value = elem.value  # element's value
+
                         series_attr.update({key: attr_value})
                     except Exception:
                         logging.info(f"        Attribute {key} not at instance level either.")
