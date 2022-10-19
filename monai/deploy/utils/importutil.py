@@ -1,4 +1,4 @@
-# Copyright 2021 MONAI Consortium
+# Copyright 2021-2022 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -286,6 +286,7 @@ def is_dist_editable(project_name: str) -> bool:
         elif egg_info.suffix == ".dist-info":
             if (egg_info / "direct_url.json").exists():
                 import json
+
                 # Check direct_url.json for "editable": true
                 # (https://packaging.python.org/en/latest/specifications/direct-url/)
                 with open(egg_info / "direct_url.json", "r") as f:
@@ -301,6 +302,23 @@ def is_dist_editable(project_name: str) -> bool:
 def dist_module_path(project_name: str) -> str:
     distributions: Dict = {v.key: v for v in pkg_resources.working_set}
     dist: Any = distributions.get(project_name)
+    if hasattr(dist, "egg_info"):
+        egg_info = Path(dist.egg_info)
+        if egg_info.is_dir() and egg_info.suffix == ".dist-info":
+            if (egg_info / "direct_url.json").exists():
+                import json
+
+                # Check direct_url.json for "url"
+                # (https://packaging.python.org/en/latest/specifications/direct-url/)
+                with open(egg_info / "direct_url.json", "r") as f:
+                    data = json.load(f)
+                    try:
+                        file_url = data["url"]
+                        if file_url.startswith("file://"):
+                            return str(file_url[7:])
+                    except KeyError:
+                        pass
+
     if hasattr(dist, "module_path"):
         return str(dist.module_path)
     return ""
