@@ -6,7 +6,7 @@ In this step, the MONAI Deploy application can now be built into a deployable Do
 
 The MONAI Application Packager (Packager) is a utility for building an application developed with the MONAI Deploy App SDK into a structured MONAI Application Package (**MAP**).
 
-The MAP produced by the Packager is a deployable and reusable docker image that can be launched [locally](./executing_packaged_app_locally) or [remotely](./deploying_to_the_remote_server).
+The MAP produced by the Packager is a deployable and reusable docker image that can be launched [locally](./executing_packaged_app_locally) or [remotely](./deploying_and_hosting_map).
 
 ### Basic Usage of MONAI Application Packager
 
@@ -67,7 +67,7 @@ Building MONAI Application Package...
 Successfully built my_app:latest
 ```
 
-The MAP image `my_app:latest` will be seen in the list of container images on the user's local machine when the command `docker images` is run. The MAP image `my_app:latest` will be able to run [locally](./executing_packaged_app_locally) or [remotely](./deploying_to_the_remote_server).
+The MAP image `my_app:latest` will be seen in the list of container images on the user's local machine when the command `docker images` is run. The MAP image `my_app:latest` will be able to run [locally](./executing_packaged_app_locally) or [remotely](./deploying_and_hosting_map).
 
 ```{note}
 * The current implementation (as of `0.1.0`) of the Packager **ONLY** supports [**CUDA**](https://ngc.nvidia.com/catalog/containers/nvidia:cuda) and [**Pytorch**](https://ngc.nvidia.com/catalog/containers/nvidia:pytorch) images from `nvcr.io` as base images for the MAP. There are efforts in progress to add support for smaller images from [dockerhub](https://hub.docker.com/).

@@ -37,7 +37,7 @@ from monai.deploy.utils.version import get_sdk_semver
 @md.input("classification_result_file", DataPath, IOType.DISK)
 @md.input("study_selected_series_list", List[StudySelectedSeries], IOType.IN_MEMORY)
 @md.output("dicom_instance", DataPath, IOType.DISK)
-@md.env(pip_packages=["pydicom >= 1.4.2"])
+@md.env(pip_packages=["pydicom >= 1.4.2", "monai"])
 class DICOMTextSRWriterOperator(Operator):
 
     # File extension for the generated DICOM Part 10 file.
