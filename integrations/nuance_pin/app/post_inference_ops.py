@@ -224,8 +224,9 @@ class CreatePINDiagnosticsReportOp(Operator):
                 else:
                     observation.set_absent_qualifier()
 
-        report_path = os.path.join(output_path,
-                                   f"{self.pin_processor.partner_name}-{self.pin_processor.service_name}-FHIR.json")
+        report_path = os.path.join(
+            output_path, f"{self.pin_processor.partner_name}-{self.pin_processor.service_name}-FHIR.json"
+        )
         report.write_to_file(report_path)
 
         if self.pin_processor is not None:

@@ -75,9 +75,7 @@ class MONAIAppWrapper(AiJobProcessor):
             monai_app_class_module = cls.monai_app_module.rsplit(".", 1)[0]
             monai_app_class_name = cls.monai_app_module.rsplit(".", 1)[1]
         else:
-            raise ValueError(
-                "MONAI App to be run has not been specified in `MONAI_APP_CLASSPATH` environment variable"
-            )
+            raise ValueError("MONAI App to be run has not been specified in `MONAI_APP_CLASSPATH` environment variable")
 
         monai_app_class = getattr(import_module(monai_app_class_module), monai_app_class_name)
         if monai_app_class is None:
