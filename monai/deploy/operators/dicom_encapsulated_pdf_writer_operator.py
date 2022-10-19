@@ -15,8 +15,6 @@ from io import BytesIO
 from pathlib import Path
 from typing import Dict, List, Optional
 
-from PyPDF2 import PdfReader
-
 from monai.deploy.utils.importutil import optional_import
 
 dcmread, _ = optional_import("pydicom", name="dcmread")
@@ -26,6 +24,7 @@ ImplicitVRLittleEndian, _ = optional_import("pydicom.uid", name="ImplicitVRLittl
 Dataset, _ = optional_import("pydicom.dataset", name="Dataset")
 FileDataset, _ = optional_import("pydicom.dataset", name="FileDataset")
 Sequence, _ = optional_import("pydicom.sequence", name="Sequence")
+PdfReader, _ = optional_import("PyPDF2", name="PdfReader")
 
 import monai.deploy.core as md
 from monai.deploy.core import DataPath, ExecutionContext, InputContext, IOType, Operator, OutputContext
