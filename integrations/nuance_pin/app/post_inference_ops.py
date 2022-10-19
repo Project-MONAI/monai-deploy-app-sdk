@@ -138,7 +138,7 @@ class GenerateGSPSOp(Operator):
             ],
         )
 
-        gsps_filename = os.path.join(output_path, f"gsps.dcm")
+        gsps_filename = os.path.join(output_path, "gsps.dcm")
         gsps.save_as(gsps_filename)
 
         if self.pin_processor is not None:
