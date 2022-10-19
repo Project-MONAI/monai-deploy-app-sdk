@@ -143,7 +143,7 @@ class GenerateGSPSOp(Operator):
         gsps.save_as(gsps_filename)
 
         if self.pin_processor is not None:
-            self.upload_gsps(
+            self.pin_processor.upload_gsps_dicom(
                 file=gsps_filename,
                 document_detail="MONAI Lung Nodule Detection v0.2.0",
                 series_uid=series_uid,
