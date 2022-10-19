@@ -46,7 +46,22 @@ class GenerateGSPSOp(Operator):
         series_uid = hd.UID()
         series_number = randint(1, 100000)
 
+        # One graphic layer to contain all detections
+        layer = hd.pr.GraphicLayer(
+            layer_name="LUNG_NODULES",
+            order=1,
+            description="Lung Nodule Detections",
+        )
+
+        annotations = []
+
+        all_ref_images = [ins.get_native_sop_instance() for ins in selected_series.series.get_sop_instances()]
+        accession = all_ref_images[0].AccessionNumber
+
         for inst_num, (box_data, box_score) in enumerate(zip(detection_result.box_data, detection_result.score_data)):
+
+            tracking_id = f"{accession}_nodule_{inst_num}"  # site-specific ID
+            tracking_uid = hd.UID()
 
             polyline = hd.pr.GraphicObject(
                 graphic_type=hd.pr.GraphicTypeValues.POLYLINE,
@@ -60,8 +75,8 @@ class GenerateGSPSOp(Operator):
                     ]
                 ),  # coordinates of polyline vertices
                 units=hd.pr.AnnotationUnitsValues.PIXEL,  # units for graphic data
-                tracking_id="lung_nodule_MONAI",  # site-specific ID
-                tracking_uid=hd.UID(),  # highdicom will generate a unique ID
+                tracking_id=tracking_id,
+                tracking_uid=tracking_uid,
             )
 
             self.logger.info(f"Box: {[box_data[0], box_data[1], box_data[3], box_data[4]]}")
@@ -70,14 +85,8 @@ class GenerateGSPSOp(Operator):
                 text_value=f"{box_score:.2f}",
                 bounding_box=(box_data[0], box_data[1], box_data[3], box_data[4]),  # left, top, right, bottom
                 units=hd.pr.AnnotationUnitsValues.PIXEL,  # units for bounding box
-                tracking_id="LungNoduleMONAI",  # site-specific ID
-                tracking_uid=hd.UID(),  # highdicom will generate a unique ID
-            )
-
-            layer = hd.pr.GraphicLayer(
-                layer_name="LUNG_NODULE",
-                order=1,
-                description="Lung Nodule Detection",
+                tracking_id=tracking_id,
+                tracking_uid=tracking_uid,
             )
 
             affected_slice_idx = [
@@ -103,37 +112,40 @@ class GenerateGSPSOp(Operator):
                 graphic_objects=[polyline],
             )
 
-            # Assemble the components into a GSPS object
-            gsps = hd.pr.GrayscaleSoftcopyPresentationState(
-                referenced_images=ref_images,
-                series_instance_uid=series_uid,
-                series_number=series_number,
-                sop_instance_uid=hd.UID(),
-                instance_number=inst_num + 1,
-                manufacturer="MONAI",
-                manufacturer_model_name="lung_nodule_ct_detection",
-                software_versions="v0.2.0",
-                device_serial_number="",
-                content_label="ANNOTATIONS",
-                graphic_layers=[layer],
-                graphic_annotations=[annotation],
-                institution_name="MONAI",
-                institutional_department_name="Deploy",
-                voi_lut_transformations=[
-                    hd.pr.SoftcopyVOILUTTransformation(
-                        window_center=-550.0,
-                        window_width=1350.0,
-                    )
-                ],
-            )
+            annotations.append(annotation)
 
-            gsps.save_as(os.path.join(output_path, f"gsps-{inst_num:04d}.dcm"))
+        # Assemble the components into a GSPS object
+        gsps = hd.pr.GrayscaleSoftcopyPresentationState(
+            referenced_images=all_ref_images,
+            series_instance_uid=series_uid,
+            series_number=series_number,
+            sop_instance_uid=hd.UID(),
+            instance_number=1,
+            manufacturer="MONAI",
+            manufacturer_model_name="lung_nodule_ct_detection",
+            software_versions="v0.2.0",
+            device_serial_number="",
+            content_label="ANNOTATIONS",
+            graphic_layers=[layer],
+            graphic_annotations=annotations,
+            institution_name="MONAI",
+            institutional_department_name="Deploy",
+            voi_lut_transformations=[
+                hd.pr.SoftcopyVOILUTTransformation(
+                    window_center=-550.0,
+                    window_width=1350.0,
+                )
+            ],
+        )
 
-            self.upload_gsps(
-                file=os.path.join(output_path, f"gsps-{inst_num:04d}.dcm"),
-                document_detail="MONAI Lung Nodule Detection v0.2.0",
-                series_uid=series_uid,
-            )
+        gsps_filename = os.path.join(output_path, "gsps.dcm")
+        gsps.save_as(gsps_filename)
+
+        self.upload_gsps(
+            file=gsps_filename,
+            document_detail="MONAI Lung Nodule Detection v0.2.0",
+            series_uid=series_uid,
+        )
 
 
 @md.input("original_dicom", List[StudySelectedSeries], IOType.IN_MEMORY)
