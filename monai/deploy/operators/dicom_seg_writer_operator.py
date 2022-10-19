@@ -306,9 +306,11 @@ class DICOMSegmentationWriterOperator(Operator):
                 if isinstance(k, str) and isinstance(v, str):
                     try:
                         if k in seg:
-                            seg.data_element(k).value = v
+                            data_element = seg.data_element(k)
+                            if data_element:
+                                data_element.value = v
                         else:
-                            seg.update({k: v})
+                            seg.update({k: v})  # type: ignore
                     except Exception as ex:
                         # Best effort for now.
                         logging.warning(f"Tag {k} was not written, due to {ex}")
