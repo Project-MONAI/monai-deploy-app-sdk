@@ -18,10 +18,6 @@ jupyter-lab
 
 ## Executing from Jupyter Notebook
 
-:::{note}
-If the execution encounters the error, `'Widget' object has no attribute 'on_display'`, please downgrade the `ipywidgets` to the latest Version 7 by `pip install ipywidgets==7.7.2`. This is because the current Clara Viz package, `v0.2.1`, is not compatible with the newer `ipywidgets`. Clara Viz is expected to be updated soon.
-:::
-
 ```{toctree}
 :maxdepth: 4
 
