@@ -15,6 +15,7 @@
     BundleConfigNames
     ClaraVizOperator
     DICOMDataLoaderOperator
+    DICOMEncapsulatedPDFWriterOperator
     DICOMSegmentationWriterOperator
     DICOMSeriesSelectorOperator
     DICOMSeriesToVolumeOperator
@@ -33,6 +34,7 @@
 
 from .clara_viz_operator import ClaraVizOperator
 from .dicom_data_loader_operator import DICOMDataLoaderOperator
+from .dicom_encapsulated_pdf_writer_operator import DICOMEncapsulatedPDFWriterOperator
 from .dicom_seg_writer_operator import DICOMSegmentationWriterOperator
 from .dicom_series_selector_operator import DICOMSeriesSelectorOperator
 from .dicom_series_to_volume_operator import DICOMSeriesToVolumeOperator

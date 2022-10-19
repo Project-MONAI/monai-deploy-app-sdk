@@ -1,5 +1,5 @@
 # Roadmap
 
-The first version of the MONAI Deploy App SDK offers a core framework to build & package healthcare AI apps so that they can be deployed to a production environment
+The first versions of the MONAI Deploy App SDK offer a core framework to build & package healthcare AI apps so that they can be deployed to a production environment.
 
-We are currently in the process of creating a roadmap for the product based on the community’s input.
+We are currently in the process of refining the roadmap for the product based on the community’s input, though it is clear that on the roadmap are more built-in DICOM parsing and DICOM OID generation capabilities to better support <a href="https://www.ihe.net/uploadedFiles/Documents/Radiology/IHE_RAD_Suppl_AIR_Rev1-2_TI_2022-07-06.pdf">IHE AIR profiles</a>, as well as serving model network in a separate process.
