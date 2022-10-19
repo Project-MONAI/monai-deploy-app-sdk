@@ -9,19 +9,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import highdicom as hd
 import logging
+import numpy as np
 import os
 from random import randint
-from typing import Callable, List
+from typing import List, Optional
 
 import diagnostic_report as dr
-import highdicom as hd
-import numpy as np
-from ai_service.utility import JSON_MIME_TYPE
-from app.environment import PARTNER_NAME, SERVICE_NAME
-from app.inference import DetectionResult, DetectionResultList
-
 import monai.deploy.core as md
+from ai_service import AiJobProcessor
+from ai_service.utility import JSON_MIME_TYPE
+from app.inference import DetectionResult, DetectionResultList
 from monai.deploy.core import DataPath, ExecutionContext, InputContext, IOType, Operator, OutputContext
 from monai.deploy.core.domain.dicom_series_selection import StudySelectedSeries
 
@@ -30,10 +29,10 @@ from monai.deploy.core.domain.dicom_series_selection import StudySelectedSeries
 @md.input("detection_predictions", DetectionResultList, IOType.IN_MEMORY)
 @md.output("gsps_files", DataPath, IOType.DISK)
 class GenerateGSPSOp(Operator):
-    def __init__(self, upload_gsps_fn: Callable, *args, **kwargs):
+    def __init__(self, pin_processor: Optional[AiJobProcessor], *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.logger = logging.getLogger("{}.{}".format(__name__, type(self).__name__))
-        self.upload_gsps = upload_gsps_fn
+        self.pin_processor = pin_processor
 
     def compute(self, op_input: InputContext, op_output: OutputContext, context: ExecutionContext):
 
@@ -84,7 +83,7 @@ class GenerateGSPSOp(Operator):
             affected_slice_idx = [
                 idx
                 for idx, slice_coord in enumerate(slice_coords)
-                if slice_coord >= box_data[2] and slice_coord <= box_data[5]
+                if box_data[2] <= slice_coord <= box_data[5]
             ]
             ref_images = [
                 selected_series.series.get_sop_instances()[idx].get_native_sop_instance() for idx in affected_slice_idx
@@ -127,24 +126,25 @@ class GenerateGSPSOp(Operator):
                     )
                 ],
             )
+            gsps_path = os.path.join(output_path, f"gsps-{inst_num:04d}.dcm")
+            gsps.save_as(gsps_path)
 
-            gsps.save_as(os.path.join(output_path, f"gsps-{inst_num:04d}.dcm"))
-
-            self.upload_gsps(
-                file=os.path.join(output_path, f"gsps-{inst_num:04d}.dcm"),
-                document_detail="MONAI Lung Nodule Detection v0.2.0",
-                series_uid=series_uid,
-            )
+            if self.pin_processor is not None:
+                self.upload_gsps(
+                    file=gsps_path,
+                    document_detail="MONAI Lung Nodule Detection v0.2.0",
+                    series_uid=series_uid,
+                )
 
 
 @md.input("original_dicom", List[StudySelectedSeries], IOType.IN_MEMORY)
 @md.input("detection_predictions", DetectionResultList, IOType.IN_MEMORY)
 @md.output("pin_report", DataPath, IOType.DISK)
 class CreatePINDiagnosticsReportOp(Operator):
-    def __init__(self, upload_doc_fn: Callable, *args, **kwargs):
+    def __init__(self, pin_processor: Optional[AiJobProcessor], *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.logger = logging.getLogger("{}.{}".format(__name__, type(self).__name__))
-        self.upload_doc = upload_doc_fn
+        self.pin_processor = pin_processor
 
     def compute(self, op_input: InputContext, op_output: OutputContext, context: ExecutionContext):
 
@@ -211,10 +211,13 @@ class CreatePINDiagnosticsReportOp(Operator):
                 else:
                     observation.set_absent_qualifier()
 
-        report.write_to_file(os.path.join(output_path, f"{PARTNER_NAME}-{SERVICE_NAME}-FHIR.json"))
+        report_path = os.path.join(output_path,
+                                   f"{self.pin_processor.partner_name}-{self.pin_processor.service_name}-FHIR.json")
+        report.write_to_file(report_path)
 
-        self.upload_doc(
-            file=os.path.join(output_path, f"{PARTNER_NAME}-{SERVICE_NAME}-FHIR.json"),
-            content_type=JSON_MIME_TYPE,
-            series_uid=selected_series.series.SeriesInstanceUID,
-        )
+        if self.pin_processor is not None:
+            self.pin_processor.upload_document(
+                file=report_path,
+                content_type=JSON_MIME_TYPE,
+                series_uid=selected_series.series.SeriesInstanceUID,
+            )
