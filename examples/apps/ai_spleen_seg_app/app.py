@@ -21,7 +21,11 @@ from monai.deploy.operators.dicom_data_loader_operator import DICOMDataLoaderOpe
 from monai.deploy.operators.dicom_seg_writer_operator import DICOMSegmentationWriterOperator, SegmentDescription
 from monai.deploy.operators.dicom_series_selector_operator import DICOMSeriesSelectorOperator
 from monai.deploy.operators.dicom_series_to_volume_operator import DICOMSeriesToVolumeOperator
-from monai.deploy.operators.monai_bundle_inference_operator import IOMapping, MonaiBundleInferenceOperator
+from monai.deploy.operators.monai_bundle_inference_operator import (
+    BundleConfigNames,
+    IOMapping,
+    MonaiBundleInferenceOperator,
+)
 
 # from monai.deploy.operators.stl_conversion_operator import STLConversionOperator  # import as needed.
 
@@ -62,9 +66,13 @@ class AISpleenSegApp(Application):
         #
         # Pertinent MONAI Bundle:
         #   https://github.com/Project-MONAI/model-zoo/tree/dev/models/spleen_ct_segmentation
+
+        config_names = BundleConfigNames(config_names=["inference"])  # Same as the default
+
         bundle_spleen_seg_op = MonaiBundleInferenceOperator(
             input_mapping=[IOMapping("image", Image, IOType.IN_MEMORY)],
             output_mapping=[IOMapping("pred", Image, IOType.IN_MEMORY)],
+            bundle_config_names=config_names,
         )
 
         # Create DICOM Seg writer providing the required segment description for each segment with
