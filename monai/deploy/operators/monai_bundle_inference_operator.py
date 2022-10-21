@@ -63,7 +63,7 @@ def get_bundle_config(bundle_path, config_names):
     Gets the configuration parser from the specified Torchscript bundle file path.
     """
 
-    bundle_suffixes = [".json", ".yaml"]  # The only supported file ext(s)
+    bundle_suffixes = (".json", ".yaml", "yml")  # The only supported file ext(s)
     config_folder = "extra"
 
     def _read_from_archive(archive, root_name: str, config_name: str, do_search=True):
@@ -93,7 +93,7 @@ def get_bundle_config(bundle_path, config_names):
             name_list = archive.namelist()
             for suffix in bundle_suffixes:
                 for n in name_list:
-                    if (f"{config_name}{suffix}") in n:
+                    if (f"{config_name}{suffix}").casefold in n.casefold():
                         logging.debug(f"Trying to read content of config '{config_name}' from {n}.")
                         content_text = archive.read(n)
                         break
@@ -136,7 +136,7 @@ def get_bundle_config(bundle_path, config_names):
                 for suffix in bundle_suffixes:
                     found = False
                     for n in name_list:
-                        if (f"{cn}{suffix}") in n:
+                        if (f"{cn}{suffix}").casefold() in n.casefold():
                             found = True
                             archive.extract(member=n, path=dest_folder)
                             break
