@@ -161,7 +161,7 @@ class App(Application):
             segment_descriptions=seg_descriptions_pancreas, custom_tags=custom_tags_pancreas
         )
 
-        # NOTE: Sharp eyed readers can alreay see that the above instantiation of object can be simply parameterized.
+        # NOTE: Sharp eyed readers can already see that the above instantiation of object can be simply parameterized.
         #       Very true, but leaving them as if for easy reading. In fact the whole app can be parameterized for general use.
 
         # Create the processing pipeline, by specifying the upstream and downstream operators, and
