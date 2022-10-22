@@ -27,8 +27,6 @@ from monai.deploy.operators.monai_bundle_inference_operator import (
     MonaiBundleInferenceOperator,
 )
 
-# from monai.deploy.operators.stl_conversion_operator import STLConversionOperator  # import as needed.
-
 
 @resource(cpu=1, gpu=1, memory="7Gi")
 # pip_packages can be a string that is a path(str) to requirements.txt file or a list of packages.
