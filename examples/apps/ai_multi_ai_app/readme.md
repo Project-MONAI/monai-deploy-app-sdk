@@ -16,7 +16,7 @@ An example is shown below, where the `parent_foler` name can be the app's own ch
 <parent_fodler>
 ├── pancreas_ct_dints
 │   └── model.ts
-└── spleen_model
+└── spleen_ct
     └── model.ts
 ```
 
