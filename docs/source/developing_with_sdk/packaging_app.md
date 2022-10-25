@@ -46,7 +46,7 @@ However, the user can choose to override these values by invoking these optional
 * `--requirements, -r <FILE_PATH>`: Optional path to requirements.txt containing package dependencies of the application
 * `--log-level, -l <LEVEL>`: Set the logging level (`"DEBUG"`, `"INFO"`, `"WARN"`, `"ERROR"`, or `"CRITICAL"`).
 
-* `--base <BASE_IMAGE>`: Base Docker Image (overrides default `"nvcr.io/nvidia/pytorch:21.07-py3"`).
+* `--base <BASE_IMAGE>`: Base Docker Image (overrides default `"nvcr.io/nvidia/pytorch:22.08-py3"`).
 * `--input-dir, -i <INPUT_DIR>`: Directory mounted in container for Application Input (overrides default `"input"`).
 * `--models-dir <MODELS_DIR>`: Directory mounted in container for Models Path (overrides default `"/opt/monai/models"`).
 * `--output-dir, -o <OUTPUT_DIR>`: Directory mounted in container for Application Output (overrides default `"output"`).
