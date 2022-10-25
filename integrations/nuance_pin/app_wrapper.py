@@ -28,6 +28,9 @@ This is an example AI Service.
 It meets all of the necessary requirements, but performs trivial actions.
 """
 
+import os
+from importlib import import_module
+
 # Copyright 2022 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -38,9 +41,7 @@ It meets all of the necessary requirements, but performs trivial actions.
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-import os
-from importlib import import_module
+from pathlib import Path
 from typing import List
 
 import pydicom
@@ -54,7 +55,9 @@ class MONAIAppWrapper(AiJobProcessor):
     service_name = os.environ["AI_SVC_NAME"]
     service_version = os.environ["AI_SVC_VERSION"]
 
-    monai_app_module = os.environ["MONAI_APP_CLASSPATH"]
+    monai_app_instance = None
+    monai_app_module = os.getenv("MONAI_APP_CLASSPATH", "")
+    model_path = Path(os.getenv("AI_MODEL_PATH", "/app/model/model.ts"))
 
     def filter_image(self, image: pydicom.Dataset) -> bool:
         return True
@@ -64,14 +67,14 @@ class MONAIAppWrapper(AiJobProcessor):
 
     @classmethod
     def initialize_class(cls):
-        cls.model_path = os.getenv("AI_MODEL_PATH", "/app/model/model.ts")
-        if not os.path.exists(cls.model_path):
+        if not cls.model_path.exists():
             raise FileNotFoundError(f"Could not find model file in path `{cls.model_path}`")
         cls.logger.info(f"Model path: {cls.model_path}")
 
-        monai_app_class_module = cls.monai_app_module.rsplit(".", 1)[0]
-        monai_app_class_name = cls.monai_app_module.rsplit(".", 1)[1]
-        if not cls.monai_app_module:
+        if cls.monai_app_module:
+            monai_app_class_module = cls.monai_app_module.rsplit(".", 1)[0]
+            monai_app_class_name = cls.monai_app_module.rsplit(".", 1)[1]
+        else:
             raise ValueError("MONAI App to be run has not been specified in `MONAI_APP_CLASSPATH` environment variable")
 
         monai_app_class = getattr(import_module(monai_app_class_module), monai_app_class_name)
@@ -81,14 +84,8 @@ class MONAIAppWrapper(AiJobProcessor):
     def process_study(self):
         self.logger.info("Starting Processing")
         self.logger.info(f"{len(self.ai_job.prior_studies)} images in prior studies")
-
-        if not hasattr(MONAIAppWrapper, "input_path") or self.input_path is None:
-            self.input_path = self.ai_job.image_folder
-            self.logger.info(f"Input path: {self.input_path}")
-
-        if not hasattr(MONAIAppWrapper, "output_path") or self.output_path is None:
-            self.output_path = self.ai_job.output_folder
-            self.logger.info(f"Output path: {self.output_path}")
+        self.logger.info(f"Input path: {self.ai_job.image_folder}")
+        self.logger.info(f"Output path: {self.ai_job.output_folder}")
 
         # create the inference app instance to run on this subprocess
         self.logger.info("Running MONAI App")
@@ -97,24 +94,22 @@ class MONAIAppWrapper(AiJobProcessor):
             monai_app_class_module = self.monai_app_module.rsplit(".", 1)[0]
             monai_app_class_name = self.monai_app_module.rsplit(".", 1)[1]
             monai_app_class = getattr(import_module(monai_app_class_module), monai_app_class_name)
-            self.monai_app_instance = monai_app_class(
-                do_run=False, upload_document=self.upload_document, upload_gsps=self.upload_gsps_dicom
-            )
+            self.monai_app_instance = monai_app_class(pin_processor=self, do_run=False)
 
         self.logger.info(f"MONAI App Info: {self.monai_app_instance.get_package_info()}")
         self.logger.info(f"MONAI working directory: {self.ai_job.folder}")
 
         self.monai_app_instance.run(
             log_level=self.logger.level,
-            input=self.input_path,
-            output=self.output_path,
+            input=self.ai_job.image_folder,
+            output=self.ai_job.output_folder,
             model=self.model_path,
             workdir=self.ai_job.folder,
         )
 
         self.logger.info("MONAI App complete")
 
-        self.set_transaction_status(reason=ResultStatus.ANALYSIS_COMPLETE)
+        self.set_transaction_status(status=ResultStatus.ANALYSIS_COMPLETE)
 
 
 if __name__ == "__main__":
