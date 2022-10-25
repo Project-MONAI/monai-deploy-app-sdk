@@ -12,11 +12,12 @@
 import logging
 import os
 from random import randint
-from typing import Callable, List
+from typing import List, Optional
 
 import diagnostic_report as dr
 import highdicom as hd
 import numpy as np
+from ai_service import AiJobProcessor
 from ai_service.utility import JSON_MIME_TYPE
 from app.inference import DetectionResult, DetectionResultList
 
@@ -29,10 +30,10 @@ from monai.deploy.core.domain.dicom_series_selection import StudySelectedSeries
 @md.input("detection_predictions", DetectionResultList, IOType.IN_MEMORY)
 @md.output("gsps_files", DataPath, IOType.DISK)
 class GenerateGSPSOp(Operator):
-    def __init__(self, upload_gsps_fn: Callable, *args, **kwargs):
+    def __init__(self, pin_processor: Optional[AiJobProcessor], *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.logger = logging.getLogger("{}.{}".format(__name__, type(self).__name__))
-        self.upload_gsps = upload_gsps_fn
+        self.pin_processor = pin_processor
 
     def compute(self, op_input: InputContext, op_output: OutputContext, context: ExecutionContext):
 
@@ -141,21 +142,22 @@ class GenerateGSPSOp(Operator):
         gsps_filename = os.path.join(output_path, "gsps.dcm")
         gsps.save_as(gsps_filename)
 
-        self.upload_gsps(
-            file=gsps_filename,
-            document_detail="MONAI Lung Nodule Detection v0.2.0",
-            series_uid=series_uid,
-        )
+        if self.pin_processor is not None:
+            self.pin_processor.upload_gsps_dicom(
+                file=gsps_filename,
+                document_detail="MONAI Lung Nodule Detection v0.2.0",
+                series_uid=series_uid,
+            )
 
 
 @md.input("original_dicom", List[StudySelectedSeries], IOType.IN_MEMORY)
 @md.input("detection_predictions", DetectionResultList, IOType.IN_MEMORY)
 @md.output("pin_report", DataPath, IOType.DISK)
 class CreatePINDiagnosticsReportOp(Operator):
-    def __init__(self, upload_doc_fn: Callable, *args, **kwargs):
+    def __init__(self, pin_processor: Optional[AiJobProcessor], *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.logger = logging.getLogger("{}.{}".format(__name__, type(self).__name__))
-        self.upload_doc = upload_doc_fn
+        self.pin_processor = pin_processor
 
     def compute(self, op_input: InputContext, op_output: OutputContext, context: ExecutionContext):
 
@@ -200,19 +202,36 @@ class CreatePINDiagnosticsReportOp(Operator):
             self.logger.info(f"Slice: {[box_data[2], box_data[5]]}, Instances: {affected_slice_idx}")
 
             for dcm_img in ref_images:
-                report.add_observation(
-                    derived_from=report.study,
-                    observation_code="RID50149",
-                    observation_text="Pulmonary nodule",
-                    note=f"Lung nodule present with probability {box_score:.2f}",
+                box_score_percent = np.round(box_score * 100, decimals=2)
+                message = f"Lung nodule present with probability {box_score_percent}%"
+                observation = report.add_observation(
+                    body_part_code="RID1301",
+                    body_part_text="lung",
                     dcm=dcm_img,
+                    derived_from=report.study,
+                    note=message,  # is box_score associated with a specific image?
+                    observation_code="RID50149",
                     observation_system="http://nuancepowerscribe.com/saf",
+                    observation_text="Pulmonary nodule",
                 )
+                observation.set_probability(box_score_percent)  # probability's unit of measure is percent
+                observation.set_summary(message)
+                self.logger.info(message)
+                if box_score_percent > 80:
+                    observation.set_present_qualifier()
+                elif box_score_percent > 15:
+                    observation.set_indeterminate_qualifier()
+                else:
+                    observation.set_absent_qualifier()
 
-        report.write_to_file(os.path.join(output_path, "diagnostic_report.json"))
+        if self.pin_processor is not None:
+            report_path = os.path.join(
+                output_path, f"{self.pin_processor.partner_name}-{self.pin_processor.service_name}-FHIR.json"
+            )
+            report.write_to_file(report_path)
 
-        self.upload_doc(
-            file=os.path.join(output_path, "diagnostic_report.json"),
-            content_type=JSON_MIME_TYPE,
-            series_uid=selected_series.series.SeriesInstanceUID,
-        )
+            self.pin_processor.upload_document(
+                file=report_path,
+                content_type=JSON_MIME_TYPE,
+                series_uid=selected_series.series.SeriesInstanceUID,
+            )
