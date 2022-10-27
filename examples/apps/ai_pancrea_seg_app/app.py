@@ -14,6 +14,7 @@ import logging
 # Required for setting SegmentDescription attributes. Direct import as this is not part of App SDK package.
 from pydicom.sr.codedict import codes
 
+import monai.deploy.core as md
 from monai.deploy.core import Application, resource
 from monai.deploy.core.domain import Image
 from monai.deploy.core.io_type import IOType
@@ -29,9 +30,10 @@ from monai.deploy.operators.monai_bundle_inference_operator import (
 
 
 @resource(cpu=1, gpu=1, memory="7Gi")
+@md.env(pip_packages=["torch>=1.12.0"])
 # pip_packages can be a string that is a path(str) to requirements.txt file or a list of packages.
 # The monai pkg is not required by this class, instead by the included operators.
-class AISpleenSegApp(Application):
+class AIPancreasSegApp(Application):
     def __init__(self, *args, **kwargs):
         """Creates an application instance."""
         self._logger = logging.getLogger("{}.{}".format(__name__, type(self).__name__))
@@ -65,12 +67,10 @@ class AISpleenSegApp(Application):
         # Pertinent MONAI Bundle:
         #   https://github.com/Project-MONAI/model-zoo/tree/dev/models/spleen_ct_segmentation
 
-        config_names = BundleConfigNames(config_names=["inference"])  # Same as the default
-
         bundle_spleen_seg_op = MonaiBundleInferenceOperator(
             input_mapping=[IOMapping("image", Image, IOType.IN_MEMORY)],
             output_mapping=[IOMapping("pred", Image, IOType.IN_MEMORY)],
-            bundle_config_names=config_names,
+            bundle_config_names=BundleConfigNames(config_names=["inference"]),  # Same as the default
         )
 
         # Create DICOM Seg writer providing the required segment description for each segment with
@@ -79,16 +79,16 @@ class AISpleenSegApp(Application):
         # https://dicom.nema.org/medical/dicom/current/output/chtml/part05/sect_6.2.html
         segment_descriptions = [
             SegmentDescription(
-                segment_label="Spleen",
+                segment_label="Pancreas",
                 segmented_property_category=codes.SCT.Organ,
-                segmented_property_type=codes.SCT.Spleen,
-                algorithm_name="volumetric (3D) segmentation of the spleen from CT image",
+                segmented_property_type=codes.SCT.Pancreas,
+                algorithm_name="volumetric (3D) segmentation of the pancreas from CT image",
                 algorithm_family=codes.DCM.ArtificialIntelligence,
-                algorithm_version="0.1.0",
+                algorithm_version="0.3.0",
             )
         ]
 
-        custom_tags = {"SeriesDescription": "AI generated Seg, not for clinical use."}
+        custom_tags = {"SeriesDescription": "AI generated Seg for research use only. Not for clinical use."}
 
         dicom_seg_writer = DICOMSegmentationWriterOperator(
             segment_descriptions=segment_descriptions, custom_tags=custom_tags
@@ -141,4 +141,4 @@ if __name__ == "__main__":
     #     monai-deploy exec app.py -i input -m model/model.ts
     #
     logging.basicConfig(level=logging.DEBUG)
-    app_instance = AISpleenSegApp(do_run=True)
+    app_instance = AIPancreasSegApp(do_run=True)
