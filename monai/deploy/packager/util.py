@@ -177,7 +177,6 @@ def build_image(args: dict, temp_dir: str):
                     requirements_file.write(line)
         else:
             requirements_file.writelines("\n".join(pip_packages))
-    map_requirements_path = "/tmp/requirements.txt"
 
     # Copy model files to temp directory (under 'model' folder)
     target_models_path = os.path.join(temp_dir, "models")
