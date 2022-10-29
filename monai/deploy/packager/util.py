@@ -12,6 +12,7 @@
 import json
 import logging
 import os
+from pathlib import Path
 import shutil
 import subprocess
 import sys
@@ -177,6 +178,9 @@ def build_image(args: dict, temp_dir: str):
                     requirements_file.write(line)
         else:
             requirements_file.writelines("\n".join(pip_packages))
+
+    # Parameter for the Dockerfile for copying content to internal path
+    map_requirements_path = str(Path(app_dir) / "requirements.txt")
 
     # Copy model files to temp directory (under 'model' folder)
     target_models_path = os.path.join(temp_dir, "models")

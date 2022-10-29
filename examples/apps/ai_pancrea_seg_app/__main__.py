@@ -1,4 +1,4 @@
-from app import AISpleenSegApp
+from app import AIPancreasSegApp
 
 if __name__ == "__main__":
-    AISpleenSegApp(do_run=True)
+    AIPancreasSegApp(do_run=True)
