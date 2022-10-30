@@ -1,4 +1,4 @@
-# Copyright 2021 MONAI Consortium
+# Copyright 2021-2022 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -12,7 +12,7 @@
 COMMON_FOOTPRINT = """
     USER root
 
-    RUN pip install --no-cache-dir --upgrade setuptools==59.5.0 pip==22.3 wheel==0.37.1 numpy>=1.22.4
+    RUN pip install --no-cache-dir --upgrade setuptools==59.5.0 pip==22.3 wheel==0.37.1 numpy>=1.21.6
 
     RUN mkdir -p /etc/monai/ \\
      && mkdir -p /opt/monai/ \\
