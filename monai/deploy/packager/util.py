@@ -12,12 +12,12 @@
 import json
 import logging
 import os
-from pathlib import Path
 import shutil
 import subprocess
 import sys
 import tempfile
 from argparse import Namespace
+from pathlib import Path
 from typing import Dict
 
 from monai.deploy.exceptions import WrongValueError

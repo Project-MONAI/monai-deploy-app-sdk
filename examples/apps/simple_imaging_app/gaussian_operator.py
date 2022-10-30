@@ -9,9 +9,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from numpy import uint8
+
 import monai.deploy.core as md
 from monai.deploy.core import DataPath, ExecutionContext, Image, InputContext, IOType, Operator, OutputContext
-from numpy import uint8
 
 
 @md.input("image", Image, IOType.IN_MEMORY)
@@ -30,7 +31,6 @@ class GaussianOperator(Operator):
         from skimage.io import imsave
 
         data_in = op_input.get().asnumpy()
-        print(type(data_in[0,0,0]))
         data_out = gaussian(data_in, sigma=0.2, channel_axis=2)  # Add the param introduced in 0.19.
 
         output_folder = op_output.get().path
