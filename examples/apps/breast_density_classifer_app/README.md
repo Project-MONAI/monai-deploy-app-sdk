@@ -1,5 +1,5 @@
 ## A MONAI Application Package to deploy breast density classification algorithm 
-This MAP is based on the Breast Density Model in MONAI [Model-Zoo](https://github.com/Project-MONAI/model-zoo). This model is developed at the Center for Augmented Intelligece in Imaging at the Mayo Clinic, Florida. 
+This MAP is based on the Breast Density Model in MONAI [Model-Zoo](https://github.com/Project-MONAI/model-zoo). This model is developed at the Center for Augmented Intelligence in Imaging at the Mayo Clinic, Florida. 
 For any questions, feel free to contact Vikash Gupta (gupta.vikash@mayo.edu)
 Sample data and a torchscript model can be downloaded from https://drive.google.com/drive/folders/1Dryozl2MwNunpsGaFPVoaKBLkNbVM3Hu?usp=sharing
 
