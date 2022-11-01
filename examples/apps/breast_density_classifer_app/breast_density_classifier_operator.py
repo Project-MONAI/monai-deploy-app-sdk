@@ -1,15 +1,24 @@
-import monai.deploy.core as md
-import numpy
-from monai.deploy.core import DataPath, ExecutionContext, Image, InputContext, IOType, Operator, OutputContext
-from monai.data import Dataset, DataLoader
-import torch
-from typing import Dict
-from monai.transforms import (LoadImage, EnsureChannelFirst, SqueezeDim, EnsureType,
-                              NormalizeIntensity, Resize, RepeatChannel, Compose, Activations)
-from monai.deploy.operators.monai_seg_inference_operator import InMemImageReader
 import json
-import numpy as np
-from typing import Text
+from typing import Dict, Text
+
+import torch
+
+import monai.deploy.core as md
+from monai.data import DataLoader, Dataset
+from monai.deploy.core import ExecutionContext, Image, InputContext, IOType, Operator, OutputContext
+from monai.deploy.operators.monai_seg_inference_operator import InMemImageReader
+from monai.transforms import (
+    Activations,
+    Compose,
+    EnsureChannelFirst,
+    EnsureType,
+    LoadImage,
+    NormalizeIntensity,
+    RepeatChannel,
+    Resize,
+    SqueezeDim,
+)
+
 
 @md.input("image", Image, IOType.IN_MEMORY)
 @md.output("result_text", Text, IOType.IN_MEMORY)
@@ -70,26 +79,31 @@ class ClassifierOperator(Operator):
                 out = post_transforms(outputs).data.cpu().numpy()[0]
                 print(out)
 
-        result_dict = 'A ' + ':' + str(out[0]) + ' B ' + ':' + str(out[1]) + ' C ' + ':' + str(
-            out[2]) + ' D ' + ':' + str(out[3])
-        result_dict_out = {'A': str(out[0]), 'B': str(out[1]), 'C': str(out[2]), 'D': str(out[3])}
+        result_dict = (
+            "A " + ":" + str(out[0]) + " B " + ":" + str(out[1]) + " C " + ":" + str(out[2]) + " D " + ":" + str(out[3])
+        )
+        result_dict_out = {"A": str(out[0]), "B": str(out[1]), "C": str(out[2]), "D": str(out[3])}
         output_folder = context.output.get().path
         output_folder.mkdir(parents=True, exist_ok=True)
-
-
 
         output_path = output_folder / "output.json"
         with open(output_path, "w") as fp:
             json.dump(result_dict, fp)
-        
+
         op_output.set(result_dict, "result_text")
 
-
-    def pre_process(self, ImageReader) -> Compose:
-        return Compose([LoadImage(reader=ImageReader, image_only=True), EnsureChannelFirst(), SqueezeDim(dim=3),
-                        NormalizeIntensity(), Resize(spatial_size=(299, 299)), RepeatChannel(repeats=3),
-                        EnsureChannelFirst()])
+    def pre_process(self, image_reader) -> Compose:
+        return Compose(
+            [
+                LoadImage(reader=image_reader, image_only=True),
+                EnsureChannelFirst(),
+                SqueezeDim(dim=3),
+                NormalizeIntensity(),
+                Resize(spatial_size=(299, 299)),
+                RepeatChannel(repeats=3),
+                EnsureChannelFirst(),
+            ]
+        )
 
     def post_process(self) -> Compose:
         return Compose([EnsureType(), Activations(sigmoid=True)])
-
