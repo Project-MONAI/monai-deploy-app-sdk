@@ -10,14 +10,17 @@
 # limitations under the License.
 
 import numpy as np
-import SimpleITK
 
 import monai.deploy.core as md
 from monai.deploy.core import DataPath, ExecutionContext, InputContext, IOType, Operator, OutputContext
+from monai.deploy.utils.importutil import optional_import
+
+SimpleITK, _ = optional_import("SimpleITK")
 
 
 @md.input("image_path", DataPath, IOType.DISK)
 @md.output("image", np.ndarray, IOType.IN_MEMORY)
+@md.env(pip_packages=["SimpleITK>=2.0.2"])
 class NiftiDataLoader(Operator):
     """
     This operator reads a nifti image, extracts the numpy array and forwards it to the next operator
@@ -42,7 +45,7 @@ class NiftiDataLoader(Operator):
 def test():
     filepath = "/home/gupta/Documents/mni_icbm152_nlin_sym_09a/mni_icbm152_gm_tal_nlin_sym_09a.nii"
     nii_operator = NiftiDataLoader()
-    image_np = nii_operator.convert_and_save(filepath)
+    _ = nii_operator.convert_and_save(filepath)
 
 
 def main():
