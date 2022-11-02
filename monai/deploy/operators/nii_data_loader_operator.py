@@ -20,6 +20,7 @@ SimpleITK, _ = optional_import("SimpleITK")
 
 @md.input("image_path", DataPath, IOType.DISK)
 @md.output("image", np.ndarray, IOType.IN_MEMORY)
+@md.env(pip_packages=["SimpleITK>=2.0.2"])
 class NiftiDataLoader(Operator):
     """
     This operator reads a nifti image, extracts the numpy array and forwards it to the next operator
