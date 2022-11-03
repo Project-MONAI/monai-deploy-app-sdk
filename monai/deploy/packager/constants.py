@@ -16,7 +16,7 @@ class DefaultValues:
     """
 
     DOCKER_FILE_NAME = "dockerfile"
-    BASE_IMAGE = "nvcr.io/nvidia/pytorch:21.07-py3"
+    BASE_IMAGE = "nvcr.io/nvidia/pytorch:22.08-py3"
     DOCKERFILE_TYPE = "pytorch"
     WORK_DIR = "/var/monai/"
     INPUT_DIR = "input"
