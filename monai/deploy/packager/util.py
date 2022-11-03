@@ -17,6 +17,7 @@ import subprocess
 import sys
 import tempfile
 from argparse import Namespace
+from pathlib import Path
 from typing import Dict
 
 from monai.deploy.exceptions import WrongValueError
@@ -177,7 +178,9 @@ def build_image(args: dict, temp_dir: str):
                     requirements_file.write(line)
         else:
             requirements_file.writelines("\n".join(pip_packages))
-    map_requirements_path = "/tmp/requirements.txt"
+
+    # Parameter for the Dockerfile for copying content to internal path
+    map_requirements_path = str(Path(app_dir) / "requirements.txt")
 
     # Copy model files to temp directory (under 'model' folder)
     target_models_path = os.path.join(temp_dir, "models")

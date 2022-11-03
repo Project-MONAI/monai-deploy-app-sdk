@@ -1,4 +1,4 @@
-# Copyright 2021 MONAI Consortium
+# Copyright 2021-2022 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -12,7 +12,7 @@
 COMMON_FOOTPRINT = """
     USER root
 
-    RUN pip install --no-cache-dir --upgrade setuptools==57.4.0 pip==21.3.1 wheel==0.37.0 numpy>=1.21
+    RUN pip install --no-cache-dir --upgrade setuptools==59.5.0 pip==22.3 wheel==0.37.1 numpy>=1.21.6
 
     RUN mkdir -p /etc/monai/ \\
      && mkdir -p /opt/monai/ \\
@@ -72,6 +72,7 @@ UBUNTU_DOCKERFILE_TEMPLATE = (
     ENV MONAI_WORKDIR={working_dir}
     ENV MONAI_APPLICATION={app_dir}
     ENV MONAI_TIMEOUT={timeout}
+    ENV MONAI_MODELPATH={models_dir}
 
     RUN apt update \\
      && apt upgrade -y --no-install-recommends \\
@@ -106,6 +107,7 @@ PYTORCH_DOCKERFILE_TEMPLATE = (
     ENV MONAI_WORKDIR={working_dir}
     ENV MONAI_APPLICATION={app_dir}
     ENV MONAI_TIMEOUT={timeout}
+    ENV MONAI_MODELPATH={models_dir}
 
     RUN apt update \\
      && apt upgrade -y --no-install-recommends \\

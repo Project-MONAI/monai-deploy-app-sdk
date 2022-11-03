@@ -19,12 +19,12 @@ For packaging your application, [MONAI Application Packager](/developing_with_sd
 
 <https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html#docker>
 
-Currently, `nvcr.io/nvidia/pytorch:21.07-py3` base Docker image is used by [MONAI Application Packager](/developing_with_sdk/packaging_app) by default.
+Currently, `nvcr.io/nvidia/pytorch:22.08-py3` base Docker image is used by [MONAI Application Packager](/developing_with_sdk/packaging_app) by default.
 
 The image size is large so please pull the image in advance to save time.
 
 ```bash
-docker pull nvcr.io/nvidia/pytorch:21.07-py3
+docker pull nvcr.io/nvidia/pytorch:22.08-py3
 ```
 
 :::
