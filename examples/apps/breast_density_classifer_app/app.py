@@ -1,12 +1,13 @@
 from breast_density_classifier_operator import ClassifierOperator
 
-from monai.deploy.core import Application
+from monai.deploy.core import Application, env
 from monai.deploy.operators.dicom_data_loader_operator import DICOMDataLoaderOperator
 from monai.deploy.operators.dicom_series_selector_operator import DICOMSeriesSelectorOperator
 from monai.deploy.operators.dicom_series_to_volume_operator import DICOMSeriesToVolumeOperator
 from monai.deploy.operators.dicom_text_sr_writer_operator import DICOMTextSRWriterOperator, EquipmentInfo, ModelInfo
 
 
+@env(pip_packages=["highdicom>=0.18.2"])
 class BreastClassificationApp(Application):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -36,7 +37,7 @@ class BreastClassificationApp(Application):
         self.add_flow(classifier_op, sr_writer_op, {"result_text": "classification_result"})
 
 
-def main():
+def test():
     app = BreastClassificationApp()
     image_dir = "./sampleDICOMs/1/BI_BREAST_SCREENING_BILATERAL_WITH_TOMOSYNTHESIS-2019-07-08/1/L_CC_C-View"
 
@@ -45,4 +46,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    app = BreastClassificationApp(do_run=True)
