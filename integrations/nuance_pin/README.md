@@ -24,7 +24,7 @@ Minimum software requirements:
 If you are reading this guide on the MONAI Github repo, you will need to clone the MONAI repo and change the directory to the Nuance PIN integration path.
 ```bash
 git clone https://github.com/Project-MONAI/monai-deploy-app-sdk.git
-cd integrations/nuance_pin
+cd platforms/nuance_pin
 ```
 
 In this folder you will see the following directory structure
