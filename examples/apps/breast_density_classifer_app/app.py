@@ -26,8 +26,8 @@ class BreastClassificationApp(Application):
         series_to_vol_op = DICOMSeriesToVolumeOperator()
         classifier_op = ClassifierOperator()
         sr_writer_op = DICOMTextSRWriterOperator(
-            copy_tags=False, model_info=model_info, equipment_info=my_equipment, custom_tags=my_special_tags
-        )
+            copy_tags=True, model_info=model_info, equipment_info=my_equipment, custom_tags=my_special_tags
+        )  # copy_tags=True to use Study and Patient modules of the original input
 
         self.add_flow(study_loader_op, series_selector_op, {"dicom_study_list": "dicom_study_list"})
         self.add_flow(
@@ -35,6 +35,8 @@ class BreastClassificationApp(Application):
         )
         self.add_flow(series_to_vol_op, classifier_op, {"image": "image"})
         self.add_flow(classifier_op, sr_writer_op, {"result_text": "classification_result"})
+        # Pass the Study series to the SR writer for copying tags
+        self.add_flow(series_selector_op, sr_writer_op, {"study_selected_series_list": "study_selected_series_list"})
 
 
 def test():
