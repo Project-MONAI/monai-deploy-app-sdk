@@ -172,6 +172,7 @@ class DICOMSegmentationWriterOperator(Operator):
         self,
         segment_descriptions: List[SegmentDescription],
         custom_tags: Optional[Dict[str, str]] = None,
+        omit_empty_frames: bool = True,
         *args,
         **kwargs,
     ):
@@ -192,12 +193,15 @@ class DICOMSegmentationWriterOperator(Operator):
         Args:
             segment_descriptions: List[SegmentDescription]
                 Object encapsulating the description of each segment present in the segmentation.
-            custom_tags: OptonalDict[str, str], optional
+            custom_tags: Optional[Dict[str, str]], optional
                 Dictionary for setting custom DICOM tags using Keywords and str values only
+            omit_empty_frames: bool, optional
+                Whether to omit frames that contain no segmented pixels from the output segmentation.
         """
 
         self._seg_descs = [sd.to_segment_description(n) for n, sd in enumerate(segment_descriptions, 1)]
         self._custom_tags = custom_tags
+        self._omit_empty_frames = omit_empty_frames
 
     def compute(self, op_input: InputContext, op_output: OutputContext, context: ExecutionContext):
         """Performs computation for this operator and handles I/O.
@@ -290,6 +294,7 @@ class DICOMSegmentationWriterOperator(Operator):
             manufacturer_model_name="MONAI Deploy App SDK",
             software_versions=version_str,
             device_serial_number="0000",
+            omit_empty_frames=self._omit_empty_frames,
         )
 
         # Adding a few tags that are not in the Dataset
