@@ -87,7 +87,9 @@ def run_app(map_name: str, input_path: Path, output_path: Path, app_info: dict, 
     # Use nvidia-docker if GPU resources are requested
     requested_gpus = get_requested_gpus(pkg_info)
     if requested_gpus > 0:
-        cmd = "nvidia-docker run --rm -a STDERR"
+        import torch
+        if "AMD" not in torch.cuda.get_device_name(0):
+           cmd = "nvidia-docker run --rm -a STDERR"
 
     if not quiet:
         cmd += " -a STDOUT"
@@ -160,6 +162,8 @@ def pkg_specific_dependency_verification(pkg_info: dict) -> bool:
     """
     requested_gpus = get_requested_gpus(pkg_info)
     if requested_gpus > 0:
+        import torch
+        if "AMD" not in torch.cuda.get_device_name(0):
         # check for nvidia-docker
         prog = "nvidia-docker"
         logger.info('--> Verifying if "%s" is installed...\n', prog)

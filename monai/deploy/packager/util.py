@@ -42,7 +42,11 @@ def verify_base_image(base_image: str) -> str:
         str: returns string identifier of the dockerfile template to build MAP
         if valid base image provided, returns empty string otherwise
     """
-    valid_prefixes = {"nvcr.io/nvidia/cuda": "ubuntu", "nvcr.io/nvidia/pytorch": "pytorch"}
+    import torch
+    if "AMD" not in torch.cuda.get_device_name(0):
+        valid_prefixes = {"nvcr.io/nvidia/cuda": "ubuntu", "nvcr.io/nvidia/pytorch": "pytorch"}
+    else:
+        valid_prefixes = {"rocm": "ubuntu", "rocm/pytorch": "pytorch"}
 
     for prefix, template in valid_prefixes.items():
         if prefix in base_image:
@@ -89,12 +93,22 @@ def initialize_args(args: Namespace) -> Dict:
     if args.base:
         dockerfile_type = verify_base_image(args.base)
         if not dockerfile_type:
-            logger.error(
-                "Provided base image '{}' is not supported \n \
-                          Please provide a Cuda or Pytorch image from https://ngc.nvidia.com/ (nvcr.io/nvidia)".format(
-                    args.base
+            import torch
+            if "AMD" not in torch.cuda.get_device_name(0):
+                logger.error(
+                    "Provided base image '{}' is not supported \n \
+                            Please provide a Cuda or Pytorch image from https://ngc.nvidia.com/ (nvcr.io/nvidia)".format(
+                        args.base
+                    )
                 )
-            )
+            else:
+                logger.error(
+                    "Provided base image '{}' is not supported \n \
+                            Please provide a ROCm or Pytorch image from https://hub.docker.com/r/rocm/pytorch".format(
+                        args.base
+                    )
+                )
+
             sys.exit(1)
 
     processed_args["dockerfile_type"] = dockerfile_type if args.base else DefaultValues.DOCKERFILE_TYPE
