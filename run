@@ -619,7 +619,7 @@ pytype_format() {
     local python_version="$(get_python_version)"
 
     pushd "${TOP}" > /dev/null
-    run_command ${MONAI_PY_EXE} -m pytype -j "${num_workers}" --python-version="${python_version}"
+    run_command ${MONAI_PY_EXE} -m pytype -j "${num_workers}" --python-version="${python_version}" "${TOP}"
     result=$?
     popd > /dev/null
 
