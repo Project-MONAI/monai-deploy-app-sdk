@@ -587,7 +587,7 @@ class MonaiBundleInferenceOperator(InferenceOperator):
             outputs = self.post_process(ensure_tuple(outputs)[0], **kw_args)
             logging.debug(f"Post-processing elapsed time (seconds): {time.time() - start}")
         if isinstance(outputs, (tuple, list)):
-            output_dict = dict(zip(self._outputs.keys(), outputs))
+            output_dict = dict(zip(self._outputs.keys(), outputs), strict=True)
         elif not isinstance(outputs, dict):
             output_dict = {first(self._outputs.keys()): outputs}
         else:
