@@ -39,7 +39,6 @@ from monai.deploy.utils.version import get_sdk_semver
 @md.output("dicom_instance", DataPath, IOType.DISK)
 @md.env(pip_packages=["pydicom >= 1.4.2", "monai"])
 class DICOMTextSRWriterOperator(Operator):
-
     # File extension for the generated DICOM Part 10 file.
     DCM_EXTENSION = ".dcm"
 

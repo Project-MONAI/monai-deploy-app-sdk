@@ -36,7 +36,6 @@ class GenerateGSPSOp(Operator):
         self.pin_processor = pin_processor
 
     def compute(self, op_input: InputContext, op_output: OutputContext, context: ExecutionContext):
-
         selected_study = op_input.get("original_dicom")[0]  # assuming a single study
         selected_series = selected_study.selected_series[0]  # assuming a single series
         detection_result: DetectionResult = op_input.get("detection_predictions").detection_list[0]
@@ -60,7 +59,6 @@ class GenerateGSPSOp(Operator):
         accession = all_ref_images[0].AccessionNumber
 
         for inst_num, (box_data, box_score) in enumerate(zip(detection_result.box_data, detection_result.score_data)):
-
             tracking_id = f"{accession}_nodule_{inst_num}"  # site-specific ID
             tracking_uid = hd.UID()
 
@@ -160,7 +158,6 @@ class CreatePINDiagnosticsReportOp(Operator):
         self.pin_processor = pin_processor
 
     def compute(self, op_input: InputContext, op_output: OutputContext, context: ExecutionContext):
-
         selected_study = op_input.get("original_dicom")[0]  # assuming a single study
         selected_series = selected_study.selected_series[0]  # assuming a single series
         detection_result: DetectionResult = op_input.get("detection_predictions").detection_list[0]
@@ -190,7 +187,6 @@ class CreatePINDiagnosticsReportOp(Operator):
         slice_coords = list(range(len(selected_series.series.get_sop_instances())))
 
         for box_data, box_score in zip(detection_result.box_data, detection_result.score_data):
-
             affected_slice_idx = [
                 idx
                 for idx, slice_coord in enumerate(slice_coords)

@@ -268,6 +268,7 @@ class BundleConfigNames:
 
 DEFAULT_BundleConfigNames = BundleConfigNames()
 
+
 # The operator env decorator defines the required pip packages commonly used in the Bundles.
 # The MONAI Deploy App SDK packager currently relies on the App to consolidate all required packages in order to
 # install them in the MAP Docker image.
@@ -768,7 +769,6 @@ class MonaiBundleInferenceOperator(InferenceOperator):
             or ("spacing" in img_meta_dict and "original_affine" in img_meta_dict)
             or "row_pixel_spacing" not in img_meta_dict
         ):
-
             return img.asnumpy(), img_meta_dict
         else:
             return self._convert_from_image_dicom_source(img)

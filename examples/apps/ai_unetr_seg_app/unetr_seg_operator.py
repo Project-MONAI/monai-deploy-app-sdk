@@ -46,14 +46,12 @@ class UnetrSegOperator(Operator):
     """
 
     def __init__(self):
-
         self.logger = logging.getLogger("{}.{}".format(__name__, type(self).__name__))
         super().__init__()
         self._input_dataset_key = "image"
         self._pred_dataset_key = "pred"
 
     def compute(self, op_input: InputContext, op_output: OutputContext, context: ExecutionContext):
-
         input_image = op_input.get("image")
         if not input_image:
             raise ValueError("Input image is not found.")
