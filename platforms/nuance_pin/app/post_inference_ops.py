@@ -58,7 +58,9 @@ class GenerateGSPSOp(Operator):
         all_ref_images = [ins.get_native_sop_instance() for ins in selected_series.series.get_sop_instances()]
         accession = all_ref_images[0].AccessionNumber
 
-        for inst_num, (box_data, box_score) in enumerate(zip(detection_result.box_data, detection_result.score_data)):
+        for inst_num, (box_data, box_score) in enumerate(
+            zip(detection_result.box_data, detection_result.score_data, strict=True)
+        ):
             tracking_id = f"{accession}_nodule_{inst_num}"  # site-specific ID
             tracking_uid = hd.UID()
 
@@ -186,7 +188,7 @@ class CreatePINDiagnosticsReportOp(Operator):
 
         slice_coords = list(range(len(selected_series.series.get_sop_instances())))
 
-        for box_data, box_score in zip(detection_result.box_data, detection_result.score_data):
+        for box_data, box_score in zip(detection_result.box_data, detection_result.score_data, strict=True):
             affected_slice_idx = [
                 idx
                 for idx, slice_coord in enumerate(slice_coords)

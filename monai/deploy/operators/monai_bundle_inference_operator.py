@@ -622,7 +622,7 @@ class MonaiBundleInferenceOperator(InferenceOperator):
 
         if is_map_compose(self._postproc):
             if isinstance(data, (list, tuple)):
-                outputs_dict = dict(zip(data, self._outputs.keys()))
+                outputs_dict = dict(zip(data, self._outputs.keys(), strict=True))
             elif not isinstance(data, dict):
                 oname = first(self._outputs.keys())
                 outputs_dict = {oname: data}
