@@ -52,5 +52,5 @@ class NetworkXGraph(Graph):
         return worklist
 
     def gen_next_operators(self, op: Operator) -> Generator[Optional[Operator], None, None]:
-        for (_, v) in self._graph.out_edges(op):
+        for _, v in self._graph.out_edges(op):
             yield v

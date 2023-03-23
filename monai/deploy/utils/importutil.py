@@ -155,7 +155,7 @@ def exact_version(the_module, version_str: str = "") -> bool:
     Returns True if the module's __version__ matches version_str
     """
     if not hasattr(the_module, "__version__"):
-        warnings.warn(f"{the_module} has no attribute __version__ in exact_version check.")
+        warnings.warn(f"{the_module} has no attribute __version__ in exact_version check.", stacklevel=2)
         return False
     return bool(the_module.__version__ == version_str)
 

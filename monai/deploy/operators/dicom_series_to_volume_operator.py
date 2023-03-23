@@ -389,7 +389,6 @@ class DICOMSeriesToVolumeOperator(Operator):
 
 
 def test():
-
     from pathlib import Path
 
     from monai.deploy.operators.dicom_data_loader_operator import DICOMDataLoaderOperator

@@ -60,7 +60,6 @@ class ModelInfo(object):
     """
 
     def __init__(self, creator: str = "", name: str = "", version: str = "", uid: str = ""):
-
         self.creator = creator if isinstance(creator, str) else ""
         self.name = name if isinstance(name, str) else ""
         self.version = version if isinstance(version, str) else ""
@@ -77,7 +76,6 @@ class EquipmentInfo(object):
         series_number: str = "0000",
         software_version_number: str = "",
     ):
-
         self.manufacturer = manufacturer if isinstance(manufacturer, str) else ""
         self.manufacturer_model = manufacturer_model if isinstance(manufacturer_model, str) else ""
         self.series_number = series_number if isinstance(series_number, str) else ""

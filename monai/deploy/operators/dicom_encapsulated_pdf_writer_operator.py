@@ -42,7 +42,6 @@ from monai.deploy.utils.version import get_sdk_semver
 @md.output("dicom_instance", DataPath, IOType.DISK)
 @md.env(pip_packages=["pydicom >= 1.4.2", "PyPDF2 >= 2.11.1", "monai"])
 class DICOMEncapsulatedPDFWriterOperator(Operator):
-
     DCM_EXTENSION = ".dcm"
 
     def __init__(
