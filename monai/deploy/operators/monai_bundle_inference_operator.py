@@ -78,8 +78,8 @@ def get_bundle_config(bundle_path, config_names):
 
         # Try directly read with constructed and expected path into the archive
         for suffix in bundle_suffixes:
+            path = Path(root_name, config_folder, config_name).with_suffix(suffix)
             try:
-                path = Path(root_name, config_folder, config_name).with_suffix(suffix)
                 logging.debug(f"Trying to read config '{config_name}' content from {path}.")
                 content_text = archive.read(str(path))
                 break
@@ -587,7 +587,7 @@ class MonaiBundleInferenceOperator(InferenceOperator):
             outputs = self.post_process(ensure_tuple(outputs)[0], **kw_args)
             logging.debug(f"Post-processing elapsed time (seconds): {time.time() - start}")
         if isinstance(outputs, (tuple, list)):
-            output_dict = dict(zip(self._outputs.keys(), outputs, strict=True))
+            output_dict = dict(zip(self._outputs.keys(), outputs))
         elif not isinstance(outputs, dict):
             output_dict = {first(self._outputs.keys()): outputs}
         else:
@@ -622,7 +622,7 @@ class MonaiBundleInferenceOperator(InferenceOperator):
 
         if is_map_compose(self._postproc):
             if isinstance(data, (list, tuple)):
-                outputs_dict = dict(zip(data, self._outputs.keys(), strict=True))
+                outputs_dict = dict(zip(data, self._outputs.keys()))
             elif not isinstance(data, dict):
                 oname = first(self._outputs.keys())
                 outputs_dict = {oname: data}
