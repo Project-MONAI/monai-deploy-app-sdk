@@ -50,7 +50,6 @@ from result import ResultStatus
 
 
 class MONAIAppWrapper(AiJobProcessor):
-
     partner_name = os.environ["AI_PARTNER_NAME"]
     service_name = os.environ["AI_SVC_NAME"]
     service_version = os.environ["AI_SVC_VERSION"]

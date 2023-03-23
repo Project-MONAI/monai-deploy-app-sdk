@@ -82,7 +82,6 @@ class DetectionResultList(Domain):
 @md.env(pip_packages=["monai>=0.8.1", "torch>=1.5", "numpy>=1.21", "nibabel"])
 class LungNoduleInferenceOperator(Operator):
     def __init__(self, model_path: str = "model/model.ts"):
-
         self.logger = logging.getLogger("{}.{}".format(__name__, type(self).__name__))
         super().__init__()
         self._input_dataset_key = "image"
@@ -125,7 +124,6 @@ class LungNoduleInferenceOperator(Operator):
         self.detector.eval()
 
     def compute(self, op_input: InputContext, op_output: OutputContext, context: ExecutionContext):
-
         input_image = op_input.get("image")
         if not input_image:
             raise ValueError("Input image not found.")

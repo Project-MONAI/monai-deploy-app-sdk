@@ -78,8 +78,8 @@ def get_bundle_config(bundle_path, config_names):
 
         # Try directly read with constructed and expected path into the archive
         for suffix in bundle_suffixes:
+            path = Path(root_name, config_folder, config_name).with_suffix(suffix)
             try:
-                path = Path(root_name, config_folder, config_name).with_suffix(suffix)
                 logging.debug(f"Trying to read config '{config_name}' content from {path}.")
                 content_text = archive.read(str(path))
                 break
@@ -267,6 +267,7 @@ class BundleConfigNames:
 
 
 DEFAULT_BundleConfigNames = BundleConfigNames()
+
 
 # The operator env decorator defines the required pip packages commonly used in the Bundles.
 # The MONAI Deploy App SDK packager currently relies on the App to consolidate all required packages in order to
@@ -768,7 +769,6 @@ class MonaiBundleInferenceOperator(InferenceOperator):
             or ("spacing" in img_meta_dict and "original_affine" in img_meta_dict)
             or "row_pixel_spacing" not in img_meta_dict
         ):
-
             return img.asnumpy(), img_meta_dict
         else:
             return self._convert_from_image_dicom_source(img)
