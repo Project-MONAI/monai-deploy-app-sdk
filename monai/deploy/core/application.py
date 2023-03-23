@@ -82,7 +82,7 @@ class Application(ABC):
             self.description = get_docstring(self.__class__)
         if not self.version:
             try:
-                from _version import get_versions
+                from monai.deploy._version import get_versions
 
                 self.version = get_versions()["version"]
             except ImportError:
