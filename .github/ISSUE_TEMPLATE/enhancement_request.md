@@ -7,7 +7,7 @@ assignees: ''
 
 ---
 
-**Is your enhancemnet request related to a problem? Please describe.**
+**Is your enhancement request related to a problem? Please describe.**
 <!--
 A clear and concise description of what the enhancement needs to be. Ex. The example app can be improved to show me how to [...]
 -->

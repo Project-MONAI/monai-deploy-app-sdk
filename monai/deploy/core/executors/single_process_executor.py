@@ -141,7 +141,7 @@ class SingleProcessExecutor(Executor):
                         )
 
                     next_op_exec_context = ExecutionContext(exec_context, next_op)
-                    for (out_label, in_labels) in io_map.items():
+                    for out_label, in_labels in io_map.items():
                         output = op_exec_context.output_context.get(out_label)
                         for in_label in in_labels:
                             next_op_exec_context.input_context.set(output, in_label)

@@ -118,7 +118,6 @@ class DICOMDataLoaderOperator(Operator):
                 logging.warning(f"Ignored {file}, reason being: {ex}")
 
         for sop_instance in sop_instances:
-
             study_instance_uid = sop_instance[0x0020, 0x000D].value.name  # name is the UID as str
 
             if study_instance_uid not in study_dict:
