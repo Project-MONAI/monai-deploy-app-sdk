@@ -76,6 +76,10 @@ python examples/apps/ai_spleen_seg_app/app.py -i dcm/ -o output -m model.ts
 # Please see https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html#docker to install nvidia-docker2.
 monai-deploy package examples/apps/ai_spleen_seg_app --tag seg_app:latest --model model.ts -l DEBUG
 
+# For AMD GPUs, nvidia-docker is not required. Use --base [base image] option to override the docker base image.
+# Please see https://hub.docker.com/r/rocm/pytorch for rocm/pytorch docker images.
+monai-deploy package -b rocm/pytorch:rocm5.4.1_ubuntu20.04_py3.7_pytorch_1.12.1 examples/apps/ai_spleen_seg_app --tag seg_app:latest --model model.ts -l DEBUG
+
 # Run the app with docker image and input file locally
 monai-deploy run seg_app:latest dcm/ output
 ```
