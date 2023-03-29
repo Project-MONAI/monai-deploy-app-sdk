@@ -21,10 +21,13 @@ def has_rocm():
         True if ROCm is installed and GPU device is detected, otherwise False.
     """
     cmd = "rocminfo"
-    process = subprocess.run([cmd], stdout=subprocess.PIPE)
-    for line_in in process.stdout.decode().splitlines():
-        if "Device Type" in line_in and "GPU" in line_in:
-            return True
+    try:
+        process = subprocess.run([cmd], stdout=subprocess.PIPE)
+        for line_in in process.stdout.decode().splitlines():
+            if "Device Type" in line_in and "GPU" in line_in:
+                return True
+    except Exception:
+        pass
 
     return False
 

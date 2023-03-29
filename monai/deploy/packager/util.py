@@ -23,7 +23,6 @@ from typing import Dict
 from monai.deploy.exceptions import WrongValueError
 from monai.deploy.packager.constants import DefaultValues
 from monai.deploy.packager.templates import Template
-from monai.deploy.utils.deviceutil import has_rocm
 from monai.deploy.utils.fileutil import checksum
 from monai.deploy.utils.importutil import dist_module_path, dist_requires, get_application
 from monai.deploy.utils.spinner import ProgressSpinner
@@ -43,8 +42,8 @@ def verify_base_image(base_image: str) -> str:
         str: returns string identifier of the dockerfile template to build MAP
         if valid base image provided, returns empty string otherwise
     """
-    if has_rocm():
-        valid_prefixes = {"rocm": "ubuntu", "rocm/pytorch": "pytorch"}
+    if "rocm" in base_image:
+        valid_prefixes = {"rocm/pytorch": "ubuntu"}
     else:
         valid_prefixes = {"nvcr.io/nvidia/cuda": "ubuntu", "nvcr.io/nvidia/pytorch": "pytorch"}
 
@@ -93,20 +92,13 @@ def initialize_args(args: Namespace) -> Dict:
     if args.base:
         dockerfile_type = verify_base_image(args.base)
         if not dockerfile_type:
-            if has_rocm():
-                logger.error(
-                    "Provided base image '{}' is not supported \n \
-                            Please provide a ROCm or Pytorch image from https://hub.docker.com/r/rocm/pytorch".format(
-                        args.base
-                    )
+            logger.error(
+                "Provided base image '{}' is not supported \n \
+                        Please provide a ROCm or Cuda based Pytorch image from \n \
+                        https://hub.docker.com/r/rocm/pytorch or https://ngc.nvidia.com/ (nvcr.io/nvidia)".format(
+                    args.base
                 )
-            else:
-                logger.error(
-                    "Provided base image '{}' is not supported \n \
-                            Please provide a Cuda or Pytorch image from https://ngc.nvidia.com/ (nvcr.io/nvidia)".format(
-                        args.base
-                    )
-                )
+            )
 
             sys.exit(1)
 
