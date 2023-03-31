@@ -1,4 +1,4 @@
-# Copyright 2021-2002 MONAI Consortium
+# Copyright 2021-2023 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import os
+from pathlib import Path
 from threading import Lock
 from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 
@@ -35,17 +37,16 @@ Compose_, _ = optional_import("monai.transforms", name="Compose")
 # Dynamic class is not handled so make it Any for now: https://github.com/python/mypy/issues/2477
 Compose: Any = Compose_
 
-import monai.deploy.core as md
-from monai.deploy.core import ExecutionContext, Image, InputContext, IOType, OutputContext
+from monai.deploy.core import Image, OperatorSpec
 
 from .inference_operator import InferenceOperator
 
 __all__ = ["MonaiSegInferenceOperator", "InMemImageReader"]
 
 
-@md.input("image", Image, IOType.IN_MEMORY)
-@md.output("seg_image", Image, IOType.IN_MEMORY)
-@md.env(pip_packages=["monai>=1.0.0", "torch>=1.10.2", "numpy>=1.21"])
+# @md.input("image", Image, IOType.IN_MEMORY)
+# @md.output("seg_image", Image, IOType.IN_MEMORY)
+# @md.env(pip_packages=["monai>=1.0.0", "torch>=1.10.2", "numpy>=1.21"])
 class MonaiSegInferenceOperator(InferenceOperator):
     """This segmentation operator uses MONAI transforms and Sliding Window Inference.
 
@@ -57,16 +58,21 @@ class MonaiSegInferenceOperator(InferenceOperator):
     """
 
     # For testing the app directly, the model should be at the following path.
-    MODEL_LOCAL_PATH = "model/model.ts"
+    MODEL_LOCAL_PATH = Path(os.environ.get("MONAI_MODELPATH", Path(os.path.dirname(__file__)) / "model/model.ts"))
+
+    def setup(self, spec: OperatorSpec):
+        spec.input("image")
+        spec.output("seg_image")
 
     def __init__(
         self,
+        *args,
         roi_size: Union[Sequence[int], int],
         pre_transforms: Compose,
         post_transforms: Compose,
         model_name: Optional[str] = "",
         overlap: float = 0.5,
-        *args,
+        model_path: Path = MODEL_LOCAL_PATH,
         **kwargs,
     ):
         """Creates a instance of this class.
@@ -91,6 +97,9 @@ class MonaiSegInferenceOperator(InferenceOperator):
         self._post_transforms = post_transforms
         self._model_name = model_name.strip() if isinstance(model_name, str) else ""
         self.overlap = overlap
+
+        # Add this so that the local model path can be set from the calling app
+        self.model_path = model_path
 
     @property
     def roi_size(self):
@@ -172,7 +181,7 @@ class MonaiSegInferenceOperator(InferenceOperator):
 
         return metadata
 
-    def compute(self, op_input: InputContext, op_output: OutputContext, context: ExecutionContext):
+    def compute(self, op_input, op_output, context):
         """Infers with the input image and save the predicted image to output
 
         Args:
@@ -180,73 +189,87 @@ class MonaiSegInferenceOperator(InferenceOperator):
             op_output (OutputContext): An output context for the operator.
             context (ExecutionContext): An execution context for the operator.
         """
+
         with self._lock:
             if self._executing:
                 raise RuntimeError("Operator is already executing.")
             else:
                 self._executing = True
         try:
-            input_image = op_input.get("image")
+            input_image = op_input.receive("image")
             if not input_image:
                 raise ValueError("Input is None.")
-
-            # Need to try to convert the data type of a few metadata attributes.
-            input_img_metadata = self._convert_dicom_metadata_datatype(input_image.metadata())
-            # Need to give a name to the image as in-mem Image obj has no name.
-            img_name = str(input_img_metadata.get("SeriesInstanceUID", "Img_in_context"))
-
-            pre_transforms: Compose = self._pre_transform
-            post_transforms: Compose = self._post_transforms
-            self._reader = InMemImageReader(input_image)
-
-            pre_transforms = self._pre_transform if self._pre_transform else self.pre_process(self._reader)
-            post_transforms = self._post_transforms if self._post_transforms else self.post_process(pre_transforms)
-
-            device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-            model = None
-            if context.models:
-                # `context.models.get(model_name)` returns a model instance if exists.
-                # If model_name is not specified and only one model exists, it returns that model.
-                model = context.models.get(self._model_name)
-            else:
-                print(f"Loading TorchScript model from: {MonaiSegInferenceOperator.MODEL_LOCAL_PATH}")
-                model = torch.jit.load(MonaiSegInferenceOperator.MODEL_LOCAL_PATH, map_location=device)
-
-            dataset = Dataset(data=[{self._input_dataset_key: img_name}], transform=pre_transforms)
-            dataloader = DataLoader(dataset, batch_size=1, shuffle=False, num_workers=0)
-
-            with torch.no_grad():
-                for d in dataloader:
-                    images = d[self._input_dataset_key].to(device)
-                    sw_batch_size = 4
-                    d[self._pred_dataset_key] = sliding_window_inference(
-                        inputs=images,
-                        roi_size=self._roi_size,
-                        sw_batch_size=sw_batch_size,
-                        overlap=self.overlap,
-                        predictor=model,
-                    )
-                    d = [post_transforms(i) for i in decollate_batch(d)]
-                    out_ndarray = d[0][self._pred_dataset_key].cpu().numpy()
-                    # Need to squeeze out the channel dim fist
-                    out_ndarray = np.squeeze(out_ndarray, 0)
-                    # NOTE: The domain Image object simply contains a Arraylike obj as image as of now.
-                    #       When the original DICOM series is converted by the Series to Volume operator,
-                    #       using pydicom pixel_array, the 2D ndarray of each slice has index order HW, and
-                    #       when all slices are stacked with depth as first axis, DHW. In the pre-transforms,
-                    #       the image gets transposed to WHD and used as such in the inference pipeline.
-                    #       So once post-transforms have completed, and the channel is squeezed out,
-                    #       the resultant ndarray for the prediction image needs to be transposed back, so the
-                    #       array index order is back to DHW, the same order as the in-memory input Image obj.
-                    out_ndarray = out_ndarray.T.astype(np.uint8)
-                    print(f"Output Seg image numpy array shaped: {out_ndarray.shape}")
-                    print(f"Output Seg image pixel max value: {np.amax(out_ndarray)}")
-                    out_image = Image(out_ndarray, input_img_metadata)
-                    op_output.set(out_image, "seg_image")
+            op_output.emit(self.compute_impl(input_image, context), "seg_image")
         finally:
             # Reset state on completing this method execution.
             with self._lock:
                 self._executing = False
+
+    def compute_impl(self, input_image, context):
+        # input_image = op_input.receive("image")
+        if not input_image:
+            raise ValueError("Input is None.")
+
+        # Need to try to convert the data type of a few metadata attributes.
+        input_img_metadata = self._convert_dicom_metadata_datatype(input_image.metadata())
+        # Need to give a name to the image as in-mem Image obj has no name.
+        img_name = str(input_img_metadata.get("SeriesInstanceUID", "Img_in_context"))
+
+        pre_transforms: Compose = self._pre_transform
+        post_transforms: Compose = self._post_transforms
+        self._reader = InMemImageReader(input_image)
+
+        pre_transforms = self._pre_transform if self._pre_transform else self.pre_process(self._reader)
+        post_transforms = self._post_transforms if self._post_transforms else self.post_process(pre_transforms)
+
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        model = None
+        # if context and context.models:
+        #     # `context.models.get(model_name)` returns a model instance if exists.
+        #     # If model_name is not specified and only one model exists, it returns that model.
+        #     model = context.models.get(self._model_name)
+        # else:
+        #     print(f"Loading TorchScript model from: {MonaiSegInferenceOperator.MODEL_LOCAL_PATH}")
+        #     model = torch.jit.load(MonaiSegInferenceOperator.MODEL_LOCAL_PATH, map_location=device)
+        try:
+            # For now, the context does not have model, so AttibuteError is always thrown
+            # `context.models.get(model_name)` returns a model instance if exists.
+            # If model_name is not specified and only one model exists, it returns that model.
+            model = context.models.get(self._model_name)
+        except Exception:
+            print(f"Loading TorchScript model from: {self.model_path}")
+            model = torch.jit.load(self.model_path, map_location=device)
+
+        dataset = Dataset(data=[{self._input_dataset_key: img_name}], transform=pre_transforms)
+        dataloader = DataLoader(dataset, batch_size=1, shuffle=False, num_workers=0)
+
+        with torch.no_grad():
+            for d in dataloader:
+                images = d[self._input_dataset_key].to(device)
+                sw_batch_size = 4
+                d[self._pred_dataset_key] = sliding_window_inference(
+                    inputs=images,
+                    roi_size=self._roi_size,
+                    sw_batch_size=sw_batch_size,
+                    overlap=self.overlap,
+                    predictor=model,
+                )
+                d = [post_transforms(i) for i in decollate_batch(d)]
+                out_ndarray = d[0][self._pred_dataset_key].cpu().numpy()
+                # Need to squeeze out the channel dim fist
+                out_ndarray = np.squeeze(out_ndarray, 0)
+                # NOTE: The domain Image object simply contains a Arraylike obj as image as of now.
+                #       When the original DICOM series is converted by the Series to Volume operator,
+                #       using pydicom pixel_array, the 2D ndarray of each slice has index order HW, and
+                #       when all slices are stacked with depth as first axis, DHW. In the pre-transforms,
+                #       the image gets transposed to WHD and used as such in the inference pipeline.
+                #       So once post-transforms have completed, and the channel is squeezed out,
+                #       the resultant ndarray for the prediction image needs to be transposed back, so the
+                #       array index order is back to DHW, the same order as the in-memory input Image obj.
+                out_ndarray = out_ndarray.T.astype(np.uint8)
+                print(f"Output Seg image numpy array shaped: {out_ndarray.shape}")
+                print(f"Output Seg image pixel max value: {np.amax(out_ndarray)}")
+                return Image(out_ndarray, input_img_metadata)
 
     def pre_process(self, data: Any, *args, **kwargs) -> Union[Any, Image, Tuple[Any, ...], Dict[Any, Any]]:
         """Transforms input before being used for predicting on a model.

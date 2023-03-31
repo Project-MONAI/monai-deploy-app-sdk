@@ -10,11 +10,11 @@
 # limitations under the License.
 
 
-from os import makedirs
+from os import makedirs, getcwd
 from os.path import join
+from pathlib import Path
 
-import monai.deploy.core as md
-from monai.deploy.core import DataPath, ExecutionContext, Image, InputContext, IOType, Operator, OutputContext
+from monai.deploy.core import Operator, OperatorSpec
 from monai.deploy.operators.dicom_data_loader_operator import DICOMDataLoaderOperator
 from monai.deploy.operators.dicom_series_to_volume_operator import DICOMSeriesToVolumeOperator
 from monai.deploy.utils.importutil import optional_import
@@ -22,17 +22,20 @@ from monai.deploy.utils.importutil import optional_import
 PILImage, _ = optional_import("PIL", name="Image")
 
 
-@md.input("image", Image, IOType.IN_MEMORY)
-@md.output("image", DataPath, IOType.DISK)
-@md.env(pip_packages=["Pillow >= 8.0.0"])
+# @md.env(pip_packages=["Pillow >= 8.0.0"])
 class PNGConverterOperator(Operator):
     """
     This operator writes out a 3D Volumetric Image to disk in a slice by slice manner
     """
+    # The default output folder for saveing the generated DICOM instance file.
+    # DEFAULT_OUTPUT_FOLDER = Path(os.path.join(os.path.dirname(__file__))) / "output"
+    DEFAULT_OUTPUT_FOLDER = Path(getcwd()) / "output"
 
-    def compute(self, op_input: InputContext, op_output: OutputContext, context: ExecutionContext):
-        input_path = op_input.get("image")
-        output_dir = op_output.get().path
+    DEFAULT_OUTPUT_FOLDER = Path(getcwd()) / "output"
+
+    def compute(self, op_input, op_output, context):
+        input_path = op_input.receive("image")
+        # output_dir = op_output.get().path
         output_dir.mkdir(parents=True, exist_ok=True)
         self.convert_and_save(input_path, output_dir)
 

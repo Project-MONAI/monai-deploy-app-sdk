@@ -16,9 +16,9 @@ import sys
 from argparse import ArgumentParser, Namespace, _SubParsersAction
 from typing import List
 
-from monai.deploy.core.datastores.factory import DatastoreFactory
-from monai.deploy.core.executors.factory import ExecutorFactory
-from monai.deploy.core.graphs.factory import GraphFactory
+# from monai.deploy.core.datastores.factory import DatastoreFactory
+# from monai.deploy.core.executors.factory import ExecutorFactory
+# from monai.deploy.core.graphs.factory import GraphFactory
 
 
 def create_exec_parser(subparser: _SubParsersAction, command: str, parents: List[ArgumentParser]) -> ArgumentParser:
@@ -37,21 +37,21 @@ def create_exec_parser(subparser: _SubParsersAction, command: str, parents: List
         type=str,
         help="Path to workspace folder (default: A temporary '.monai_workdir' folder in the current folder)",
     )
-    parser.add_argument(
-        "--graph",
-        help=f"Set Graph engine (default: {GraphFactory.DEFAULT})",
-        choices=GraphFactory.NAMES,
-    )
-    parser.add_argument(
-        "--datastore",
-        help=f"Set Datastore (default: {DatastoreFactory.DEFAULT})",
-        choices=DatastoreFactory.NAMES,
-    )
-    parser.add_argument(
-        "--executor",
-        help=f"Set Executor (default: {ExecutorFactory.DEFAULT})",
-        choices=ExecutorFactory.NAMES,
-    )
+    # parser.add_argument(
+    #     "--graph",
+    #     help=f"Set Graph engine (default: {GraphFactory.DEFAULT})",
+    #     choices=GraphFactory.NAMES,
+    # )
+    # parser.add_argument(
+    #     "--datastore",
+    #     help=f"Set Datastore (default: {DatastoreFactory.DEFAULT})",
+    #     choices=DatastoreFactory.NAMES,
+    # )
+    # parser.add_argument(
+    #     "--executor",
+    #     help=f"Set Executor (default: {ExecutorFactory.DEFAULT})",
+    #     choices=ExecutorFactory.NAMES,
+    # )
     parser.add_argument("remaining", nargs="*")
 
     return parser

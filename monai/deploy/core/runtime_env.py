@@ -13,9 +13,9 @@ import os
 from abc import ABC
 from typing import Dict, Optional, Tuple
 
-from monai.deploy.core.datastores.factory import DatastoreFactory
-from monai.deploy.core.executors.factory import ExecutorFactory
-from monai.deploy.core.graphs.factory import GraphFactory
+# from monai.deploy.core.datastores.factory import DatastoreFactory
+# from monai.deploy.core.executors.factory import ExecutorFactory
+# from monai.deploy.core.graphs.factory import GraphFactory
 
 
 class RuntimeEnv(ABC):
@@ -30,9 +30,9 @@ class RuntimeEnv(ABC):
         "output": ("MONAI_OUTPUTPATH", "output"),
         "model": ("MONAI_MODELPATH", "models"),
         "workdir": ("MONAI_WORKDIR", ""),
-        "graph": ("MONAI_GRAPH", GraphFactory.DEFAULT),  # The 'MONAI_GRAPH' is not part of MAP spec.
-        "datastore": ("MONAI_DATASTORE", DatastoreFactory.DEFAULT),  # The 'MONAI_DATASTORE' is not part of MAP spec.
-        "executor": ("MONAI_EXECUTOR", ExecutorFactory.DEFAULT),  # The 'MONAI_EXECUTOR' is not part of MAP spec.
+        # "graph": ("MONAI_GRAPH", GraphFactory.DEFAULT),  # The 'MONAI_GRAPH' is not part of MAP spec.
+        # "datastore": ("MONAI_DATASTORE", DatastoreFactory.DEFAULT),  # The 'MONAI_DATASTORE' is not part of MAP spec.
+        # "executor": ("MONAI_EXECUTOR", ExecutorFactory.DEFAULT),  # The 'MONAI_EXECUTOR' is not part of MAP spec.
     }
 
     input: str = ""

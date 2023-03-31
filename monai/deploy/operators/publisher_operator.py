@@ -9,15 +9,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from os import makedirs, path
+import logging
+from os import getcwd, makedirs, path
 from pathlib import Path
 from shutil import copy
+from typing import Union
 
-import monai.deploy.core as md
-from monai.deploy.core import DataPath, ExecutionContext, InputContext, IOType, Operator, OutputContext
+from monai.deploy.core import DataPath, Operator, OperatorSpec
 
 
-@md.input("saved_images_folder", DataPath, IOType.DISK)
+# @md.input("saved_images_folder", DataPath, IOType.DISK)
 # If `pip_packages` is specified, the definition will be aggregated with the package dependency list of other
 # operators and the application in packaging time.
 # @md.env(pip_packages=[])
@@ -28,9 +29,45 @@ class PublisherOperator(Operator):
     generates the render config file and the meta data file, then save all in the `publish` folder of the app.
     """
 
-    def compute(self, op_input: InputContext, op_output: OutputContext, context: ExecutionContext):
+    # The default input folder for saveing the generated DICOM instance file.
+    DEFAULT_INPUT_FOLDER = Path(getcwd()) / "input"
+
+    # The default output folder for saveing the generated DICOM instance file.
+    DEFAULT_OUTPUT_FOLDER = Path(getcwd()) / "output"
+
+    def __init__(
+        self,
+        *args,
+        input_folder: Union[str, Path],
+        output_folder: Union[str, Path],
+        **kwargs,
+    ):
+        """Class to write DICOM Encapsulated PDF Instance with PDF bytes in memory or in a file.
+
+        Args:
+            input_folder (str or Path): The folder to read the input and segment mask files.
+            output_folder (str or Path): The folder to save the published files.
+        """
+
+        self._logger = logging.getLogger("{}.{}".format(__name__, type(self).__name__))
+
+        # Need to get the input folder in init until the execution context supports input path.
+        self.input_folder = (
+            Path(input_folder) if input_folder else PublisherOperator.DEFAULT_INPUT_FOLDER
+        )
+
+        # Need to get the output folder in init until the execution context supports output path.
+        # Not trying to create the folder to avoid exception on init
+        self.output_dir = (
+            Path(output_folder) if output_folder else PublisherOperator.DEFAULT_OUTPUT_FOLDER
+        )
+
+        super().__init__(*args, **kwargs)
+
+    def compute(self, op_input, op_output, context):
         saved_images_folder = op_input.get("saved_images_folder").path
-        if not path.isdir(saved_images_folder):
+
+        if not self.input_folder.is_dir():
             raise ValueError("Expected a folder path for saved_image_folder input")
 
         density_path, mask_path = self._find_density_and_mask_files(saved_images_folder)

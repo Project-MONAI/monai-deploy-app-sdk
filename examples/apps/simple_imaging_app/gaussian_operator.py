@@ -9,12 +9,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import monai.deploy.core as md
-from monai.deploy.core import DataPath, ExecutionContext, Image, InputContext, IOType, Operator, OutputContext
+import os
+from pathlib import Path
+
+from skimage.filters import gaussian
+from skimage.io import imsave
+
+from monai.deploy.core import Operator, OperatorSpec
 
 
-@md.input("image", Image, IOType.IN_MEMORY)
-@md.output("image", DataPath, IOType.DISK)
 # If `pip_packages` is specified, the definition will be aggregated with the package dependency list of other
 # operators and the application in packaging time.
 # @md.env(pip_packages=["scikit-image >= 0.17.2"])
@@ -24,13 +27,37 @@ class GaussianOperator(Operator):
     It ingests a single input and provides a single output.
     """
 
-    def compute(self, op_input: InputContext, op_output: OutputContext, context: ExecutionContext):
-        from skimage.filters import gaussian
-        from skimage.io import imsave
+    DEFAULT_OUTPUT_FOLDER = Path(os.path.join(os.path.dirname(__file__))) / "output"
 
-        data_in = op_input.get().asnumpy()
-        data_out = gaussian(data_in, sigma=0.2, channel_axis=2)  # Add the param introduced in 0.19.
+    def __init__(self, *args, output_folder: Path, **kwargs):
+        # If `self.sigma_default` is set here (e.g., `self.sigma_default = 0.2`), then
+        # the default value by `param()` in `setup()` will be ignored.
+        # (you can just call `spec.param("sigma_default")` in `setup()` to use the
+        # default value)
+        self.output_folder = output_folder if output_folder else GaussianOperator.DEFAULT_OUTPUT_FOLDER
+        self.index = 0
 
-        output_folder = op_output.get().path
-        output_path = output_folder / "final_output.png"
+        # Need to call the base class constructor last
+        super().__init__(*args, **kwargs)
+
+    def setup(self, spec: OperatorSpec):
+        spec.input("in1")
+        # spec.output("out1")
+        spec.param("sigma_default", 0.2)
+        spec.param("channel_axis", 2)
+
+    def compute(self, op_input, op_output, context):
+        self.index += 1
+        print(f"# of times pperator {__name__} called: {self.index}")
+
+        data_in = op_input.receive("in1")
+        data_out = gaussian(data_in, sigma=self.sigma_default, channel_axis=self.channel_axis)
+
+        # Where to set the Application's output folder, in the context?
+        # For now, use attribute.
+        output_path = self.output_folder / "final_output.png"
         imsave(output_path, data_out)
+
+        # Let's also emit the output, even though not sure what the receiver would be
+        # CANNOT set dangling out!!!
+        # op_input.emit(data_out, "out1")

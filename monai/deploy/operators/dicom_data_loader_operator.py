@@ -1,4 +1,4 @@
-# Copyright 2021-2022 MONAI Consortium
+# Copyright 2021-2023 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -14,8 +14,7 @@ import os
 from pathlib import Path
 from typing import List
 
-import monai.deploy.core as md
-from monai.deploy.core import DataPath, ExecutionContext, InputContext, IOType, Operator, OutputContext
+from monai.deploy.core import Operator, OperatorSpec
 from monai.deploy.core.domain.dicom_series import DICOMSeries
 from monai.deploy.core.domain.dicom_study import DICOMStudy
 from monai.deploy.exceptions import ItemNotExistsError
@@ -29,31 +28,53 @@ valuerep, _ = optional_import("pydicom", name="valuerep")
 InvalidDicomError, _ = optional_import("pydicom.errors", name="InvalidDicomError")
 
 
-@md.input("dicom_files", DataPath, IOType.DISK)
-@md.output("dicom_study_list", List[DICOMStudy], IOType.IN_MEMORY)
-@md.env(pip_packages=["pydicom >= 1.4.2"])
+# @md.input("dicom_files", DataPath, IOType.DISK)
+# @md.output("dicom_study_list", List[DICOMStudy], IOType.IN_MEMORY)
+# @md.env(pip_packages=["pydicom >= 1.4.2"])
 class DICOMDataLoaderOperator(Operator):
     """
     This operator loads a collection of DICOM Studies in memory
     given a directory which contains a list of SOP Instances.
     """
 
-    def __init__(self, must_load: bool = True, *args, **kwargs):
+    # For now, have the input folder to read from as an attribute, because the
+    # compute function does not get file I/O path in the context. Enhancement has been requested.
+    DEFAULT_INPUT_FOLDER = Path(os.path.join(os.path.dirname(__file__))) / "input"
+
+    def __init__(self, *args, input_folder: Path = DEFAULT_INPUT_FOLDER, must_load: bool = True, **kwargs):
         """Creates an instance of this class
 
         Args:
+            input_folder (Path): Folder containing DICOM instance files to load from.
+                                 Defaults to `input`, relative to this file.
             must_load (bool): If true, raise exception if no study is loaded.
                               Defaults to True.
         """
-        super().__init__(*args, **kwargs)
-        self._must_load = must_load
 
-    def compute(self, op_input: InputContext, op_output: OutputContext, context: ExecutionContext):
+        self._must_load = must_load
+        self.input_path = input_folder
+        self.index = 0
+
+        super().__init__(*args, **kwargs)
+
+    def setup(self, spec: OperatorSpec):
+        spec.output("dicom_study_list")
+        # spec.param("input_path", Path("."))
+
+    def compute(self, op_input, op_output, context):
         """Performs computation for this operator and handlesI/O."""
 
-        input_path = op_input.get().path
+        self.index += 1
+        input_path = self.input_path  # Need the enhancement to get the path from op_input or context
+
+        # MQ
+        print(f"context obj: {context.__dir__()}")
+        print(f"context.input: {context.input.__dir__()}")
+        print(f"context.output: {context.output.__dir__()}")
+        # MQ
+
         dicom_study_list = self.load_data_to_studies(input_path)
-        op_output.set(dicom_study_list, "dicom_study_list")
+        op_output.emit(dicom_study_list, "dicom_study_list")
 
     def load_data_to_studies(self, input_path: Path):
         """Load DICOM data from files into DICOMStudy objects in a list.
@@ -277,7 +298,7 @@ class DICOMDataLoaderOperator(Operator):
 
 def test():
     current_file_dir = Path(__file__).parent.resolve()
-    data_path = current_file_dir.joinpath("../../../examples/ai_spleen_seg_data/dcm")
+    data_path = current_file_dir.joinpath("../../../inputs/spleen_ct/dcm")
 
     loader = DICOMDataLoaderOperator()
     study_list = loader.load_data_to_studies(data_path.absolute())
@@ -322,15 +343,15 @@ def test():
             break
     # Test raising exception, or not, depending on if set to must_load.
     non_dcm_dir = current_file_dir.parent / "utils"
-    print(f"{non_dcm_dir}")
+    print(f"Test loading from dir without dcm files: {non_dcm_dir}")
     try:
         loader.load_data_to_studies(non_dcm_dir)
     except ItemNotExistsError as ex:
-        print(f"Tested exception when no studies loaded & must_load is True: {ex}")
+        print(f"Test passed: exception when no studies loaded & must_load flag is True: {ex}")
 
     relaxed_loader = DICOMDataLoaderOperator(must_load=False)
     study_list = relaxed_loader.load_data_to_studies(non_dcm_dir)
-    print(f"Loaded studies length of {len(study_list)} is OK when must_load is set to False.")
+    print(f"Test passed: {len(study_list)} study loaded and is OK when must_load flag is False.")
 
 
 if __name__ == "__main__":

@@ -1,4 +1,4 @@
-# Copyright 2021 MONAI Consortium
+# Copyright 2021-2023 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -36,8 +36,7 @@ else:
     Code, _ = optional_import("pydicom.sr.coding", name="Code")
     hd, _ = optional_import("highdicom")
 
-import monai.deploy.core as md
-from monai.deploy.core import DataPath, ExecutionContext, Image, InputContext, IOType, Operator, OutputContext
+from monai.deploy.core import Image, Operator, OperatorSpec
 from monai.deploy.core.domain.dicom_series import DICOMSeries
 from monai.deploy.core.domain.dicom_series_selection import StudySelectedSeries
 
@@ -155,14 +154,17 @@ class SegmentDescription:
         )
 
 
-@md.input("seg_image", Image, IOType.IN_MEMORY)
-@md.input("study_selected_series_list", List[StudySelectedSeries], IOType.IN_MEMORY)
-@md.output("dicom_seg_instance", DataPath, IOType.DISK)
-@md.env(pip_packages=["pydicom >= 2.3.0", "highdicom >= 0.18.2"])
+# @md.input("seg_image", Image, IOType.IN_MEMORY)
+# @md.input("study_selected_series_list", List[StudySelectedSeries], IOType.IN_MEMORY)
+# @md.output("dicom_seg_instance", DataPath, IOType.DISK)
+# @md.env(pip_packages=["pydicom >= 2.3.0", "highdicom >= 0.18.2"])
 class DICOMSegmentationWriterOperator(Operator):
     """
     This operator writes out a DICOM Segmentation Part 10 file to disk
     """
+
+    # DEFAULT_OUTPUT_FOLDER = Path(os.path.join(os.path.dirname(__file__))) / "output"
+    DEFAULT_OUTPUT_FOLDER = Path(os.getcwd()) / "output"
 
     # Supported input image format, based on extension.
     SUPPORTED_EXTENSIONS = [".nii", ".nii.gz", ".mhd"]
@@ -171,13 +173,12 @@ class DICOMSegmentationWriterOperator(Operator):
 
     def __init__(
         self,
+        *args,
         segment_descriptions: List[SegmentDescription],
         custom_tags: Optional[Dict[str, str]] = None,
-        omit_empty_frames: bool = True,
-        *args,
+        output_folder: Path,
         **kwargs,
     ):
-        super().__init__(*args, **kwargs)
         """Instantiates the DICOM Seg Writer instance with optional list of segment label strings.
 
         Each unique, non-zero integer value in the segmentation image represents a segment that must be
@@ -194,17 +195,21 @@ class DICOMSegmentationWriterOperator(Operator):
         Args:
             segment_descriptions: List[SegmentDescription]
                 Object encapsulating the description of each segment present in the segmentation.
-            custom_tags: Optional[Dict[str, str]], optional
+            custom_tags: OptonalDict[str, str], optional
                 Dictionary for setting custom DICOM tags using Keywords and str values only
-            omit_empty_frames: bool, optional
-                Whether to omit frames that contain no segmented pixels from the output segmentation.
         """
 
         self._seg_descs = [sd.to_segment_description(n) for n, sd in enumerate(segment_descriptions, 1)]
         self._custom_tags = custom_tags
-        self._omit_empty_frames = omit_empty_frames
+        self.output_folder = output_folder if output_folder else DICOMSegmentationWriterOperator.DEFAULT_OUTPUT_FOLDER
 
-    def compute(self, op_input: InputContext, op_output: OutputContext, context: ExecutionContext):
+        super().__init__(*args, **kwargs)
+
+    def setup(self, spec: OperatorSpec):
+        spec.input("seg_image")
+        spec.input("study_selected_series_list")
+
+    def compute(self, op_input, op_output, context):
         """Performs computation for this operator and handles I/O.
 
         For now, only a single segmentation image object or file is supported and the selected DICOM
@@ -218,22 +223,22 @@ class DICOMSegmentationWriterOperator(Operator):
         """
 
         # Gets the input, prepares the output folder, and then delegates the processing.
-        study_selected_series_list = op_input.get("study_selected_series_list")
+        study_selected_series_list = op_input.receive("study_selected_series_list")
         if not study_selected_series_list or len(study_selected_series_list) < 1:
             raise ValueError("Missing input, list of 'StudySelectedSeries'.")
         for study_selected_series in study_selected_series_list:
             if not isinstance(study_selected_series, StudySelectedSeries):
                 raise ValueError("Element in input is not expected type, 'StudySelectedSeries'.")
 
-        seg_image = op_input.get("seg_image")
+        seg_image = op_input.receive("seg_image")
         # In case the Image object is not in the input, and input is the seg image file folder path.
         if not isinstance(seg_image, Image):
-            if isinstance(seg_image, DataPath):
-                seg_image, _ = self.select_input_file(seg_image.path)
-            else:
-                raise ValueError("Input 'seg_image' is not Image or DataPath.")
+            # if isinstance(seg_image, DataPath):
+            #     seg_image, _ = self.select_input_file(seg_image.path)
+            # else:
+            raise ValueError("Input 'seg_image' is not Image or DataPath.")
 
-        output_dir = op_output.get().path
+        output_dir = self.output_folder  # TODO enhancement for this op_output.get().path
         output_dir.mkdir(parents=True, exist_ok=True)
 
         self.process_images(seg_image, study_selected_series_list, output_dir)
@@ -295,7 +300,6 @@ class DICOMSegmentationWriterOperator(Operator):
             manufacturer_model_name="MONAI Deploy App SDK",
             software_versions=version_str,
             device_serial_number="0000",
-            omit_empty_frames=self._omit_empty_frames,
         )
 
         # Adding a few tags that are not in the Dataset
@@ -411,7 +415,7 @@ def test():
     loader = DICOMDataLoaderOperator()
     series_selector = DICOMSeriesSelectorOperator()
     dcm_to_volume_op = DICOMSeriesToVolumeOperator()
-    seg_writer = DICOMSegmentationWriterOperator(segment_descriptions)
+    seg_writer = DICOMSegmentationWriterOperator(segment_descriptions=segment_descriptions, output_folder=out_dir)
 
     # Testing with more granular functions
     study_list = loader.load_data_to_studies(data_path.absolute())
