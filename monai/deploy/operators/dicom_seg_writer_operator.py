@@ -164,7 +164,7 @@ class DICOMSegmentationWriterOperator(Operator):
     """
 
     # DEFAULT_OUTPUT_FOLDER = Path(os.path.join(os.path.dirname(__file__))) / "output"
-    DEFAULT_OUTPUT_FOLDER = Path(os.getcwd()) / "output"
+    DEFAULT_OUTPUT_FOLDER = Path.cwd() / "output"
 
     # Supported input image format, based on extension.
     SUPPORTED_EXTENSIONS = [".nii", ".nii.gz", ".mhd"]

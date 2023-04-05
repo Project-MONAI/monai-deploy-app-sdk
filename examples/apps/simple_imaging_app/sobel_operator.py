@@ -9,31 +9,31 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import os
 from pathlib import Path
 
 from monai.deploy.core import Operator, OperatorSpec
 
 
-# @md.input("image", DataPath, IOType.DISK)
-# @md.output("image", Image, IOType.IN_MEMORY)
 # # If `pip_packages` is specified, the definition will be aggregated with the package dependency list of other
 # # operators and the application in packaging time.
 # # @md.env(pip_packages=["scikit-image >= 0.17.2"])
 class SobelOperator(Operator):
     """This Operator implements a Sobel edge detector.
 
-    It has a single input and single output.
+    It has the following input and output:
+        single input:
+          a image file, first one found in the input folder
+        single output:
+          array object in memory
     """
 
-    DEFAULT_INPUT_FOLDER = Path(os.path.join(os.path.dirname(__file__))) / "input"
+    DEFAULT_INPUT_FOLDER = Path.cwd() / "input"
 
     def __init__(self, *args, input_folder: Path, **kwargs):
-        # TODO: what is this for? Many examples use this. Related to CountConditions?
         self.index = 0
 
-        # May want to validate the path, but should really be validate when the compute
-        # is called as the input path can set for each compute call
+        # May want to validate the path, but it should really be validated when the compute function is called, also,
+        # when file path as input is supported in the operator or execution context, input_folder needs not an attribute.
         self.input_folder = (
             input_folder if (input_folder and input_folder.is_dir()) else SobelOperator.DEFAULT_INPUT_FOLDER
         )
@@ -43,20 +43,18 @@ class SobelOperator(Operator):
 
     def setup(self, spec: OperatorSpec):
         spec.output("out1")
-        # spec.param("input_folder", Path("."))
 
     def compute(self, op_input, op_output, context):
         from skimage import filters, io
 
         self.index += 1
-        print(f"# of times pperator {__name__} called: {self.index}")
+        print(f"Number of times operator {self.name} whose class is defined in {__name__} called: {self.index}")
 
-        # TODO: Ideally the op_input or execution context should provide the file path
-        # to read data from, for operators that are File input based.
-        #
-        # Need to use a temporary way to get input path. e.g. value set on init
-        input_folder = self.input_folder  # op_input.get().path
-        print(f"Input from: {input_folder}")
+        # Ideally the op_input or execution context should provide the file path
+        # to read data from, for operators that are file input based.
+        # For now, use a temporary way to get input path. e.g. value set on init
+        input_folder = self.input_folder
+        print(f"Input from: {input_folder}, whose absolute path: {input_folder.absolute()}")
         if input_folder.is_dir():
             input_file = next(input_folder.glob("*.*"))  # take the first file
 

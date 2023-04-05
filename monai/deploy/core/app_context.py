@@ -11,7 +11,7 @@
 
 from typing import Dict, Optional
 
-from .resource import Resource
+# from .resource import Resource
 from .runtime_env import RuntimeEnv
 
 
@@ -26,7 +26,7 @@ class AppContext:
 
         # Set the graph engine here because it would be used in the constructor of Application class so cannot be
         # updated in Application.run() method.
-        self.graph = args.get("graph") or self.runtime_env.graph
+        # self.graph = args.get("graph") or self.runtime_env.graph
 
         self.update(args)
 
@@ -42,16 +42,20 @@ class AppContext:
         self.workdir = args.get("workdir") or self.args.get("workdir") or self.runtime_env.workdir
 
         # Set the backend engines except for the graph engine
-        self.datastore = args.get("datastore") or self.args.get("datastore") or self.runtime_env.datastore
-        self.executor = args.get("executor") or self.args.get("executor") or self.runtime_env.executor
+        # self.datastore = args.get("datastore") or self.args.get("datastore") or self.runtime_env.datastore
+        # self.executor = args.get("executor") or self.args.get("executor") or self.runtime_env.executor
 
         # Set resource limits
         # TODO(gigony): Add cli option to set resource limits
-        self.resource = Resource()
+        # self.resource = Resource()
 
     def __repr__(self):
+        # return (
+        #     f"AppContext(graph={self.graph}, input_path={self.input_path}, output_path={self.output_path}, "
+        #     f"model_path={self.model_path}, workdir={self.workdir}, datastore={self.datastore}, "
+        #     f"executor={self.executor}, resource={self.resource})"
+        # )
         return (
-            f"AppContext(graph={self.graph}, input_path={self.input_path}, output_path={self.output_path}, "
-            f"model_path={self.model_path}, workdir={self.workdir}, datastore={self.datastore}, "
-            f"executor={self.executor}, resource={self.resource})"
+            f"AppContext(input_path={self.input_path}, output_path={self.output_path}, "
+            f"model_path={self.model_path}, workdir={self.workdir})"
         )

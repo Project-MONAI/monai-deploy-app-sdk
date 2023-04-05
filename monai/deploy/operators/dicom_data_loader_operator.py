@@ -28,25 +28,38 @@ valuerep, _ = optional_import("pydicom", name="valuerep")
 InvalidDicomError, _ = optional_import("pydicom.errors", name="InvalidDicomError")
 
 
-# @md.input("dicom_files", DataPath, IOType.DISK)
-# @md.output("dicom_study_list", List[DICOMStudy], IOType.IN_MEMORY)
 # @md.env(pip_packages=["pydicom >= 1.4.2"])
 class DICOMDataLoaderOperator(Operator):
-    """
-    This operator loads a collection of DICOM Studies in memory
-    given a directory which contains a list of SOP Instances.
+    """This operator loads DICOM studies into memory from a folder containing DICOM instance files.
+
+    Input:
+        Path to the folder containing DICOM instance files, set as argument to the object constructor
+
+    Output:
+        A list of DICOMStudy objects in memory, named `dicom_study_list` by default but can be changed
+        via the object instance attribute, `output_name`.
     """
 
-    # For now, have the input folder to read from as an attribute, because the
+    DEFAULT_INPUT_FOLDER = Path.cwd() / "input"
+    DEFAULT_OUTPUT_NAME = "dicom_study_list"
+
+    # For now, need to have the input folder as an instance attribute, set on init, because the
     # compute function does not get file I/O path in the context. Enhancement has been requested.
-    DEFAULT_INPUT_FOLDER = Path(os.path.join(os.path.dirname(__file__))) / "input"
-
-    def __init__(self, *args, input_folder: Path = DEFAULT_INPUT_FOLDER, must_load: bool = True, **kwargs):
+    def __init__(
+        self,
+        *args,
+        input_folder: Path = DEFAULT_INPUT_FOLDER,
+        output_name: str = DEFAULT_OUTPUT_NAME,
+        must_load: bool = True,
+        **kwargs,
+    ):
         """Creates an instance of this class
 
         Args:
             input_folder (Path): Folder containing DICOM instance files to load from.
-                                 Defaults to `input`, relative to this file.
+                                 Defaults to `input` in the current working directory.
+            output_name (str): The name for the output, which is list of DICOMStudy objects.
+                               Defaults to `dicom_study_list`, and if None or blank passed in.
             must_load (bool): If true, raise exception if no study is loaded.
                               Defaults to True.
         """
@@ -54,11 +67,12 @@ class DICOMDataLoaderOperator(Operator):
         self._must_load = must_load
         self.input_path = input_folder
         self.index = 0
+        self.output_name = output_name.strip() if output_name and len(output_name.strip()) > 0 else DEFAULT_OUTPUT_NAME
 
         super().__init__(*args, **kwargs)
 
     def setup(self, spec: OperatorSpec):
-        spec.output("dicom_study_list")
+        spec.output(self.output_name)
         # spec.param("input_path", Path("."))
 
     def compute(self, op_input, op_output, context):

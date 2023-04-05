@@ -12,7 +12,7 @@
 from abc import abstractmethod
 from typing import Any, Dict, Tuple, Union
 
-from monai.deploy.core import Image, Operator
+from monai.deploy.core import Fragment, Image, Operator
 
 
 class InferenceOperator(Operator):
@@ -22,9 +22,9 @@ class InferenceOperator(Operator):
     a given model, post-transforms, and final results generation.
     """
 
-    def __init__(self, *args, **kwargs):
-        """Constructor of the operator."""
-        super().__init__(*args, **kwargs)
+    # def __init__(self, fragment, *args, **kwargs):
+    #     """Constructor of the operator."""
+    #     super().__init__(fragment, *args, **kwargs)
 
     # @abstractmethod
     def pre_process(self, data: Any, *args, **kwargs) -> Union[Image, Any, Tuple[Any, ...], Dict[Any, Any]]:

@@ -9,7 +9,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import os
 from pathlib import Path
 
 from skimage.filters import gaussian
@@ -24,10 +23,10 @@ from monai.deploy.core import Operator, OperatorSpec
 class GaussianOperator(Operator):
     """This Operator implements a smoothening based on Gaussian.
 
-    It ingests a single input and provides a single output.
+    It ingests a single input, an array, but emits none, instead it saves a file in the output folder.
     """
 
-    DEFAULT_OUTPUT_FOLDER = Path(os.path.join(os.path.dirname(__file__))) / "output"
+    DEFAULT_OUTPUT_FOLDER = Path.cwd() / "output"
 
     def __init__(self, *args, output_folder: Path, **kwargs):
         # If `self.sigma_default` is set here (e.g., `self.sigma_default = 0.2`), then
@@ -42,22 +41,20 @@ class GaussianOperator(Operator):
 
     def setup(self, spec: OperatorSpec):
         spec.input("in1")
-        # spec.output("out1")
+        # spec.output("out1")  # Cannot have a output without having downstream receiver
         spec.param("sigma_default", 0.2)
         spec.param("channel_axis", 2)
 
     def compute(self, op_input, op_output, context):
         self.index += 1
-        print(f"# of times pperator {__name__} called: {self.index}")
+        print(f"Number of times operator {self.name} whose class is defined in {__name__} called: {self.index}")
 
         data_in = op_input.receive("in1")
         data_out = gaussian(data_in, sigma=self.sigma_default, channel_axis=self.channel_axis)
 
-        # Where to set the Application's output folder, in the context?
-        # For now, use attribute.
+        # For now, use attribute of self to find the output path.
+        self.output_folder.mkdir(parents=True, exist_ok=True)
         output_path = self.output_folder / "final_output.png"
         imsave(output_path, data_out)
 
-        # Let's also emit the output, even though not sure what the receiver would be
-        # CANNOT set dangling out!!!
-        # op_input.emit(data_out, "out1")
+        # op_input.emit(data_out, "out1")  # CANNOT emit a dangling output!!!

@@ -32,13 +32,13 @@ from monai.deploy.operators.dicom_utils import EquipmentInfo, ModelInfo, save_dc
 from monai.deploy.utils.version import get_sdk_semver
 
 
-#@md.env(pip_packages=["pydicom >= 1.4.2", "monai"])
+# @md.env(pip_packages=["pydicom >= 1.4.2", "monai"])
 class DICOMTextSRWriterOperator(Operator):
     # File extension for the generated DICOM Part 10 file.
     DCM_EXTENSION = ".dcm"
     # The default output folder for saveing the generated DICOM instance file.
     # DEFAULT_OUTPUT_FOLDER = Path(os.path.join(os.path.dirname(__file__))) / "output"
-    DEFAULT_OUTPUT_FOLDER = Path(os.getcwd()) / "output"
+    DEFAULT_OUTPUT_FOLDER = Path.cwd() / "output"
 
     def __init__(
         self,
@@ -69,9 +69,7 @@ class DICOMTextSRWriterOperator(Operator):
 
         # Need to init the output folder until the execution context supports dynamic FS path
         # Not trying to create the folder to avoid exception on init
-        self.output_dir = (
-            Path(output_folder) if output_folder else DICOMTextSRWriterOperator.DEFAULT_OUTPUT_FOLDER
-        )
+        self.output_dir = Path(output_folder) if output_folder else DICOMTextSRWriterOperator.DEFAULT_OUTPUT_FOLDER
         self.copy_tags = copy_tags
         self.model_info = model_info if model_info else ModelInfo()
         self.equipment_info = equipment_info if equipment_info else EquipmentInfo()

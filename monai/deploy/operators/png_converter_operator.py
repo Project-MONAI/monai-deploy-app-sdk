@@ -10,7 +10,7 @@
 # limitations under the License.
 
 
-from os import makedirs, getcwd
+from os import getcwd, makedirs
 from os.path import join
 from pathlib import Path
 
@@ -27,6 +27,7 @@ class PNGConverterOperator(Operator):
     """
     This operator writes out a 3D Volumetric Image to disk in a slice by slice manner
     """
+
     # The default output folder for saveing the generated DICOM instance file.
     # DEFAULT_OUTPUT_FOLDER = Path(os.path.join(os.path.dirname(__file__))) / "output"
     DEFAULT_OUTPUT_FOLDER = Path(getcwd()) / "output"

@@ -66,6 +66,7 @@ class MonaiSegInferenceOperator(InferenceOperator):
 
     def __init__(
         self,
+        fragement,
         *args,
         roi_size: Union[Sequence[int], int],
         pre_transforms: Compose,
@@ -85,7 +86,6 @@ class MonaiSegInferenceOperator(InferenceOperator):
             overlap (float): The overlap used in sliding window inference.
         """
 
-        super().__init__()
         self._executing = False
         self._lock = Lock()
         self._input_dataset_key = "image"
@@ -100,6 +100,8 @@ class MonaiSegInferenceOperator(InferenceOperator):
 
         # Add this so that the local model path can be set from the calling app
         self.model_path = model_path
+
+        super().__init__(fragement, *args, **kwargs)
 
     @property
     def roi_size(self):

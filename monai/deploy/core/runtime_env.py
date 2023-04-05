@@ -39,9 +39,9 @@ class RuntimeEnv(ABC):
     output: str = ""
     model: str = ""
     workdir: str = ""
-    graph: str = ""
-    datastore: str = ""
-    executor: str = ""
+    # graph: str = ""
+    # datastore: str = ""
+    # executor: str = ""
 
     def __init__(self, defaults: Optional[Dict[str, Tuple[str, ...]]] = None):
         if defaults is None:
