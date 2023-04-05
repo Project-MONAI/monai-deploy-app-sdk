@@ -14,7 +14,7 @@ from pathlib import Path
 from skimage.filters import gaussian
 from skimage.io import imsave
 
-from monai.deploy.core import Operator, OperatorSpec
+from monai.deploy.core import ConditionType, Operator, OperatorSpec
 
 
 # If `pip_packages` is specified, the definition will be aggregated with the package dependency list of other
@@ -29,19 +29,22 @@ class GaussianOperator(Operator):
     DEFAULT_OUTPUT_FOLDER = Path.cwd() / "output"
 
     def __init__(self, *args, output_folder: Path, **kwargs):
+        self.output_folder = output_folder if output_folder else GaussianOperator.DEFAULT_OUTPUT_FOLDER
+        self.index = 0
+
         # If `self.sigma_default` is set here (e.g., `self.sigma_default = 0.2`), then
         # the default value by `param()` in `setup()` will be ignored.
         # (you can just call `spec.param("sigma_default")` in `setup()` to use the
         # default value)
-        self.output_folder = output_folder if output_folder else GaussianOperator.DEFAULT_OUTPUT_FOLDER
-        self.index = 0
+        self.sigma_default = 0.2
+        self.channel_axis = 2
 
         # Need to call the base class constructor last
         super().__init__(*args, **kwargs)
 
     def setup(self, spec: OperatorSpec):
         spec.input("in1")
-        # spec.output("out1")  # Cannot have a output without having downstream receiver
+        spec.output("out1").condition(ConditionType.NONE)  # This condition type allows for no or not-ready receiver.
         spec.param("sigma_default", 0.2)
         spec.param("channel_axis", 2)
 
@@ -57,4 +60,4 @@ class GaussianOperator(Operator):
         output_path = self.output_folder / "final_output.png"
         imsave(output_path, data_out)
 
-        # op_input.emit(data_out, "out1")  # CANNOT emit a dangling output!!!
+        op_output.emit(data_out, "out1")
