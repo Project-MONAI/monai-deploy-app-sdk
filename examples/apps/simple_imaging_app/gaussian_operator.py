@@ -14,7 +14,7 @@ from pathlib import Path
 from skimage.filters import gaussian
 from skimage.io import imsave
 
-from monai.deploy.core import ConditionType, Operator, OperatorSpec
+from monai.deploy.core import ConditionType, Fragment, Operator, OperatorSpec
 
 
 # If `pip_packages` is specified, the definition will be aggregated with the package dependency list of other
@@ -23,12 +23,24 @@ from monai.deploy.core import ConditionType, Operator, OperatorSpec
 class GaussianOperator(Operator):
     """This Operator implements a smoothening based on Gaussian.
 
-    It ingests a single input, an array, but emits none, instead it saves a file in the output folder.
+    It has the following input and output:
+        single input:
+          an image array object
+        single output:
+          an image arrary object, without enforcing a downsteam receiver
+
+    Besides, this operator also saves the image file in the given output folder.
     """
 
     DEFAULT_OUTPUT_FOLDER = Path.cwd() / "output"
 
-    def __init__(self, *args, output_folder: Path, **kwargs):
+    def __init__(self, fragment: Fragment, *args, output_folder: Path, **kwargs):
+        """Create an instance to be part of the given application (fragment).
+
+        Args:
+            fragment (Fragment): The instance of Application class which is derived from Fragment
+            output_folder (Path): The folder to save the output file.
+        """
         self.output_folder = output_folder if output_folder else GaussianOperator.DEFAULT_OUTPUT_FOLDER
         self.index = 0
 
@@ -40,11 +52,11 @@ class GaussianOperator(Operator):
         self.channel_axis = 2
 
         # Need to call the base class constructor last
-        super().__init__(*args, **kwargs)
+        super().__init__(fragment, *args, **kwargs)
 
     def setup(self, spec: OperatorSpec):
         spec.input("in1")
-        spec.output("out1").condition(ConditionType.NONE)  # This condition type allows for no or not-ready receiver.
+        spec.output("out1").condition(ConditionType.NONE)  # Condition is for no or not-ready receiver ports.
         spec.param("sigma_default", 0.2)
         spec.param("channel_axis", 2)
 

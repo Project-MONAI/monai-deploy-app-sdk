@@ -11,7 +11,7 @@
 
 from pathlib import Path
 
-from monai.deploy.core import Operator, OperatorSpec
+from monai.deploy.core import Fragment, Operator, OperatorSpec
 
 
 # # If `pip_packages` is specified, the definition will be aggregated with the package dependency list of other
@@ -29,7 +29,13 @@ class SobelOperator(Operator):
 
     DEFAULT_INPUT_FOLDER = Path.cwd() / "input"
 
-    def __init__(self, *args, input_folder: Path, **kwargs):
+    def __init__(self, fragment: Fragment, *args, input_folder: Path, **kwargs):
+        """Create an instance to be part of the given application (fragment).
+
+        Args:
+            fragment (Fragment): An instance of the Application class which is derived from Fragment
+            input_folder (Path): The folder to read the image file from
+        """
         self.index = 0
 
         # May want to validate the path, but it should really be validated when the compute function is called, also,
@@ -39,7 +45,7 @@ class SobelOperator(Operator):
         )
 
         # Need to call the base class constructor last
-        super().__init__(*args, **kwargs)
+        super().__init__(fragment, *args, **kwargs)
 
     def setup(self, spec: OperatorSpec):
         spec.output("out1")

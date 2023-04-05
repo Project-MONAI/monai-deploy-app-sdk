@@ -47,6 +47,10 @@ class App(Application):
         output_data_path = Path(app_context.output_path)
         print(f"sample_data_path: {sample_data_path}")
 
+        # Please note that the Application object, self, is passed as the first positonal argument
+        # and the others as kwargs.
+        # Also note the CountCondition of 1 on the first operator, indicating to the application executor
+        # to invoke this operator, hence the pipleline, only once.
         sobel_op = SobelOperator(self, CountCondition(self, 1), input_folder=sample_data_path, name="sobel_op")
         median_op = MedianOperator(self, name="median_op")
         gaussian_op = GaussianOperator(self, output_folder=output_data_path, name="gaussian_op")
@@ -56,7 +60,7 @@ class App(Application):
             {
                 ("out1", "in1"),
             },
-        )  # Using port name is optional for single port cases
+        )
         self.add_flow(
             median_op,
             gaussian_op,
@@ -66,16 +70,9 @@ class App(Application):
                     "in1",
                 )
             },
-        )
+        )  # Using port name is optional for single port cases
 
 
 if __name__ == "__main__":
     load_env_log_level()
-    app = App()
-
-    # If there exists the named config file, use it to configure the objects which support it.
-    config_file = Path(__file__).parent.absolute() / "simple_imaing_app.yaml"
-    if config_file.exists():
-        app.config(config_file)
-
-    app.run()
+    App().run()
