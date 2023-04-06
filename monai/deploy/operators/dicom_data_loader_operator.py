@@ -14,7 +14,7 @@ import os
 from pathlib import Path
 from typing import List
 
-from monai.deploy.core import Operator, OperatorSpec
+from monai.deploy.core import Fragment, Operator, OperatorSpec
 from monai.deploy.core.domain.dicom_series import DICOMSeries
 from monai.deploy.core.domain.dicom_study import DICOMStudy
 from monai.deploy.exceptions import ItemNotExistsError
@@ -33,20 +33,23 @@ class DICOMDataLoaderOperator(Operator):
     """This operator loads DICOM studies into memory from a folder containing DICOM instance files.
 
     Input:
-        Path to the folder containing DICOM instance files, set as argument to the object constructor
+        Path to the folder containing DICOM instance files, set as argument to the object constructor.
+        It defaults to the folder, input, in the current working directory.
 
     Output:
         A list of DICOMStudy objects in memory, named `dicom_study_list` by default but can be changed
-        via the object instance attribute, `output_name`.
+        via the object instance attribute, `output_name`. The name can be omitted when linking it to the
+        receiver, simply because it is the only output.
     """
 
     DEFAULT_INPUT_FOLDER = Path.cwd() / "input"
     DEFAULT_OUTPUT_NAME = "dicom_study_list"
 
     # For now, need to have the input folder as an instance attribute, set on init, because the
-    # compute function does not get file I/O path in the context. Enhancement has been requested.
+    # compute function does not get file I/O path in the execution context. Enhancement requested.
     def __init__(
         self,
+        fragment: Fragment,
         *args,
         input_folder: Path = DEFAULT_INPUT_FOLDER,
         output_name: str = DEFAULT_OUTPUT_NAME,
@@ -56,6 +59,7 @@ class DICOMDataLoaderOperator(Operator):
         """Creates an instance of this class
 
         Args:
+            fragment (Fragment): An instance of the Application class which is derived from Fragment.
             input_folder (Path): Folder containing DICOM instance files to load from.
                                  Defaults to `input` in the current working directory.
             output_name (str): The name for the output, which is list of DICOMStudy objects.
@@ -67,13 +71,16 @@ class DICOMDataLoaderOperator(Operator):
         self._must_load = must_load
         self.input_path = input_folder
         self.index = 0
-        self.output_name = output_name.strip() if output_name and len(output_name.strip()) > 0 else DEFAULT_OUTPUT_NAME
+        self.output_name = (
+            output_name.strip()
+            if output_name and len(output_name.strip()) > 0
+            else DICOMDataLoaderOperator.DEFAULT_OUTPUT_NAME
+        )
 
-        super().__init__(*args, **kwargs)
+        super().__init__(fragment, *args, **kwargs)
 
     def setup(self, spec: OperatorSpec):
         spec.output(self.output_name)
-        # spec.param("input_path", Path("."))
 
     def compute(self, op_input, op_output, context):
         """Performs computation for this operator and handlesI/O."""
@@ -88,7 +95,7 @@ class DICOMDataLoaderOperator(Operator):
         # MQ
 
         dicom_study_list = self.load_data_to_studies(input_path)
-        op_output.emit(dicom_study_list, "dicom_study_list")
+        op_output.emit(dicom_study_list, self.output_name)
 
     def load_data_to_studies(self, input_path: Path):
         """Load DICOM data from files into DICOMStudy objects in a list.
@@ -314,7 +321,7 @@ def test():
     current_file_dir = Path(__file__).parent.resolve()
     data_path = current_file_dir.joinpath("../../../inputs/spleen_ct/dcm")
 
-    loader = DICOMDataLoaderOperator()
+    loader = DICOMDataLoaderOperator(Fragment())
     study_list = loader.load_data_to_studies(data_path.absolute())
 
     for study in study_list:
@@ -363,7 +370,7 @@ def test():
     except ItemNotExistsError as ex:
         print(f"Test passed: exception when no studies loaded & must_load flag is True: {ex}")
 
-    relaxed_loader = DICOMDataLoaderOperator(must_load=False)
+    relaxed_loader = DICOMDataLoaderOperator(Fragment(), must_load=False)
     study_list = relaxed_loader.load_data_to_studies(non_dcm_dir)
     print(f"Test passed: {len(study_list)} study loaded and is OK when must_load flag is False.")
 

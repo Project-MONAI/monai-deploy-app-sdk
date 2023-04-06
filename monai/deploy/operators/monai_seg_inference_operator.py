@@ -37,15 +37,13 @@ Compose_, _ = optional_import("monai.transforms", name="Compose")
 # Dynamic class is not handled so make it Any for now: https://github.com/python/mypy/issues/2477
 Compose: Any = Compose_
 
-from monai.deploy.core import Image, OperatorSpec
+from monai.deploy.core import ConditionType, Fragment, Image, OperatorSpec
 
 from .inference_operator import InferenceOperator
 
 __all__ = ["MonaiSegInferenceOperator", "InMemImageReader"]
 
 
-# @md.input("image", Image, IOType.IN_MEMORY)
-# @md.output("seg_image", Image, IOType.IN_MEMORY)
 # @md.env(pip_packages=["monai>=1.0.0", "torch>=1.10.2", "numpy>=1.21"])
 class MonaiSegInferenceOperator(InferenceOperator):
     """This segmentation operator uses MONAI transforms and Sliding Window Inference.
@@ -55,18 +53,20 @@ class MonaiSegInferenceOperator(InferenceOperator):
     as a named Image object in memory.
 
     If specified in the post transforms, results may also be saved to disk.
+
+    Named Input:
+        image: Image object of the input image.
+
+    Named Output:
+       seg_image: Image object of the segmentation image. Not requiring a ready receiver.
     """
 
     # For testing the app directly, the model should be at the following path.
     MODEL_LOCAL_PATH = Path(os.environ.get("MONAI_MODELPATH", Path(os.path.dirname(__file__)) / "model/model.ts"))
 
-    def setup(self, spec: OperatorSpec):
-        spec.input("image")
-        spec.output("seg_image")
-
     def __init__(
         self,
-        fragement,
+        fragement: Fragment,
         *args,
         roi_size: Union[Sequence[int], int],
         pre_transforms: Compose,
@@ -79,6 +79,7 @@ class MonaiSegInferenceOperator(InferenceOperator):
         """Creates a instance of this class.
 
         Args:
+            fragment (Fragment): An instance of the Application class which is derived from Fragment.
             roi_size (Union[Sequence[int], int]): The tensor size used in inference.
             pre_transforms (Compose): MONAI Compose object used for pre-transforms.
             post_transforms (Compose): MONAI Compose object used for post-transforms.
@@ -100,8 +101,14 @@ class MonaiSegInferenceOperator(InferenceOperator):
 
         # Add this so that the local model path can be set from the calling app
         self.model_path = model_path
+        self.input_name_image = "image"
+        self.output_name_seg = "seg_image"
 
         super().__init__(fragement, *args, **kwargs)
+
+    def setup(self, spec: OperatorSpec):
+        spec.input(self.input_name_image)
+        spec.output(self.output_name_seg).condition(ConditionType.NONE)
 
     @property
     def roi_size(self):
@@ -198,17 +205,16 @@ class MonaiSegInferenceOperator(InferenceOperator):
             else:
                 self._executing = True
         try:
-            input_image = op_input.receive("image")
+            input_image = op_input.receive(self.input_name_image)
             if not input_image:
                 raise ValueError("Input is None.")
-            op_output.emit(self.compute_impl(input_image, context), "seg_image")
+            op_output.emit(self.compute_impl(input_image, context), self.output_name_seg)
         finally:
             # Reset state on completing this method execution.
             with self._lock:
                 self._executing = False
 
     def compute_impl(self, input_image, context):
-        # input_image = op_input.receive("image")
         if not input_image:
             raise ValueError("Input is None.")
 

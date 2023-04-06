@@ -10,9 +10,8 @@
 # limitations under the License.
 
 import logging
-import os
 from pathlib import Path
-from typing import Dict, List, Optional, Text, Union
+from typing import Dict, Optional, Text, Union
 
 from monai.deploy.utils.importutil import optional_import
 
@@ -24,7 +23,7 @@ Dataset, _ = optional_import("pydicom.dataset", name="Dataset")
 FileDataset, _ = optional_import("pydicom.dataset", name="FileDataset")
 Sequence, _ = optional_import("pydicom.sequence", name="Sequence")
 
-from monai.deploy.core import Operator, OperatorSpec
+from monai.deploy.core import ConditionType, Fragment, Operator, OperatorSpec
 from monai.deploy.core.domain.dicom_series import DICOMSeries
 from monai.deploy.core.domain.dicom_series_selection import StudySelectedSeries
 from monai.deploy.exceptions import ItemNotExistsError
@@ -34,6 +33,19 @@ from monai.deploy.utils.version import get_sdk_semver
 
 # @md.env(pip_packages=["pydicom >= 1.4.2", "monai"])
 class DICOMTextSRWriterOperator(Operator):
+    """Class to write DICOM Text SR Instance with provided text input.
+
+    Named inputs:
+        text: text content to be encapsulated in a DICOM instance file.
+        study_selected_series_list: Optional, DICOM series for copying metadata from.
+
+    Named output:
+        None
+
+    File output:
+        Generaed DICOM instance file in the provided output folder.
+    """
+
     # File extension for the generated DICOM Part 10 file.
     DCM_EXTENSION = ".dcm"
     # The default output folder for saveing the generated DICOM instance file.
@@ -42,6 +54,7 @@ class DICOMTextSRWriterOperator(Operator):
 
     def __init__(
         self,
+        fragment: Fragment,
         *args,
         output_folder: Union[str, Path],
         copy_tags: bool,
@@ -74,6 +87,8 @@ class DICOMTextSRWriterOperator(Operator):
         self.model_info = model_info if model_info else ModelInfo()
         self.equipment_info = equipment_info if equipment_info else EquipmentInfo()
         self.custom_tags = custom_tags
+        self.input_name_text = "text"
+        self.input_name_dcm_series = "study_selected_series_list"
 
         # Set own Modality and SOP Class UID
         # Modality, e.g.,
@@ -93,7 +108,7 @@ class DICOMTextSRWriterOperator(Operator):
             self.software_version_number = ""
         self.operators_name = f"AI Algorithm {self.model_info.name}"
 
-        super().__init__(*args, **kwargs)
+        super().__init__(fragment, *args, **kwargs)
 
     def setup(self, spec: OperatorSpec):
         """Set up the named input(s), and output(s) if applicable.
@@ -104,8 +119,8 @@ class DICOMTextSRWriterOperator(Operator):
             spec (OperatorSpec): The Operator specification for inputs and outputs etc.
         """
 
-        spec.input("classification_result")
-        spec.input("study_selected_series_list")
+        spec.input(self.input_name_text)
+        spec.input(self.input_name_dcm_series)
 
     def compute(self, op_input, op_output, context):
         """Performs computation for this operator and handles I/O.
@@ -124,25 +139,13 @@ class DICOMTextSRWriterOperator(Operator):
         """
 
         # Gets the input, prepares the output folder, and then delegates the processing.
-        result_text = ""
-        try:
-            result_text = str(op_input.receive("classification_result")).strip()
-        except ItemNotExistsError:
-            # try:
-            #     file_path = op_input.get("classification_result_file")
-            # except ItemNotExistsError:
-            #     raise ValueError("None of the named inputs for result can be found.") from None
-            # # Read file, and if exception, let it bubble up
-            # with open(file_path.path, "r") as f:
-            #     result_text = f.read().strip()
-            pass
-
+        result_text = str(op_input.receive(self.input_name_text)).strip()
         if not result_text:
             raise IOError("Input is read but blank.")
 
         try:
-            study_selected_series_list = op_input.receive("study_selected_series_list")
-        except ItemNotExistsError:
+            study_selected_series_list = op_input.receive(self.input_name_dcm_series)
+        except Exception:
             study_selected_series_list = None
 
         dicom_series = None  # It can be None if not to copy_tags.
@@ -255,19 +258,21 @@ class DICOMTextSRWriterOperator(Operator):
         self._logger.info(f"DICOM SOP instance saved in {file_path}")
 
 
-def test():
+def test(test_copy_tags: bool = True):
     from monai.deploy.operators.dicom_data_loader_operator import DICOMDataLoaderOperator
     from monai.deploy.operators.dicom_series_selector_operator import DICOMSeriesSelectorOperator
 
     current_file_dir = Path(__file__).parent.resolve()
     data_path = current_file_dir.joinpath("../../../inputs/livertumor_ct/dcm/1-CT_series_liver_tumor_from_nii014")
-    out_path = "output_sr_op"
+    out_path = Path("output_sr_op").absolute()
     test_report_text = "Tumors detected in Liver using MONAI Liver Tumor Seg model."
-    test_copy_tags = True
 
-    loader = DICOMDataLoaderOperator()
-    series_selector = DICOMSeriesSelectorOperator()
+    fragment = Fragment()
+    loader = DICOMDataLoaderOperator(fragment, name="loader_op")
+    series_selector = DICOMSeriesSelectorOperator(fragment, name="selector_op")
     sr_writer = DICOMTextSRWriterOperator(
+        fragment,
+        output_folder=out_path,
         copy_tags=test_copy_tags,
         model_info=None,
         equipment_info=EquipmentInfo(),
@@ -290,8 +295,9 @@ def test():
                 dicom_series = selected_series.series
                 print(type(dicom_series))
 
-    sr_writer.write(test_report_text, dicom_series, Path(out_path).absolute())
+    sr_writer.write(test_report_text, dicom_series, out_path)
 
 
 if __name__ == "__main__":
-    test()
+    test(True)
+    test(False)
