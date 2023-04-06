@@ -66,6 +66,10 @@ monai-deploy exec ../examples/apps/examples/apps/ai_multi_ai_app/app.py -i dcm/ 
 # Please see https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html#docker to install nvidia-docker2.
 monai-deploy package -b nvcr.io/nvidia/pytorch:22.08-py3 examples/apps/ai_multi_ai_app --tag multi_model_app:latest --model multi_models -l DEBUG
 
+# For AMD GPUs, nvidia-docker is not required. Use --base [base image] option to override the docker base image.
+# Please see https://hub.docker.com/r/rocm/pytorch for rocm/pytorch docker images.
+monai-deploy package -b rocm/pytorch:rocm5.4.1_ubuntu20.04_py3.7_pytorch_1.12.1 examples/apps/ai_multi_ai_app --tag multi_model_app:latest --model multi_models -l DEBUG
+
 # Run the app with docker image and input file locally
 monai-deploy run multi_model_app:latest dcm/ output
 ```

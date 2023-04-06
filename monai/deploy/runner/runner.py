@@ -20,6 +20,7 @@ from pathlib import Path
 from typing import Tuple
 
 from monai.deploy.runner.utils import get_requested_gpus, run_cmd, verify_image
+from monai.deploy.utils.deviceutil import has_rocm
 
 logger = logging.getLogger("app_runner")
 
@@ -87,7 +88,8 @@ def run_app(map_name: str, input_path: Path, output_path: Path, app_info: dict, 
     # Use nvidia-docker if GPU resources are requested
     requested_gpus = get_requested_gpus(pkg_info)
     if requested_gpus > 0:
-        cmd = "nvidia-docker run --rm -a STDERR"
+        if not has_rocm():
+            cmd = "nvidia-docker run --rm -a STDERR"
 
     if not quiet:
         cmd += " -a STDOUT"
@@ -160,12 +162,13 @@ def pkg_specific_dependency_verification(pkg_info: dict) -> bool:
     """
     requested_gpus = get_requested_gpus(pkg_info)
     if requested_gpus > 0:
-        # check for nvidia-docker
-        prog = "nvidia-docker"
-        logger.info('--> Verifying if "%s" is installed...\n', prog)
-        if not shutil.which(prog):
-            logger.error('ERROR: "%s" not installed, please install nvidia-docker.', prog)
-            return False
+        if not has_rocm():
+            # check for nvidia-docker
+            prog = "nvidia-docker"
+            logger.info('--> Verifying if "%s" is installed...\n', prog)
+            if not shutil.which(prog):
+                logger.error('ERROR: "%s" not installed, please install nvidia-docker.', prog)
+                return False
 
     return True
 
