@@ -88,6 +88,14 @@ monai-deploy package examples/apps/mednist_classifier_monaideploy/mednist_classi
     --model classifier.zip \
     -l DEBUG
 
+# For AMD GPUs, nvidia-docker is not required. Use --base [base image] option to override the docker base image.
+# Please see https://hub.docker.com/r/rocm/pytorch for rocm/pytorch docker images.
+monai-deploy package -b rocm/pytorch:rocm5.4.1_ubuntu20.04_py3.7_pytorch_1.12.1 \
+    examples/apps/mednist_classifier_monaideploy/mednist_classifier_monaideploy.py \
+    --tag mednist_app:latest \
+    --model classifier.zip \
+    -l DEBUG
+
 # Run the app with docker image and input file locally
 monai-deploy run mednist_app:latest input output
 cat output/output.json
