@@ -58,9 +58,9 @@ class DICOMEncapsulatedPDFWriterOperator(Operator):
         fragment: Fragment,
         *args,
         output_folder: Union[str, Path],
-        copy_tags: bool,
         model_info: ModelInfo,
         equipment_info: Optional[EquipmentInfo] = None,
+        copy_tags: bool = True,
         custom_tags: Optional[Dict[str, str]] = None,
         **kwargs,
     ):
@@ -69,7 +69,7 @@ class DICOMEncapsulatedPDFWriterOperator(Operator):
         Args:
             fragment (Fragment): An instance of the Application class which is derived from Fragment.
             output_folder (str or Path): The folder for saving the generated DICOM instance file.
-            copy_tags (bool): True for copying DICOM attributes from a provided DICOMSeries.
+            copy_tags (bool): True, default, for copying DICOM attributes from a provided DICOMSeries.
                               If True and no DICOMSeries obj provided, runtime exception is thrown.
             model_info (ModelInfo): Object encapsulating model creator, name, version and UID.
             equipment_info (EquipmentInfo, optional): Object encapsulating info for DICOM Equipment Module.
@@ -151,10 +151,11 @@ class DICOMEncapsulatedPDFWriterOperator(Operator):
         if not pdf_bytes or not len(pdf_bytes.strip()):
             raise IOError("Input is read but blank.")
 
+        study_selected_series_list = None
         try:
             study_selected_series_list = op_input.receive(self.input_name_dcm_series)
         except Exception:
-            study_selected_series_list = None
+            pass
 
         dicom_series = None  # It can be None if not to copy_tags.
         if self.copy_tags:

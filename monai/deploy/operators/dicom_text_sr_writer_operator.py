@@ -57,8 +57,8 @@ class DICOMTextSRWriterOperator(Operator):
         fragment: Fragment,
         *args,
         output_folder: Union[str, Path],
-        copy_tags: bool,
         model_info: ModelInfo,
+        copy_tags: bool = True,
         equipment_info: Optional[EquipmentInfo] = None,
         custom_tags: Optional[Dict[str, str]] = None,
         **kwargs,
@@ -67,7 +67,8 @@ class DICOMTextSRWriterOperator(Operator):
 
         Args:
             output_folder (str or Path): The folder for saving the generated DICOM instance file.
-            copy_tags (bool): True for copying DICOM attributes from a provided DICOMSeries.
+            copy_tags (bool): True, default, for copying DICOM attributes from a provided DICOMSeries.
+                              If True and no DICOMSeries obj provided, runtime exception is thrown.
             model_info (ModelInfo): Object encapsulating model creator, name, version and UID.
             equipment_info (EquipmentInfo, optional): Object encapsulating info for DICOM Equipment Module.
                                                       Defaults to None.
@@ -120,7 +121,7 @@ class DICOMTextSRWriterOperator(Operator):
         """
 
         spec.input(self.input_name_text)
-        spec.input(self.input_name_dcm_series)
+        spec.input(self.input_name_dcm_series).condition(ConditionType.NONE)  # Optional input
 
     def compute(self, op_input, op_output, context):
         """Performs computation for this operator and handles I/O.
@@ -143,10 +144,11 @@ class DICOMTextSRWriterOperator(Operator):
         if not result_text:
             raise IOError("Input is read but blank.")
 
+        study_selected_series_list = None
         try:
             study_selected_series_list = op_input.receive(self.input_name_dcm_series)
         except Exception:
-            study_selected_series_list = None
+            pass
 
         dicom_series = None  # It can be None if not to copy_tags.
         if self.copy_tags:
