@@ -26,9 +26,9 @@ class RuntimeEnv(ABC):
     """
 
     ENV_DEFAULT: Dict[str, Tuple[str, ...]] = {
-        "input": ("HOLOSCAN_INPUTPATH", "input"),
-        "output": ("HOLOSCAN_OUTPUTPATH", "output"),
-        "model": ("HOLOSCAN_MODELPATH", "models"),
+        "input": ("HOLOSCAN_INPUT_PATH", "input"),
+        "output": ("HOLOSCAN_OUTPUT_PATH", "output"),
+        "model": ("HOLOSCAN_MODEL_PATH", "models"),
         "workdir": ("HOLOSCAN_WORKDIR", ""),
         # "graph": ("MONAI_GRAPH", GraphFactory.DEFAULT),  # The 'MONAI_GRAPH' is not part of MAP spec.
         # "datastore": ("MONAI_DATASTORE", DatastoreFactory.DEFAULT),  # The 'MONAI_DATASTORE' is not part of MAP spec.
