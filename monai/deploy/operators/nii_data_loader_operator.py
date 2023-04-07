@@ -21,8 +21,6 @@ from monai.deploy.utils.importutil import optional_import
 SimpleITK, _ = optional_import("SimpleITK")
 
 
-# @md.input("image_path", DataPath, IOType.DISK)
-# @md.output("image", np.ndarray, IOType.IN_MEMORY)
 # @md.env(pip_packages=["SimpleITK>=2.0.2"])
 class NiftiDataLoader(Operator):
     """
@@ -58,7 +56,12 @@ class NiftiDataLoader(Operator):
         """Performs computation with the provided context."""
 
         # The named input port is optional, so must check for and validate the data
-        input_path = op_input.receive(self.input_name_path)
+        input_path = None
+        try:
+            input_path = op_input.receive(self.input_name_path)
+        except Exception:
+            pass
+
         if not input_path or not Path(input_path).is_file:
             self._logger.info(f"No or invalid file path from the optional input port: {input_path}")
             # Try to fall back to use the object attribute if it is valid

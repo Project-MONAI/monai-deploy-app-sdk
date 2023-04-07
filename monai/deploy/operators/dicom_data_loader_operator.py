@@ -14,7 +14,7 @@ import os
 from pathlib import Path
 from typing import List
 
-from monai.deploy.core import Fragment, Operator, OperatorSpec
+from monai.deploy.core import ConditionType, Fragment, Operator, OperatorSpec
 from monai.deploy.core.domain.dicom_series import DICOMSeries
 from monai.deploy.core.domain.dicom_study import DICOMStudy
 from monai.deploy.exceptions import ItemNotExistsError
@@ -30,23 +30,21 @@ InvalidDicomError, _ = optional_import("pydicom.errors", name="InvalidDicomError
 
 # @md.env(pip_packages=["pydicom >= 1.4.2"])
 class DICOMDataLoaderOperator(Operator):
-    """This operator loads DICOM studies into memory from a folder containing DICOM instance files.
+    """This operator loads DICOM studies into memory from a folder of DICOM instance files.
 
-    Input:
-        Path to the folder containing DICOM instance files, set as argument to the object constructor.
-        It defaults to the folder, input, in the current working directory.
+    Named Input:
+        input_folder: Path to the folder containing DICOM instance files. Optional and not requiring input.
+                      If present, data from this input will be used as the input folder of DICOM instance files.
 
-    Output:
-        A list of DICOMStudy objects in memory, named `dicom_study_list` by default but can be changed
-        via the object instance attribute, `output_name`. The name can be omitted when linking it to the
-        receiver, simply because it is the only output.
+    Name Output:
+        dicom_study_list: A list of DICOMStudy objects in memory. The name can be changed via attribute, `output_name`.
     """
 
     DEFAULT_INPUT_FOLDER = Path.cwd() / "input"
     DEFAULT_OUTPUT_NAME = "dicom_study_list"
 
-    # For now, need to have the input folder as an instance attribute, set on init, because the
-    # compute function does not get file I/O path in the execution context. Enhancement requested.
+    # For now, need to have the input folder as an instance attribute, set on init, because even there is the optional
+    # named input to receive data containing the path, there might not be upstream operator to emit the data.
     def __init__(
         self,
         fragment: Fragment,
@@ -56,21 +54,24 @@ class DICOMDataLoaderOperator(Operator):
         must_load: bool = True,
         **kwargs,
     ):
-        """Creates an instance of this class
+        """Creates an instance of this class.
 
         Args:
             fragment (Fragment): An instance of the Application class which is derived from Fragment.
             input_folder (Path): Folder containing DICOM instance files to load from.
                                  Defaults to `input` in the current working directory.
+                                 Can be overridden by via the named input receiving from other's output.
             output_name (str): The name for the output, which is list of DICOMStudy objects.
                                Defaults to `dicom_study_list`, and if None or blank passed in.
             must_load (bool): If true, raise exception if no study is loaded.
                               Defaults to True.
         """
 
+        self._logger = logging.getLogger("{}.{}".format(__name__, type(self).__name__))
         self._must_load = must_load
         self.input_path = input_folder
         self.index = 0
+        self.input_name = "input_folder"
         self.output_name = (
             output_name.strip()
             if output_name and len(output_name.strip()) > 0
@@ -80,19 +81,26 @@ class DICOMDataLoaderOperator(Operator):
         super().__init__(fragment, *args, **kwargs)
 
     def setup(self, spec: OperatorSpec):
+        spec.input(self.input_name).condition(ConditionType.NONE)  # Optional input, not requiring upstream emitter.
         spec.output(self.output_name)
 
     def compute(self, op_input, op_output, context):
         """Performs computation for this operator and handlesI/O."""
 
         self.index += 1
-        input_path = self.input_path  # Need the enhancement to get the path from op_input or context
+        input_path = None
+        try:
+            input_path = op_input.receive(self.input_name)
+        except Exception:
+            pass
 
-        # MQ
-        print(f"context obj: {context.__dir__()}")
-        print(f"context.input: {context.input.__dir__()}")
-        print(f"context.output: {context.output.__dir__()}")
-        # MQ
+        if not input_path or not Path(input_path).is_dir():
+            self._logger.info(f"No or invalid input path from the optional input port: {input_path}")
+            # Use the object attribute if it is valid
+            if self.input_path and self.input_path.is_dir():
+                input_path = self.input_path
+            else:
+                raise ValueError(f"No valid input path from input port or obj attribute: {self.input_path}")
 
         dicom_study_list = self.load_data_to_studies(input_path)
         op_output.emit(dicom_study_list, self.output_name)
@@ -157,7 +165,7 @@ class DICOMDataLoaderOperator(Operator):
             try:
                 sop_instances.append(dcmread(file))
             except InvalidDicomError as ex:
-                logging.warning(f"Ignored {file}, reason being: {ex}")
+                self._logger.warn(f"Ignored {file}, reason being: {ex}")
 
         for sop_instance in sop_instances:
             study_instance_uid = sop_instance[0x0020, 0x000D].value.name  # name is the UID as str
