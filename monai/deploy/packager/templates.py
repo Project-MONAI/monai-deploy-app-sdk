@@ -67,12 +67,12 @@ UBUNTU_DOCKERFILE_TEMPLATE = (
 
     ENV DEBIAN_FRONTEND=noninteractive
     ENV TERM=xterm-256color
-    ENV MONAI_INPUTPATH={full_input_path}
-    ENV MONAI_OUTPUTPATH={full_output_path}
-    ENV MONAI_WORKDIR={working_dir}
-    ENV MONAI_APPLICATION={app_dir}
-    ENV MONAI_TIMEOUT={timeout}
-    ENV MONAI_MODELPATH={models_dir}
+    ENV HOLOSCAN_INPUTPATH={full_input_path}
+    ENV HOLOSCAN_OUTPUTPATH={full_output_path}
+    ENV HOLOSCAN_WORKDIR={working_dir}
+    ENV HOLOSCAN_APPLICATION={app_dir}
+    ENV HOLOSCAN_TIMEOUT={timeout}
+    ENV HOLOSCAN_MODELPATH={models_dir}
 
     RUN apt update \\
      && apt upgrade -y --no-install-recommends \\
@@ -102,12 +102,12 @@ PYTORCH_DOCKERFILE_TEMPLATE = (
 
     ENV DEBIAN_FRONTEND=noninteractive
     ENV TERM=xterm-256color
-    ENV MONAI_INPUTPATH={full_input_path}
-    ENV MONAI_OUTPUTPATH={full_output_path}
-    ENV MONAI_WORKDIR={working_dir}
-    ENV MONAI_APPLICATION={app_dir}
-    ENV MONAI_TIMEOUT={timeout}
-    ENV MONAI_MODELPATH={models_dir}
+    ENV HOLOSCAN_INPUTPATH={full_input_path}
+    ENV HOLOSCAN_OUTPUTPATH={full_output_path}
+    ENV HOLOSCAN_WORKDIR={working_dir}
+    ENV HOLOSCAN_APPLICATION={app_dir}
+    ENV HOLOSCAN_TIMEOUT={timeout}
+    ENV HOLOSCAN_MODELPATH={models_dir}
 
     RUN apt update \\
      && apt upgrade -y --no-install-recommends \\
