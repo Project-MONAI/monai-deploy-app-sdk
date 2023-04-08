@@ -1,4 +1,4 @@
-# Copyright 2021 MONAI Consortium
+# Copyright 2021-2023 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -9,8 +9,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from pathlib import Path
 
-from monai.deploy.core import Application
+from monai.deploy.conditions import CountCondition
+from monai.deploy.core import AppContext, Application
+from monai.deploy.logger import load_env_log_level
 from monai.deploy.operators.dicom_data_loader_operator import DICOMDataLoaderOperator
 from monai.deploy.operators.dicom_series_selector_operator import DICOMSeriesSelectorOperator
 from monai.deploy.operators.dicom_series_to_volume_operator import DICOMSeriesToVolumeOperator
@@ -18,18 +21,32 @@ from monai.deploy.operators.png_converter_operator import PNGConverterOperator
 
 
 class App(Application):
-    def compose(self):
-        study_loader_op = DICOMDataLoaderOperator()
-        series_selector_op = DICOMSeriesSelectorOperator()
-        series_to_vol_op = DICOMSeriesToVolumeOperator()
-        png_converter_op = PNGConverterOperator()
+    """This application loads DICOM files, converts them to 3D image, then to PNG files on disk.
 
-        self.add_flow(study_loader_op, series_selector_op, {"dicom_study_list": "dicom_study_list"})
-        self.add_flow(
-            series_selector_op, series_to_vol_op, {"study_selected_series_list": "study_selected_series_list"}
+    This showcases the MONAI Deploy application framework
+    """
+
+    def compose(self):
+        app_context = AppContext({})  # Let it figure out the data paths using well-known env vars etc.
+        input_dcm_folder = Path(app_context.input_path)
+        output_folder = Path(app_context.output_path)
+        print(f"input_dcm_folder: {input_dcm_folder}")
+
+        # Set the first operator to run only once by setting the count condition to 1
+        study_loader_op = DICOMDataLoaderOperator(
+            self, CountCondition(self, 1), input_folder=input_dcm_folder, name="dcm_loader"
         )
-        self.add_flow(series_to_vol_op, png_converter_op, {"image": "image"})
+        series_selector_op = DICOMSeriesSelectorOperator(self, name="series_selector")
+        series_to_vol_op = DICOMSeriesToVolumeOperator(self, name="series_to_vol")
+        png_converter_op = PNGConverterOperator(self, output_folder=output_folder, name="png_converter")
+
+        # Create the execution DAG by linking operators' named output to named input.
+        self.add_flow(study_loader_op, series_selector_op, {("dicom_study_list", "dicom_study_list")})
+        self.add_flow(
+            series_selector_op, series_to_vol_op, {("study_selected_series_list", "study_selected_series_list")}
+        )
+        self.add_flow(series_to_vol_op, png_converter_op, {("image", "image")})
 
 
 if __name__ == "__main__":
-    App(do_run=True)
+    App().run()
