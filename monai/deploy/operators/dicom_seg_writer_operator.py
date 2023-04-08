@@ -36,7 +36,7 @@ else:
     Code, _ = optional_import("pydicom.sr.coding", name="Code")
     hd, _ = optional_import("highdicom")
 
-from monai.deploy.core import Image, Operator, OperatorSpec
+from monai.deploy.core import ConditionType, Fragment, Image, Operator, OperatorSpec
 from monai.deploy.core.domain.dicom_series import DICOMSeries
 from monai.deploy.core.domain.dicom_series_selection import StudySelectedSeries
 
@@ -154,29 +154,36 @@ class SegmentDescription:
         )
 
 
-# @md.input("seg_image", Image, IOType.IN_MEMORY)
-# @md.input("study_selected_series_list", List[StudySelectedSeries], IOType.IN_MEMORY)
-# @md.output("dicom_seg_instance", DataPath, IOType.DISK)
 # @md.env(pip_packages=["pydicom >= 2.3.0", "highdicom >= 0.18.2"])
 class DICOMSegmentationWriterOperator(Operator):
     """
     This operator writes out a DICOM Segmentation Part 10 file to disk
+
+    Named inputs:
+        seg_image: The Image object of the segment.
+        study_selected_series_list: The DICOM series from which the segment was derived.
+        output_folder: Optional, folder for file output, overriding what is set on the object.
+
+    Named output:
+        None
+
+    File output:
+        Generated DICOM instance file in the output folder set on this object or optional input.
     """
 
-    # DEFAULT_OUTPUT_FOLDER = Path(os.path.join(os.path.dirname(__file__))) / "output"
     DEFAULT_OUTPUT_FOLDER = Path.cwd() / "output"
-
-    # Supported input image format, based on extension.
+    # Supported input image format, based on extension. Intended for file based input.
     SUPPORTED_EXTENSIONS = [".nii", ".nii.gz", ".mhd"]
     # DICOM instance file extension. Case insensitive in string comparison.
     DCM_EXTENSION = ".dcm"
 
     def __init__(
         self,
+        fragment: Fragment,
         *args,
         segment_descriptions: List[SegmentDescription],
-        custom_tags: Optional[Dict[str, str]] = None,
         output_folder: Path,
+        custom_tags: Optional[Dict[str, str]] = None,
         **kwargs,
     ):
         """Instantiates the DICOM Seg Writer instance with optional list of segment label strings.
@@ -193,8 +200,11 @@ class DICOMSegmentationWriterOperator(Operator):
         segment label information, including label value, name, description etc.
 
         Args:
+            fragment (Fragment): An instance of the Application class which is derived from Fragment.
             segment_descriptions: List[SegmentDescription]
                 Object encapsulating the description of each segment present in the segmentation.
+            output_folder: Folder for file output, overridden by named input on compute.
+                           Defaults to current working dir's child folder, output.
             custom_tags: OptonalDict[str, str], optional
                 Dictionary for setting custom DICOM tags using Keywords and str values only
         """
@@ -203,11 +213,21 @@ class DICOMSegmentationWriterOperator(Operator):
         self._custom_tags = custom_tags
         self.output_folder = output_folder if output_folder else DICOMSegmentationWriterOperator.DEFAULT_OUTPUT_FOLDER
 
-        super().__init__(*args, **kwargs)
+        self.input_name_seg = "seg_image"
+        self.input_name_series = "study_selected_series_list"
+        self.input_name_output_folder = "output_folder"
+
+        super().__init__(fragment, *args, **kwargs)
 
     def setup(self, spec: OperatorSpec):
-        spec.input("seg_image")
-        spec.input("study_selected_series_list")
+        """Set up the named input(s), and output(s) if applicable, aka ports.
+
+        Args:
+            spec (OperatorSpec): The Operator specification for inputs and outputs etc.
+        """
+        spec.input(self.input_name_seg)
+        spec.input(self.input_name_series)
+        spec.input(self.input_name_output_folder).condition(ConditionType.NONE)  # Optional input not requiring sender.
 
     def compute(self, op_input, op_output, context):
         """Performs computation for this operator and handles I/O.
@@ -223,47 +243,56 @@ class DICOMSegmentationWriterOperator(Operator):
         """
 
         # Gets the input, prepares the output folder, and then delegates the processing.
-        study_selected_series_list = op_input.receive("study_selected_series_list")
+        study_selected_series_list = op_input.receive(self.input_name_series)
         if not study_selected_series_list or len(study_selected_series_list) < 1:
-            raise ValueError("Missing input, list of 'StudySelectedSeries'.")
+            raise ValueError(f"Missing input, [{StudySelectedSeries}].")
         for study_selected_series in study_selected_series_list:
             if not isinstance(study_selected_series, StudySelectedSeries):
-                raise ValueError("Element in input is not expected type, 'StudySelectedSeries'.")
+                raise ValueError(f"Element in input is not expected type, {StudySelectedSeries}.")
 
-        seg_image = op_input.receive("seg_image")
-        # In case the Image object is not in the input, and input is the seg image file folder path.
-        if not isinstance(seg_image, Image):
-            # if isinstance(seg_image, DataPath):
-            #     seg_image, _ = self.select_input_file(seg_image.path)
-            # else:
-            raise ValueError("Input 'seg_image' is not Image or DataPath.")
+        seg_image = op_input.receive(self.input_name_seg)
 
-        output_dir = self.output_folder  # TODO enhancement for this op_output.get().path
-        output_dir.mkdir(parents=True, exist_ok=True)
+        # In case the input is not the Image object, rather image file path.
+        if not isinstance(seg_image, (Image, np.array)) and (isinstance(seg_image, (Path, str))):
+            seg_image_file, _ = self.select_input_file(str(seg_image))
+            if Path(seg_image_file).is_file():
+                seg_image = self._image_file_to_numpy(seg_image_file)
+            else:
+                raise ValueError("Input 'seg_image' is not an Image or a path.")
 
-        self.process_images(seg_image, study_selected_series_list, output_dir)
+        # If the optional named input, output_folder, has content, use it instead of the one set on the object.
+        # Since this input is optional, must check if data present and if Path or str.
+        output_folder = None
+        try:
+            output_folder = op_input.receive(self.input_name_output_folder)
+        except Exception:
+            pass
+
+        if not output_folder or not isinstance(output_folder, (Path, str)):
+            output_folder = self.output_folder
+
+        output_folder.mkdir(parents=True, exist_ok=True)
+        self.process_images(seg_image, study_selected_series_list, output_folder)
 
     def process_images(
         self, image: Union[Image, Path], study_selected_series_list: List[StudySelectedSeries], output_dir: Path
     ):
         """ """
         # Get the seg image in numpy, and if the image is passed in as object, need to fake a input path.
-        seg_image_numpy = None
-        input_path = "dicom_seg"
+        seg_image_numpy = image
 
         if isinstance(image, Image):
             seg_image_numpy = image.asnumpy()
-        elif isinstance(image, Path):
-            input_path = str(image)  # It is expected that this is the image file path.
-            seg_image_numpy = self._image_file_to_numpy(input_path)
-        else:
-            raise ValueError("'image' is not an Image object or a supported image file.")
+        elif isinstance(image, (Path, str)):
+            seg_image_numpy = self._image_file_to_numpy(str(image))
+        elif not isinstance(image, np.array):
+            raise ValueError("'image' is not a numpy array, Image object, or supported image file.")
 
         # Pick DICOM Series that was used as input for getting the seg image.
         # For now, first one in the list.
         for study_selected_series in study_selected_series_list:
             if not isinstance(study_selected_series, StudySelectedSeries):
-                raise ValueError("Element in input is not expected type, 'StudySelectedSeries'.")
+                raise ValueError(f"Element in input is not expected type, {StudySelectedSeries}.")
             selected_series = study_selected_series.selected_series[0]
             dicom_series = selected_series.series
             self.create_dicom_seg(seg_image_numpy, dicom_series, output_dir)
@@ -273,11 +302,7 @@ class DICOMSegmentationWriterOperator(Operator):
         # Generate SOP instance UID, and use it as dcm file name too
         seg_sop_instance_uid = hd.UID()  # generate_uid() can be used too.
 
-        if not output_dir.is_dir():
-            try:
-                output_dir.mkdir(parents=True, exist_ok=True)
-            except Exception:
-                raise ValueError("output_dir {output_dir} does not exist and failed to be created.") from None
+        output_dir.mkdir(parents=True, exist_ok=True)  # Bubble up the exception if fails.
         output_path = output_dir / f"{seg_sop_instance_uid}{DICOMSegmentationWriterOperator.DCM_EXTENSION}"
 
         dicom_dataset_list = [i.get_native_sop_instance() for i in dicom_series.get_sop_instances()]
@@ -285,7 +310,7 @@ class DICOMSegmentationWriterOperator(Operator):
         try:
             version_str = get_sdk_semver()  # SDK Version
         except Exception:
-            version_str = "0.1"  # Fall back to the initial version
+            version_str = ""  # Fall back to blank for unknown version
 
         seg = hd.seg.Segmentation(
             source_images=dicom_dataset_list,
@@ -400,7 +425,7 @@ def test():
 
     current_file_dir = Path(__file__).parent.resolve()
     data_path = current_file_dir.joinpath("../../../inputs/spleen_ct_tcia")
-    out_dir = Path("output_seg_op").absolute()
+    out_dir = Path.cwd() / "output_seg_op"
     segment_descriptions = [
         SegmentDescription(
             segment_label="Spleen",
@@ -412,10 +437,13 @@ def test():
         )
     ]
 
-    loader = DICOMDataLoaderOperator()
-    series_selector = DICOMSeriesSelectorOperator()
-    dcm_to_volume_op = DICOMSeriesToVolumeOperator()
-    seg_writer = DICOMSegmentationWriterOperator(segment_descriptions=segment_descriptions, output_folder=out_dir)
+    fragment = Fragment()
+    loader = DICOMDataLoaderOperator(fragment, name="dcm_loader")
+    series_selector = DICOMSeriesSelectorOperator(fragment, name="series_selector")
+    dcm_to_volume_op = DICOMSeriesToVolumeOperator(fragment, name="series_to_vol")
+    seg_writer = DICOMSegmentationWriterOperator(
+        fragment, segment_descriptions=segment_descriptions, output_folder=out_dir, name="seg_writer"
+    )
 
     # Testing with more granular functions
     study_list = loader.load_data_to_studies(data_path.absolute())
