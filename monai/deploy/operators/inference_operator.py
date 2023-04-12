@@ -22,7 +22,7 @@ class InferenceOperator(Operator):
     a given model, post-transforms, and final results generation.
     """
 
-    def __init__(self, fragment, *args, **kwargs):
+    def __init__(self, fragment: Fragment, *args, **kwargs):
         """Constructor of the operator."""
         super().__init__(fragment, *args, **kwargs)
 

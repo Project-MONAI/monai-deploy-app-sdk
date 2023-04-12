@@ -62,7 +62,7 @@ class MonaiSegInferenceOperator(InferenceOperator):
     """
 
     # For testing the app directly, the model should be at the following path.
-    MODEL_LOCAL_PATH = Path(os.environ.get("MONAI_MODELPATH", Path(os.path.dirname(__file__)) / "model/model.ts"))
+    MODEL_LOCAL_PATH = Path(os.environ.get("HOLOSCAN_MODEL_PATH", Path.cwd() / "model/model.ts"))
 
     def __init__(
         self,

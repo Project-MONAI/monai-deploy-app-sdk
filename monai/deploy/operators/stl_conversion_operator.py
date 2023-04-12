@@ -118,7 +118,7 @@ class STLConversionOperator(Operator):
                 self._logger.info(f"Output will be saved in file {_output_file}.")
 
         stl_bytes = self._convert(input_image, _output_file)
-        op_output.emit(stl_bytes)
+        op_output.emit(stl_bytes, self.output_name_stl_bytes)
 
     def _convert(self, image: Image, output_file: Optional[Path] = None):
         """

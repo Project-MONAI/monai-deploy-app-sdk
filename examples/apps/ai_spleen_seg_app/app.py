@@ -10,13 +10,16 @@
 # limitations under the License.
 
 import logging
+from pathlib import Path
 
 # Required for setting SegmentDescription attributes. Direct import as this is not part of App SDK package.
 from pydicom.sr.codedict import codes
 
-from monai.deploy.core import Application, resource
+from monai.deploy.conditions import CountCondition
+from monai.deploy.core import AppContext, Application
 from monai.deploy.core.domain import Image
 from monai.deploy.core.io_type import IOType
+from monai.deploy.logger import load_env_log_level
 from monai.deploy.operators.dicom_data_loader_operator import DICOMDataLoaderOperator
 from monai.deploy.operators.dicom_seg_writer_operator import DICOMSegmentationWriterOperator, SegmentDescription
 from monai.deploy.operators.dicom_series_selector_operator import DICOMSeriesSelectorOperator
@@ -26,9 +29,10 @@ from monai.deploy.operators.monai_bundle_inference_operator import (
     IOMapping,
     MonaiBundleInferenceOperator,
 )
+from monai.deploy.operators.stl_conversion_operator import STLConversionOperator
 
 
-@resource(cpu=1, gpu=1, memory="7Gi")
+# @resource(cpu=1, gpu=1, memory="7Gi")
 # pip_packages can be a string that is a path(str) to requirements.txt file or a list of packages.
 # The monai pkg is not required by this class, instead by the included operators.
 class AISpleenSegApp(Application):
@@ -48,10 +52,17 @@ class AISpleenSegApp(Application):
 
         logging.info(f"Begin {self.compose.__name__}")
 
+        app_context = AppContext({})  # Let it figure out all the attributes without overriding
+        app_input_path = Path(app_context.input_path)
+        app_output_path = Path(app_context.output_path)
+        model_path = Path(app_context.model_path)
+
         # Create the custom operator(s) as well as SDK built-in operator(s).
-        study_loader_op = DICOMDataLoaderOperator()
-        series_selector_op = DICOMSeriesSelectorOperator(Sample_Rules_Text)
-        series_to_vol_op = DICOMSeriesToVolumeOperator()
+        study_loader_op = DICOMDataLoaderOperator(
+            self, CountCondition(self, 1), input_folder=app_input_path, name="study_loader_op"
+        )
+        series_selector_op = DICOMSeriesSelectorOperator(self, rules=Sample_Rules_Text, name="series_selector_op")
+        series_to_vol_op = DICOMSeriesToVolumeOperator(self, name="series_to_vol_op")
 
         # Create the inference operator that supports MONAI Bundle and automates the inference.
         # The IOMapping labels match the input and prediction keys in the pre and post processing.
@@ -68,9 +79,12 @@ class AISpleenSegApp(Application):
         config_names = BundleConfigNames(config_names=["inference"])  # Same as the default
 
         bundle_spleen_seg_op = MonaiBundleInferenceOperator(
+            self,
             input_mapping=[IOMapping("image", Image, IOType.IN_MEMORY)],
             output_mapping=[IOMapping("pred", Image, IOType.IN_MEMORY)],
             bundle_config_names=config_names,
+            bundle_path=model_path,
+            name="bundle_spleen_seg_op",
         )
 
         # Create DICOM Seg writer providing the required segment description for each segment with
@@ -91,25 +105,31 @@ class AISpleenSegApp(Application):
         custom_tags = {"SeriesDescription": "AI generated Seg, not for clinical use."}
 
         dicom_seg_writer = DICOMSegmentationWriterOperator(
-            segment_descriptions=segment_descriptions, custom_tags=custom_tags
+            self,
+            segment_descriptions=segment_descriptions,
+            custom_tags=custom_tags,
+            output_folder=app_output_path,
+            name="dicom_seg_writer",
         )
 
         # Create the processing pipeline, by specifying the source and destination operators, and
         # ensuring the output from the former matches the input of the latter, in both name and type.
-        self.add_flow(study_loader_op, series_selector_op, {"dicom_study_list": "dicom_study_list"})
+        self.add_flow(study_loader_op, series_selector_op, {("dicom_study_list", "dicom_study_list")})
         self.add_flow(
-            series_selector_op, series_to_vol_op, {"study_selected_series_list": "study_selected_series_list"}
+            series_selector_op, series_to_vol_op, {("study_selected_series_list", "study_selected_series_list")}
         )
-        self.add_flow(series_to_vol_op, bundle_spleen_seg_op, {"image": "image"})
+        self.add_flow(series_to_vol_op, bundle_spleen_seg_op, {("image", "image")})
         # Note below the dicom_seg_writer requires two inputs, each coming from a source operator.
         self.add_flow(
-            series_selector_op, dicom_seg_writer, {"study_selected_series_list": "study_selected_series_list"}
+            series_selector_op, dicom_seg_writer, {("study_selected_series_list", "study_selected_series_list")}
         )
-        self.add_flow(bundle_spleen_seg_op, dicom_seg_writer, {"pred": "seg_image"})
+        self.add_flow(bundle_spleen_seg_op, dicom_seg_writer, {("pred", "seg_image")})
         # Create the surface mesh STL conversion operator and add it to the app execution flow, if needed, by
         # uncommenting the following couple lines.
-        # stl_conversion_op = STLConversionOperator(output_file="stl/spleen.stl")
-        # self.add_flow(bundle_spleen_seg_op, stl_conversion_op, {"pred": "image"})
+        stl_conversion_op = STLConversionOperator(
+            self, output_file=app_output_path.joinpath("stl/spleen.stl"), name="stl_conversion_op"
+        )
+        self.add_flow(bundle_spleen_seg_op, stl_conversion_op, {("pred", "image")})
 
         logging.info(f"End {self.compose.__name__}")
 
@@ -140,5 +160,5 @@ if __name__ == "__main__":
     # e.g.
     #     monai-deploy exec app.py -i input -m model/model.ts
     #
-    logging.basicConfig(level=logging.DEBUG)
-    app_instance = AISpleenSegApp(do_run=True)
+    load_env_log_level()
+    AISpleenSegApp().run()
