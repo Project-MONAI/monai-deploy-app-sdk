@@ -294,11 +294,7 @@ class MonaiBundleInferenceOperator(InferenceOperator):
     the `DICOMSeriesToVolumeOperator`, and passing a segmentation `Image` to the `DICOMSegmentationWriterOperator`.
     In such cases, the I/O storage type can only be `IN_MEMORY` due to the restrictions imposed by the application executor.
 
-    The following capabilites has been deprecated:
-    However, when used as the first operator in an application, its input storage type needs to be `DISK`, and the file needs
-    to be a Python pickle file, e.g. containing an `Image` instance. When used as the last operator, its output storage type
-    also needs to `DISK` with the path being the application's output folder, and the operator's output will be saved as
-    a pickle file whose name is the same as the output name.
+    For the time being, the input and output to this operator are limited to in_memory object.
     """
 
     known_io_data_types = {
@@ -526,7 +522,9 @@ class MonaiBundleInferenceOperator(InferenceOperator):
 
     def setup(self, spec: OperatorSpec):
         [spec.input(v.label) for v in self._input_mapping]
-        [spec.output(v.label) for v in self._output_mapping]
+        for v in self._output_mapping:
+            if v.storage_type == IOType.IN_MEMORY:  # As of now the output port type can only be in_memory object.
+                spec.output(v.label)
 
     def compute(self, op_input, op_output, context):
         """Infers with the input(s) and saves the prediction result(s) to output

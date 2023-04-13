@@ -1,4 +1,4 @@
-# Copyright 2021-2022 MONAI Consortium
+# Copyright 2021-2023 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -36,6 +36,20 @@ from monai.deploy.operators.stl_conversion_operator import STLConversionOperator
 # pip_packages can be a string that is a path(str) to requirements.txt file or a list of packages.
 # The monai pkg is not required by this class, instead by the included operators.
 class AISpleenSegApp(Application):
+    """Demonstrates inference with built-in MONAI Bundle inference operator with DICOM files as input/output
+
+    This application loads a set of DICOM instances, select the appropriate series, converts the series to
+    3D volume image, performs inference with the built-in MONAI Bundle inference operator, including pre-processing
+    and post-processing, save the segmentation image in a DICOM Seg OID in an instance file, and optionally the
+    surface mesh in STL format.
+
+    Pertinent MONAI Bundle:
+      https://github.com/Project-MONAI/model-zoo/tree/dev/models/spleen_ct_segmentation
+
+    Execution Time Estimate:
+      With a Nvidia GV100 32GB GPU, for a input of 500 DICOM instances, execution time is around 25 seconds.
+    """
+
     def __init__(self, *args, **kwargs):
         """Creates an application instance."""
         self._logger = logging.getLogger("{}.{}".format(__name__, type(self).__name__))
@@ -71,10 +85,6 @@ class AISpleenSegApp(Application):
         # environment, so when the app is packaged into a MAP, the operator can complete the bundle parsing
         # during init to provide the optional packages info, parsed from the bundle, to the packager
         # for it to install the packages in the MAP docker image.
-        # Setting output IOType to DISK only works only for leaf operators, not the case in this example.
-        #
-        # Pertinent MONAI Bundle:
-        #   https://github.com/Project-MONAI/model-zoo/tree/dev/models/spleen_ct_segmentation
 
         config_names = BundleConfigNames(config_names=["inference"])  # Same as the default
 
