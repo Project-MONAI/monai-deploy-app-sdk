@@ -5,11 +5,11 @@ This tutorial shows how to create an organ segmentation application for a PyTorc
 ## Setup
 
 ```bash
-# Create a virtual environment with Python 3.7.
+# Create a virtual environment with Python 3.8.
 # Skip if you are already in a virtual environment.
 # (JupyterLab dropped its support for Python 3.6 since 2021-12-23.
 #  See https://github.com/jupyterlab/jupyterlab/pull/11740)
-conda create -n monai python=3.7 pytorch torchvision jupyterlab cudatoolkit=11.1 -c pytorch -c conda-forge
+conda create -n monai python=3.8 pytorch torchvision jupyterlab cudatoolkit=11.1 -c pytorch -c conda-forge
 conda activate monai
 
 # Launch JupyterLab if you want to work on Jupyter Notebook

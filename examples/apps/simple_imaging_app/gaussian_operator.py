@@ -11,9 +11,6 @@
 
 from pathlib import Path
 
-from skimage.filters import gaussian
-from skimage.io import imsave
-
 from monai.deploy.core import ConditionType, Fragment, Operator, OperatorSpec
 
 
@@ -61,6 +58,9 @@ class GaussianOperator(Operator):
         spec.param("channel_axis", 2)
 
     def compute(self, op_input, op_output, context):
+        from skimage.filters import gaussian
+        from skimage.io import imsave
+
         self.index += 1
         print(f"Number of times operator {self.name} whose class is defined in {__name__} called: {self.index}")
 

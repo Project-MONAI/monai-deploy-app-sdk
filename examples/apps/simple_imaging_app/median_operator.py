@@ -9,8 +9,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from skimage.filters import median
-
 from monai.deploy.core import Fragment, Operator, OperatorSpec
 
 
@@ -42,6 +40,8 @@ class MedianOperator(Operator):
         spec.output("out1")
 
     def compute(self, op_input, op_output, context):
+        from skimage.filters import median
+
         self.index += 1
         print(f"Number of times operator {self.name} whose class is defined in {__name__} called: {self.index}")
         data_in = op_input.receive("in1")
