@@ -9,8 +9,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from monai.deploy.logger import load_env_log_level
 from app import AIPancreasSegApp
+
+from monai.deploy.logger import load_env_log_level
 
 if __name__ == "__main__":
     load_env_log_level()
