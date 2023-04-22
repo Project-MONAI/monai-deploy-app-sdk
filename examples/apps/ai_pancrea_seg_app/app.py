@@ -32,6 +32,7 @@ from monai.deploy.operators.monai_bundle_inference_operator import (
 
 # from monai.deploy.operators.stl_conversion_operator import STLConversionOperator  # uncomment if need be used
 
+
 # @resource(cpu=1, gpu=1, memory="7Gi")
 # @md.env(pip_packages=["torch>=1.12.0"])
 # pip_packages can be a string that is a path(str) to requirements.txt file or a list of packages.
