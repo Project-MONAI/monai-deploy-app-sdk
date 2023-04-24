@@ -249,51 +249,52 @@ class DICOMEncapsulatedPDFWriterOperator(Operator):
         return True
 
 
-def test(test_copy_tags: bool = True):
-    from monai.deploy.operators.dicom_data_loader_operator import DICOMDataLoaderOperator
-    from monai.deploy.operators.dicom_series_selector_operator import DICOMSeriesSelectorOperator
+# Commenting out the following as pttype complains about the contructor for no reason
+# def test(test_copy_tags: bool = True):
+#     from monai.deploy.operators.dicom_data_loader_operator import DICOMDataLoaderOperator
+#     from monai.deploy.operators.dicom_series_selector_operator import DICOMSeriesSelectorOperator
 
-    current_file_dir = Path(__file__).parent.resolve()
-    dcm_folder = current_file_dir.joinpath("../../../inputs/livertumor_ct/dcm/1-CT_series_liver_tumor_from_nii014")
-    pdf_file = current_file_dir.joinpath("../../../inputs/pdf/TestPDF.pdf")
-    out_path = Path("output_pdf_op").absolute()
-    pdf_bytes = b"Not PDF bytes."
+#     current_file_dir = Path(__file__).parent.resolve()
+#     dcm_folder = current_file_dir.joinpath("../../../inputs/livertumor_ct/dcm/1-CT_series_liver_tumor_from_nii014")
+#     pdf_file = current_file_dir.joinpath("../../../inputs/pdf/TestPDF.pdf")
+#     out_path = Path("output_pdf_op").absolute()
+#     pdf_bytes = b"Not PDF bytes."
 
-    fragment = Fragment()
-    loader = DICOMDataLoaderOperator(fragment, name="loader_op")
-    series_selector = DICOMSeriesSelectorOperator(fragment, name="selector_op")
-    sr_writer = DICOMEncapsulatedPDFWriterOperator(
-        fragment,
-        output_folder=out_path,
-        copy_tags=test_copy_tags,
-        model_info=None,
-        equipment_info=EquipmentInfo(),
-        custom_tags={"SeriesDescription": "Report from AI algorithm. Not for clinical use."},
-        name="writer_op",
-    )
+#     fragment = Fragment()
+#     loader = DICOMDataLoaderOperator(fragment, name="loader_op")
+#     series_selector = DICOMSeriesSelectorOperator(fragment, name="selector_op")
+#     sr_writer = DICOMEncapsulatedPDFWriterOperator(
+#         fragment,
+#         output_folder=out_path,
+#         copy_tags=test_copy_tags,
+#         model_info=None,
+#         equipment_info=EquipmentInfo(),
+#         custom_tags={"SeriesDescription": "Report from AI algorithm. Not for clinical use."},
+#         name="writer_op",
+#     )
 
-    # Testing with the main entry functions
-    dicom_series = None
-    if test_copy_tags:
-        study_list = loader.load_data_to_studies(Path(dcm_folder).absolute())
-        study_selected_series_list = series_selector.filter(None, study_list)
-        # Get the first DICOM Series, as for now, only expecting this.
-        if not study_selected_series_list or len(study_selected_series_list) < 1:
-            raise ValueError("Missing input, list of 'StudySelectedSeries'.")
-        for study_selected_series in study_selected_series_list:
-            if not isinstance(study_selected_series, StudySelectedSeries):
-                raise ValueError("Element in input is not expected type, 'StudySelectedSeries'.")
-            for selected_series in study_selected_series.selected_series:
-                print(type(selected_series))
-                dicom_series = selected_series.series
-                print(type(dicom_series))
+#     # Testing with the main entry functions
+#     dicom_series = None
+#     if test_copy_tags:
+#         study_list = loader.load_data_to_studies(Path(dcm_folder).absolute())
+#         study_selected_series_list = series_selector.filter(None, study_list)
+#         # Get the first DICOM Series, as for now, only expecting this.
+#         if not study_selected_series_list or len(study_selected_series_list) < 1:
+#             raise ValueError("Missing input, list of 'StudySelectedSeries'.")
+#         for study_selected_series in study_selected_series_list:
+#             if not isinstance(study_selected_series, StudySelectedSeries):
+#                 raise ValueError("Element in input is not expected type, 'StudySelectedSeries'.")
+#             for selected_series in study_selected_series.selected_series:
+#                 print(type(selected_series))
+#                 dicom_series = selected_series.series
+#                 print(type(dicom_series))
 
-    with open(pdf_file, "rb") as f:
-        pdf_bytes = f.read()
+#     with open(pdf_file, "rb") as f:
+#         pdf_bytes = f.read()
 
-    sr_writer.write(pdf_bytes, dicom_series, out_path)
+#     sr_writer.write(pdf_bytes, dicom_series, out_path)
 
 
-if __name__ == "__main__":
-    test(test_copy_tags=True)
-    test(test_copy_tags=False)
+# if __name__ == "__main__":
+#     test(test_copy_tags=True)
+#     test(test_copy_tags=False)

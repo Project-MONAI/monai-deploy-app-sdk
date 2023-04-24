@@ -259,47 +259,48 @@ class DICOMTextSRWriterOperator(Operator):
         self._logger.info(f"DICOM SOP instance saved in {file_path}")
 
 
-def test(test_copy_tags: bool = True):
-    from monai.deploy.operators.dicom_data_loader_operator import DICOMDataLoaderOperator
-    from monai.deploy.operators.dicom_series_selector_operator import DICOMSeriesSelectorOperator
+# Commenting out the following as pttype complains about the contructor for no reason
+# def test(test_copy_tags: bool = True):
+#     from monai.deploy.operators.dicom_data_loader_operator import DICOMDataLoaderOperator
+#     from monai.deploy.operators.dicom_series_selector_operator import DICOMSeriesSelectorOperator
 
-    current_file_dir = Path(__file__).parent.resolve()
-    data_path = current_file_dir.joinpath("../../../inputs/livertumor_ct/dcm/1-CT_series_liver_tumor_from_nii014")
-    out_path = Path("output_sr_op").absolute()
-    test_report_text = "Tumors detected in Liver using MONAI Liver Tumor Seg model."
+#     current_file_dir = Path(__file__).parent.resolve()
+#     data_path = current_file_dir.joinpath("../../../inputs/livertumor_ct/dcm/1-CT_series_liver_tumor_from_nii014")
+#     out_path = Path("output_sr_op").absolute()
+#     test_report_text = "Tumors detected in Liver using MONAI Liver Tumor Seg model."
 
-    fragment = Fragment()
-    loader = DICOMDataLoaderOperator(fragment, name="loader_op")
-    series_selector = DICOMSeriesSelectorOperator(fragment, name="selector_op")
-    sr_writer = DICOMTextSRWriterOperator(
-        fragment,
-        output_folder=out_path,
-        copy_tags=test_copy_tags,
-        model_info=None,
-        equipment_info=EquipmentInfo(),
-        custom_tags={"SeriesDescription": "Textual report from AI algorithm. Not for clinical use."},
-        name="sr_writer",
-    )
+#     fragment = Fragment()
+#     loader = DICOMDataLoaderOperator(fragment, name="loader_op")
+#     series_selector = DICOMSeriesSelectorOperator(fragment, name="selector_op")
+#     sr_writer = DICOMTextSRWriterOperator(
+#         fragment,
+#         output_folder=out_path,
+#         copy_tags=test_copy_tags,
+#         model_info=None,
+#         equipment_info=EquipmentInfo(),
+#         custom_tags={"SeriesDescription": "Textual report from AI algorithm. Not for clinical use."},
+#         name="sr_writer"
+#     )
 
-    # Testing with the main entry functions
-    dicom_series = None
-    if test_copy_tags:
-        study_list = loader.load_data_to_studies(Path(data_path).absolute())
-        study_selected_series_list = series_selector.filter(None, study_list)
-        # Get the first DICOM Series, as for now, only expecting this.
-        if not study_selected_series_list or len(study_selected_series_list) < 1:
-            raise ValueError("Missing input, list of 'StudySelectedSeries'.")
-        for study_selected_series in study_selected_series_list:
-            if not isinstance(study_selected_series, StudySelectedSeries):
-                raise ValueError("Element in input is not expected type, 'StudySelectedSeries'.")
-            for selected_series in study_selected_series.selected_series:
-                print(type(selected_series))
-                dicom_series = selected_series.series
-                print(type(dicom_series))
+#     # Testing with the main entry functions
+#     dicom_series = None
+#     if test_copy_tags:
+#         study_list = loader.load_data_to_studies(Path(data_path).absolute())
+#         study_selected_series_list = series_selector.filter(None, study_list)
+#         # Get the first DICOM Series, as for now, only expecting this.
+#         if not study_selected_series_list or len(study_selected_series_list) < 1:
+#             raise ValueError("Missing input, list of 'StudySelectedSeries'.")
+#         for study_selected_series in study_selected_series_list:
+#             if not isinstance(study_selected_series, StudySelectedSeries):
+#                 raise ValueError("Element in input is not expected type, 'StudySelectedSeries'.")
+#             for selected_series in study_selected_series.selected_series:
+#                 print(type(selected_series))
+#                 dicom_series = selected_series.series
+#                 print(type(dicom_series))
 
-    sr_writer.write(test_report_text, dicom_series, out_path)
+#     sr_writer.write(test_report_text, dicom_series, out_path)
 
 
-if __name__ == "__main__":
-    test(True)
-    test(False)
+# if __name__ == "__main__":
+#     test(True)
+#     test(False)

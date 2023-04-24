@@ -423,7 +423,7 @@ class MonaiBundleInferenceOperator(InferenceOperator):
 
         # When this function is NOT called by the __init__, setting the pip_packages env here
         # will not get dependencies to the App SDK Packager to install the packages in the MAP.
-        pip_packages = ["monai"] + [f"{k}=={v}" for k, v in meta["optional_packages_version"].items()]
+        # pip_packages = ["monai"] + [f"{k}=={v}" for k, v in meta["optional_packages_version"].items()]
 
         # Currently not support adding and installing dependent pip package at runtime.
         # if self._env:
