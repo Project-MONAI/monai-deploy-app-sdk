@@ -9,7 +9,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from abc import abstractmethod
 from typing import Any, Dict, Tuple, Union
 
 from monai.deploy.core import Fragment, Image, Operator

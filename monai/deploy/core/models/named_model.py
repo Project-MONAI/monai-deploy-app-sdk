@@ -83,7 +83,7 @@ class NamedModel(Model):
             # 3) Each model folder must contain only one model definition file or folder.
             if sum(1 for _ in model_folder.iterdir()) != 1:
                 logger.warning(
-                    f"Model repository '{model_folder}' contains more than one model definition file or folder "
+                    f"Model repository {model_folder!r} contains more than one model definition file or folder "
                     "so not treated as NamedModel."
                 )
                 return False, None

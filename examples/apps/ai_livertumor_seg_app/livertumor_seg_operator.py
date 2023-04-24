@@ -14,7 +14,7 @@ from pathlib import Path
 
 from numpy import uint8
 
-from monai.deploy.core import ConditionType, Fragment, Operator, OperatorSpec
+from monai.deploy.core import Fragment, Operator, OperatorSpec
 from monai.deploy.operators.monai_seg_inference_operator import InMemImageReader, MonaiSegInferenceOperator
 from monai.transforms import (
     Activationsd,

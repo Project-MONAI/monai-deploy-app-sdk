@@ -9,14 +9,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import logging
+from enum import Enum
 
-from app import AIPancreasSegApp
 
-from monai.deploy.logger import load_env_log_level
+class IOType(Enum):
+    UNKNOWN = 0
+    DISK = 1
+    IN_MEMORY = 2
 
-if __name__ == "__main__":
-    load_env_log_level()
-    logging.info(f"Begin {__name__}")
-    AIPancreasSegApp().run()
-    logging.info(f"End {__name__}")
+    def __or__(self, other):
+        return self.value | other.value

@@ -9,6 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import logging
 from pathlib import Path
 
 from gaussian_operator import GaussianOperator
@@ -75,4 +76,6 @@ class App(Application):
 
 if __name__ == "__main__":
     load_env_log_level()
+    logging.info(f"Begin {__name__}")
     App().run()
+    logging.info(f"End {__name__}")

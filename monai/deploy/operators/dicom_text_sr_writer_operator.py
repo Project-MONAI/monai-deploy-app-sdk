@@ -11,7 +11,7 @@
 
 import logging
 from pathlib import Path
-from typing import Dict, Optional, Text, Union
+from typing import Dict, Optional, Union
 
 from monai.deploy.utils.importutil import optional_import
 
@@ -26,7 +26,6 @@ Sequence, _ = optional_import("pydicom.sequence", name="Sequence")
 from monai.deploy.core import ConditionType, Fragment, Operator, OperatorSpec
 from monai.deploy.core.domain.dicom_series import DICOMSeries
 from monai.deploy.core.domain.dicom_series_selection import StudySelectedSeries
-from monai.deploy.exceptions import ItemNotExistsError
 from monai.deploy.operators.dicom_utils import EquipmentInfo, ModelInfo, save_dcm_file, write_common_modules
 from monai.deploy.utils.version import get_sdk_semver
 

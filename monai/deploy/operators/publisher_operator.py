@@ -15,7 +15,7 @@ from pathlib import Path
 from shutil import copy
 from typing import Union
 
-from monai.deploy.core import DataPath, Operator, OperatorSpec
+from monai.deploy.core import Operator
 
 
 # @md.input("saved_images_folder", DataPath, IOType.DISK)

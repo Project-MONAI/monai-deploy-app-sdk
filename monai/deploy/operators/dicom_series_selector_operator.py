@@ -215,7 +215,7 @@ class DICOMSeriesSelectorOperator(Operator):
             matched = True
             # Simple matching on attribute value
             for key, value_to_match in attributes.items():
-                logging.info(f"On attribute: '{key}' to match value: '{value_to_match}'")
+                logging.info(f"On attribute: {key!r} to match value: {value_to_match!r}")
                 # Ignore None
                 if not value_to_match:
                     continue

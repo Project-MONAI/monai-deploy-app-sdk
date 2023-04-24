@@ -23,7 +23,7 @@ from typing import Any, Dict, List, Optional, Tuple, Type, Union
 
 import numpy as np
 
-from monai.deploy.core import ConditionType, Fragment, Image, IOType, Operator, OperatorSpec
+from monai.deploy.core import Fragment, Image, IOType, OperatorSpec
 from monai.deploy.utils.importutil import optional_import
 
 from .inference_operator import InferenceOperator
@@ -77,7 +77,7 @@ def get_bundle_config(bundle_path, config_names):
         for suffix in bundle_suffixes:
             path = Path(root_name, config_folder, config_name).with_suffix(suffix)
             try:
-                logging.debug(f"Trying to read config '{config_name}' content from {path}.")
+                logging.debug(f"Trying to read config {config_name!r} content from {path!r}.")
                 content_text = archive.read(str(path))
                 break
             except Exception:
@@ -86,12 +86,12 @@ def get_bundle_config(bundle_path, config_names):
 
         # Try search for the name in the name list of the archive
         if not content_text and do_search:
-            logging.debug(f"Trying to find the file in the archive for config '{config_name}'.")
+            logging.debug(f"Trying to find the file in the archive for config {config_name!r}.")
             name_list = archive.namelist()
             for suffix in bundle_suffixes:
                 for n in name_list:
                     if (f"{config_name}{suffix}").casefold in n.casefold():
-                        logging.debug(f"Trying to read content of config '{config_name}' from {n}.")
+                        logging.debug(f"Trying to read content of config {config_name!r} from {n!r}.")
                         content_text = archive.read(n)
                         break
 

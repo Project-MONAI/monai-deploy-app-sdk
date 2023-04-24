@@ -66,7 +66,7 @@ def get_bytes(size: Union[str, int]) -> int:
 
     m = re.match(r"^\s*(?P<size>(([1-9]\d+)|\d)(\.\d+)?)\s*(?P<unit>[a-z]{1,3})?\s*$", size, re.IGNORECASE)
     if not m:
-        raise ValueError(f"Invalid size string ('{size}').")
+        raise ValueError(f"Invalid size string ({size!r}).")
 
     parsed_size = float(m.group("size"))
 
@@ -77,7 +77,7 @@ def get_bytes(size: Union[str, int]) -> int:
         parsed_unit = "b"  # default to bytes
 
     if parsed_unit not in BYTES_UNIT:
-        raise ValueError(f"Invalid unit ('{parsed_unit}').")
+        raise ValueError(f"Invalid unit ({parsed_unit!r}).")
 
     return int(parsed_size * BYTES_UNIT[parsed_unit])
 
@@ -115,7 +115,7 @@ def convert_bytes(num_bytes: int, unit: str = "Mi") -> Union[str, int]:
 
     unit_lowered = unit.lower()
     if unit_lowered not in BYTES_UNIT:
-        raise ValueError(f"Invalid unit ('{unit}').")
+        raise ValueError(f"Invalid unit ({unit!r}).")
 
     converted = float(num_bytes) / BYTES_UNIT[unit_lowered] * 10
 

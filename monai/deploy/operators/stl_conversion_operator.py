@@ -13,7 +13,6 @@ import logging
 import os
 import shutil
 import tempfile
-from ast import Bytes
 from pathlib import Path
 from typing import Dict, Optional, Union
 
@@ -29,7 +28,6 @@ mesh, _ = optional_import("stl", name="mesh")
 resize, _ = optional_import("skimage.transform", name="resize")
 trimesh, _ = optional_import("trimesh")
 
-import monai.deploy.core as md
 from monai.deploy.core import ConditionType, Fragment, Image, Operator, OperatorSpec
 
 __all__ = ["STLConversionOperator", "STLConverter"]

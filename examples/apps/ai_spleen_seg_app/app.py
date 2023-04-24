@@ -171,4 +171,6 @@ if __name__ == "__main__":
     #     monai-deploy exec app.py -i input -m model/model.ts
     #
     load_env_log_level()
+    logging.info(f"Begin {__name__}")
     AISpleenSegApp().run()
+    logging.info(f"End {__name__}")

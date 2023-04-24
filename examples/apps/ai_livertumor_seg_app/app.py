@@ -152,5 +152,7 @@ if __name__ == "__main__":
     # e.g.
     #     python3 app.py -i input -m model/model.ts
     #
-    logging.basicConfig(level=logging.DEBUG)
+    load_env_log_level()
+    logging.info(f"Begin {__name__}")
     AILiverTumorApp().run()
+    logging.info(f"End {__name__}")

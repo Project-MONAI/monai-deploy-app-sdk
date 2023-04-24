@@ -41,7 +41,7 @@ def fetch_map_manifest(map_name: str) -> Tuple[dict, dict, int]:
 
     with tempfile.TemporaryDirectory() as info_dir:
         if sys.platform == "win32":
-            cmd = f'docker run --rm -a STDOUT -a STDERR -v "{info_dir}":/var/run/monai/export/config {map_name}'
+            cmd = f"docker run --rm -a STDOUT -a STDERR -v {info_dir!r}:/var/run/monai/export/config {map_name}"
         else:
             cmd = f"""docker_id=$(docker create {map_name})
 docker cp $docker_id:/etc/monai/app.json "{info_dir}/app.json"
@@ -103,8 +103,8 @@ def run_app(map_name: str, input_path: Path, output_path: Path, app_info: dict, 
     if not posixpath.isabs(map_output):
         map_output = posixpath.join(app_info["working-directory"], map_output)
 
-    cmd += f' -e MONAI_INPUTPATH="{map_input}"'
-    cmd += f' -e MONAI_OUTPUTPATH="{map_output}"'
+    cmd += f' -e MONAI_INPUTPATH={map_input!r}'
+    cmd += f' -e MONAI_OUTPUTPATH={map_output!r}'
     # TODO(bhatt-piyush): Handle model environment correctly (maybe solved by fixing 'monai-exec')
     cmd += " -e MONAI_MODELPATH=/opt/monai/models"
 
