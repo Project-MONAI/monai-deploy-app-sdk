@@ -34,7 +34,7 @@
 """
 
 
-from holoscan.operators import *
+# from holoscan.operators import *
 
 from .dicom_data_loader_operator import DICOMDataLoaderOperator
 from .dicom_seg_writer_operator import DICOMSegmentationWriterOperator
