@@ -103,8 +103,8 @@ def run_app(map_name: str, input_path: Path, output_path: Path, app_info: dict, 
     if not posixpath.isabs(map_output):
         map_output = posixpath.join(app_info["working-directory"], map_output)
 
-    cmd += f' -e MONAI_INPUTPATH={map_input!r}'
-    cmd += f' -e MONAI_OUTPUTPATH={map_output!r}'
+    cmd += f" -e MONAI_INPUTPATH={map_input!r}"
+    cmd += f" -e MONAI_OUTPUTPATH={map_output!r}"
     # TODO(bhatt-piyush): Handle model environment correctly (maybe solved by fixing 'monai-exec')
     cmd += " -e MONAI_MODELPATH=/opt/monai/models"
 
