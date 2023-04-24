@@ -278,6 +278,7 @@ def test(test_copy_tags: bool = True):
         model_info=None,
         equipment_info=EquipmentInfo(),
         custom_tags={"SeriesDescription": "Textual report from AI algorithm. Not for clinical use."},
+        name="sr_writer",
     )
 
     # Testing with the main entry functions

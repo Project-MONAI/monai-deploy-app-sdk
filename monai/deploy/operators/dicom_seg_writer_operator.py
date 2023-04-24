@@ -253,7 +253,7 @@ class DICOMSegmentationWriterOperator(Operator):
         seg_image = op_input.receive(self.input_name_seg)
 
         # In case the input is not the Image object, rather image file path.
-        if not isinstance(seg_image, (Image, np.array)) and (isinstance(seg_image, (Path, str))):
+        if not isinstance(seg_image, (Image, np.ndarray)) and (isinstance(seg_image, (Path, str))):
             seg_image_file, _ = self.select_input_file(str(seg_image))
             if Path(seg_image_file).is_file():
                 seg_image = self._image_file_to_numpy(seg_image_file)
