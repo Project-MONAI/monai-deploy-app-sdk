@@ -49,4 +49,5 @@ class App(Application):
 
 
 if __name__ == "__main__":
+    load_env_log_level()
     App().run()
