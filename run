@@ -333,7 +333,7 @@ install_python_dev_deps() {
 
 fix_holoscan_import() {
     local holoscan_package_path=$(${MONAI_PY_EXE} $TOP/monai/deploy/utils/importutil.py dist_module_path holoscan)
-    c_echo b "holoscan package core module path : " Z "${holoscan_package_path}/holoscan/core"
+    c_echo b "holoscan_package_path : " Z "${holoscan_package_path}"
     c_echo b "fixing holoscan package module import..."
     ${MONAI_PY_EXE} $TOP/monai/deploy/utils/importutil.py fix_holoscan_import
     c_echo b "done fixing."

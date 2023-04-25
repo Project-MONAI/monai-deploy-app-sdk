@@ -433,14 +433,11 @@ def __getattr__(name):
 
 
 def fix_holoscan_import():
-    """Fix holoscan submodule core's __init__ to enable lazy load for avoiding failure on loading low level libs."""
+    """Fix holoscan __init__ to enable lazy load for avoiding failure on loading low level libs."""
 
     holoscan_package_name = "holoscan"
-    holoscan_core_module_name = "core"
     holoscan_package_path = dist_module_path(holoscan_package_name)
-    holoscan_core_init_path = (
-        Path(holoscan_package_path) / holoscan_package_name / holoscan_core_module_name / "__init__.py"
-    )
+    holoscan_core_init_path = Path(holoscan_package_path) / holoscan_package_name / "__init__.py"
 
     with open(holoscan_core_init_path, "w") as f_w:
         f_w.write(holoscan_init_content_txt)
