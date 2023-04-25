@@ -376,3 +376,68 @@ if __name__ == "__main__":
         app = get_application(argv[2])
         if app:
             print(json.dumps(app.get_package_info(argv[3] if len(argv) > 3 else ""), indent=2))
+
+holoscan_core_init_content_txt = """
+# SPDX-FileCopyrightText: Copyright (c) 2022-2023 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# We import core and gxf to make sure they're available before other modules that rely on them
+from . import core, gxf
+
+as_tensor = core.Tensor.as_tensor
+__all__ = ["as_tensor", "core", "gxf"]
+
+# Other modules are exposed to the public API but will only be lazily loaded
+_EXTRA_MODULES = [
+    "conditions",
+    "executors",
+    "graphs",
+    "logger",
+    "operators",
+    "resources",
+]
+__all__.extend(_EXTRA_MODULES)
+
+
+# Autocomplete
+def __dir__():
+    return __all__
+
+
+# Lazily load extra modules
+def __getattr__(name):
+    import importlib
+    import sys
+
+    if name in _EXTRA_MODULES:
+        module_name = f"{__name__}.{name}"
+        module = importlib.import_module(module_name)  # import
+        sys.modules[module_name] = module  # cache
+        return module
+    else:
+        raise AttributeError(f"module {__name__} has no attribute {name}")
+
+"""
+def fix_holoscan_core_import():
+    """Fix holoscan submodule core's __init__ to enable lazy load for avoiding failure on loading low level libs.
+    """
+
+    holoscan_package_name = "holoscan"
+    holoscan_core_module_name = "core"
+    holoscan_package_path=dist_module_path(holoscan_package_name)
+    holoscan_core_init_path = Path(holoscan_package_path) / holoscan_package_name / holoscan_core_module_name / "__init__.py"
+
+    with open(holoscan_core_init_path, "w") as f_w:
+        f_w.write(holoscan_core_init_content_txt)

@@ -326,6 +326,17 @@ install_python_dev_deps() {
     fi
 
     install_edit_mode
+
+    # Adding temp fix to address the issue of holoscan sdk dragging in low level dependencies, e.g. libcuda.so
+    fix_holoscan_core_import
+}
+
+fix_holoscan_core_import() {
+    local holoscan_package_path=$(${MONAI_PY_EXE} $TOP/monai/deploy/utils/importutil.py dist_module_path holoscan)
+    c_echo b "holoscan package core module path : " Z "${holoscan_package_path}/holoscan/core"
+    c_echo b "fixing holoscan package core module import..."
+    ${MONAI_PY_EXE} $TOP/monai/deploy/utils/importutil.py fix_holoscan_core_import
+    c_echo b "done fixing."
 }
 
 install_edit_mode() {
