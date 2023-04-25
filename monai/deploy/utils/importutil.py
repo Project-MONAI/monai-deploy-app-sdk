@@ -377,7 +377,7 @@ if __name__ == "__main__":
         if app:
             print(json.dumps(app.get_package_info(argv[3] if len(argv) > 3 else ""), indent=2))
 
-holoscan_core_init_content_txt = """
+holoscan_init_content_txt = """
 # SPDX-FileCopyrightText: Copyright (c) 2022-2023 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 #
@@ -432,7 +432,7 @@ def __getattr__(name):
 """
 
 
-def fix_holoscan_core_import():
+def fix_holoscan_import():
     """Fix holoscan submodule core's __init__ to enable lazy load for avoiding failure on loading low level libs."""
 
     holoscan_package_name = "holoscan"
@@ -443,4 +443,4 @@ def fix_holoscan_core_import():
     )
 
     with open(holoscan_core_init_path, "w") as f_w:
-        f_w.write(holoscan_core_init_content_txt)
+        f_w.write(holoscan_init_content_txt)
