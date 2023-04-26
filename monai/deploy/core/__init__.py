@@ -25,14 +25,8 @@
 """
 
 # Need to import explicit ones to quiet mypy complaints
-from holoscan.core import (
-    Application,
-    Fragment,
-    ConditionType,
-    Operator,
-    OperatorSpec
-)
 from holoscan.core import *
+from holoscan.core import Application, ConditionType, Fragment, Operator, OperatorSpec
 
 from .app_context import AppContext
 from .domain.datapath import DataPath
@@ -42,4 +36,5 @@ from .domain.image import Image
 from .io_type import IOType
 from .models import Model, ModelFactory, NamedModel, TorchScriptModel, TritonModel
 from .runtime_env import RuntimeEnv
+
 # from .resource import resource
