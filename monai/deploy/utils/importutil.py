@@ -401,7 +401,7 @@ def fix_holoscan_import():
 
     try:
         project_name = "holoscan"
-        holoscan_init_path = Path(dist_module_path(project_name)) / project_name / "__ini__.py"
+        holoscan_init_path = Path(dist_module_path(project_name)) / project_name / "__init__.py"
 
         with open(str(holoscan_init_path), "w") as f_w:
             f_w.write(holoscan_init_content_txt)
