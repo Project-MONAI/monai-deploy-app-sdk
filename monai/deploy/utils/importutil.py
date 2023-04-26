@@ -341,42 +341,6 @@ def dist_requires(project_name: str) -> List[str]:
     return []
 
 
-if __name__ == "__main__":
-    """Utility functions that can be used in the command line."""
-
-    argv = sys.argv
-    if len(argv) == 3 and argv[1] == "is_dist_editable":
-        if is_dist_editable(argv[2]):
-            sys.exit(0)
-        else:
-            sys.exit(1)
-    if len(argv) == 3 and argv[1] == "dist_module_path":
-        module_path = dist_module_path(argv[2])
-        if module_path:
-            print(module_path)
-            sys.exit(0)
-        else:
-            sys.exit(1)
-    if len(argv) == 3 and argv[1] == "is_module_installed":
-        is_installed = is_module_installed(argv[2])
-        if is_installed:
-            sys.exit(0)
-        else:
-            sys.exit(1)
-    if len(argv) == 3 and argv[1] == "dist_requires":
-        requires = dist_requires(argv[2])
-        if requires:
-            print("\n".join(requires))
-            sys.exit(0)
-        else:
-            sys.exit(1)
-    if len(argv) >= 3 and argv[1] == "get_package_info":
-        import json
-
-        app = get_application(argv[2])
-        if app:
-            print(json.dumps(app.get_package_info(argv[3] if len(argv) > 3 else ""), indent=2))
-
 holoscan_init_content_txt = """
 # SPDX-FileCopyrightText: Copyright (c) 2022-2023 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
@@ -435,9 +399,56 @@ def __getattr__(name):
 def fix_holoscan_import():
     """Fix holoscan __init__ to enable lazy load for avoiding failure on loading low level libs."""
 
-    holoscan_package_name = "holoscan"
-    holoscan_package_path = dist_module_path(holoscan_package_name)
-    holoscan_core_init_path = Path(holoscan_package_path) / holoscan_package_name / "__init__.py"
+    try:
+        project_name = "holoscan"
+        holoscan_init_path = Path(dist_module_path(project_name)) / project_name / "__ini__.py"
 
-    with open(holoscan_core_init_path, "w") as f_w:
-        f_w.write(holoscan_init_content_txt)
+        with open(str(holoscan_init_path), "w") as f_w:
+            f_w.write(holoscan_init_content_txt)
+        return str(holoscan_init_path)
+    except Exception as ex:
+        return ex
+
+
+if __name__ == "__main__":
+    """Utility functions that can be used in the command line."""
+
+    argv = sys.argv
+    if len(argv) == 2 and argv[1] == "fix_holoscan_import":
+        file_path = fix_holoscan_import()
+        if file_path:
+            print(file_path)
+            sys.exit(0)
+        else:
+            sys.exit(1)
+    if len(argv) == 3 and argv[1] == "is_dist_editable":
+        if is_dist_editable(argv[2]):
+            sys.exit(0)
+        else:
+            sys.exit(1)
+    if len(argv) == 3 and argv[1] == "dist_module_path":
+        module_path = dist_module_path(argv[2])
+        if module_path:
+            print(module_path)
+            sys.exit(0)
+        else:
+            sys.exit(1)
+    if len(argv) == 3 and argv[1] == "is_module_installed":
+        is_installed = is_module_installed(argv[2])
+        if is_installed:
+            sys.exit(0)
+        else:
+            sys.exit(1)
+    if len(argv) == 3 and argv[1] == "dist_requires":
+        requires = dist_requires(argv[2])
+        if requires:
+            print("\n".join(requires))
+            sys.exit(0)
+        else:
+            sys.exit(1)
+    if len(argv) >= 3 and argv[1] == "get_package_info":
+        import json
+
+        app = get_application(argv[2])
+        if app:
+            print(json.dumps(app.get_package_info(argv[3] if len(argv) > 3 else ""), indent=2))
