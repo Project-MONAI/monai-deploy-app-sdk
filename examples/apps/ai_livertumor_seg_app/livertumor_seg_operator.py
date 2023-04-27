@@ -11,7 +11,6 @@
 
 import logging
 from pathlib import Path
-from typing import Optional
 
 from numpy import uint8
 
