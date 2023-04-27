@@ -84,9 +84,9 @@ class AILiverTumorApp(Application):
         series_selector_op = DICOMSeriesSelectorOperator(self, rules=Sample_Rules_Text, name="series_selector_op")
         series_to_vol_op = DICOMSeriesToVolumeOperator(self, name="series_to_vol_op")
         # Model specific inference operator, supporting MONAI transforms.
-        liver_tumor_seg_op = LiverTumorSegOperator(
-            self, model_path=model_path, output_folder=app_output_path, name="seg_op"
-        )
+        liver_tumor_seg_op = LiverTumorSegOperator(self, model_path=model_path, name="seg_op")
+        #     self, model_path=model_path, output_folder=app_output_path, name="seg_op"
+        # )
 
         # Create the publisher operator
         stl_op = STLConversionOperator(self, output_file=app_output_path.joinpath("stl/mesh.stl"), name="stl_op")

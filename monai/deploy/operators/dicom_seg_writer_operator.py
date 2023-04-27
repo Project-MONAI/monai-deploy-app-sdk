@@ -154,7 +154,7 @@ class SegmentDescription:
         )
 
 
-# @md.env(pip_packages=["pydicom >= 2.3.0", "highdicom >= 0.18.2"])
+# @md.env(pip_packages=["pydicom >= 2.3.0", "highdicom >= 0.18.2, "SimpleITK>=2.0.0"])
 class DICOMSegmentationWriterOperator(Operator):
     """
     This operator writes out a DICOM Segmentation Part 10 file to disk
@@ -279,7 +279,7 @@ class DICOMSegmentationWriterOperator(Operator):
     ):
         """ """
         # Get the seg image in numpy, and if the image is passed in as object, need to fake a input path.
-        seg_image_numpy = image
+        seg_image_numpy: np.ndarray = None
 
         if isinstance(image, Image):
             seg_image_numpy = image.asnumpy()

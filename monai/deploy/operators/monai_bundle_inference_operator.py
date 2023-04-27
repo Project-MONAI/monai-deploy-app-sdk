@@ -670,13 +670,13 @@ class MonaiBundleInferenceOperator(InferenceOperator):
             if not value.exists():
                 raise ValueError(f"Input path, {value}, does not exist.")
 
-            file_path = value.path / name
+            file_path = value / name
             # The named input can only be a folder as of now, but just in case things change.
             if value.is_file():
                 file_path = value
             elif not file_path.exists() and value.is_dir():
                 # Expect one and only one file exists for use.
-                files = [f for f in value.path.glob("*") if f.is_file()]
+                files = [f for f in value.glob("*") if f.is_file()]
                 if len(files) != 1:
                     raise ValueError(f"Input path, {value}, should have one and only one file.")
 

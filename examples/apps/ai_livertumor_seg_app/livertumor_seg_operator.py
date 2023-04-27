@@ -11,6 +11,7 @@
 
 import logging
 from pathlib import Path
+from typing import Optional
 
 from numpy import uint8
 
@@ -60,13 +61,15 @@ class LiverTumorSegOperator(Operator):
 
     DEFAULT_OUTPUT_FOLDER = Path.cwd() / "saved_images_folder"
 
-    def __init__(self, frament: Fragment, *args, model_path: Path, output_folder: Path = None, **kwargs):
+    def __init__(
+        self, frament: Fragment, *args, model_path: Path, output_folder: Path = DEFAULT_OUTPUT_FOLDER, **kwargs
+    ):
         self.logger = logging.getLogger("{}.{}".format(__name__, type(self).__name__))
         self._input_dataset_key = "image"
         self._pred_dataset_key = "pred"
 
         self.model_path = model_path
-        self.output_folder = output_folder if output_folder else LiverTumorSegOperator.DEFAULT_OUTPUT_FOLDER
+        self.output_folder = output_folder
         self.output_folder.mkdir(parents=True, exist_ok=True)
         self.fragement = frament  # Cache and later pass the Fragment/Application to contained operator(s)
         self.input_name_image = "image"
