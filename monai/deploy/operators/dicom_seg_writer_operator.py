@@ -278,8 +278,8 @@ class DICOMSegmentationWriterOperator(Operator):
         self, image: Union[Image, Path], study_selected_series_list: List[StudySelectedSeries], output_dir: Path
     ):
         """ """
-        # Get the seg image in numpy, and if the image is passed in as object, need to fake a input path.
-        seg_image_numpy: np.ndarray = None
+        # # Get the seg image in numpy, and if the image is passed in as object, need to fake a input path.
+        # seg_image_numpy: np.ndarray = None
 
         if isinstance(image, Image):
             seg_image_numpy = image.asnumpy()
