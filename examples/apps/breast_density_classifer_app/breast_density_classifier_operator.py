@@ -1,7 +1,7 @@
 import json
 import os
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Sequence, Text, Tuple, Union
+from typing import Dict, Optional
 
 import torch
 
