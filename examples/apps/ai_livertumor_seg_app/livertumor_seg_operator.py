@@ -14,7 +14,7 @@ from pathlib import Path
 
 from numpy import uint8
 
-from monai.deploy.core import Fragment, Operator, OperatorSpec
+from monai.deploy.core import ConditionType, Fragment, Operator, OperatorSpec
 from monai.deploy.operators.monai_seg_inference_operator import InMemImageReader, MonaiSegInferenceOperator
 from monai.transforms import (
     Activationsd,
@@ -30,9 +30,6 @@ from monai.transforms import (
 )
 
 
-# @md.input("image", Image, IOType.IN_MEMORY)
-# @md.output("seg_image", Image, IOType.IN_MEMORY)
-# @md.output("saved_images_folder", DataPath, IOType.DISK)
 # @md.env(pip_packages=["monai>=1.0.0", "torch>=1.5", "numpy>=1.21", "nibabel"])
 class LiverTumorSegOperator(Operator):
     """Performs liver and tumor segmentation using a DL model with an image converted from a DICOM CT series.
@@ -41,14 +38,14 @@ class LiverTumorSegOperator(Operator):
     https://ngc.nvidia.com/catalog/models/nvidia:med:clara_pt_liver_and_tumor_ct_segmentation
 
     Described in the downloaded model package, also called Medical Model Archive (MMAR), are the pre and post
-    transforms before and after inference, and are using MONAI SDK transforms. As such, these transforms are
-    simply ported to this operator, with changing SegmentationSaver handler to SaveImageD post transform.
+    transforms and inference configurations. The MONAI Core transforms are used, as such, these transforms are
+    simply ported to this operator, while changing SegmentationSaver "handler" to SaveImageD post "transform".
 
-    This operator makes use of the App SDK MonaiSegInferenceOperator in a compsition approach.
+    This operator makes use of the App SDK MonaiSegInferenceOperator in a composition approach.
     It creates the pre-transforms as well as post-transforms with MONAI dictionary based transforms.
     Note that the App SDK InMemImageReader, derived from MONAI ImageReader, is passed to LoadImaged.
     This derived reader is needed to parse the in memory image object, and return the expected data structure.
-    Loading of the model, and predicting using in-proc PyTorch inference is done by MonaiSegInferenceOperator.
+    Loading of the model, and predicting using the in-proc PyTorch inference is done by MonaiSegInferenceOperator.
 
     Named Input:
         image: Image object.
@@ -58,7 +55,7 @@ class LiverTumorSegOperator(Operator):
         saved_images_folder: Path to the folder with intermediate image output, not requiring a downstream receiver.
     """
 
-    DEFAULT_OUTPUT_FOLDER = Path.cwd() / "saved_images_folder"
+    DEFAULT_OUTPUT_FOLDER = Path.cwd() / "output/saved_images_folder"
 
     def __init__(
         self, frament: Fragment, *args, model_path: Path, output_folder: Path = DEFAULT_OUTPUT_FOLDER, **kwargs
@@ -73,6 +70,7 @@ class LiverTumorSegOperator(Operator):
         self.fragement = frament  # Cache and later pass the Fragment/Application to contained operator(s)
         self.input_name_image = "image"
         self.output_name_seg = "seg_image"
+        self.output_name_saved_images_folder = "saved_images_folder"
 
         self.fragement = frament  # Cache and later pass the Fragment/Application to contained operator(s)
         super().__init__(frament, *args, **kwargs)
@@ -80,22 +78,18 @@ class LiverTumorSegOperator(Operator):
     def setup(self, spec: OperatorSpec):
         spec.input(self.input_name_image)
         spec.output(self.output_name_seg)
+        spec.output(self.output_name_saved_images_folder).condition(
+            ConditionType.NONE
+        )  # Output not requiring a receiver
 
     def compute(self, op_input, op_output, context):
         input_image = op_input.receive(self.input_name_image)
         if not input_image:
             raise ValueError("Input image is not found.")
 
-        # Get the output path from the execution context for saving file(s) to app output.
-        # Without using this path, operator would be saving files to its designated path
-        # op_output_folder_name = "saved_images_folder"
-        # op_output.set(op_output_folder_name, "saved_images_folder")
-        # op_output_folder_path = Path(op_output_folder_name)  # op_output.get("saved_images_folder").path
-        # op_output_folder_path.mkdir(parents=True, exist_ok=True)
-        # print(f"Operator output folder path: {op_output_folder_path}")
-
         # This operator gets an in-memory Image object, so a specialized ImageReader is needed.
         _reader = InMemImageReader(input_image)
+
         # In this example, the input image, once loaded at the beginning of the pre-transforms, is
         # saved on disk, so is the segmentation prediction image at the end of the post-transform.
         # They are both saved in the same subfolder of the application output folder, with names
@@ -119,15 +113,18 @@ class LiverTumorSegOperator(Operator):
             model_path=self.model_path,
         )
 
-        # Setting the keys used in the dictironary based transforms may change.
+        # Setting the keys used in the dictionary based transforms
         infer_operator.input_dataset_key = self._input_dataset_key
         infer_operator.pred_dataset_key = self._pred_dataset_key
 
-        # Now let the built-in operator handle the work with the I/O spec and execution context.
+        # Now emit data to the output ports of this operator
         op_output.emit(infer_operator.compute_impl(input_image, context), self.output_name_seg)
+        op_output.emit(self.output_folder, self.output_name_saved_images_folder)
 
     def pre_process(self, img_reader, out_dir: str = "./input_images") -> Compose:
         """Composes transforms for preprocessing input before predicting on a model."""
+
+        Path(out_dir).mkdir(parents=True, exist_ok=True)
 
         my_key = self._input_dataset_key
         return Compose(
@@ -139,6 +136,7 @@ class LiverTumorSegOperator(Operator):
                     output_dir=out_dir,
                     output_postfix="",
                     resample=False,
+                    output_ext=".nii",  # favor speed over size
                 ),
                 Spacingd(keys=my_key, pixdim=(1.0, 1.0, 1.0), mode=("bilinear"), align_corners=True),
                 ScaleIntensityRanged(my_key, a_min=-21, a_max=189, b_min=0.0, b_max=1.0, clip=True),
@@ -149,6 +147,8 @@ class LiverTumorSegOperator(Operator):
     def post_process(self, pre_transforms: Compose, out_dir: str = "./prediction_output") -> Compose:
         """Composes transforms for postprocessing the prediction results."""
 
+        Path(out_dir).mkdir(parents=True, exist_ok=True)
+
         pred_key = self._pred_dataset_key
         return Compose(
             [
@@ -157,6 +157,13 @@ class LiverTumorSegOperator(Operator):
                 Invertd(
                     keys=pred_key, transform=pre_transforms, orig_keys=self._input_dataset_key, nearest_interp=True
                 ),
-                SaveImaged(keys=pred_key, output_dir=out_dir, output_postfix="seg", output_dtype=uint8, resample=False),
+                SaveImaged(
+                    keys=pred_key,
+                    output_dir=out_dir,
+                    output_postfix="seg",
+                    output_dtype=uint8,
+                    resample=False,
+                    output_ext=".nii",  # favor speed over size
+                ),
             ]
         )
