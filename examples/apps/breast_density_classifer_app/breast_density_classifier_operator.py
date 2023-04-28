@@ -21,8 +21,6 @@ from monai.transforms import (
 )
 
 
-# @md.input("image", Image, IOType.IN_MEMORY)
-# @md.output("result_text", Text, IOType.IN_MEMORY)
 # @env(pip_packages=["monai~=1.1.0"])
 class ClassifierOperator(Operator):
     """Performs breast density classification using a DL model with an image converted from a DICOM MG series.
@@ -123,10 +121,6 @@ class ClassifierOperator(Operator):
         input_img_metadata = self._convert_dicom_metadata_datatype(input_image.metadata())
         img_name = str(input_img_metadata.get("SeriesInstanceUID", "Img_in_context"))
 
-        output_folder_on_compute = op_input.receive(self.input_name_output_folder)
-        output_folder = output_folder_on_compute if output_folder_on_compute else self.output_folder
-        Path.mkdir(output_folder, parents=True, exist_ok=True)  # Let exception bubble up if raised.
-
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
         # Need to get the model from context, when it is re-implemented, and for now, load it directly here.
@@ -150,11 +144,14 @@ class ClassifierOperator(Operator):
             "A " + ":" + str(out[0]) + " B " + ":" + str(out[1]) + " C " + ":" + str(out[2]) + " D " + ":" + str(out[3])
         )
 
-        output_path = output_folder / "output.json"
+        op_output.emit(result_dict, "result_text")
+
+        # Get output folder, with value in optional input port overriding the obj attribute
+        output_folder_on_compute = op_input.receive(self.input_name_output_folder) or self.output_folder
+        Path.mkdir(output_folder_on_compute, parents=True, exist_ok=True)  # Let exception bubble up if raised.
+        output_path = output_folder_on_compute / "output.json"
         with open(output_path, "w") as fp:
             json.dump(result_dict, fp)
-
-        op_output.emit(result_dict, "result_text")
 
     def pre_process(self, image_reader) -> Compose:
         return Compose(
