@@ -12,7 +12,7 @@
 import logging
 import os
 from pathlib import Path
-from typing import Optional, Text
+from typing import Optional
 
 from monai.deploy.conditions import CountCondition
 from monai.deploy.core import AppContext, Application, ConditionType, Fragment, Image, Operator, OperatorSpec
