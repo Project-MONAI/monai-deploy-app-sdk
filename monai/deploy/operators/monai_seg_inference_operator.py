@@ -84,6 +84,7 @@ class MonaiSegInferenceOperator(InferenceOperator):
             pre_transforms (Compose): MONAI Compose object used for pre-transforms.
             post_transforms (Compose): MONAI Compose object used for post-transforms.
             model_name (str, optional): Name of the model. Default to "" for single model app.
+            model_path (Path): Path to the model file. Defaults to model/models.ts of current working dir.
             overlap (float): The overlap used in sliding window inference.
         """
 

@@ -1,42 +1,78 @@
+import logging
+from pathlib import Path
+
 from breast_density_classifier_operator import ClassifierOperator
 
-from monai.deploy.core import Application, env
+from monai.deploy.conditions import CountCondition
+from monai.deploy.core import AppContext, Application
+from monai.deploy.logger import load_env_log_level
 from monai.deploy.operators.dicom_data_loader_operator import DICOMDataLoaderOperator
 from monai.deploy.operators.dicom_series_selector_operator import DICOMSeriesSelectorOperator
 from monai.deploy.operators.dicom_series_to_volume_operator import DICOMSeriesToVolumeOperator
 from monai.deploy.operators.dicom_text_sr_writer_operator import DICOMTextSRWriterOperator, EquipmentInfo, ModelInfo
 
 
-@env(pip_packages=["highdicom>=0.18.2"])
+# @env(pip_packages=["monai~=1.1.0", "highdicom>=0.18.2", "pydicom >= 2.3.0"])
 class BreastClassificationApp(Application):
+    """This is an AI breast density classification application.
+
+    The DL model was trained by Center for Augmented Intelligence in Imaging, Mayo Clinic, Florida,
+    and published on MONAI Model Zoo at
+        https://github.com/Project-MONAI/model-zoo/tree/dev/models/breast_density_classification
+    """
+
     def __init__(self, *args, **kwargs):
+        self._logger = logging.getLogger("{}.{}".format(__name__, type(self).__name__))
         super().__init__(*args, **kwargs)
 
     def compose(self):
+        """Creates the app specific operators and chain them up in the processing DAG."""
+        logging.info(f"Begin {self.compose.__name__}")
+
+        app_context = AppContext({})  # Let it figure out all the attributes without overriding
+        app_input_path = Path(app_context.input_path)
+        app_output_path = Path(app_context.output_path)
+        model_path = Path(app_context.model_path)
+
         model_info = ModelInfo(
             "MONAI Model for Breast Density",
             "BreastDensity",
             "0.1",
             "Center for Augmented Intelligence in Imaging, Mayo Clinic, Florida",
         )
+
         my_equipment = EquipmentInfo(manufacturer="MONAI Deploy App SDK", manufacturer_model="DICOM SR Writer")
         my_special_tags = {"SeriesDescription": "Not for clinical use"}
-        study_loader_op = DICOMDataLoaderOperator()
-        series_selector_op = DICOMSeriesSelectorOperator(rules=Sample_Rules_Text)
-        series_to_vol_op = DICOMSeriesToVolumeOperator()
-        classifier_op = ClassifierOperator()
+        study_loader_op = DICOMDataLoaderOperator(
+            self, CountCondition(self, 1), input_folder=app_input_path, name="study_loader_op"
+        )
+        series_selector_op = DICOMSeriesSelectorOperator(
+            self, rules_json_str=Sample_Rules_Text, name="series_selector_op"
+        )
+        series_to_vol_op = DICOMSeriesToVolumeOperator(self, name="series_to_vol_op")
+        classifier_op = ClassifierOperator(
+            self, output_folder=app_output_path, model_path=model_path, name="classifier_op"
+        )
         sr_writer_op = DICOMTextSRWriterOperator(
-            copy_tags=True, model_info=model_info, equipment_info=my_equipment, custom_tags=my_special_tags
+            self,
+            copy_tags=True,
+            model_info=model_info,
+            equipment_info=my_equipment,
+            custom_tags=my_special_tags,
+            output_folder=app_output_path,
+            name="sr_writer_op",
         )  # copy_tags=True to use Study and Patient modules of the original input
 
-        self.add_flow(study_loader_op, series_selector_op, {"dicom_study_list": "dicom_study_list"})
+        self.add_flow(study_loader_op, series_selector_op, {("dicom_study_list", "dicom_study_list")})
         self.add_flow(
-            series_selector_op, series_to_vol_op, {"study_selected_series_list": "study_selected_series_list"}
+            series_selector_op, series_to_vol_op, {("study_selected_series_list", "study_selected_series_list")}
         )
-        self.add_flow(series_to_vol_op, classifier_op, {"image": "image"})
-        self.add_flow(classifier_op, sr_writer_op, {"result_text": "classification_result"})
+        self.add_flow(series_to_vol_op, classifier_op, {("image", "image")})
+        self.add_flow(classifier_op, sr_writer_op, {("result_text", "text")})
         # Pass the Study series to the SR writer for copying tags
-        self.add_flow(series_selector_op, sr_writer_op, {"study_selected_series_list": "study_selected_series_list"})
+        self.add_flow(series_selector_op, sr_writer_op, {("study_selected_series_list", "study_selected_series_list")})
+
+        logging.info(f"End {self.compose.__name__}")
 
 
 # This is a sample series selection rule in JSON, simply selecting a MG series.
@@ -69,4 +105,7 @@ def test():
 
 
 if __name__ == "__main__":
-    app = BreastClassificationApp(do_run=True)
+    load_env_log_level()
+    logging.info(f"Begin {__name__}")
+    BreastClassificationApp().run()
+    logging.info(f"End {__name__}")

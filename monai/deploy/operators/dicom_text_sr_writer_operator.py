@@ -82,7 +82,7 @@ class DICOMTextSRWriterOperator(Operator):
 
         # Need to init the output folder until the execution context supports dynamic FS path
         # Not trying to create the folder to avoid exception on init
-        self.output_dir = Path(output_folder) if output_folder else DICOMTextSRWriterOperator.DEFAULT_OUTPUT_FOLDER
+        self.output_folder = Path(output_folder) if output_folder else DICOMTextSRWriterOperator.DEFAULT_OUTPUT_FOLDER
         self.copy_tags = copy_tags
         self.model_info = model_info if model_info else ModelInfo()
         self.equipment_info = equipment_info if equipment_info else EquipmentInfo()

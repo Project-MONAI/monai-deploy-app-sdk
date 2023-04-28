@@ -86,7 +86,7 @@ class DICOMEncapsulatedPDFWriterOperator(Operator):
 
         # Need to init the output folder until the execution context supports dynamic FS path
         # Not trying to create the folder to avoid exception on init
-        self.output_dir = (
+        self.output_folder = (
             Path(output_folder) if output_folder else DICOMEncapsulatedPDFWriterOperator.DEFAULT_OUTPUT_FOLDER
         )
         self.copy_tags = copy_tags
