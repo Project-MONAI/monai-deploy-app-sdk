@@ -12,11 +12,9 @@
 import logging
 from pathlib import Path
 
-from numpy import uint8
-
 from monai.deploy.core import ConditionType, Fragment, Operator, OperatorSpec
 from monai.deploy.operators.monai_seg_inference_operator import InMemImageReader, MonaiSegInferenceOperator
-from monai.transforms import (
+from monai.transforms import (  # SaveImaged,
     Activationsd,
     AsDiscreted,
     Compose,
@@ -24,10 +22,11 @@ from monai.transforms import (
     EnsureChannelFirstd,
     Invertd,
     LoadImaged,
-    SaveImaged,
     ScaleIntensityRanged,
     Spacingd,
 )
+
+# from numpy import uint8  # Needed if SaveImaged is enabled
 
 
 # @md.env(pip_packages=["monai>=1.0.0", "torch>=1.5", "numpy>=1.21", "nibabel"])

@@ -11,7 +11,6 @@
 
 import logging
 from pathlib import Path
-from typing import List
 
 from pydicom.sr.codedict import codes  # Required for setting SegmentDescription attributes.
 from unetr_seg_operator import UnetrSegOperator
@@ -23,29 +22,11 @@ from monai.deploy.operators.dicom_data_loader_operator import DICOMDataLoaderOpe
 from monai.deploy.operators.dicom_seg_writer_operator import DICOMSegmentationWriterOperator, SegmentDescription
 from monai.deploy.operators.dicom_series_selector_operator import DICOMSeriesSelectorOperator
 from monai.deploy.operators.dicom_series_to_volume_operator import DICOMSeriesToVolumeOperator
-from monai.deploy.operators.publisher_operator import PublisherOperator
 from monai.deploy.operators.stl_conversion_operator import STLConversionOperator
 
-# This is a sample series selection rule in JSON, simply selecting CT series.
-# If the study has more than 1 CT series, then all of them will be selected.
-# Please see more detail in DICOMSeriesSelectorOperator.
-# For list of string values, e.g. "ImageType": ["PRIMARY", "ORIGINAL"], it is a match if all elements
-# are all in the multi-value attribute of the DICOM series.
-
-Sample_Rules_Text = """
-{
-    "selections": [
-        {
-            "name": "CT Series",
-            "conditions": {
-                "Modality": "(?i)CT",
-                "ImageType": ["PRIMARY", "ORIGINAL"],
-                "PhotometricInterpretation": "MONOCHROME2"
-            }
-        }
-    ]
-}
-"""
+# This sample example completes the processing of a DICOM series with around 300 instances within 43 seconds,
+# 39 if not saving intermediate image file, and 28 seconds if the STL generation is also disabled,
+# on a desktop with Ubuntu 20.04, 32GB of RAM, and a Nvidia GPU GV100 with 32GB of memory.
 
 
 # @resource(cpu=1, gpu=1, memory="7Gi")
@@ -153,6 +134,27 @@ class AIUnetrSegApp(Application):
 
         self._logger.info(f"End {self.compose.__name__}")
 
+
+# This is a sample series selection rule in JSON, simply selecting CT series.
+# If the study has more than 1 CT series, then all of them will be selected.
+# Please see more detail in DICOMSeriesSelectorOperator.
+# For list of string values, e.g. "ImageType": ["PRIMARY", "ORIGINAL"], it is a match if all elements
+# are all in the multi-value attribute of the DICOM series.
+
+Sample_Rules_Text = """
+{
+    "selections": [
+        {
+            "name": "CT Series",
+            "conditions": {
+                "Modality": "(?i)CT",
+                "ImageType": ["PRIMARY", "ORIGINAL"],
+                "PhotometricInterpretation": "MONOCHROME2"
+            }
+        }
+    ]
+}
+"""
 
 if __name__ == "__main__":
     # Creates the app and test it standalone. When running is this mode, please note the following:
