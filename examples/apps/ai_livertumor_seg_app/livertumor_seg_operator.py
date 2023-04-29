@@ -90,11 +90,12 @@ class LiverTumorSegOperator(Operator):
         # This operator gets an in-memory Image object, so a specialized ImageReader is needed.
         _reader = InMemImageReader(input_image)
 
-        # In this example, the input image, once loaded at the beginning of the pre-transforms, is
-        # saved on disk, so is the segmentation prediction image at the end of the post-transform.
+        # In this example, the input image, once loaded at the beginning of the pre-transforms, can
+        # be saved on disk, so can the segmentation prediction image at the end of the post-transform.
         # They are both saved in the same subfolder of the application output folder, with names
-        # distinguished by postfix. They can also be save in different subfolder if need be.
+        # distinguished by the postfix. They can also be saved in different subfolder if need be.
         # These images files can then be packaged for rendering.
+        # In the code below, saving of the image files are disabled to save 10 seconds if nii, and 20 if nii.gz
         pre_transforms = self.pre_process(_reader, str(self.output_folder))
         post_transforms = self.post_process(pre_transforms, str(self.output_folder))
 
@@ -131,13 +132,15 @@ class LiverTumorSegOperator(Operator):
             [
                 LoadImaged(keys=my_key, reader=img_reader),
                 EnsureChannelFirstd(keys=my_key),
-                SaveImaged(
-                    keys=my_key,
-                    output_dir=out_dir,
-                    output_postfix="",
-                    resample=False,
-                    output_ext=".nii",  # favor speed over size
-                ),
+                # The SaveImaged transform can be commented out to save 5 seconds.
+                # Uncompress NIfTI file, nii, is used favoring speed over size, but can be changed to nii.gz
+                # SaveImaged(
+                #     keys=my_key,
+                #     output_dir=out_dir,
+                #     output_postfix="",
+                #     resample=False,
+                #     output_ext=".nii",
+                # ),
                 Spacingd(keys=my_key, pixdim=(1.0, 1.0, 1.0), mode=("bilinear"), align_corners=True),
                 ScaleIntensityRanged(my_key, a_min=-21, a_max=189, b_min=0.0, b_max=1.0, clip=True),
                 CropForegroundd(my_key, source_key=my_key),
@@ -157,13 +160,15 @@ class LiverTumorSegOperator(Operator):
                 Invertd(
                     keys=pred_key, transform=pre_transforms, orig_keys=self._input_dataset_key, nearest_interp=True
                 ),
-                SaveImaged(
-                    keys=pred_key,
-                    output_dir=out_dir,
-                    output_postfix="seg",
-                    output_dtype=uint8,
-                    resample=False,
-                    output_ext=".nii",  # favor speed over size
-                ),
+                # The SaveImaged transform can be commented out to save 5 seconds.
+                # Uncompress NIfTI file, nii, is used favoring speed over size, but can be changed to nii.gz
+                # SaveImaged(
+                #     keys=pred_key,
+                #     output_dir=out_dir,
+                #     output_postfix="seg",
+                #     output_dtype=uint8,
+                #     resample=False,
+                #     output_ext=".nii",
+                # ),
             ]
         )

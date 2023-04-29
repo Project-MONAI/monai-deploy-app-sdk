@@ -13,9 +13,7 @@ import logging
 from pathlib import Path
 
 from livertumor_seg_operator import LiverTumorSegOperator
-
-# Required for setting SegmentDescription attributes. Direct import as this is not part of App SDK package.
-from pydicom.sr.codedict import codes
+from pydicom.sr.codedict import codes  # Required for setting SegmentDescription attributes.
 
 from monai.deploy.conditions import CountCondition
 from monai.deploy.core import AppContext, Application
@@ -26,33 +24,12 @@ from monai.deploy.operators.dicom_series_selector_operator import DICOMSeriesSel
 from monai.deploy.operators.dicom_series_to_volume_operator import DICOMSeriesToVolumeOperator
 from monai.deploy.operators.stl_conversion_operator import STLConversionOperator
 
-# from monai.deploy.operators.publisher_operator import PublisherOperator
-
-# This is a sample series selection rule in JSON, simply selecting CT series.
-# If the study has more than 1 CT series, then all of them will be selected.
-# Please see more detail in DICOMSeriesSelectorOperator.
-# For list of string values, e.g. "ImageType": ["PRIMARY", "ORIGINAL"], it is a match if all elements
-# are all in the multi-value attribute of the DICOM series.
-
-Sample_Rules_Text = """
-{
-    "selections": [
-        {
-            "name": "CT Series",
-            "conditions": {
-                "Modality": "(?i)CT",
-                "ImageType": ["PRIMARY", "ORIGINAL"],
-                "PhotometricInterpretation": "MONOCHROME2"
-            }
-        }
-    ]
-}
-"""
+# This sample example completes the processing of a DICOM series with around 600 instances within 45 seconds,
+# and time reduces to about 23 seconds if the STL generation is disabled,
+# on a desktop with Ubuntu 20.04, 32GB of RAM, and a Nvidia GPU GV100 with 32GB of memory.
 
 
 # @resource(cpu=1, gpu=1, memory="7Gi")
-# pip_packages can be a string that is a path(str) to requirements.txt file or a list of packages.
-# The MONAI pkg is not required by this class, instead by the included operators.
 class AILiverTumorApp(Application):
     def __init__(self, *args, **kwargs):
         """Creates an application instance."""
@@ -62,9 +39,9 @@ class AILiverTumorApp(Application):
 
     def run(self, *args, **kwargs):
         # This method calls the base class to run. Can be omitted if simply calling through.
-        self._logger.debug(f"Begin {self.run.__name__}")
+        self._logger.info(f"Begin {self.run.__name__}")
         super().run(*args, **kwargs)
-        self._logger.debug(f"End {self.run.__name__}")
+        self._logger.info(f"End {self.run.__name__}")
 
     def compose(self):
         """Creates the app specific operators and chain them up in the processing DAG."""
@@ -88,7 +65,7 @@ class AILiverTumorApp(Application):
         #     self, model_path=model_path, output_folder=app_output_path, name="seg_op"
         # )
 
-        # Create the publisher operator
+        # Create the surface mesh STL conversion operator
         stl_op = STLConversionOperator(self, output_file=app_output_path.joinpath("stl/mesh.stl"), name="stl_op")
 
         # Create DICOM Seg writer providing the required segment description for each segment with
@@ -143,6 +120,27 @@ class AILiverTumorApp(Application):
 
         self._logger.info(f"End {self.compose.__name__}")
 
+
+# This is a sample series selection rule in JSON, simply selecting CT series.
+# If the study has more than 1 CT series, then all of them will be selected.
+# Please see more detail in DICOMSeriesSelectorOperator.
+# For list of string values, e.g. "ImageType": ["PRIMARY", "ORIGINAL"], it is a match if all elements
+# are all in the multi-value attribute of the DICOM series.
+
+Sample_Rules_Text = """
+{
+    "selections": [
+        {
+            "name": "CT Series",
+            "conditions": {
+                "Modality": "(?i)CT",
+                "ImageType": ["PRIMARY", "ORIGINAL"],
+                "PhotometricInterpretation": "MONOCHROME2"
+            }
+        }
+    ]
+}
+"""
 
 if __name__ == "__main__":
     # Creates the app and test it standalone. When running is this mode, please note the following:
