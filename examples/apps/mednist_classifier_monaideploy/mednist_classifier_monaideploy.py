@@ -14,6 +14,8 @@ import os
 from pathlib import Path
 from typing import Optional
 
+import torch
+
 from monai.deploy.conditions import CountCondition
 from monai.deploy.core import AppContext, Application, ConditionType, Fragment, Image, Operator, OperatorSpec
 from monai.deploy.operators.dicom_text_sr_writer_operator import DICOMTextSRWriterOperator, EquipmentInfo, ModelInfo
@@ -99,6 +101,7 @@ class MedNISTClassifierOperator(Operator):
         self,
         frament: Fragment,
         *args,
+        app_context: AppContext,
         model_name: Optional[str] = "",
         model_path: Path = MODEL_LOCAL_PATH,
         output_folder: Path = DEFAULT_OUTPUT_FOLDER,
@@ -130,9 +133,32 @@ class MedNISTClassifierOperator(Operator):
         self._model_name = model_name.strip() if isinstance(model_name, str) else ""
         # Need the path to load the models when they are not loaded in the execution context
         self.model_path = model_path
+        self.app_context = app_context
+        self.model = self._get_model(self.app_context, self.model_path, self._model_name)
 
         # This needs to be at the end of the constructor.
         super().__init__(frament, *args, **kwargs)
+
+    def _get_model(self, app_context: AppContext, model_path: Path, model_name: str):
+        """Load the model with the given name from context or model path
+
+        Args:
+            app_context (AppContext): The application context object holding the model(s)
+            model_path (Path): The path to the model file, as a backup to load model directly
+            model_name (str): The name of the model, when multiples are loaded in the context
+        """
+
+        if app_context.models:
+            # `app_context.models.get(model_name)` returns a model instance if exists.
+            # If model_name is not specified and only one model exists, it returns that model.
+            model = app_context.models.get(model_name)
+        else:
+            model = torch.jit.load(
+                MedNISTClassifierOperator.MODEL_LOCAL_PATH,
+                map_location=torch.device("cuda" if torch.cuda.is_available() else "cpu"),
+            )
+
+        return model
 
     def setup(self, spec: OperatorSpec):
         """Set up the operator named input and named output, both are in-memory objects."""
@@ -157,12 +183,8 @@ class MedNISTClassifierOperator(Operator):
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         image_tensor = image_tensor.to(device)
 
-        # Need to get the model from context, when it is re-implemented, and for now, load it directly here.
-        # model = context.models.get()  # get a TorchScriptModel object
-        model = torch.jit.load(self.model_path, map_location=device)
-
         with torch.no_grad():
-            outputs = model(image_tensor)
+            outputs = self.model(image_tensor)
 
         _, output_classes = outputs.max(dim=1)
 
@@ -189,7 +211,7 @@ class App(Application):
         model_path = Path(app_context.model_path)
         load_pil_op = LoadPILOperator(self, CountCondition(self, 1), input_folder=app_input_path, name="pil_loader_op")
         classifier_op = MedNISTClassifierOperator(
-            self, output_folder=app_output_path, model_path=model_path, name="classifier_op"
+            self, app_context=app_context, output_folder=app_output_path, model_path=model_path, name="classifier_op"
         )
 
         my_model_info = ModelInfo("MONAI WG Trainer", "MEDNIST Classifier", "0.1", "xyz")

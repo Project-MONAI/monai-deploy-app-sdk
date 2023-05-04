@@ -47,7 +47,8 @@ class AISpleenSegApp(Application):
       https://github.com/Project-MONAI/model-zoo/tree/dev/models/spleen_ct_segmentation
 
     Execution Time Estimate:
-      With a Nvidia GV100 32GB GPU, for a input of 500 DICOM instances, execution time is around 25 seconds.
+      With a Nvidia GV100 32GB GPU, for an input DICOM Series of 515 instances, the execution time is around
+      25 seconds with saving both DICOM Seg and surface mesh STL file, and 15 seconds with DICOM Seg only.
     """
 
     def __init__(self, *args, **kwargs):
@@ -83,8 +84,7 @@ class AISpleenSegApp(Application):
         # The model_name is optional when the app has only one model.
         # The bundle_path argument optionally can be set to an accessible bundle file path in the dev
         # environment, so when the app is packaged into a MAP, the operator can complete the bundle parsing
-        # during init to provide the optional packages info, parsed from the bundle, to the packager
-        # for it to install the packages in the MAP docker image.
+        # during init.
 
         config_names = BundleConfigNames(config_names=["inference"])  # Same as the default
 
@@ -92,6 +92,7 @@ class AISpleenSegApp(Application):
             self,
             input_mapping=[IOMapping("image", Image, IOType.IN_MEMORY)],
             output_mapping=[IOMapping("pred", Image, IOType.IN_MEMORY)],
+            app_context=app_context,
             bundle_config_names=config_names,
             bundle_path=model_path,
             name="bundle_spleen_seg_op",
@@ -108,7 +109,7 @@ class AISpleenSegApp(Application):
                 segmented_property_type=codes.SCT.Spleen,
                 algorithm_name="volumetric (3D) segmentation of the spleen from CT image",
                 algorithm_family=codes.DCM.ArtificialIntelligence,
-                algorithm_version="0.1.0",
+                algorithm_version="0.3.2",
             )
         ]
 

@@ -6,7 +6,7 @@ from typing import Dict, Optional
 import torch
 
 from monai.data import DataLoader, Dataset
-from monai.deploy.core import ConditionType, Fragment, Image, Operator, OperatorSpec
+from monai.deploy.core import AppContext, ConditionType, Fragment, Image, Operator, OperatorSpec
 from monai.deploy.operators.monai_seg_inference_operator import InMemImageReader
 from monai.transforms import (
     Activations,
@@ -42,6 +42,7 @@ class ClassifierOperator(Operator):
         frament: Fragment,
         *args,
         model_name: Optional[str] = "",
+        app_context: AppContext,
         model_path: Path = MODEL_LOCAL_PATH,
         output_folder: Path = DEFAULT_OUTPUT_FOLDER,
         **kwargs,
@@ -73,8 +74,33 @@ class ClassifierOperator(Operator):
         # Need the path to load the models when they are not loaded in the execution context
         self.model_path = model_path
 
-        # This needs to be at the end of the constructor.
+        # Use AppContect object for getting the loaded models
+        self.app_context = app_context
+
+        self.model = self._get_model(self.app_context, self.model_path, self._model_name)
+
         super().__init__(frament, *args, **kwargs)
+
+    def _get_model(self, app_context: AppContext, model_path: Path, model_name: str):
+        """Load the model with the given name from context or model path
+
+        Args:
+            app_context (AppContext): The application context object holding the model(s)
+            model_path (Path): The path to the model file, as a backup to load model directly
+            model_name (str): The name of the model, when multiples are loaded in the context
+        """
+
+        if app_context.models:
+            # `app_context.models.get(model_name)` returns a model instance if exists.
+            # If model_name is not specified and only one model exists, it returns that model.
+            model = app_context.models.get(model_name)
+        else:
+            model = torch.jit.load(
+                ClassifierOperator.MODEL_LOCAL_PATH,
+                map_location=torch.device("cuda" if torch.cuda.is_available() else "cpu"),
+            )
+
+        return model
 
     def setup(self, spec: OperatorSpec):
         """Set up the operator named input and named output, both are in-memory objects."""

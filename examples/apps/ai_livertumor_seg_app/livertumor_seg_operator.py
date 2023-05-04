@@ -12,7 +12,7 @@
 import logging
 from pathlib import Path
 
-from monai.deploy.core import ConditionType, Fragment, Operator, OperatorSpec
+from monai.deploy.core import AppContext, ConditionType, Fragment, Operator, OperatorSpec
 from monai.deploy.operators.monai_seg_inference_operator import InMemImageReader, MonaiSegInferenceOperator
 from monai.transforms import (  # SaveImaged,
     Activationsd,
@@ -57,7 +57,13 @@ class LiverTumorSegOperator(Operator):
     DEFAULT_OUTPUT_FOLDER = Path.cwd() / "output/saved_images_folder"
 
     def __init__(
-        self, frament: Fragment, *args, model_path: Path, output_folder: Path = DEFAULT_OUTPUT_FOLDER, **kwargs
+        self,
+        frament: Fragment,
+        *args,
+        app_context: AppContext,
+        model_path: Path,
+        output_folder: Path = DEFAULT_OUTPUT_FOLDER,
+        **kwargs,
     ):
         self.logger = logging.getLogger("{}.{}".format(__name__, type(self).__name__))
         self._input_dataset_key = "image"
@@ -67,11 +73,13 @@ class LiverTumorSegOperator(Operator):
         self.output_folder = output_folder
         self.output_folder.mkdir(parents=True, exist_ok=True)
         self.fragement = frament  # Cache and later pass the Fragment/Application to contained operator(s)
+        self.app_context = app_context
         self.input_name_image = "image"
         self.output_name_seg = "seg_image"
         self.output_name_saved_images_folder = "saved_images_folder"
 
-        self.fragement = frament  # Cache and later pass the Fragment/Application to contained operator(s)
+        self.fragement = frament
+
         super().__init__(frament, *args, **kwargs)
 
     def setup(self, spec: OperatorSpec):
@@ -109,6 +117,7 @@ class LiverTumorSegOperator(Operator):
             pre_transforms=pre_transforms,
             post_transforms=post_transforms,
             overlap=0.6,
+            app_context=self.app_context,
             model_name="",
             model_path=self.model_path,
         )

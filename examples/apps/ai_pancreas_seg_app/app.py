@@ -49,8 +49,8 @@ class AIPancreasSegApp(Application):
       https://github.com/Project-MONAI/model-zoo/tree/dev/models/pancreas_ct_dints_segmentation
 
     Execution Time Estimate:
-      With a Nvidia GV100 32GB GPU, for a input of 200 DICOM instances, execution time is around 90 seconds, and
-      for 500 instance 180 seconds.
+      With a Nvidia GV100 32GB GPU, the execution time is around 80 seconds for an input DICOM series of 204 instances,
+      and 160 second for a series of 515 instances.
     """
 
     def __init__(self, *args, **kwargs):
@@ -94,6 +94,7 @@ class AIPancreasSegApp(Application):
             self,
             input_mapping=[IOMapping("image", Image, IOType.IN_MEMORY)],
             output_mapping=[IOMapping("pred", Image, IOType.IN_MEMORY)],
+            app_context=app_context,
             bundle_config_names=config_names,
             bundle_path=model_path,
             name="bundle_seg_op",
@@ -103,15 +104,27 @@ class AIPancreasSegApp(Application):
         # the actual algorithm and the pertinent organ/tissue. The segment_label, algorithm_name,
         # and algorithm_version are of DICOM VR LO type, limited to 64 chars.
         # https://dicom.nema.org/medical/dicom/current/output/chtml/part05/sect_6.2.html
+        _algorithm_name = "Pancreas CT DiNTS segmentation from CT image"
+        _algorithm_family = codes.DCM.ArtificialIntelligence
+        _algorithm_version = "0.3.8"
+
         segment_descriptions = [
             SegmentDescription(
                 segment_label="Pancreas",
                 segmented_property_category=codes.SCT.Organ,
                 segmented_property_type=codes.SCT.Pancreas,
-                algorithm_name="volumetric (3D) segmentation of the pancreas from CT image",
-                algorithm_family=codes.DCM.ArtificialIntelligence,
-                algorithm_version="0.3.0",
-            )
+                algorithm_name=_algorithm_name,
+                algorithm_family=_algorithm_family,
+                algorithm_version=_algorithm_version,
+            ),
+            SegmentDescription(
+                segment_label="Tumor",
+                segmented_property_category=codes.SCT.Tumor,
+                segmented_property_type=codes.SCT.Tumor,
+                algorithm_name=_algorithm_name,
+                algorithm_family=_algorithm_family,
+                algorithm_version=_algorithm_version,
+            ),
         ]
 
         custom_tags = {"SeriesDescription": "AI generated Seg for research use only. Not for clinical use."}

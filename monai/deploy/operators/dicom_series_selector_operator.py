@@ -69,9 +69,7 @@ class DICOMSeriesSelectorOperator(Operator):
     }
     """
 
-    def __init__(
-        self, fragment: Fragment, *args, rules_json_str: str = "", all_matched: bool = False, **kwargs
-    ) -> None:
+    def __init__(self, fragment: Fragment, *args, rules: str = "", all_matched: bool = False, **kwargs) -> None:
         """Instantiate an instance.
 
         Args:
@@ -83,7 +81,7 @@ class DICOMSeriesSelectorOperator(Operator):
         # rules: Text = "", all_matched: bool = False,
 
         # Delay loading the rules as JSON string till compute time.
-        self._rules_json_str = rules_json_str
+        self._rules_json_str = rules if rules and rules.strip() else None
         self._all_matched = all_matched  # all_matched
         self.input_name_study_list = "dicom_study_list"
         self.output_name_selected_series = "study_selected_series_list"

@@ -23,7 +23,7 @@ from typing import Any, Dict, List, Optional, Tuple, Type, Union
 
 import numpy as np
 
-from monai.deploy.core import Fragment, Image, IOType, OperatorSpec
+from monai.deploy.core import AppContext, Fragment, Image, IOType, OperatorSpec
 from monai.deploy.utils.importutil import optional_import
 
 from .inference_operator import InferenceOperator
@@ -313,6 +313,7 @@ class MonaiBundleInferenceOperator(InferenceOperator):
         self,
         fragment: Fragment,
         *args,
+        app_context: AppContext,
         input_mapping: List[IOMapping],
         output_mapping: List[IOMapping],
         model_name: Optional[str] = "",
@@ -324,6 +325,7 @@ class MonaiBundleInferenceOperator(InferenceOperator):
 
         Args:
             fragment (Fragment): An instance of the Application class which is derived from Fragment.
+            app_context (AppContext): Object holding the I/O and model paths, and potentially loaded models.
             input_mapping (List[IOMapping]): Define the inputs' name, type, and storage type.
             output_mapping (List[IOMapping]): Defines the outputs' name, type, and storage type.
             model_name (Optional[str], optional): Name of the model/bundle, needed in multi-model case.
@@ -370,10 +372,12 @@ class MonaiBundleInferenceOperator(InferenceOperator):
             logging.warn("Bundle parsing is not completed on init, delayed till this operator is called to execute.")
             self._bundle_path = None
 
+        self._fragment = fragment  # In case it is needed.
+        self.app_context = app_context
+
         # Lazy init of model network till execution time when the context is fully set.
         self._model_network: Any = None
 
-        self._fragment = fragment  # In case it is needed.
         super().__init__(fragment, *args, **kwargs)
 
     @property
@@ -542,9 +546,9 @@ class MonaiBundleInferenceOperator(InferenceOperator):
         # `context.models.get(model_name)` returns a model instance if exists.
         # If model_name is not specified and only one model exists, it returns that model.
 
-        # MQ TODO Need get the model factory working and have models available
-        # self._model_network = context.models.get(self._model_name) if context.models else None
-        # MQ
+        # The models are loaded on contruction via the AppContext object in turn the model factory.
+        self._model_network = self.app_context.models.get(self._model_name) if self.app_context.models else None
+
         if self._model_network:
             if not self._init_completed:
                 with self._lock:

@@ -46,12 +46,10 @@ class BreastClassificationApp(Application):
         study_loader_op = DICOMDataLoaderOperator(
             self, CountCondition(self, 1), input_folder=app_input_path, name="study_loader_op"
         )
-        series_selector_op = DICOMSeriesSelectorOperator(
-            self, rules_json_str=Sample_Rules_Text, name="series_selector_op"
-        )
+        series_selector_op = DICOMSeriesSelectorOperator(self, rules=Sample_Rules_Text, name="series_selector_op")
         series_to_vol_op = DICOMSeriesToVolumeOperator(self, name="series_to_vol_op")
         classifier_op = ClassifierOperator(
-            self, output_folder=app_output_path, model_path=model_path, name="classifier_op"
+            self, app_context=app_context, output_folder=app_output_path, model_path=model_path, name="classifier_op"
         )
         sr_writer_op = DICOMTextSRWriterOperator(
             self,

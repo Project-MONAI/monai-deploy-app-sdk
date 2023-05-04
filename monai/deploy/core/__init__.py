@@ -38,3 +38,17 @@ from .models import Model, ModelFactory, NamedModel, TorchScriptModel, TritonMod
 from .runtime_env import RuntimeEnv
 
 # from .resource import resource
+
+
+# Create function to add to the Application class
+def load_models(modle_path: str):
+    """_summary_
+
+    Args:
+        modle_path (str): _description_
+    """
+
+    return ModelFactory.create(modle_path)
+
+
+Application.load_models = load_models

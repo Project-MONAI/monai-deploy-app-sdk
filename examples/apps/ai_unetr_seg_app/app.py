@@ -61,7 +61,7 @@ class AIUnetrSegApp(Application):
         series_selector_op = DICOMSeriesSelectorOperator(self, rules=Sample_Rules_Text, name="series_selector_op")
         series_to_vol_op = DICOMSeriesToVolumeOperator(self, name="series_to_vol_op")
         # Model specific inference operator, supporting MONAI transforms.
-        seg_op = UnetrSegOperator(self, model_path=model_path, name="seg_op")
+        seg_op = UnetrSegOperator(self, app_context=app_context, model_path=model_path, name="seg_op")
 
         # Create the surface mesh STL conversion operator, for all segments
         stl_conversion_op = STLConversionOperator(
