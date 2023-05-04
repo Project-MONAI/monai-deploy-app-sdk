@@ -13,7 +13,7 @@ from os.path import abspath
 from typing import Dict, Optional
 
 # from .resource import Resource
-from .models import Model, ModelFactory, NamedModel, TorchScriptModel, TritonModel
+from .models import ModelFactory
 from .runtime_env import RuntimeEnv
 
 
