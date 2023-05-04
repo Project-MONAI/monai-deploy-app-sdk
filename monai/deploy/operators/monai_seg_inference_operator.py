@@ -38,7 +38,7 @@ Compose_, _ = optional_import("monai.transforms", name="Compose")
 # Dynamic class is not handled so make it Any for now: https://github.com/python/mypy/issues/2477
 Compose: Any = Compose_
 
-from monai.deploy.core import AppContext, ConditionType, Fragment, Image, Model, OperatorSpec
+from monai.deploy.core import AppContext, ConditionType, Fragment, Image, OperatorSpec
 
 from .inference_operator import InferenceOperator
 
