@@ -98,11 +98,11 @@ class ClaraVizOperator(Operator):
             context (ExecutionContext): An execution context for the operator.
         """
         input_image = op_input.receive(self.input_name_image)
-        if not input_image or isinstance(input_image, Image):
-            raise ValueError(f"Input image not found or its type {type(Image)} not Image.")
+        if not input_image:
+            raise ValueError("Original density image not received in the input.")
         input_seg_image = op_input.receive(self.input_name_seg_image)
         if not input_seg_image:
-            raise ValueError(f"Input segmentation image not found or its type {type(Image)} not Image.")
+            raise ValueError("Segmentation image not received in the input.")
 
         # build the data definition
         data_definition = DataDefinition()
