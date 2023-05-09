@@ -12,7 +12,8 @@
 from os.path import abspath
 from typing import Dict, Optional
 
-from .models.model import Model, ModelFactory
+from .models.factory import ModelFactory
+from .models.model import Model
 from .runtime_env import RuntimeEnv
 
 
@@ -46,9 +47,7 @@ class AppContext(object):
             self._model_loaded = False  # path changed, reset the flag to re-load
 
         if not self._model_loaded:
-            self.models: Model = (
-                ModelFactory.create(abspath(self.model_path)) if not self._model_loaded else self.models
-            )
+            self.models = ModelFactory.create(abspath(self.model_path)) if not self._model_loaded else self.models
             self._model_loaded = True
 
     def __repr__(self):
