@@ -70,7 +70,6 @@ class AISpleenSegApp(Application):
         app_context = AppContext({})  # Let it figure out all the attributes without overriding
         app_input_path = Path(app_context.input_path)
         app_output_path = Path(app_context.output_path)
-        model_path = Path(app_context.model_path)
 
         # Create the custom operator(s) as well as SDK built-in operator(s).
         study_loader_op = DICOMDataLoaderOperator(
@@ -94,7 +93,6 @@ class AISpleenSegApp(Application):
             output_mapping=[IOMapping("pred", Image, IOType.IN_MEMORY)],
             app_context=app_context,
             bundle_config_names=config_names,
-            bundle_path=model_path,
             name="bundle_spleen_seg_op",
         )
 

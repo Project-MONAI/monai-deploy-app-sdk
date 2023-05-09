@@ -330,7 +330,7 @@ class MonaiBundleInferenceOperator(InferenceOperator):
             output_mapping (List[IOMapping]): Defines the outputs' name, type, and storage type.
             model_name (Optional[str], optional): Name of the model/bundle, needed in multi-model case.
                                                   Defaults to "".
-            bundle_path (Optional[str], optional): For completing . Defaults to None.
+            bundle_path (Optional[str], optional): Known path to the bundle file. Defaults to None.
             bundle_config_names (BundleConfigNames, optional): Relevant config item names in a the bundle.
                                                                Defaults to DEFAULT_BundleConfigNames.
         """
@@ -360,7 +360,7 @@ class MonaiBundleInferenceOperator(InferenceOperator):
         try:
             self._bundle_path = Path(bundle_path) if bundle_path and len(str(bundle_path).strip()) > 0 else None
 
-            if self._bundle_path and self._bundle_path.exists():
+            if self._bundle_path and self._bundle_path.is_file():
                 self._init_config(self._bundle_config_names.config_names)
                 self._init_completed = True
             else:
@@ -554,6 +554,7 @@ class MonaiBundleInferenceOperator(InferenceOperator):
                 with self._lock:
                     if not self._init_completed:
                         self._bundle_path = self._model_network.path
+                        logging.info(f"Parsing from bundle_path: {self._bundle_path}")
                         self._init_config(self._bundle_config_names.config_names)
                         self._init_completed = True
         elif self._bundle_path:
