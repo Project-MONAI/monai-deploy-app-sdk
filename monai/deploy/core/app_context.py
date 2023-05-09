@@ -12,7 +12,7 @@
 from os.path import abspath
 from typing import Dict, Optional
 
-from .models import Model, ModelFactory
+from .models.model import Model, ModelFactory
 from .runtime_env import RuntimeEnv
 
 
