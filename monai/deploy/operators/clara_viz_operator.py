@@ -11,7 +11,7 @@
 
 import numpy as np
 
-from monai.deploy.core import Fragment, Image, Operator, OperatorSpec
+from monai.deploy.core import Fragment, Operator, OperatorSpec
 from monai.deploy.utils.importutil import optional_import
 
 DataDefinition, _ = optional_import("clara.viz.core", name="DataDefinition")
