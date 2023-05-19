@@ -28,6 +28,7 @@ if not image_reader_ok_:
     ImageReader = object  # for 'class InMemImageReader(ImageReader):' to work
 decollate_batch, _ = optional_import("monai.data", name="decollate_batch")
 sliding_window_inference, _ = optional_import("monai.inferers", name="sliding_window_inference")
+simple_inference, _ = optional_import("monai.inferers", name="SimpleInferer")
 ensure_tuple, _ = optional_import(MONAI_UTILS, name="ensure_tuple")
 MetaKeys, _ = optional_import(MONAI_UTILS, name="MetaKeys")
 SpaceKeys, _ = optional_import(MONAI_UTILS, name="SpaceKeys")
@@ -61,22 +62,24 @@ class MonaiSegInferenceOperator(InferenceOperator):
 
     def __init__(
         self,
-        roi_size: Union[Sequence[int], int],
+        roi_size: Optional[Union[Sequence[int], int]],
         pre_transforms: Compose,
         post_transforms: Compose,
         model_name: Optional[str] = "",
         overlap: float = 0.5,
+        inferer: str = "simple",
         *args,
         **kwargs,
     ):
         """Creates a instance of this class.
 
         Args:
-            roi_size (Union[Sequence[int], int]): The tensor size used in inference.
+            roi_size (Union[Sequence[int], int]): The tensor size used in inference. An optional input only to be passed for SlidingWindowInferer. If using a SimpleInferer, this input is ignored.
             pre_transforms (Compose): MONAI Compose object used for pre-transforms.
             post_transforms (Compose): MONAI Compose object used for post-transforms.
             model_name (str, optional): Name of the model. Default to "" for single model app.
             overlap (float): The overlap used in sliding window inference.
+            inferer (str): Options are "simple" or "sliding_window"
         """
 
         super().__init__()
@@ -91,6 +94,7 @@ class MonaiSegInferenceOperator(InferenceOperator):
         self._post_transforms = post_transforms
         self._model_name = model_name.strip() if isinstance(model_name, str) else ""
         self.overlap = overlap
+        self.inferer = inferer
 
     @property
     def roi_size(self):
@@ -219,13 +223,20 @@ class MonaiSegInferenceOperator(InferenceOperator):
                 for d in dataloader:
                     images = d[self._input_dataset_key].to(device)
                     sw_batch_size = 4
-                    d[self._pred_dataset_key] = sliding_window_inference(
-                        inputs=images,
-                        roi_size=self._roi_size,
-                        sw_batch_size=sw_batch_size,
-                        overlap=self.overlap,
-                        predictor=model,
-                    )
+                    if self.inferer == "sliding_window":
+                        d[self._pred_dataset_key] = sliding_window_inference(
+                            inputs=images,
+                            roi_size=self._roi_size,
+                            sw_batch_size=sw_batch_size,
+                            overlap=self.overlap,
+                            predictor=model,
+                        )
+                    elif self.inferer == "simple":
+                        d[self._pred_dataset_key] = simple_inference()(inputs=images, network=model)
+                    else:
+                        raise ValueError(
+                            f"Unknown inferer: {self.inferer}, Available options are sliding_window or simple "
+                        )
                     d = [post_transforms(i) for i in decollate_batch(d)]
                     out_ndarray = d[0][self._pred_dataset_key].cpu().numpy()
                     # Need to squeeze out the channel dim fist
