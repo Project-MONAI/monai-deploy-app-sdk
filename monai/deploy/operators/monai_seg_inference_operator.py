@@ -74,7 +74,9 @@ class MonaiSegInferenceOperator(InferenceOperator):
         """Creates a instance of this class.
 
         Args:
-            roi_size (Union[Sequence[int], int]): The tensor size used in inference. An optional input only to be passed for SlidingWindowInferer. If using a SimpleInferer, this input is ignored.
+            roi_size (Union[Sequence[int], int]): The tensor size used in inference. 
+                                                  An optional input only to be passed for SlidingWindowInferer. 
+                                                  If using a SimpleInferer, this input is ignored.
             pre_transforms (Compose): MONAI Compose object used for pre-transforms.
             post_transforms (Compose): MONAI Compose object used for post-transforms.
             model_name (str, optional): Name of the model. Default to "" for single model app.
