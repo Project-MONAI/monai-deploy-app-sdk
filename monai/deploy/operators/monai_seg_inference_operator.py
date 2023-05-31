@@ -15,6 +15,7 @@ from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 import numpy as np
 
 from monai.deploy.utils.importutil import optional_import
+from monai.utils import StrEnum
 
 MONAI_UTILS = "monai.utils"
 torch, _ = optional_import("torch", "1.5")
@@ -67,7 +68,7 @@ class MonaiSegInferenceOperator(InferenceOperator):
         post_transforms: Compose,
         model_name: Optional[str] = "",
         overlap: float = 0.5,
-        inferer: str = "simple",
+        inferer: StrEnum = "simple",
         *args,
         **kwargs,
     ):
@@ -254,7 +255,9 @@ class MonaiSegInferenceOperator(InferenceOperator):
                     out_ndarray = out_ndarray.T.astype(np.uint8)
                     print(f"Output Seg image numpy array shaped: {out_ndarray.shape}")
                     print(f"Output Seg image pixel max value: {np.amax(out_ndarray)}")
+                    print(f"Output Seg image pixel max value: {np.amin(out_ndarray)}")
                     out_image = Image(out_ndarray, input_img_metadata)
+
                     op_output.set(out_image, "seg_image")
         finally:
             # Reset state on completing this method execution.
