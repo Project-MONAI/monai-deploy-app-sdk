@@ -257,8 +257,8 @@ class MonaiSegInferenceOperator(InferenceOperator):
                     print(f"Output Seg image pixel max value: {np.amax(out_ndarray)}")
                     print(f"Output Seg image pixel max value: {np.amin(out_ndarray)}")
                     out_image = Image(out_ndarray, input_img_metadata)
-
                     op_output.set(out_image, "seg_image")
+
         finally:
             # Reset state on completing this method execution.
             with self._lock:
