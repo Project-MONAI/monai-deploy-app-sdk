@@ -290,7 +290,7 @@ class MonaiSegInferenceOperator(InferenceOperator):
                     out_ndarray = out_ndarray.T.astype(np.uint8)
                     print(f"Output Seg image numpy array shaped: {out_ndarray.shape}")
                     print(f"Output Seg image pixel max value: {np.amax(out_ndarray)}")
-                    print(f"Output Seg image pixel max value: {np.amin(out_ndarray)}")
+                    print(f"Output Seg image pixel min value: {np.amin(out_ndarray)}")
                     out_image = Image(out_ndarray, input_img_metadata)
                     op_output.set(out_image, "seg_image")
 
