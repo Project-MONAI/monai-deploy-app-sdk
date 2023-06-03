@@ -76,7 +76,7 @@ class MonaiSegInferenceOperator(InferenceOperator):
         model_name: Optional[str] = "",
         overlap: float = 0.25,
         sw_batch_size: int = 4,
-        inferer: InfererType = InfererType.SLIDING_WINDOW,
+        inferer: Union[InfererType, str] = InfererType.SLIDING_WINDOW,
         *args,
         **kwargs,
     ):
@@ -165,7 +165,7 @@ class MonaiSegInferenceOperator(InferenceOperator):
         self._sw_batch_size = val
 
     @property
-    def inferer(self) -> InfererType:
+    def inferer(self) -> Union[InfererType, str]:
         """The type of inferer to use"""
         return self._inferer
 
