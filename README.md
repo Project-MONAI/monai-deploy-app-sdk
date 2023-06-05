@@ -79,7 +79,7 @@ YouTube Video:
 - [Spleen Organ Segmentation - Jupyter Notebook Tutorial](https://www.youtube.com/watch?v=cqDVxzYt9lY)
 - [Spleen Organ Segmentation - Deep Dive](https://www.youtube.com/watch?v=nivgfD4pwWE)
 
-### [4) Creating a Segmentation app with Clara Viz](https://docs.monai.io/projects/monai-deploy-app-sdk/en/latest/getting_started/tutorials/segmentation_clara-viz_app.html)
+### [4) Creating a Segmentation app including visualization with Clara Viz](https://docs.monai.io/projects/monai-deploy-app-sdk/en/latest/getting_started/tutorials/segmentation_clara-viz_app.html)
 
 ### [5) Creating a Segmentation app consuming a MONAI Bundle](https://docs.monai.io/projects/monai-deploy-app-sdk/en/latest/getting_started/tutorials/monai_bundle_app.html)
 
