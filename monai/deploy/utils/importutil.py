@@ -114,7 +114,7 @@ def get_class_file_path(cls: Type) -> Path:
 
     try:
         return Path(inspect.getfile(cls))
-    except TypeError:
+    except (TypeError, OSError):
         # If in IPython shell, use inspect.stack() to get the caller's file path
         stack = inspect.stack()
         for frame in stack:
