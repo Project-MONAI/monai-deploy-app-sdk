@@ -48,7 +48,7 @@ class AppContext(object):
 
         if not self._model_loaded:
             self.models: Optional[Model] = (
-                ModelFactory.create(abspath(self.model_path)) if not self._model_loaded else self.models
+                ModelFactory.create(abspath(self.model_path))
             )
             self._model_loaded = True
 
