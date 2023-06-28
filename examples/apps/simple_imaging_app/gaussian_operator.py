@@ -58,6 +58,7 @@ class GaussianOperator(Operator):
         spec.param("channel_axis", 2)
 
     def compute(self, op_input, op_output, context):
+        import numpy as np
         from skimage.filters import gaussian
         from skimage.io import imsave
 
@@ -66,6 +67,13 @@ class GaussianOperator(Operator):
 
         data_in = op_input.receive("in1")
         data_out = gaussian(data_in, sigma=self.sigma_default, channel_axis=self.channel_axis)
+
+        # Make sure the data type is what PIL Image can support, as the imsave function calls PIL Image fromarray()
+        # Some details can be found at https://stackoverflow.com/questions/55319949/pil-typeerror-cannot-handle-this-data-type
+        print(f"Data type of output: {type(data_out)!r}, max = {np.max(data_out)!r}")
+        if np.max(data_out) <= 1:
+            data_out = (data_out*255).astype(np.uint8)
+        print(f"Data type of output post conversion: {type(data_out)!r}, max = {np.max(data_out)!r}")
 
         # For now, use attribute of self to find the output path.
         self.output_folder.mkdir(parents=True, exist_ok=True)
