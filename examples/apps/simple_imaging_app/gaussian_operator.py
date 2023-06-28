@@ -72,7 +72,7 @@ class GaussianOperator(Operator):
         # Some details can be found at https://stackoverflow.com/questions/55319949/pil-typeerror-cannot-handle-this-data-type
         print(f"Data type of output: {type(data_out)!r}, max = {np.max(data_out)!r}")
         if np.max(data_out) <= 1:
-            data_out = (data_out*255).astype(np.uint8)
+            data_out = (data_out * 255).astype(np.uint8)
         print(f"Data type of output post conversion: {type(data_out)!r}, max = {np.max(data_out)!r}")
 
         # For now, use attribute of self to find the output path.

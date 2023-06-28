@@ -47,9 +47,7 @@ class AppContext(object):
             self._model_loaded = False  # path changed, reset the flag to re-load
 
         if not self._model_loaded:
-            self.models: Optional[Model] = (
-                ModelFactory.create(abspath(self.model_path))
-            )
+            self.models: Optional[Model] = ModelFactory.create(abspath(self.model_path))
             self._model_loaded = True
 
     def __repr__(self):
