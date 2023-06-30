@@ -11,8 +11,5 @@
 
 from app import App
 
-from monai.deploy.logger import load_env_log_level
-
 if __name__ == "__main__":
-    load_env_log_level()
     App().run()

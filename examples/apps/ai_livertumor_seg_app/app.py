@@ -17,7 +17,6 @@ from pydicom.sr.codedict import codes  # Required for setting SegmentDescription
 
 from monai.deploy.conditions import CountCondition
 from monai.deploy.core import AppContext, Application
-from monai.deploy.logger import load_env_log_level
 from monai.deploy.operators.dicom_data_loader_operator import DICOMDataLoaderOperator
 from monai.deploy.operators.dicom_seg_writer_operator import DICOMSegmentationWriterOperator, SegmentDescription
 from monai.deploy.operators.dicom_series_selector_operator import DICOMSeriesSelectorOperator
@@ -150,7 +149,6 @@ if __name__ == "__main__":
     # e.g.
     #     python3 app.py -i input -m model/model.ts
     #
-    load_env_log_level()
     logging.info(f"Begin {__name__}")
     AILiverTumorApp().run()
     logging.info(f"End {__name__}")

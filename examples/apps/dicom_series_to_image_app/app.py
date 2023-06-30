@@ -13,7 +13,6 @@ from pathlib import Path
 
 from monai.deploy.conditions import CountCondition
 from monai.deploy.core import AppContext, Application
-from monai.deploy.logger import load_env_log_level
 from monai.deploy.operators.dicom_data_loader_operator import DICOMDataLoaderOperator
 from monai.deploy.operators.dicom_series_selector_operator import DICOMSeriesSelectorOperator
 from monai.deploy.operators.dicom_series_to_volume_operator import DICOMSeriesToVolumeOperator
@@ -49,5 +48,4 @@ class App(Application):
 
 
 if __name__ == "__main__":
-    load_env_log_level()
     App().run()

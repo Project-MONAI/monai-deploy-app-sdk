@@ -13,10 +13,7 @@ import logging
 
 from app import AIPancreasSegApp
 
-from monai.deploy.logger import load_env_log_level
-
 if __name__ == "__main__":
-    load_env_log_level()
     logging.info(f"Begin {__name__}")
     AIPancreasSegApp().run()
     logging.info(f"End {__name__}")

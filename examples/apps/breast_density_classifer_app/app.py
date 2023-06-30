@@ -5,7 +5,6 @@ from breast_density_classifier_operator import ClassifierOperator
 
 from monai.deploy.conditions import CountCondition
 from monai.deploy.core import AppContext, Application
-from monai.deploy.logger import load_env_log_level
 from monai.deploy.operators.dicom_data_loader_operator import DICOMDataLoaderOperator
 from monai.deploy.operators.dicom_series_selector_operator import DICOMSeriesSelectorOperator
 from monai.deploy.operators.dicom_series_to_volume_operator import DICOMSeriesToVolumeOperator
@@ -103,7 +102,6 @@ def test():
 
 
 if __name__ == "__main__":
-    load_env_log_level()
     logging.info(f"Begin {__name__}")
     BreastClassificationApp().run()
     logging.info(f"End {__name__}")
