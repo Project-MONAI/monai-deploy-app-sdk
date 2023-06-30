@@ -20,6 +20,6 @@
     exceptions
 """
 
-from . import _version, cli, core, exceptions, packager, runner, utils
+from . import _version, cli, core, exceptions, resources, utils
 
 __version__ = _version.get_versions()["version"]
