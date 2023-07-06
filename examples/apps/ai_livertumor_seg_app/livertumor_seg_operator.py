@@ -15,7 +15,7 @@ from numpy import uint8
 
 import monai.deploy.core as md
 from monai.deploy.core import DataPath, ExecutionContext, Image, InputContext, IOType, Operator, OutputContext
-from monai.deploy.operators.monai_seg_inference_operator import InMemImageReader, MonaiSegInferenceOperator
+from monai.deploy.operators.monai_seg_inference_operator import InfererType, InMemImageReader, MonaiSegInferenceOperator
 from monai.transforms import (
     Activationsd,
     AsDiscreted,
@@ -92,6 +92,8 @@ class LiverTumorSegOperator(Operator):
             post_transforms,
             overlap=0.6,
             model_name="",
+            inferer=InfererType.SLIDING_WINDOW,
+            sw_batch_size=4,
         )
 
         # Setting the keys used in the dictironary based transforms may change.
