@@ -25,11 +25,17 @@ class GaussianOperator(Operator):
     """
 
     def compute(self, op_input: InputContext, op_output: OutputContext, context: ExecutionContext):
+        import numpy as np
         from skimage.filters import gaussian
         from skimage.io import imsave
 
         data_in = op_input.get().asnumpy()
         data_out = gaussian(data_in, sigma=0.2, channel_axis=2)  # Add the param introduced in 0.19.
+
+        # Make sure the data type is what PIL Image can support, as the imsave function calls PIL Image fromarray()
+        # Some details can be found at https://stackoverflow.com/questions/55319949/pil-typeerror-cannot-handle-this-data-type
+        if np.max(data_out) <= 1:
+            data_out = (data_out * 255).astype(np.uint8)
 
         output_folder = op_output.get().path
         output_path = output_folder / "final_output.png"
