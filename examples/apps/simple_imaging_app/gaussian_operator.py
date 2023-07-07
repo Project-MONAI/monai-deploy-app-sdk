@@ -34,10 +34,8 @@ class GaussianOperator(Operator):
 
         # Make sure the data type is what PIL Image can support, as the imsave function calls PIL Image fromarray()
         # Some details can be found at https://stackoverflow.com/questions/55319949/pil-typeerror-cannot-handle-this-data-type
-        print(f"Data type of output: {type(data_out)!r}, max = {np.max(data_out)!r}")
         if np.max(data_out) <= 1:
             data_out = (data_out * 255).astype(np.uint8)
-        print(f"Data type of output post conversion: {type(data_out)!r}, max = {np.max(data_out)!r}")
 
         output_folder = op_output.get().path
         output_path = output_folder / "final_output.png"
