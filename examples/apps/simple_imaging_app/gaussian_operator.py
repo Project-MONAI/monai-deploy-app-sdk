@@ -25,9 +25,9 @@ class GaussianOperator(Operator):
     """
 
     def compute(self, op_input: InputContext, op_output: OutputContext, context: ExecutionContext):
+        import numpy as np
         from skimage.filters import gaussian
         from skimage.io import imsave
-        import numpy as np
 
         data_in = op_input.get().asnumpy()
         data_out = gaussian(data_in, sigma=0.2, channel_axis=2)  # Add the param introduced in 0.19.
