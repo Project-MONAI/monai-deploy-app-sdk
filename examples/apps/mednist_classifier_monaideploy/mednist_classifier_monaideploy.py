@@ -95,7 +95,7 @@ class MedNISTClassifierOperator(Operator):
 
 
 @md.resource(cpu=1, gpu=1, memory="1Gi")
-@md.env(pip_packages=["pydicom >= 2.3.0", "highdicom>=0.18.2"])
+@md.env(pip_packages=["pydicom >= 2.3.0", "highdicom>=0.18.2"])  # because of the use of DICOM writer operator
 class App(Application):
     """Application class for the MedNIST classifier."""
 
