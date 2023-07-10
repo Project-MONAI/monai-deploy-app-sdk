@@ -109,7 +109,7 @@ class IOContext(ABC):
             # checking: https://www.python.org/dev/peps/pep-0585/#id15
             data_type = self._op_info.get_data_type(self._io_kind, label)
             try:
-                check_type("value", value, data_type)
+                check_type(value, data_type)
             except TypeError as err:
                 raise IOMappingError(
                     f"The data type of '{label}' in the {self._io_kind} of '{self._op}' is {data_type}, but the value"
