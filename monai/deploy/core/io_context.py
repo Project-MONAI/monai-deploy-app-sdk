@@ -49,7 +49,7 @@ class IOContext(ABC):
                 label = next(iter(self._labels))
             else:
                 raise IOMappingError(
-                    f"'{label}' is not a valid {self._io_kind} of the operator({self._op.name}). "
+                    f"{label!r} is not a valid {self._io_kind} of the operator({self._op.name}). "
                     f"It should be one of ({', '.join(self._labels)})."
                 )
         return label
@@ -82,7 +82,7 @@ class IOContext(ABC):
         key = self.get_group_path(f"{self._io_kind}/{label}")
         storage = self._storage
         if not storage.exists(key):
-            raise ItemNotExistsError(f"'{key}' does not exist.")
+            raise ItemNotExistsError(f"{key!r} does not exist.")
         return storage.get(key)
 
     def set(self, value: Any, label: str = ""):
@@ -112,7 +112,7 @@ class IOContext(ABC):
                 check_type(value, data_type)
             except TypeError as err:
                 raise IOMappingError(
-                    f"The data type of '{label}' in the {self._io_kind} of '{self._op}' is {data_type}, but the value"
+                    f"The data type of {label!r} in the {self._io_kind} of {self._op!r} is {data_type}, but the value"
                     f" to set is the data type of {type(value)}."
                 ) from err
 
