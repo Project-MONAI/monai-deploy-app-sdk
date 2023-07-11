@@ -308,7 +308,8 @@ def test():
                 print(f"   'StudyInstanceUID': {ds.StudyInstanceUID if ds.StudyInstanceUID else ''}")
                 print(f"  'SeriesDescription': {ds.SeriesDescription if ds.SeriesDescription else ''}")
                 print(
-                    f"  'IssuerOfPatientID': {ds.get('IssuerOfPatientID', '').repval if ds.get('IssuerOfPatientID', '') else '' }"
+                    "  'IssuerOfPatientID':"
+                    f" {ds.get('IssuerOfPatientID', '').repval if ds.get('IssuerOfPatientID', '') else '' }"
                 )
                 try:
                     print(f"  'IssuerOfPatientID': {ds.IssuerOfPatientID if ds.IssuerOfPatientID else '' }")

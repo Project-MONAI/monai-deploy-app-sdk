@@ -168,8 +168,8 @@ def test_run_app_for_input_output_path_with_space(
     expected_container_output /= app_manifest["working-directory"]
 
     returncode = runner.run_app(sample_map_name, input_path, output_path, app_manifest, faux_pkg_manifest, quiet)
-    input_path_with_quotes = f'\"{input_path.absolute()}\"'
-    output_path_with_quotes = f'\"{output_path.absolute()}\"'
+    input_path_with_quotes = f'"{input_path.absolute()}"'
+    output_path_with_quotes = f'"{output_path.absolute()}"'
 
     assert returncode == return_value
     mock_run_cmd.assert_called_once_with(ContainsString(sample_map_name))

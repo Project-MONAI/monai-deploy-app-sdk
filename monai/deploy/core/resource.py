@@ -64,7 +64,8 @@ class Resource:
                 self._cpu = cpu_limit
             else:
                 raise ItemAlreadyExistsError(
-                    f"'cpu' wouldn't be set to {cpu_limit} because it is already set to {self._cpu} by the runtime environment."
+                    f"'cpu' wouldn't be set to {cpu_limit} because it is already set to {self._cpu} by the runtime"
+                    " environment."
                 )
 
         if gpu_limit is not None:
@@ -72,7 +73,8 @@ class Resource:
                 self._gpu = gpu_limit
             else:
                 raise ItemAlreadyExistsError(
-                    f"'gpu' wouldn't be set to {gpu_limit} because it is already set to {self._gpu} by the runtime environment."
+                    f"'gpu' wouldn't be set to {gpu_limit} because it is already set to {self._gpu} by the runtime"
+                    " environment."
                 )
 
         if type(memory_limit) == str:

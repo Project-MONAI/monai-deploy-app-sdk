@@ -93,11 +93,9 @@ def initialize_args(args: Namespace) -> Dict:
         dockerfile_type = verify_base_image(args.base)
         if not dockerfile_type:
             logger.error(
-                "Provided base image '{}' is not supported \n \
-                        Please provide a ROCm or Cuda based Pytorch image from \n \
-                        https://hub.docker.com/r/rocm/pytorch or https://ngc.nvidia.com/ (nvcr.io/nvidia)".format(
-                    args.base
-                )
+                "Provided base image '{}' is not supported \n                         Please provide a ROCm or Cuda"
+                " based Pytorch image from \n                         https://hub.docker.com/r/rocm/pytorch or"
+                " https://ngc.nvidia.com/ (nvcr.io/nvidia)".format(args.base)
             )
 
             sys.exit(1)
@@ -237,7 +235,7 @@ def build_image(args: dict, temp_dir: str):
         dockerignore_file.write(docker_ignore_template)
 
     # Build dockerfile into an MAP image
-    docker_build_cmd = f'''docker build -f {docker_file_path!r} -t {tag} {temp_dir!r}'''
+    docker_build_cmd = f"""docker build -f {docker_file_path!r} -t {tag} {temp_dir!r}"""
     if sys.platform != "win32":
         docker_build_cmd += """ --build-arg MONAI_UID=$(id -u) --build-arg MONAI_GID=$(id -g)"""
     if no_cache:

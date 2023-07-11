@@ -205,13 +205,13 @@ class Application(ABC):
         if not io_map:
             if len(op_output_labels) > 1:
                 raise IOMappingError(
-                    f"The source operator has more than one output port "
+                    "The source operator has more than one output port "
                     f"({', '.join(op_output_labels)}) so mapping should be specified explicitly!"
                 )
             if len(op_input_labels) > 1:
                 raise IOMappingError(
                     f"The destination operator has more than one output port ({', '.join(op_input_labels)}) "
-                    f"so mapping should be specified explicitly!"
+                    "so mapping should be specified explicitly!"
                 )
             io_map = {"": {""}}
 
@@ -262,8 +262,8 @@ class Application(ABC):
                         input_labels.add(next(iter(op_input_labels)))
                         break
                     raise IOMappingError(
-                        f"The destination operator({destination_op.name}) has no input port with label {input_label!r}. "
-                        f"It should be one of ({', '.join(op_input_labels)})."
+                        f"The destination operator({destination_op.name}) has no input port with label {input_label!r}."
+                        f" It should be one of ({', '.join(op_input_labels)})."
                     )
 
         self._graph.add_flow(source_op, destination_op, io_maps)
