@@ -164,7 +164,7 @@ class Model:
             if item:
                 return item
             else:
-                raise ItemNotExistsError(f"A model with '{name}' does not exist.")
+                raise ItemNotExistsError(f"A model with {name!r} does not exist.")
         else:
             item_count = len(self._items)
             if item_count == 1:

@@ -205,13 +205,13 @@ class Application(ABC):
         if not io_map:
             if len(op_output_labels) > 1:
                 raise IOMappingError(
-                    f"The source operator has more than one output port "
+                    "The source operator has more than one output port "
                     f"({', '.join(op_output_labels)}) so mapping should be specified explicitly!"
                 )
             if len(op_input_labels) > 1:
                 raise IOMappingError(
                     f"The destination operator has more than one output port ({', '.join(op_input_labels)}) "
-                    f"so mapping should be specified explicitly!"
+                    "so mapping should be specified explicitly!"
                 )
             io_map = {"": {""}}
 
@@ -227,7 +227,7 @@ class Application(ABC):
         if len(op_output_labels) == 1 and len(output_labels) != 1:
             raise IOMappingError(
                 f"The source operator({source_op.name}) has only one port with label "
-                f"'{next(iter(op_output_labels))}' but io_map specifies {len(output_labels)} "
+                f"{next(iter(op_output_labels))!r} but io_map specifies {len(output_labels)} "
                 f"labels({', '.join(output_labels)}) to the source operator's output port"
             )
 
@@ -239,7 +239,7 @@ class Application(ABC):
                     del io_maps[output_label]
                     break
                 raise IOMappingError(
-                    f"The source operator({source_op.name}) has no output port with label '{output_label}'. "
+                    f"The source operator({source_op.name}) has no output port with label {output_label!r}. "
                     f"It should be one of ({', '.join(op_output_labels)})."
                 )
 
@@ -250,7 +250,7 @@ class Application(ABC):
             if len(op_input_labels) == 1 and len(input_labels) != 1:
                 raise IOMappingError(
                     f"The destination operator({destination_op.name}) has only one port with label "
-                    f"'{next(iter(op_input_labels))}' but io_map specifies {len(input_labels)} "
+                    f"{next(iter(op_input_labels))!r} but io_map specifies {len(input_labels)} "
                     f"labels({', '.join(input_labels)}) to the destination operator's input port"
                 )
 
@@ -262,8 +262,8 @@ class Application(ABC):
                         input_labels.add(next(iter(op_input_labels)))
                         break
                     raise IOMappingError(
-                        f"The destination operator({destination_op.name}) has no input port with label '{input_label}'. "
-                        f"It should be one of ({', '.join(op_input_labels)})."
+                        f"The destination operator({destination_op.name}) has no input port with label {input_label!r}."
+                        f" It should be one of ({', '.join(op_input_labels)})."
                     )
 
         self._graph.add_flow(source_op, destination_op, io_maps)

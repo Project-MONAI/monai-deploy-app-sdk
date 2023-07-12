@@ -67,10 +67,10 @@ class NamedDataPath(Domain):
                 return next(iter(self._paths.values()))
             else:
                 raise IOMappingError(
-                    f"'{name}' is not a valid name. It should be one of ({', '.join(self._paths.keys())})."
+                    f"{name!r} is not a valid name. It should be one of ({', '.join(self._paths.keys())})."
                 )
         else:
             datapath = self._paths.get(name)
             if not datapath:
-                raise ItemNotExistsError(f"A DataPath instance for '{name}' does not exist.")
+                raise ItemNotExistsError(f"A DataPath instance for {name!r} does not exist.")
             return datapath

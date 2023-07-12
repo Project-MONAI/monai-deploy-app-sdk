@@ -37,7 +37,7 @@ class BaseEnv:
             if requirements_path.exists():
                 pip_packages = requirements_path.read_text().strip().splitlines()  # make it a list
             else:
-                raise FileNotFoundError(f"The '{requirements_path}' file does not exist!")
+                raise FileNotFoundError(f"The {requirements_path!r} file does not exist!")
 
         self._pip_packages = list(pip_packages or [])
 

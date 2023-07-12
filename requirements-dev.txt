@@ -19,8 +19,8 @@ Sphinx==4.1.2
 recommonmark==0.6.0
 sphinx-autodoc-typehints==1.12.0
 sphinx-rtd-theme==0.5.2
-pytest==6.2.4
-pytest-cov==2.12.1
+pytest==7.4.0
+pytest-cov==4.1.0
 pytest-lazy-fixture==0.6.3
 cucim~=21.06; platform_system == "Linux"
 monai>=1.0.0
