@@ -177,7 +177,7 @@ class DICOMSeriesSelectorOperator(Operator):
         study_selected_series_list = []
         for study in dicom_study_list:
             logging.info(f"Working on study, instance UID: {study.StudyInstanceUID}")
-            print((f"Working on study, instance UID: {study.StudyInstanceUID}"))
+            print(f"Working on study, instance UID: {study.StudyInstanceUID}")
             study_selected_series = StudySelectedSeries(study)
             for series in study.get_all_series():
                 logging.info(f"Working on series, instance UID: {str(series.SeriesInstanceUID)}")
@@ -213,7 +213,7 @@ class DICOMSeriesSelectorOperator(Operator):
             matched = True
             # Simple matching on attribute value
             for key, value_to_match in attributes.items():
-                logging.info(f"On attribute: '{key}' to match value: '{value_to_match}'")
+                logging.info(f"On attribute: {key!r} to match value: {value_to_match!r}")
                 # Ignore None
                 if not value_to_match:
                     continue

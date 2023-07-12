@@ -1,4 +1,4 @@
 numpy>=1.21.6
 networkx>=2.4
 colorama>=0.4.1
-typeguard~=2.12.1
+typeguard>=3.0.0

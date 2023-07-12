@@ -807,7 +807,7 @@ pytest_desc() { c_echo 'Run tests with pytest
 
 It executes the following command:
 
-  ' "${MONAI_PY_EXE}"' -m py.test --cache-clear -vv \
+  ' "${MONAI_PY_EXE}"' -m pytest --cache-clear -vv \
       --cov=monai \
       --junitxml="'"$TOP/junit-monai-deploy-app-sdk.xml"'" \
       --cov-config="'"$TOP/.coveragerc"'" \
@@ -826,7 +826,7 @@ pytest() {
     local result=0
 
     pushd $TOP > /dev/null
-    run_command ${MONAI_PY_EXE} -m py.test --cache-clear -vv \
+    run_command ${MONAI_PY_EXE} -m pytest --cache-clear -vv \
         --cov=monai \
         --junitxml="$TOP/junit-monai-deploy-app-sdk.xml" \
         --cov-config="$TOP/.coveragerc" \

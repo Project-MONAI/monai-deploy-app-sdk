@@ -36,7 +36,7 @@ def valid_dir_path(path: str) -> Path:
         if dir_path.is_dir():
             return dir_path
         else:
-            raise argparse.ArgumentTypeError(f"Expected directory path: '{dir_path}' is not a directory")
+            raise argparse.ArgumentTypeError(f"Expected directory path: {dir_path!r} is not a directory")
 
     # create directory
     dir_path.mkdir(parents=True)
@@ -58,7 +58,7 @@ def valid_existing_dir_path(path: str) -> Path:
     dir_path = Path(path).absolute()
     if dir_path.exists() and dir_path.is_dir():
         return dir_path
-    raise argparse.ArgumentTypeError(f"No such directory: '{dir_path}'")
+    raise argparse.ArgumentTypeError(f"No such directory: {dir_path!r}")
 
 
 def valid_existing_path(path: str) -> Path:
@@ -76,4 +76,4 @@ def valid_existing_path(path: str) -> Path:
     file_path = Path(path).absolute()
     if file_path.exists():
         return file_path
-    raise argparse.ArgumentTypeError(f"No such file/folder: '{file_path}'")
+    raise argparse.ArgumentTypeError(f"No such file/folder: {file_path!r}")
