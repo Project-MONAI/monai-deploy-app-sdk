@@ -25,4 +25,4 @@ python:
 
 
 build:
-  image: stable
+  image: latest
