@@ -2,7 +2,7 @@
 
 MONAI Deploy App SDK is available as a Python package through [Python Package Index (PyPI)](https://pypi.org/project/monai-deploy-app-sdk/).
 
-MONAI Deploy App SDK's core functionality is written in Python 3 (>= 3.7) for Linux.
+MONAI Deploy App SDK's core functionality is written in Python 3 (>= 3.8) for Linux.
 
 ```bash
 pip install monai-deploy-app-sdk
