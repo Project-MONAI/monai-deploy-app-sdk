@@ -93,11 +93,9 @@ def initialize_args(args: Namespace) -> Dict:
         dockerfile_type = verify_base_image(args.base)
         if not dockerfile_type:
             logger.error(
-                "Provided base image '{}' is not supported \n \
-                        Please provide a ROCm or Cuda based Pytorch image from \n \
-                        https://hub.docker.com/r/rocm/pytorch or https://ngc.nvidia.com/ (nvcr.io/nvidia)".format(
-                    args.base
-                )
+                "Provided base image '{}' is not supported \n                         Please provide a ROCm or Cuda"
+                " based Pytorch image from \n                         https://hub.docker.com/r/rocm/pytorch or"
+                " https://ngc.nvidia.com/ (nvcr.io/nvidia)".format(args.base)
             )
 
             sys.exit(1)

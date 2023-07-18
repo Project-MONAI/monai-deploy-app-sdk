@@ -177,11 +177,9 @@ class DICOMSeriesSelectorOperator(Operator):
         study_selected_series_list = []
         for study in dicom_study_list:
             logging.info(f"Working on study, instance UID: {study.StudyInstanceUID}")
-            print((f"Working on study, instance UID: {study.StudyInstanceUID}"))
             study_selected_series = StudySelectedSeries(study)
             for series in study.get_all_series():
                 logging.info(f"Working on series, instance UID: {str(series.SeriesInstanceUID)}")
-                print(f"Working on series, instance UID: {str(series.SeriesInstanceUID)}")
                 selected_series = SelectedSeries("", series, None)  # No selection name or Image obj.
                 study_selected_series.add_selected_series(selected_series)
             study_selected_series_list.append(study_selected_series)
