@@ -306,7 +306,9 @@ class MonaiSegInferenceOperator(InferenceOperator):
 
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         dataset = Dataset(data=[{self._input_dataset_key: img_name}], transform=pre_transforms)
-        dataloader = DataLoader(dataset, batch_size=1, shuffle=False, num_workers=0)  # Should the batch_size by dynamic?
+        dataloader = DataLoader(
+            dataset, batch_size=1, shuffle=False, num_workers=0
+        )  # Should the batch_size be dynamic?
 
         with torch.no_grad():
             for d in dataloader:
@@ -323,7 +325,8 @@ class MonaiSegInferenceOperator(InferenceOperator):
                     # Instantiates the SimpleInferer and directly uses its __call__ function
                     d[self._pred_dataset_key] = simple_inference()(inputs=images, network=self.model)
                 else:
-                    raise ValueError(f"Unknown inferer: {self._inferer!r}. Available options are {InfererType.SLIDING_WINDOW!r} and {InfererType.SIMPLE!r}."
+                    raise ValueError(
+                        f"Unknown inferer: {self._inferer!r}. Available options are {InfererType.SLIDING_WINDOW!r} and {InfererType.SIMPLE!r}."
                     )
 
                 d = [post_transforms(i) for i in decollate_batch(d)]
