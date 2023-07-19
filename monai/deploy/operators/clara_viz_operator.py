@@ -1,4 +1,4 @@
-# Copyright 2022 MONAI Consortium
+# Copyright 2022-2023 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -11,8 +11,7 @@
 
 import numpy as np
 
-import monai.deploy.core as md
-from monai.deploy.core import ExecutionContext, Image, InputContext, IOType, Operator, OutputContext
+from monai.deploy.core import Fragment, Operator, OperatorSpec
 from monai.deploy.utils.importutil import optional_import
 
 DataDefinition, _ = optional_import("clara.viz.core", name="DataDefinition")
@@ -24,17 +23,32 @@ Box, _ = optional_import("ipywidgets", name="Box")
 VBox, _ = optional_import("ipywidgets", name="VBox")
 
 
-@md.input("image", Image, IOType.IN_MEMORY)
-@md.input("seg_image", Image, IOType.IN_MEMORY)
-@md.env(pip_packages=["clara.viz.core", "clara.viz.widgets", "IPython"])
+# @md.env(pip_packages=["clara.viz.core", "clara.viz.widgets", "IPython"])
 class ClaraVizOperator(Operator):
     """
     This operator uses Clara Viz to provide interactive view of a 3D volume including segmentation mask.
+
+    Named input(s):
+        image: Image object of the input image, including key metadata, e.g. pixel spacings and orientations.
+        seg_image: Image object of the segmentation image derived from the input image.
     """
 
-    def __init__(self):
-        """Constructor of the operator."""
-        super().__init__()
+    def __init__(self, fragement: Fragment, *args, **kwargs):
+        """Constructor of the operator.
+
+        Args:
+            fragment (Fragment): An instance of the Application class which is derived from Fragment.
+        """
+
+        self.input_name_image = "image"
+        self.input_name_seg_image = "seg_image"
+
+        super().__init__(fragement, *args, **kwargs)
+
+    def setup(self, spec: OperatorSpec):
+        spec.input(self.input_name_image)
+        spec.input(self.input_name_seg_image)
+        # There is no output for downstream receiver(s), but interactive UI.
 
     @staticmethod
     def _build_array(image, order):
@@ -75,7 +89,7 @@ class ClaraVizOperator(Operator):
 
         return array
 
-    def compute(self, op_input: InputContext, op_output: OutputContext, context: ExecutionContext):
+    def compute(self, op_input, op_output, context):
         """Displays the input image and segmentation mask
 
         Args:
@@ -83,12 +97,12 @@ class ClaraVizOperator(Operator):
             op_output (OutputContext): An output context for the operator.
             context (ExecutionContext): An execution context for the operator.
         """
-        input_image = op_input.get("image")
+        input_image = op_input.receive(self.input_name_image)
         if not input_image:
-            raise ValueError("Input image is not found.")
-        input_seg_image = op_input.get("seg_image")
+            raise ValueError("Original density image not received in the input.")
+        input_seg_image = op_input.receive(self.input_name_seg_image)
         if not input_seg_image:
-            raise ValueError("Input segmentation image is not found.")
+            raise ValueError("Segmentation image not received in the input.")
 
         # build the data definition
         data_definition = DataDefinition()

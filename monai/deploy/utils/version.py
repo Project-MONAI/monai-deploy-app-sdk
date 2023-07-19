@@ -125,7 +125,7 @@ def get_sdk_semver():
         else:
             raise ValueError(f"Invalid semver string: {semver_str!r} (from {version_str!r})")
     else:
-        raise ValueError(f"Invalid version string: {version_str}")
+        raise ValueError(f"Invalid version string: {version_str!r}")
 
 
 if __name__ == "__main__":

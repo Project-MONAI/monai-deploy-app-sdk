@@ -1,4 +1,4 @@
-# Copyright 2021-2022 MONAI Consortium
+# Copyright 2021-2023 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -10,12 +10,13 @@
 # limitations under the License.
 
 import logging
+from pathlib import Path
 
 # Required for setting SegmentDescription attributes. Direct import as this is not part of App SDK package.
 from pydicom.sr.codedict import codes
 
-import monai.deploy.core as md
-from monai.deploy.core import Application, resource
+from monai.deploy.conditions import CountCondition
+from monai.deploy.core import AppContext, Application
 from monai.deploy.core.domain import Image
 from monai.deploy.core.io_type import IOType
 from monai.deploy.operators.dicom_data_loader_operator import DICOMDataLoaderOperator
@@ -29,13 +30,8 @@ from monai.deploy.operators.monai_bundle_inference_operator import (
 )
 
 
-@resource(cpu=1, gpu=1, memory="7Gi")
-# Enforcing torch>=1.12.0 because one of the Bundles/TorchScripts, Pancreas CT Seg, was created
-# with this version, and would fail to jit.load with lower version of torch.
-# The Bundle Inference Operator as of now only requires torch>=1.10.2, and does not yet dynamically
-# parse the MONAI bundle to get the required pip package or ver on initialization, hence it does not set
-# its own @env decorator accordingly when the app is being packaged into a MONAI Package.
-@md.env(pip_packages=["torch>=1.12.0"])
+# @resource(cpu=1, gpu=1, memory="7Gi")
+# @md.env(pip_packages=["torch>=1.12.0"])
 # pip_packages can be a string that is a path(str) to requirements.txt file or a list of packages.
 # The monai pkg is not required by this class, instead by the included operators.
 class App(Application):
@@ -63,9 +59,15 @@ class App(Application):
     Note:
     1. The TorchScript files of MONAI Bundles can be downloaded from MONAI Model Zoo, at
        https://github.com/Project-MONAI/model-zoo/tree/dev/models
+       https://github.com/Project-MONAI/model-zoo/tree/dev/models/spleen_ct_segmentation, v0.3.2
+       https://github.com/Project-MONAI/model-zoo/tree/dev/models/pancreas_ct_dints_segmentation, v0.3.8
     2. The input DICOM instances are from a DICOM Series of CT Abdomen, similar to the ones
        used in the Spleen Segmentation example
     3. This example is purely for technical demonstration, not for clinical use
+
+    Execution Time Estimate:
+      With a Nvidia GV100 32GB GPU, the execution time is around 87 seconds for an input DICOM series of 204 instances,
+      and 167 second for a series of 515 instances.
     """
 
     def __init__(self, *args, **kwargs):
@@ -84,40 +86,49 @@ class App(Application):
 
         logging.info(f"Begin {self.compose.__name__}")
 
+        app_context = AppContext({})  # Let it figure out all the attributes without overriding
+        app_input_path = Path(app_context.input_path)
+        app_output_path = Path(app_context.output_path)
+
         # Create the custom operator(s) as well as SDK built-in operator(s).
-        study_loader_op = DICOMDataLoaderOperator()
-        series_selector_op = DICOMSeriesSelectorOperator(Sample_Rules_Text)
-        series_to_vol_op = DICOMSeriesToVolumeOperator()
+        study_loader_op = DICOMDataLoaderOperator(
+            self, CountCondition(self, 1), input_folder=app_input_path, name="study_loader_op"
+        )
+        series_selector_op = DICOMSeriesSelectorOperator(self, rules=Sample_Rules_Text, name="series_selector_op")
+        series_to_vol_op = DICOMSeriesToVolumeOperator(self, name="series_to_vol_op")
 
         # Create the inference operator that supports MONAI Bundle and automates the inference.
         # The IOMapping labels match the input and prediction keys in the pre and post processing.
-        # The model_name is optional when the app has only one model.
-        # The bundle_path argument optionally can be set to an accessible bundle file path in the dev
-        # environment, so when the app is packaged into a MAP, the operator can complete the bundle parsing
-        # during init to provide the optional packages info, parsed from the bundle, to the packager
-        # for it to install the packages in the MAP docker image.
-        # Setting output IOType to DISK only works only for leaf operators, not the case in this example.
-        # When multiple models/bundles are supported, create an inference operator for each.
+        # The model_name needs to be provided as this is a multi-model application and each inference
+        # operator need to rely on the name to access the named loaded model network.
+        # create an inference operator for each.
         #
         # Pertinent MONAI Bundle:
         #   https://github.com/Project-MONAI/model-zoo/tree/dev/models/spleen_ct_segmentation, v0.3.2
-        #   https://github.com/Project-MONAI/model-zoo/tree/dev/models/pancreas_ct_dints_segmentation, v0.3
+        #   https://github.com/Project-MONAI/model-zoo/tree/dev/models/pancreas_ct_dints_segmentation, v0.3.8
 
         config_names = BundleConfigNames(config_names=["inference"])  # Same as the default
 
         # This is the inference operator for the spleen_model bundle. Note the model name.
         bundle_spleen_seg_op = MonaiBundleInferenceOperator(
+            self,
             input_mapping=[IOMapping("image", Image, IOType.IN_MEMORY)],
             output_mapping=[IOMapping("pred", Image, IOType.IN_MEMORY)],
+            app_context=app_context,
             bundle_config_names=config_names,
             model_name="spleen_ct",
+            name="bundle_spleen_seg_op",
         )
 
         # This is the inference operator for the pancreas_ct_dints bundle. Note the model name.
         bundle_pancreas_seg_op = MonaiBundleInferenceOperator(
+            self,
             input_mapping=[IOMapping("image", Image, IOType.IN_MEMORY)],
             output_mapping=[IOMapping("pred", Image, IOType.IN_MEMORY)],
+            app_context=app_context,
+            bundle_config_names=config_names,
             model_name="pancreas_ct_dints",
+            name="bundle_pancreas_seg_op",
         )
 
         # Create DICOM Seg writer providing the required segment description for each segment with
@@ -141,24 +152,44 @@ class App(Application):
 
         custom_tags_spleen = {"SeriesDescription": "AI Spleen Seg for research use only. Not for clinical use."}
         dicom_seg_writer_spleen = DICOMSegmentationWriterOperator(
-            segment_descriptions=seg_descriptions_spleen, custom_tags=custom_tags_spleen
+            self,
+            segment_descriptions=seg_descriptions_spleen,
+            custom_tags=custom_tags_spleen,
+            output_folder=app_output_path,
+            name="dicom_seg_writer_spleen",
         )
 
         # Description for the Pancreas seg, and the seg writer obj
+        _algorithm_name = "Pancreas CT DiNTS segmentation from CT image"
+        _algorithm_family = codes.DCM.ArtificialIntelligence
+        _algorithm_version = "0.3.8"
+
         seg_descriptions_pancreas = [
             SegmentDescription(
                 segment_label="Pancreas",
                 segmented_property_category=codes.SCT.Organ,
                 segmented_property_type=codes.SCT.Pancreas,
-                algorithm_name="volumetric (3D) segmentation of the pancreas from CT image",
-                algorithm_family=codes.DCM.ArtificialIntelligence,
-                algorithm_version="0.3.0",
-            )
+                algorithm_name=_algorithm_name,
+                algorithm_family=_algorithm_family,
+                algorithm_version=_algorithm_version,
+            ),
+            SegmentDescription(
+                segment_label="Tumor",
+                segmented_property_category=codes.SCT.Tumor,
+                segmented_property_type=codes.SCT.Tumor,
+                algorithm_name=_algorithm_name,
+                algorithm_family=_algorithm_family,
+                algorithm_version=_algorithm_version,
+            ),
         ]
         custom_tags_pancreas = {"SeriesDescription": "AI Pancreas Seg for research use only. Not for clinical use."}
 
         dicom_seg_writer_pancreas = DICOMSegmentationWriterOperator(
-            segment_descriptions=seg_descriptions_pancreas, custom_tags=custom_tags_pancreas
+            self,
+            segment_descriptions=seg_descriptions_pancreas,
+            custom_tags=custom_tags_pancreas,
+            output_folder=app_output_path,
+            name="dicom_seg_writer_pancreas",
         )
 
         # NOTE: Sharp eyed readers can already see that the above instantiation of object can be simply parameterized.
@@ -166,29 +197,31 @@ class App(Application):
 
         # Create the processing pipeline, by specifying the upstream and downstream operators, and
         # ensuring the output from the former matches the input of the latter, in both name and type.
-        self.add_flow(study_loader_op, series_selector_op, {"dicom_study_list": "dicom_study_list"})
+        self.add_flow(study_loader_op, series_selector_op, {("dicom_study_list", "dicom_study_list")})
         self.add_flow(
-            series_selector_op, series_to_vol_op, {"study_selected_series_list": "study_selected_series_list"}
+            series_selector_op, series_to_vol_op, {("study_selected_series_list", "study_selected_series_list")}
         )
 
         # Feed the input image to all inference operators
-        self.add_flow(series_to_vol_op, bundle_spleen_seg_op, {"image": "image"})
+        self.add_flow(series_to_vol_op, bundle_spleen_seg_op, {("image", "image")})
         # The Pancreas CT Seg bundle requires PyTorch 1.12.0 to avoid failure to load.
-        self.add_flow(series_to_vol_op, bundle_pancreas_seg_op, {"image": "image"})
+        self.add_flow(series_to_vol_op, bundle_pancreas_seg_op, {("image", "image")})
 
         # Create DICOM Seg for one of the inference output
         # Note below the dicom_seg_writer requires two inputs, each coming from a upstream operator.
         self.add_flow(
-            series_selector_op, dicom_seg_writer_spleen, {"study_selected_series_list": "study_selected_series_list"}
+            series_selector_op, dicom_seg_writer_spleen, {("study_selected_series_list", "study_selected_series_list")}
         )
-        self.add_flow(bundle_spleen_seg_op, dicom_seg_writer_spleen, {"pred": "seg_image"})
+        self.add_flow(bundle_spleen_seg_op, dicom_seg_writer_spleen, {("pred", "seg_image")})
 
         # Create DICOM Seg for one of the inference output
         # Note below the dicom_seg_writer requires two inputs, each coming from a upstream operator.
         self.add_flow(
-            series_selector_op, dicom_seg_writer_pancreas, {"study_selected_series_list": "study_selected_series_list"}
+            series_selector_op,
+            dicom_seg_writer_pancreas,
+            {("study_selected_series_list", "study_selected_series_list")},
         )
-        self.add_flow(bundle_pancreas_seg_op, dicom_seg_writer_pancreas, {"pred": "seg_image"})
+        self.add_flow(bundle_pancreas_seg_op, dicom_seg_writer_pancreas, {("pred", "seg_image")})
 
         logging.info(f"End {self.compose.__name__}")
 
@@ -219,5 +252,6 @@ if __name__ == "__main__":
     # e.g.
     #     monai-deploy exec app.py -i input -m model/model.ts
     #
-    logging.basicConfig(level=logging.DEBUG)
-    app_instance = App(do_run=True)
+    logging.info(f"Begin {__name__}")
+    App().run()
+    logging.info(f"End {__name__}")

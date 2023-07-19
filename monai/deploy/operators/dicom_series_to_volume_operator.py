@@ -1,4 +1,4 @@
-# Copyright 2021-2022 MONAI Consortium
+# Copyright 2021-2023 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -16,30 +16,49 @@ from typing import Dict, List, Union
 
 import numpy as np
 
-import monai.deploy.core as md
-from monai.deploy.core import ExecutionContext, Image, InputContext, IOType, Operator, OutputContext
+from monai.deploy.core import ConditionType, Fragment, Operator, OperatorSpec
 from monai.deploy.core.domain.dicom_series_selection import StudySelectedSeries
+from monai.deploy.core.domain.image import Image
 
 
-@md.input("study_selected_series_list", List[StudySelectedSeries], IOType.IN_MEMORY)
-@md.output("image", Image, IOType.IN_MEMORY)
 class DICOMSeriesToVolumeOperator(Operator):
     """This operator converts an instance of DICOMSeries into an Image object.
 
     The loaded Image Object can be used for further processing via other operators.
     The data array will be a 3D image NumPy array with index order of `DHW`.
     Channel is limited to 1 as of now, and `C` is absent in the NumPy array.
+
+    Named Input:
+        study_selected_series_list: List of StudySelectedSeries.
+    Named Output:
+        image: Image object.
     """
 
-    def compute(self, op_input: InputContext, op_output: OutputContext, context: ExecutionContext):
+    def __init__(self, fragment: Fragment, *args, **kwargs):
+        """Create an instance for a containing application object.
+
+        Args:
+            fragment (Fragment): An instance of the Application class which is derived from Fragment.
+        """
+
+        self.input_name_series = "study_selected_series_list"
+        self.output_name_image = "image"
+        # Need to call the base class constructor last
+        super().__init__(fragment, *args, **kwargs)
+
+    def setup(self, spec: OperatorSpec):
+        spec.input(self.input_name_series)
+        spec.output(self.output_name_image).condition(ConditionType.NONE)
+
+    def compute(self, op_input, op_output, context):
         """Performs computation for this operator and handles I/O."""
 
-        study_selected_series_list = op_input.get("study_selected_series_list")
+        study_selected_series_list = op_input.receive(self.input_name_series)
 
         # TODO: need to get a solution to correctly annotate and consume multiple image outputs.
         # For now, only supports the one and only one selected series.
         image = self.convert_to_image(study_selected_series_list)
-        op_output.set(image, "image")
+        op_output.emit(image, self.output_name_image)
 
     def convert_to_image(self, study_selected_series_list: List[StudySelectedSeries]) -> Union[Image, None]:
         """Extracts the pixel data from a DICOM Series and other attributes to create an Image object"""
@@ -395,15 +414,16 @@ def test():
     from monai.deploy.operators.dicom_series_selector_operator import DICOMSeriesSelectorOperator
 
     current_file_dir = Path(__file__).parent.resolve()
-    data_path = current_file_dir.joinpath("../../../examples/ai_spleen_seg_data/dcm")
-    loader = DICOMDataLoaderOperator()
-    study_list = loader.load_data_to_studies(Path(data_path).absolute())
+    data_path = current_file_dir.joinpath("../../../inputs/spleen_ct/dcm").absolute()
 
-    series_selector = DICOMSeriesSelectorOperator()
+    fragment = Fragment()
+    loader = DICOMDataLoaderOperator(fragment, name="loader_op")
+    series_selector = DICOMSeriesSelectorOperator(fragment, name="selector_op")
+    vol_op = DICOMSeriesToVolumeOperator(fragment, name="series_to_vol_op")
+
+    study_list = loader.load_data_to_studies(data_path)
     study_selected_series_list = series_selector.filter(None, study_list)
-
-    op = DICOMSeriesToVolumeOperator()
-    image = op.convert_to_image(study_selected_series_list)
+    image = vol_op.convert_to_image(study_selected_series_list)
 
     print(f"Image NumPy array shape (index order DHW): {image.asnumpy().shape}")
     for k, v in image.metadata().items():
