@@ -27,7 +27,7 @@ class AppContext(object):
         self.runtime_env = runtime_env or RuntimeEnv()
 
         self._model_loaded = False  # If it has tried to load the models.
-        self.model_path = None  # To be set next.
+        self.model_path = ""  # To be set next.
         self.update(args)
 
     def update(self, args: Dict[str, str]):
