@@ -326,7 +326,8 @@ class MonaiSegInferenceOperator(InferenceOperator):
                     d[self._pred_dataset_key] = simple_inference()(inputs=images, network=self.model)
                 else:
                     raise ValueError(
-                        f"Unknown inferer: {self._inferer!r}. Available options are {InfererType.SLIDING_WINDOW!r} and {InfererType.SIMPLE!r}."
+                        f"Unknown inferer: {self._inferer!r}. Available options are "
+                        f"{InfererType.SLIDING_WINDOW!r} and {InfererType.SIMPLE!r}."
                     )
 
                 d = [post_transforms(i) for i in decollate_batch(d)]
