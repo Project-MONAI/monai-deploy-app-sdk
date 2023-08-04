@@ -168,7 +168,7 @@ def optional_import(
     descriptor: str = OPTIONAL_IMPORT_MSG_FMT,
     version_args: Any = None,
     allow_namespace_pkg: bool = False,
-    as_type: str = "default"
+    as_type: str = "default",
 ) -> Tuple[Any, bool]:
     """
     Imports an optional module specified by `module` string.
