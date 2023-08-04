@@ -10,10 +10,12 @@
 # limitations under the License.
 
 from contextlib import contextmanager
-from unittest.mock import patch
 
 import pytest
-from pytest_lazyfixture import lazy_fixture
+
+# from unittest.mock import patch
+
+# from pytest_lazyfixture import lazy_fixture
 
 
 class ContainsString(str):
