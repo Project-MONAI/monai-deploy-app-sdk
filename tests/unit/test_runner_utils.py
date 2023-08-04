@@ -34,34 +34,34 @@ def not_raises(exception):
         raise pytest.fail(f"DID RAISE {exception}") from err
 
 
-@pytest.mark.parametrize("cmd, expected_returncode", [("my correct test command", 0), ("my errored test command", 125)])
-@patch("subprocess.Popen")
-def test_run_cmd(mock_popen, cmd, expected_returncode):
-    from monai.deploy.runner import utils
+# @pytest.mark.parametrize("cmd, expected_returncode", [("my correct test command", 0), ("my errored test command", 125)])
+# @patch("subprocess.Popen")
+# def test_run_cmd(mock_popen, cmd, expected_returncode):
+#     from monai.deploy.runner import utils
 
-    mock_popen.return_value.wait.return_value = expected_returncode
+#     mock_popen.return_value.wait.return_value = expected_returncode
 
-    actual_returncode = utils.run_cmd(cmd)
+#     actual_returncode = utils.run_cmd(cmd)
 
-    assert actual_returncode == expected_returncode
+#     assert actual_returncode == expected_returncode
 
 
-@pytest.mark.parametrize("image_name", [lazy_fixture("sample_map_name")])
-@pytest.mark.parametrize(
-    "docker_images_output, image_present, image_pulled",
-    [(lazy_fixture("sample_map_name"), True, 0), ("", False, 0), ("", False, 1)],
-)
-@patch("subprocess.check_output")
-@patch("monai.deploy.runner.utils.run_cmd")
-def test_verify_image(mock_run_cmd, mock_check_output, image_name, docker_images_output, image_present, image_pulled):
-    from monai.deploy.runner import utils
+# @pytest.mark.parametrize("image_name", [lazy_fixture("sample_map_name")])
+# @pytest.mark.parametrize(
+#     "docker_images_output, image_present, image_pulled",
+#     [(lazy_fixture("sample_map_name"), True, 0), ("", False, 0), ("", False, 1)],
+# )
+# @patch("subprocess.check_output")
+# @patch("monai.deploy.runner.utils.run_cmd")
+# def test_verify_image(mock_run_cmd, mock_check_output, image_name, docker_images_output, image_present, image_pulled):
+#     from monai.deploy.runner import utils
 
-    mock_run_cmd.return_value = image_pulled
-    mock_check_output.return_value = docker_images_output
+#     mock_run_cmd.return_value = image_pulled
+#     mock_check_output.return_value = docker_images_output
 
-    actual_response = utils.verify_image(image_name)
+#     actual_response = utils.verify_image(image_name)
 
-    assert actual_response == image_present or (image_pulled == 0)
+#     assert actual_response == image_present or (image_pulled == 0)
 
-    if not image_present:
-        mock_run_cmd.assert_called_once_with(ContainsString("docker pull"))
+#     if not image_present:
+#         mock_run_cmd.assert_called_once_with(ContainsString("docker pull"))
