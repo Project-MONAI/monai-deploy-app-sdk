@@ -142,13 +142,7 @@ Sample_Rules_Text = """
 """
 
 if __name__ == "__main__":
-    # Creates the app and test it standalone. When running is this mode, please note the following:
-    #     -m <model file>, for model file path
-    #     -i <DICOM folder>, for input DICOM CT series folder
-    #     -o <output folder>, for the output folder, default $PWD/output
-    # e.g.
-    #     python3 app.py -i input -m model/model.ts
-    #
+    # Creates the app and test it standalone.
     logging.info(f"Begin {__name__}")
     AILiverTumorApp().run()
     logging.info(f"End {__name__}")

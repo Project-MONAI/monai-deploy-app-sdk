@@ -14,7 +14,7 @@ from pathlib import Path
 
 from monai.deploy.core import AppContext, ConditionType, Fragment, Operator, OperatorSpec
 from monai.deploy.operators.monai_seg_inference_operator import InfererType, InMemImageReader, MonaiSegInferenceOperator
-from monai.transforms import (  # SaveImaged,
+from monai.transforms import (
     Activationsd,
     AsDiscreted,
     Compose,
@@ -26,19 +26,16 @@ from monai.transforms import (  # SaveImaged,
     Spacingd,
 )
 
+# from monai.transforms import SaveImaged  # If saving input and seg images uding inference is needed.
 # from numpy import uint8  # Needed if SaveImaged is enabled
 
 
-# @md.env(pip_packages=["monai>=1.0.0", "torch>=1.5", "numpy>=1.21", "nibabel"])
 class LiverTumorSegOperator(Operator):
     """Performs liver and tumor segmentation using a DL model with an image converted from a DICOM CT series.
 
-    The model used in this application is from NVIDIA, publicly available at
-    https://ngc.nvidia.com/catalog/models/nvidia:med:clara_pt_liver_and_tumor_ct_segmentation
-
-    Described in the downloaded model package, also called Medical Model Archive (MMAR), are the pre and post
-    transforms and inference configurations. The MONAI Core transforms are used, as such, these transforms are
-    simply ported to this operator, while changing SegmentationSaver "handler" to SaveImageD post "transform".
+    The model used in this application is from NVIDIA, and includes configurations for both the pre and post
+    transforms as well as inferer. The MONAI Core transforms are used, as such, these transforms are
+    simply ported to this operator.
 
     This operator makes use of the App SDK MonaiSegInferenceOperator in a composition approach.
     It creates the pre-transforms as well as post-transforms with MONAI dictionary based transforms.
@@ -58,7 +55,7 @@ class LiverTumorSegOperator(Operator):
 
     def __init__(
         self,
-        frament: Fragment,
+        fragment: Fragment,
         *args,
         app_context: AppContext,
         model_path: Path,
@@ -72,15 +69,14 @@ class LiverTumorSegOperator(Operator):
         self.model_path = model_path
         self.output_folder = output_folder
         self.output_folder.mkdir(parents=True, exist_ok=True)
-        self.fragement = frament  # Cache and later pass the Fragment/Application to contained operator(s)
         self.app_context = app_context
         self.input_name_image = "image"
         self.output_name_seg = "seg_image"
         self.output_name_saved_images_folder = "saved_images_folder"
 
-        self.fragement = frament
-
-        super().__init__(frament, *args, **kwargs)
+        # Call the base class __init__() last.
+        # Also, the base class has an attribute called fragment for storing the fragment object
+        super().__init__(fragment, *args, **kwargs)
 
     def setup(self, spec: OperatorSpec):
         spec.input(self.input_name_image)
@@ -108,7 +104,7 @@ class LiverTumorSegOperator(Operator):
 
         # Delegates inference and saving output to the built-in operator.
         infer_operator = MonaiSegInferenceOperator(
-            self.fragement,
+            self.fragment,
             roi_size=(
                 160,
                 160,
@@ -122,6 +118,7 @@ class LiverTumorSegOperator(Operator):
             inferer=InfererType.SLIDING_WINDOW,
             sw_batch_size=4,
             model_path=self.model_path,
+            name="monai_seg_inference_op",
         )
 
         # Setting the keys used in the dictionary based transforms
