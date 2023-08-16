@@ -26,7 +26,7 @@ jupyter-lab
 
 ```{raw} html
 <p style="text-align: center;">
-    <a class="sphinx-bs btn text-wrap btn-outline-primary col-md-6 reference external" href="../../_static/notebooks/tutorials/07_multi_model_app.ipynb">
+    <a class="sphinx-bs btn text-wrap btn-outline-primary col-md-6 reference external" href="../../_static/notebooks/tutorials/05_multi_model_app.ipynb">
         <span>Download 05_multi_model_app.ipynb</span>
     </a>
 </p>

@@ -1,6 +1,6 @@
-# Creating a Segmentation App
+# Creating a Segmentation App with a TorchScript Model
 
-This tutorial shows how to create an organ segmentation application for a PyTorch model that has been trained with MONAI, with assuming the model file is a MONAI Bundle.
+This tutorial shows how to create an organ segmentation application for a PyTorch model that has been trained with MONAI and saved as TorchScript, without necessarily being a MONAI bundle.
 
 Please note that the following steps are for demonstration purpose. The code pulled from GitHub is not the same as that in the actual Jupyter Notebook, which deliberately does not use the MONAI Bundle Inference Operator.
 
@@ -22,18 +22,6 @@ jupyter-lab
 :maxdepth: 4
 
 ../../notebooks/tutorials/03_segmentation_app.ipynb
-```
-
-```{raw} html
-<div style="text-align: center;">
-    <iframe width="560" height="315" src="https://www.youtube.com/embed/cqDVxzYt9lY" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
-</div>
-```
-
-```{raw} html
-<div style="text-align: center;">
-    <iframe width="560" height="315" src="https://www.youtube.com/embed/nivgfD4pwWE" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
-</div>
 ```
 
 ```{raw} html
