@@ -1,6 +1,6 @@
 # Creating a Segmentation App Including Including Visualization with Clara-Viz
 
-This tutorial shows how to create an organ segmentation application for a PyTorch model that has been trained with MONAI, and visualize the segmentation and input images with Clara Viz integration.
+This tutorial shows how to create an organ segmentation application for a PyTorch model that has been trained with MONAI, with visualization of the segmentation and input images with Clara Viz integration.
 
 ## Setup
 

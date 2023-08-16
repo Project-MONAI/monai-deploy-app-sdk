@@ -7,8 +7,6 @@ This tutorial shows how to create an organ segmentation application for a PyTorc
 ```bash
 # Create a virtual environment with Python 3.8.
 # Skip if you are already in a virtual environment.
-# (JupyterLab dropped its support for Python 3.6 since 2021-12-23.
-#  See https://github.com/jupyterlab/jupyterlab/pull/11740)
 conda create -n monai python=3.8 pytorch torchvision jupyterlab cudatoolkit=11.1 -c pytorch -c conda-forge
 conda activate monai
 
@@ -21,13 +19,13 @@ jupyter-lab
 ```{toctree}
 :maxdepth: 4
 
-../../notebooks/tutorials/06_monai_bundle_app.ipynb
+../../notebooks/tutorials/04_monai_bundle_app.ipynb
 ```
 
 ```{raw} html
 <p style="text-align: center;">
-    <a class="sphinx-bs btn text-wrap btn-outline-primary col-md-6 reference external" href="../../_static/notebooks/tutorials/06_monai_bundle_app.ipynb">
-        <span>Download 06_monai_bundle_app.ipynb</span>
+    <a class="sphinx-bs btn text-wrap btn-outline-primary col-md-6 reference external" href="../../_static/notebooks/tutorials/05_monai_bundle_app.ipynb">
+        <span>Download 04_monai_bundle_app.ipynb</span>
     </a>
 </p>
 ```
@@ -49,27 +47,40 @@ pip install --upgrade monai-deploy-app-sdk
 pip install gdown
 gdown https://drive.google.com/uc?id=1Uds8mEvdGNYUuvFpTtCQ8gNU97bAPCaQ
 
-# After downloading it using gdown, unzip the zip file saved by gdown
+# After downloading it using gdown, unzip the zip file saved by gdown and
+# copy the model file into a folder structure that is required by CLI Packager
+rm -rf dcm
 unzip -o ai_spleen_seg_bundle_data.zip
+rm -rf spleen_model && mkdir -p spleen_model && mv model.ts spleen_model && ls spleen_model
 
 # Install necessary packages from the app; note that numpy-stl and trimesh are only
 # needed if the application uses the STL Conversion Operator
 pip install monai torch pydicom highdicom SimpleITK Pillow nibabel scikit-image numpy-stl trimesh
 
+# Use env variables for input, output, and model paths for local running of Python application
+export HOLOSCAN_INPUT_PATH=dcm
+export HOLOSCAN_MODEL_PATH=spleen_model/model.ts
+export HOLOSCAN_OUTPUT_PATH="output"
+export HOLOSCAN_LOG_LEVEL=TRACE
+
 # Local execution of the app directly or using MONAI Deploy CLI
-python examples/apps/ai_spleen_seg_app/app.py -i dcm/ -o output -m model.ts
-# or alternatively,
-monai-deploy exec ../examples/apps/ai_spleen_seg_app/app.py -i dcm/ -o output -m model.ts
+python examples/apps/ai_spleen_seg_app/app.py
 
 # Package app (creating MAP docker image) using `-l DEBUG` option to see progress.
 # This assumes that nvidia docker is installed in the local machine.
 # Please see https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html#docker to install nvidia-docker2.
-monai-deploy package examples/apps/ai_spleen_seg_app --tag seg_app:latest --model model.ts -l DEBUG
+monai-deploy package examples/apps/ai_spleen_seg_app \
+    --config examples/apps/ai_spleen_seg_app/app.yaml \
+    --tag seg_app:latest \
+    --models spleen_model/model.ts \
+    --platform x64-workstation \
+    -l DEBUG
 
-# For AMD GPUs, nvidia-docker is not required. Use --base [base image] option to override the docker base image.
-# Please see https://hub.docker.com/r/rocm/pytorch for rocm/pytorch docker images.
-monai-deploy package -b rocm/pytorch:rocm5.4.1_ubuntu20.04_py3.7_pytorch_1.12.1 examples/apps/ai_spleen_seg_app --tag seg_app:latest --model model.ts -l DEBUG
+# Note: for AMD GPUs, nvidia-docker is not required, but the dependency of the App SDK, namely Holoscan SDK
+#       has not been tested to work with a ROCM base image.
 
 # Run the app with docker image and input file locally
-monai-deploy run seg_app:latest dcm/ output
+rm -rf output
+monai-deploy run seg_app-x64-workstation-dgpu-linux-amd64:latest -i dcm -o output
+ls -R output
 ```
