@@ -34,7 +34,15 @@
 """
 
 # If needed, can choose to expose some or all of Holoscan SDK built-in operators.
-from holoscan.operators import *
+# from holoscan.operators import *
+from holoscan.operators import (
+    FormatConverterOp,
+    HolovizOp,
+    PingRxOp,
+    PingTxOp,
+    VideoStreamRecorderOp,
+    VideoStreamReplayerOp,
+)
 
 from .clara_viz_operator import ClaraVizOperator
 from .dicom_data_loader_operator import DICOMDataLoaderOperator
@@ -51,15 +59,3 @@ from .nii_data_loader_operator import NiftiDataLoader
 from .png_converter_operator import PNGConverterOperator
 from .publisher_operator import PublisherOperator
 from .stl_conversion_operator import STLConversionOperator, STLConverter
-
-# from holoscan.operators import (
-#     FormatConverterOp,
-#     HolovizOp,
-#     InferenceOp,
-#     InferenceProcessorOp,
-#     PingRxOp,
-#     PingTxOp,
-#     SegmentationPostprocessorOp,
-#     VideoStreamRecorderOp,
-#     VideoStreamReplayerOp,
-# )
