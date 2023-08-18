@@ -12,14 +12,14 @@
 .. autosummary::
     :toctree: _autosummary
 
+    conditions
     core
+    loggers
+    resources
     utils
-    packager
-    runner
-    cli
     exceptions
 """
 
-from . import _version, core, exceptions, resources, utils
+from . import _version, conditions, core, exceptions, logger, resources, utils
 
 __version__ = _version.get_versions()["version"]

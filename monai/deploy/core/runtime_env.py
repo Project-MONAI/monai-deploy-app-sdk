@@ -19,7 +19,7 @@ from typing import Dict, Optional, Tuple
 
 
 class RuntimeEnv(ABC):
-    """Class responsible to managing run time settings.
+    """Class responsible for managing run time settings.
 
     The expected environment variables are the keys in the defaults dictionary,
     and they can be set to override the defaults.

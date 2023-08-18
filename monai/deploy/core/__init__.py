@@ -13,42 +13,26 @@
     :toctree: _autosummary
 
     Application
+    Fragment
     Operator
-    env
-    input
-    output
-    resource
-    IOType
+    Condition
+    ConditionType
+    AppContext
     ExecutionContext
+    OperatorSpec
+    IOType
     InputContext
     OutputContext
+    RuntimeEnv
 """
 
 # Need to import explicit ones to quiet mypy complaints
 from holoscan.core import *
-from holoscan.core import Application, ConditionType, Fragment, Operator, OperatorSpec
+from holoscan.core import Application, Condition, ConditionType, Fragment, Operator, OperatorSpec
 
 from .app_context import AppContext
 from .domain.datapath import DataPath
 from .domain.image import Image
-
-# from .env import env
 from .io_type import IOType
 from .models import Model, ModelFactory, NamedModel, TorchScriptModel, TritonModel
 from .runtime_env import RuntimeEnv
-
-# from .resource import resource
-
-
-# Create function to add to the Application class
-def load_models(modle_path: str):
-    """_summary_
-
-    Args:
-        modle_path (str): _description_
-    """
-
-    return ModelFactory.create(modle_path)
-
-
-Application.load_models = load_models
