@@ -84,6 +84,9 @@ Those domain object classes are controllable by the SDK so can be optimized furt
 
 The full list of Domain Object classes are available [here](/modules/domain_objects).
 
+:::{note}
+**`The functionality of mapping DataPath to the input and output of root and leaf operator(s) is absent starting with Release V0.6 of this App SDK, due to the move to rely on Holoscan SDK. It is planned to be re-introduced at a later time. For the time being, the application's input and output folders are passed to the root and leaf operators' constructor, as needed.`**
+
 Among those classes, [**DataPath**](/modules/_autosummary/monai.deploy.core.domain.DataPath) data type is special.
 
 - If an operator in the workflow graph is a root node (a node with no incoming edges) and its input's `(<data type>, <storage type>) == (DataPath, DISK)`, the input path given by the user [during the execution](/developing_with_sdk/executing_app_locally) would be mapped into the input of the operator.
@@ -102,9 +105,10 @@ In `A linear workflow` example above, if the workflow is processing the image da
   - **Output** (`output3`): a file path ([`DataPath`](/modules/_autosummary/monai.deploy.core.domain.DataPath), [`DISK`](/modules/_autosummary/monai.deploy.core.IOType))
 
 Note that `input1` and `output3` are [DataPath](/modules/_autosummary/monai.deploy.core.domain.DataPath) type with [IOType.DISK](/modules/_autosummary/monai.deploy.core.IOType). Those paths are mapped into input and output paths given by the user during the execution.
+:::
 
 :::{note}
-The above workflow graph is the same as a [Simple Image Processing App](/getting_started/tutorials/01_simple_app). Please look at the tutorial to see how such an application can be made with MONAI Deploy App SDK.
+The above workflow graph is the same as a [Simple Image Processing App](/getting_started/tutorials/simple_app). Please look at the tutorial to see how such an application can be made with MONAI Deploy App SDK.
 :::
 
 ## Complex Workflows
