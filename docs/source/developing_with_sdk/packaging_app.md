@@ -62,9 +62,11 @@ Successfully built my_app:latest
 
 The MAP image name will be postfixed with the platform info to become `my_app-x64-workstation-dgpu-linux-amd64:latest`, and will be seen in the list of container images on the user's local machine when the command `docker images` is run.
 
-```{note}
+:::{note}
 * The current implementation of the Packager **ONLY** supports a set of [platform](https://docs.nvidia.com/holoscan/sdk-user-guide/cli/package.html#platform-platform) specific base images from `nvcr.io` as base images for the MAP.
-```
+
+* To package a MAP to run on ARMv8 AArch64 on Linux with discrete GPU, replace the commandline option `--platform x64-workstation` with `--platform igx-orin-devkit --platform-config dgpu`. It has been tested on [NVIDIA IGX Orin](https://www.nvidia.com/en-us/edge-computing/products/igx/).
+:::
 
 ## Next Step
 
