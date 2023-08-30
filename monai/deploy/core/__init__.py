@@ -24,15 +24,22 @@
     InputContext
     OutputContext
     RuntimeEnv
+    init_app_context
+    parse_args
 """
 
 # Need to import explicit ones to quiet mypy complaints
 from holoscan.core import *
 from holoscan.core import Application, Condition, ConditionType, Fragment, Operator, OperatorSpec
 
-from .app_context import AppContext
+from .app_context import AppContext, init_app_context
+from .arg_parser import parse_args
 from .domain.datapath import DataPath
 from .domain.image import Image
 from .io_type import IOType
 from .models import Model, ModelFactory, NamedModel, TorchScriptModel, TritonModel
 from .runtime_env import RuntimeEnv
+
+# Add the function to the existing Application class, which could've been used as helper func too.
+# It is well understood that deriving from the Application base is a better approach, but maybe later.
+Application.init_app_context = init_app_context

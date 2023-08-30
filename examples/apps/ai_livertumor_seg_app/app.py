@@ -46,7 +46,8 @@ class AILiverTumorApp(Application):
         """Creates the app specific operators and chain them up in the processing DAG."""
 
         self._logger.info(f"Begin {self.compose.__name__}")
-        app_context = AppContext({})  # Let it figure out all the attributes without overriding
+        # Use command line options over environment variables to init context.
+        app_context = Application.init_app_context(self.argv)
         app_input_path = Path(app_context.input_path)
         app_output_path = Path(app_context.output_path)
         model_path = Path(app_context.model_path)

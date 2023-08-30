@@ -9,9 +9,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import logging
 from os.path import abspath
-from typing import Dict, Optional
+from typing import Dict, List, Optional
 
+from .arg_parser import parse_args, set_up_logging
 from .models.factory import ModelFactory
 from .models.model import Model
 from .runtime_env import RuntimeEnv
@@ -55,3 +57,26 @@ class AppContext(object):
             f"AppContext(input_path={self.input_path}, output_path={self.output_path}, "
             f"model_path={self.model_path}, workdir={self.workdir})"
         )
+
+
+def init_app_context(argv: Optional[List[str]] = None, runtime_env: Optional[RuntimeEnv] = None) -> AppContext:
+    """Initializes the app context with arguments and well-known environment variables.
+
+    The arguments, if passed in, override the attributes set with environment variables.
+
+    Args:
+        argv (Optional[List[str]], optional): arguments passed to the program. Defaults to None.
+
+    Returns:
+        AppContext: the AppContext object
+    """
+
+    args = parse_args(argv)
+    set_up_logging(args.log_level)
+    logging.info(f"Parsed args: {args}")
+
+    # The parsed args from the command line override that from the environment variables
+    app_context = AppContext({key: val for key, val in vars(args).items() if val}, runtime_env)
+    logging.info(f"AppContext object: {app_context}")
+
+    return app_context

@@ -24,6 +24,7 @@ from monai.transforms import AddChannel, Compose, EnsureType, ScaleIntensity
 MEDNIST_CLASSES = ["AbdomenCT", "BreastMRI", "CXR", "ChestCT", "Hand", "HeadCT"]
 
 
+# Decorator support is not available in this version of the SDK, to be re-introduced later
 # @md.env(pip_packages=["pillow"])
 class LoadPILOperator(Operator):
     """Load image from the given input (DataPath) and set numpy array to the output (Image)."""
@@ -200,13 +201,15 @@ class MedNISTClassifierOperator(Operator):
             json.dump(result, fp)
 
 
+# Decorator support is not available in this version of the SDK, to be re-introduced later
 # @md.resource(cpu=1, gpu=1, memory="1Gi")
 # @md.env(pip_packages=["pydicom >= 2.3.0", "highdicom>=0.18.2"])  # because of the use of DICOM writer operator
 class App(Application):
     """Application class for the MedNIST classifier."""
 
     def compose(self):
-        app_context = AppContext({})  # Let it figure out all the attributes without overriding
+        # Use Commandline options over environment variables to init context.
+        app_context = Application.init_app_context(self.argv)
         app_input_path = Path(app_context.input_path)
         app_output_path = Path(app_context.output_path)
         model_path = Path(app_context.model_path)

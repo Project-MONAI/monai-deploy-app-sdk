@@ -20,8 +20,8 @@ from monai.deploy.conditions import CountCondition
 from monai.deploy.core import AppContext, Application
 
 
+# Decorator support is not available in this version of the SDK, to be re-introduced later
 # @resource(cpu=1)
-# # pip_packages can be a string that is a path(str) to requirements.txt file or a list of packages.
 # @env(pip_packages=["scikit-image >= 0.17.2"])
 class App(Application):
     """This is a very basic application.
@@ -42,10 +42,12 @@ class App(Application):
         Each operator has a single input and a single output port.
         Each operator performs some kind of image processing function.
         """
-        app_context = AppContext({})  # Let it figure out all the attributes without overriding
+
+        # Use Commandline options over environment variables to init context.
+        app_context = Application.init_app_context(self.argv)
         sample_data_path = Path(app_context.input_path)
         output_data_path = Path(app_context.output_path)
-        print(f"sample_data_path: {sample_data_path}")
+        logging.info(f"sample_data_path: {sample_data_path}")
 
         # Please note that the Application object, self, is passed as the first positonal argument
         # and the others as kwargs.
@@ -70,7 +72,7 @@ class App(Application):
                     "in1",
                 )
             },
-        )  # Using port name is optional for single port cases
+        )
 
 
 if __name__ == "__main__":
