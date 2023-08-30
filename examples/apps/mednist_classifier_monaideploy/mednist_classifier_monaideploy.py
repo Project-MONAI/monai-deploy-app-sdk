@@ -209,7 +209,7 @@ class App(Application):
 
     def compose(self):
         # Use Commandline options over environment variables to init context.
-        app_context = Application.init_app_context(self.argv)
+        app_context: AppContext = Application.init_app_context(self.argv)
         app_input_path = Path(app_context.input_path)
         app_output_path = Path(app_context.output_path)
         model_path = Path(app_context.model_path)

@@ -27,7 +27,7 @@ class App(Application):
 
     def compose(self):
         # Use command line options over environment variables to init context.
-        app_context = Application.init_app_context(self.argv)
+        app_context: AppContext = Application.init_app_context(self.argv)
         input_dcm_folder = Path(app_context.input_path)
         output_folder = Path(app_context.output_path)
         print(f"input_dcm_folder: {input_dcm_folder}")

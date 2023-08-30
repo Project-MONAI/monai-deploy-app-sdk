@@ -23,7 +23,9 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
     """Parses the arguments passed to the application.
 
     Args:
-        argv (Optional[List[str]], optional): The command line arguments to parse. The first item should be the path to the python executable. If not specified, ``sys.argv`` is used. Defaults to None.
+        argv (Optional[List[str]], optional): The command line arguments to parse.
+            The first item should be the path to the python executable.
+            If not specified, ``sys.argv`` is used. Defaults to None.
 
     Returns:
         argparse.Namespace: parsed arguments.

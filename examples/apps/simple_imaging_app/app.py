@@ -44,7 +44,7 @@ class App(Application):
         """
 
         # Use Commandline options over environment variables to init context.
-        app_context = Application.init_app_context(self.argv)
+        app_context: AppContext = Application.init_app_context(self.argv)
         sample_data_path = Path(app_context.input_path)
         output_data_path = Path(app_context.output_path)
         logging.info(f"sample_data_path: {sample_data_path}")
