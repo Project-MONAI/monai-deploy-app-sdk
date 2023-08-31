@@ -9,59 +9,41 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import monai.deploy.core as md
-from monai.deploy.core import ExecutionContext, Image, InputContext, IOType, Operator, OutputContext
+from monai.deploy.core import Fragment, Operator, OperatorSpec
 
 
-@md.input("image", Image, IOType.IN_MEMORY)
-@md.output("image", Image, IOType.IN_MEMORY)
 # If `pip_packages` is specified, the definition will be aggregated with the package dependency list of other
 # operators and the application in packaging time.
 # @md.env(pip_packages=["scikit-image >= 0.17.2"])
-class MedianOperatorBase(Operator):
+class MedianOperator(Operator):
     """This Operator implements a noise reduction.
 
     The algorithm is based on the median operator.
-    It ingests a single input and provides a single output.
+    It ingests a single input and provides a single output, both are in-memory image arrays
     """
 
     # Define __init__ method with super().__init__() if you want to override the default behavior.
-    def __init__(self):
-        super().__init__()
-        # Do something
+    def __init__(self, fragment: Fragment, *args, **kwargs):
+        """Create an instance to be part of the given application (fragment).
 
-    def compute(self, op_input: InputContext, op_output: OutputContext, context: ExecutionContext):
-        print("Executing base operator...")
+        Args:
+            fragment (Fragment): The instance of Application class which is derived from Fragment
+        """
 
+        self.index = 0
 
-class MedianOperator(MedianOperatorBase):
-    """This operator is a subclass of the base operator to demonstrate the usage of inheritance."""
+        # Need to call the base class constructor last
+        super().__init__(fragment, *args, **kwargs)
 
-    # Define __init__ method with super().__init__() if you want to override the default behavior.
-    def __init__(self):
-        super().__init__()
-        # Do something
+    def setup(self, spec: OperatorSpec):
+        spec.input("in1")
+        spec.output("out1")
 
-    def compute(self, op_input: InputContext, op_output: OutputContext, context: ExecutionContext):
-        # Execute the base operator's compute method.
-        super().compute(op_input, op_output, context)
-
+    def compute(self, op_input, op_output, context):
         from skimage.filters import median
 
-        # `context.input.get().path` (Path) is the file/folder path of the input data from the application's context.
-        # `context.output.get().path` (Path) is the file/folder path of the output data from the application's context.
-        # `context.models.get(model_name)` returns a model instance
-        #  (a null model would be returned if model is not available)
-        # If model_name is not specified and only one model exists, it returns that model.
-        model = context.models.get()  # a model object that inherits Model class
-
-        # Get a model instance if exists
-        if model:  # if model is not a null model
-            print(model.items())
-            # # model.path for accessing the model's path
-            # # model.name for accessing the model's name
-            # result = model(input.get().asnumpy())
-
-        data_in = op_input.get().asnumpy()
+        self.index += 1
+        print(f"Number of times operator {self.name} whose class is defined in {__name__} called: {self.index}")
+        data_in = op_input.receive("in1")
         data_out = median(data_in)
-        op_output.set(Image(data_out))
+        op_output.emit(data_out, "out1")

@@ -1,4 +1,4 @@
-# Copyright 2022 MONAI Consortium
+# Copyright 2022-2023 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -13,9 +13,8 @@ import logging
 import os
 import shutil
 import tempfile
-from ast import Bytes
 from pathlib import Path
-from typing import Dict, Optional
+from typing import Dict, Optional, Union
 
 import numpy as np
 
@@ -29,52 +28,74 @@ mesh, _ = optional_import("stl", name="mesh")
 resize, _ = optional_import("skimage.transform", name="resize")
 trimesh, _ = optional_import("trimesh")
 
-import monai.deploy.core as md
-from monai.deploy.core import ExecutionContext, Image, InputContext, IOType, Operator, OutputContext
+from monai.deploy.core import ConditionType, Fragment, Image, Operator, OperatorSpec
 
 __all__ = ["STLConversionOperator", "STLConverter"]
 
 
-@md.input("image", Image, IOType.IN_MEMORY)
-@md.output("stl_output", Bytes, IOType.IN_MEMORY)  # Only available when run as non-leaf operator
 # nibabel is required by the dependent class STLConverter.
-@md.env(
-    pip_packages=["numpy>=1.21", "nibabel >= 3.2.1", "numpy-stl>=2.12.0", "scikit-image>=0.17.2", "trimesh>=3.8.11"]
-)
+# @md.env(
+#     pip_packages=["numpy>=1.21", "nibabel >= 3.2.1", "numpy-stl>=2.12.0", "scikit-image>=0.17.2", "trimesh>=3.8.11"]
+# )
 class STLConversionOperator(Operator):
-    """Converts volumetric image to surface mesh in STL format, file output only.
+    """Converts volumetric image to surface mesh in STL format.
 
-    Only when used as a non-leaf operator is the output of STL binary stored in memory idenfied by the output label.
-    If a file path is provided, the STL binary will be saved in the the application's output folder of the current run.
+    If a file path is provided, the STL binary will be saved in the said output folder.
+    This operator also save the STL file as bytes in memory, idenfied by the named output. Being optional,
+    this output does not require any downstream receiver.
+
+    Named inputs:
+        image: Image object for which to generate surface mesh.
+        output_file: Optional, the path of the file to save the mesh in STL format.
+                     If provided, this will overrider the output file path set on the object.
+
+    Named output:
+        stl_bytes: Bytes of the surface mesh STL file. Optional, not requiring a downstram receiver.
     """
 
     def __init__(
-        self, output_file=None, class_id=None, is_smooth=True, keep_largest_connected_component=True, *args, **kwargs
-    ):
+        self,
+        fragment: Fragment,
+        *args,
+        output_file: Union[Path, str],
+        class_id=None,
+        is_smooth=True,
+        keep_largest_connected_component=True,
+        **kwargs,
+    ) -> None:
         """Creates an object to generate a surface mesh and saves it as an STL file if the path is provided.
 
         Args:
-            output_file (str, optional): output STL file relative path. Default to None for no file output.
+            fragment (Fragment): An instance of the Application class which is derived from Fragment.
+            output_file ([Path,str], optional): output STL file path. None for no file output.
             class_id (array, optional): Class label ids. Defaults to None.
             is_smooth (bool, optional): smoothing or not. Defaults to True.
             keep_largest_connected_component (bool, optional): Defaults to True.
         """
-        super().__init__(*args, **kwargs)
+
         self._logger = logging.getLogger("{}.{}".format(__name__, type(self).__name__))
         self._class_id = class_id
         self._is_smooth = is_smooth
         self._keep_largest_connected_component = keep_largest_connected_component
-        self._output_file = output_file if output_file and len(str(output_file)) > 0 else None
-
+        self._output_file = Path(output_file) if output_file and len(str(output_file)) > 0 else None
         self._converter = STLConverter(*args, **kwargs)
 
-    def compute(self, op_input: InputContext, op_output: OutputContext, context: ExecutionContext):
+        self.input_name_image = "image"
+        self.input_name_output_file = "output_file"
+        self.output_name_stl_bytes = "stl_bytes"
+
+        super().__init__(fragment, *args, **kwargs)
+
+    def setup(self, spec: OperatorSpec):
+        spec.input(self.input_name_image)
+        spec.input(self.input_name_output_file).condition(ConditionType.NONE)  # Optional, set as needed.
+        spec.output(self.output_name_stl_bytes).condition(ConditionType.NONE)  # No receivers required.
+
+    def compute(self, op_input, op_output, context):
         """Gets the input (image), processes it and sets results in the output.
 
-        When used in a leaf operator, this function cannot set its output as in-memory object due to
-        current limitation.
-        If a file path is provided, the STL binary will be saved in the the application's output
-        folder of the current run.
+        This function sets the mesh in STL bytes in its named output, which require no receivers.
+        If provided, the mesh will be saved to the file in STL format.
 
         Args:
             op_input (InputContext): An input context for the operator.
@@ -82,25 +103,20 @@ class STLConversionOperator(Operator):
             context (ExecutionContext): An execution context for the operator.
         """
 
-        input_image = op_input.get("image")
+        input_image = op_input.receive(self.input_name_image)
         if not input_image:
-            raise ValueError("Input is None.")
+            raise ValueError("Input image is not received.")
 
-        # Use the app's current run output folder as parent to the STL output path.
-        if self._output_file and len(str(self._output_file)) > 0:
-            _output_file = context.output.get().path / self._output_file
-            _output_file.parent.mkdir(parents=True, exist_ok=True)
-            self._logger.info(f"Output will be saved in file {_output_file}.")
+        _output_file = op_input.receive(self.input_name_output_file)
+        if not _output_file:
+            # Use the object's attribute to get the STL output path, if any.
+            if self._output_file and len(str(self._output_file)) > 0:
+                _output_file = Path(self._output_file)
+                _output_file.parent.mkdir(parents=True, exist_ok=True)
+                self._logger.info(f"Output will be saved in file {_output_file}.")
 
         stl_bytes = self._convert(input_image, _output_file)
-
-        try:
-            # TODO: Need a way to find if the operator is run as leaf node in order to
-            #       avoid setting in_memory object.
-            if self.op_info.get_storage_type("output", "stl_output") == IOType.IN_MEMORY:
-                op_output.set(stl_bytes)
-        except Exception as ex:
-            self._logger.warn(f"In_memory output cannot be used when run as non-leaf operator. {ex}")
+        op_output.emit(stl_bytes, self.output_name_stl_bytes)
 
     def _convert(self, image: Image, output_file: Optional[Path] = None):
         """
@@ -115,8 +131,6 @@ class STLConversionOperator(Operator):
         # Use path in the output_file arg if provided.
         if isinstance(output_file, Path):
             output_file.parent.mkdir(exist_ok=True)
-        else:
-            output_file = self._output_file
 
         return self._converter.convert(
             image=image,
@@ -127,13 +141,11 @@ class STLConversionOperator(Operator):
         )
 
 
-class STLConverter(object):
+class STLConverter:
     """Converts volumetric image to surface mesh in STL"""
 
     def __init__(self, *args, **kwargs):
         """Creates an instance to generate a surface mesh in STL with an Image object."""
-
-        super().__init__(*args, **kwargs)
         self._logger = logging.getLogger("{}.{}".format(__name__, type(self).__name__))
 
     def convert(
@@ -428,18 +440,20 @@ def test():
     from monai.deploy.operators.dicom_series_to_volume_operator import DICOMSeriesToVolumeOperator
 
     current_file_dir = Path(__file__).parent.resolve()
-    data_path = current_file_dir.joinpath("../../../examples/ai_spleen_seg_data/dcm")
+    data_path = current_file_dir.joinpath("../../../inputs/spleen_ct/dcm")
+    output_path = Path.cwd() / "output_stl/test.stl"
 
-    loader = DICOMDataLoaderOperator()
-    series_selector = DICOMSeriesSelectorOperator()
-    dcm_to_volume_op = DICOMSeriesToVolumeOperator()
-    stl_writer = STLConversionOperator()
+    fragment = Fragment()
+    loader = DICOMDataLoaderOperator(fragment, name="dcm_loader")
+    series_selector = DICOMSeriesSelectorOperator(fragment, name="series_selector")
+    dcm_to_volume_op = DICOMSeriesToVolumeOperator(fragment, name="dcm_to_vol")
+    stl_writer = STLConversionOperator(fragment, output_file=output_path, name="stl_writer")
 
     # Testing with the main entry functions
     study_list = loader.load_data_to_studies(data_path.absolute())
     study_selected_series_list = series_selector.filter(None, study_list)
     image = dcm_to_volume_op.convert_to_image(study_selected_series_list)
-    stl_writer._convert(image, Path("stl/test.stl"))
+    stl_writer._convert(image, Path("output_stl/test.stl"))
 
 
 if __name__ == "__main__":

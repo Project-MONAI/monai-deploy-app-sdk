@@ -29,7 +29,7 @@ classDiagram
     Graph "1" --> "many" Operator : contains
 ```
 
-[Application](/modules/_autosummary/monai.deploy.core.Application) represents a workflow as a [Graph](/modules/_autosummary/monai.deploy.core.graphs.Graph) and the graph handles [Operator](/modules/_autosummary/monai.deploy.core.Operator)s which are computational tasks.
+[Application](/modules/_autosummary/monai.deploy.core.Application) represents a workflow as a [Graph](/modules/graphs) and the graph handles [Operator](/modules/_autosummary/monai.deploy.core.Operator)s which are computational tasks.
 
 To develop and deploy your MONAI App, you can follow the steps below (click a node to see the detail):
 

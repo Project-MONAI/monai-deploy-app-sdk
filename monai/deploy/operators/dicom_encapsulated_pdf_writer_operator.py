@@ -10,10 +10,10 @@
 # limitations under the License.
 
 import logging
-from ast import Bytes
+import os
 from io import BytesIO
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, Optional, Union
 
 from monai.deploy.utils.importutil import optional_import
 
@@ -26,37 +26,51 @@ FileDataset, _ = optional_import("pydicom.dataset", name="FileDataset")
 Sequence, _ = optional_import("pydicom.sequence", name="Sequence")
 PdfReader, _ = optional_import("PyPDF2", name="PdfReader")
 
-import monai.deploy.core as md
-from monai.deploy.core import DataPath, ExecutionContext, InputContext, IOType, Operator, OutputContext
+from monai.deploy.core import ConditionType, Fragment, Operator, OperatorSpec
 from monai.deploy.core.domain.dicom_series import DICOMSeries
 from monai.deploy.core.domain.dicom_series_selection import StudySelectedSeries
-from monai.deploy.exceptions import ItemNotExistsError
 from monai.deploy.operators.dicom_utils import EquipmentInfo, ModelInfo, save_dcm_file, write_common_modules
 from monai.deploy.utils.version import get_sdk_semver
 
 
-# The SR writer operator class
-@md.input("pdf_bytes", Bytes, IOType.IN_MEMORY)
-@md.input("pdf_file", DataPath, IOType.DISK)
-@md.input("study_selected_series_list", List[StudySelectedSeries], IOType.IN_MEMORY)
-@md.output("dicom_instance", DataPath, IOType.DISK)
-@md.env(pip_packages=["pydicom >= 1.4.2", "PyPDF2 >= 2.11.1", "monai"])
+# @md.env(pip_packages=["pydicom >= 1.4.2", "PyPDF2 >= 2.11.1", "monai"])
 class DICOMEncapsulatedPDFWriterOperator(Operator):
+    """Class to write DICOM Encapsulated PDF Instance with provided PDF bytes in memory.
+
+    Named inputs:
+        pdf_bytes: Bytes of the the PDF content.
+        study_selected_series_list: Optional, DICOM series for copying metadata from.
+
+    Named output:
+        None
+
+    File output:
+        Generaed DICOM instance file in the provided output folder.
+    """
+
+    # File extension for the generated DICOM Part 10 file.
     DCM_EXTENSION = ".dcm"
+    # The default output folder for saveing the generated DICOM instance file.
+    DEFAULT_OUTPUT_FOLDER = Path(os.getcwd()) / "output"
 
     def __init__(
         self,
-        copy_tags: bool,
+        fragment: Fragment,
+        *args,
+        output_folder: Union[str, Path],
         model_info: ModelInfo,
         equipment_info: Optional[EquipmentInfo] = None,
+        copy_tags: bool = True,
         custom_tags: Optional[Dict[str, str]] = None,
-        *args,
         **kwargs,
     ):
         """Class to write DICOM Encapsulated PDF Instance with PDF bytes in memory or in a file.
 
         Args:
-            copy_tags (bool): True for copying DICOM attributes from a provided DICOMSeries.
+            fragment (Fragment): An instance of the Application class which is derived from Fragment.
+            output_folder (str or Path): The folder for saving the generated DICOM instance file.
+            copy_tags (bool): True, default, for copying DICOM attributes from a provided DICOMSeries.
+                              If True and no DICOMSeries obj provided, runtime exception is thrown.
             model_info (ModelInfo): Object encapsulating model creator, name, version and UID.
             equipment_info (EquipmentInfo, optional): Object encapsulating info for DICOM Equipment Module.
                                                       Defaults to None.
@@ -67,12 +81,20 @@ class DICOMEncapsulatedPDFWriterOperator(Operator):
             ValueError: If copy_tags is true and no DICOMSeries object provided, or
                         if PDF bytes cannot be found in memory or loaded from the file.
         """
-        super().__init__(*args, **kwargs)
+
         self._logger = logging.getLogger("{}.{}".format(__name__, type(self).__name__))
+
+        # Need to init the output folder until the execution context supports dynamic FS path
+        # Not trying to create the folder to avoid exception on init
+        self.output_folder = (
+            Path(output_folder) if output_folder else DICOMEncapsulatedPDFWriterOperator.DEFAULT_OUTPUT_FOLDER
+        )
         self.copy_tags = copy_tags
         self.model_info = model_info if model_info else ModelInfo()
         self.equipment_info = equipment_info if equipment_info else EquipmentInfo()
         self.custom_tags = custom_tags
+        self.input_name_bytes = "pdf_bytes"
+        self.input_name_dcm_series = "study_selected_series_list"
 
         # Set own Modality and SOP Class UID
         # Modality, e.g.,
@@ -93,8 +115,21 @@ class DICOMEncapsulatedPDFWriterOperator(Operator):
         except Exception:
             self.software_version_number = ""
         self.operators_name = f"AI Algorithm {self.model_info.name}"
+        super().__init__(fragment, *args, **kwargs)
 
-    def compute(self, op_input: InputContext, op_output: OutputContext, context: ExecutionContext):
+    def setup(self, spec: OperatorSpec):
+        """Set up the named input(s), and output(s) if applicable.
+
+        This operator does not have an output for the next operator, rather file output only.
+
+        Args:
+            spec (OperatorSpec): The Operator specification for inputs and outputs etc.
+        """
+
+        spec.input(self.input_name_bytes)
+        spec.input(self.input_name_dcm_series).condition(ConditionType.NONE)  # Optional input
+
+    def compute(self, op_input, op_output, context):
         """Performs computation for this operator and handles I/O.
 
         For now, only a single result content is supported, which could be in bytes or a path
@@ -112,24 +147,15 @@ class DICOMEncapsulatedPDFWriterOperator(Operator):
 
         # Gets the input, prepares the output folder, and then delegates the processing.
         pdf_bytes: bytes = b""
-        try:
-            pdf_bytes = op_input.get("pdf_bytes")
-        except ItemNotExistsError:
-            try:
-                file_path = op_input.get("pdf_file")
-            except ItemNotExistsError:
-                raise ValueError("None of the named inputs can be found.") from None
-            # Read file, and if exception, let it bubble up
-            with open(file_path.path, "rb") as f:
-                pdf_bytes = f.read().strip()
-
+        pdf_bytes = op_input.receive(self.input_name_bytes)
         if not pdf_bytes or not len(pdf_bytes.strip()):
             raise IOError("Input is read but blank.")
 
+        study_selected_series_list = None
         try:
-            study_selected_series_list = op_input.get("study_selected_series_list")
-        except ItemNotExistsError:
-            study_selected_series_list = None
+            study_selected_series_list = op_input.receive(self.input_name_dcm_series)
+        except Exception:
+            pass
 
         dicom_series = None  # It can be None if not to copy_tags.
         if self.copy_tags:
@@ -143,11 +169,11 @@ class DICOMEncapsulatedPDFWriterOperator(Operator):
                     dicom_series = selected_series.series
                     break
 
-        output_dir = op_output.get().path
-        output_dir.mkdir(parents=True, exist_ok=True)
+        # The output folder should come from the execution context when it is supported.
+        self.output_folder.mkdir(parents=True, exist_ok=True)
 
         # Now ready to starting writing the DICOM instance
-        self.write(pdf_bytes, dicom_series, output_dir)
+        self.write(pdf_bytes, dicom_series, self.output_folder)
 
     def write(self, content_bytes, dicom_series: Optional[DICOMSeries], output_dir: Path):
         """Writes DICOM object
@@ -223,47 +249,52 @@ class DICOMEncapsulatedPDFWriterOperator(Operator):
         return True
 
 
-def test():
-    from monai.deploy.operators.dicom_data_loader_operator import DICOMDataLoaderOperator
-    from monai.deploy.operators.dicom_series_selector_operator import DICOMSeriesSelectorOperator
+# Commenting out the following as pttype complains about the contructor for no reason
+# def test(test_copy_tags: bool = True):
+#     from monai.deploy.operators.dicom_data_loader_operator import DICOMDataLoaderOperator
+#     from monai.deploy.operators.dicom_series_selector_operator import DICOMSeriesSelectorOperator
 
-    current_file_dir = Path(__file__).parent.resolve()
-    dcm_folder = current_file_dir.joinpath("../../../inputs/livertumor_ct/dcm/1-CT_series_liver_tumor_from_nii014")
-    pdf_file = current_file_dir.joinpath("../../../inputs/pdf/TestPDF.pdf")
-    out_path = "output_pdf_op"
-    pdf_bytes = b"Not PDF bytes."
-    test_copy_tags = False
+#     current_file_dir = Path(__file__).parent.resolve()
+#     dcm_folder = current_file_dir.joinpath("../../../inputs/livertumor_ct/dcm/1-CT_series_liver_tumor_from_nii014")
+#     pdf_file = current_file_dir.joinpath("../../../inputs/pdf/TestPDF.pdf")
+#     out_path = Path("output_pdf_op").absolute()
+#     pdf_bytes = b"Not PDF bytes."
 
-    loader = DICOMDataLoaderOperator()
-    series_selector = DICOMSeriesSelectorOperator()
-    sr_writer = DICOMEncapsulatedPDFWriterOperator(
-        copy_tags=test_copy_tags,
-        model_info=None,
-        equipment_info=EquipmentInfo(),
-        custom_tags={"SeriesDescription": "Report from AI algorithm. Not for clinical use."},
-    )
+#     fragment = Fragment()
+#     loader = DICOMDataLoaderOperator(fragment, name="loader_op")
+#     series_selector = DICOMSeriesSelectorOperator(fragment, name="selector_op")
+#     sr_writer = DICOMEncapsulatedPDFWriterOperator(
+#         fragment,
+#         output_folder=out_path,
+#         copy_tags=test_copy_tags,
+#         model_info=None,
+#         equipment_info=EquipmentInfo(),
+#         custom_tags={"SeriesDescription": "Report from AI algorithm. Not for clinical use."},
+#         name="writer_op",
+#     )
 
-    # Testing with the main entry functions
-    dicom_series = None
-    if test_copy_tags:
-        study_list = loader.load_data_to_studies(Path(dcm_folder).absolute())
-        study_selected_series_list = series_selector.filter(None, study_list)
-        # Get the first DICOM Series, as for now, only expecting this.
-        if not study_selected_series_list or len(study_selected_series_list) < 1:
-            raise ValueError("Missing input, list of 'StudySelectedSeries'.")
-        for study_selected_series in study_selected_series_list:
-            if not isinstance(study_selected_series, StudySelectedSeries):
-                raise ValueError("Element in input is not expected type, 'StudySelectedSeries'.")
-            for selected_series in study_selected_series.selected_series:
-                print(type(selected_series))
-                dicom_series = selected_series.series
-                print(type(dicom_series))
+#     # Testing with the main entry functions
+#     dicom_series = None
+#     if test_copy_tags:
+#         study_list = loader.load_data_to_studies(Path(dcm_folder).absolute())
+#         study_selected_series_list = series_selector.filter(None, study_list)
+#         # Get the first DICOM Series, as for now, only expecting this.
+#         if not study_selected_series_list or len(study_selected_series_list) < 1:
+#             raise ValueError("Missing input, list of 'StudySelectedSeries'.")
+#         for study_selected_series in study_selected_series_list:
+#             if not isinstance(study_selected_series, StudySelectedSeries):
+#                 raise ValueError("Element in input is not expected type, 'StudySelectedSeries'.")
+#             for selected_series in study_selected_series.selected_series:
+#                 print(type(selected_series))
+#                 dicom_series = selected_series.series
+#                 print(type(dicom_series))
 
-    with open(pdf_file, "rb") as f:
-        pdf_bytes = f.read()
+#     with open(pdf_file, "rb") as f:
+#         pdf_bytes = f.read()
 
-    sr_writer.write(pdf_bytes, dicom_series, Path(out_path).absolute())
+#     sr_writer.write(pdf_bytes, dicom_series, out_path)
 
 
-if __name__ == "__main__":
-    test()
+# if __name__ == "__main__":
+#     test(test_copy_tags=True)
+#     test(test_copy_tags=False)

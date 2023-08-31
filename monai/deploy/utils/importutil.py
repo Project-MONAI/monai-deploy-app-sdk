@@ -166,8 +166,9 @@ def optional_import(
     version_checker: Callable[..., bool] = min_version,
     name: str = "",
     descriptor: str = OPTIONAL_IMPORT_MSG_FMT,
-    version_args=None,
+    version_args: Any = None,
     allow_namespace_pkg: bool = False,
+    as_type: str = "default",
 ) -> Tuple[Any, bool]:
     """
     Imports an optional module specified by `module` string.
@@ -182,6 +183,10 @@ def optional_import(
         descriptor: a format string for the final error message when using a not imported module.
         version_args: additional parameters to the version checker.
         allow_namespace_pkg: whether importing a namespace package is allowed. Defaults to False.
+        as_type: there are cases where the optionally imported object is used as
+            a base class, or a decorator, the exceptions should raise accordingly. The current supported values
+            are "default" (call once to raise), "decorator" (call the constructor and the second call to raise),
+            and anything else will return a lazy class that can be used as a base class (call the constructor to raise).
 
     Returns:
         The imported module and a boolean flag indicating whether the import is successful.
@@ -268,6 +273,21 @@ def optional_import(
             """
             raise self._exception
 
+        def __getitem__(self, item):
+            raise self._exception
+
+        def __iter__(self):
+            raise self._exception
+
+    if as_type == "default":
+        return _LazyRaise(), False
+
+    class _LazyCls(_LazyRaise):
+        def __init__(self, *_args, **kwargs):
+            super().__init__()
+            if not as_type.startswith("decorator"):
+                raise self._exception
+
     return _LazyRaise(), False
 
 
@@ -341,10 +361,86 @@ def dist_requires(project_name: str) -> List[str]:
     return []
 
 
+holoscan_init_content_txt = """
+# SPDX-FileCopyrightText: Copyright (c) 2022-2023 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# We import core and gxf to make sure they're available before other modules that rely on them
+from . import core, gxf
+
+as_tensor = core.Tensor.as_tensor
+__all__ = ["as_tensor", "core", "gxf"]
+
+# Other modules are exposed to the public API but will only be lazily loaded
+_EXTRA_MODULES = [
+    "conditions",
+    "executors",
+    "graphs",
+    "logger",
+    "operators",
+    "resources",
+]
+__all__.extend(_EXTRA_MODULES)
+
+
+# Autocomplete
+def __dir__():
+    return __all__
+
+
+# Lazily load extra modules
+def __getattr__(name):
+    import importlib
+    import sys
+
+    if name in _EXTRA_MODULES:
+        module_name = f"{__name__}.{name}"
+        module = importlib.import_module(module_name)  # import
+        sys.modules[module_name] = module  # cache
+        return module
+    else:
+        raise AttributeError(f"module {__name__} has no attribute {name}")
+
+"""
+
+
+def fix_holoscan_import():
+    """Fix holoscan __init__ to enable lazy load for avoiding failure on loading low level libs."""
+
+    try:
+        project_name = "holoscan"
+        holoscan_init_path = Path(dist_module_path(project_name)) / project_name / "__init__.py"
+
+        with open(str(holoscan_init_path), "w") as f_w:
+            f_w.write(holoscan_init_content_txt)
+        return str(holoscan_init_path)
+    except Exception as ex:
+        return ex
+
+
 if __name__ == "__main__":
     """Utility functions that can be used in the command line."""
 
     argv = sys.argv
+    if len(argv) == 2 and argv[1] == "fix_holoscan_import":
+        file_path = fix_holoscan_import()
+        if file_path:
+            print(file_path)
+            sys.exit(0)
+        else:
+            sys.exit(1)
     if len(argv) == 3 and argv[1] == "is_dist_editable":
         if is_dist_editable(argv[2]):
             sys.exit(0)

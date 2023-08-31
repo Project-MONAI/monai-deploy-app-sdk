@@ -5,10 +5,10 @@
 :maxdepth: 2
 
 core
+conditions
 domain_objects
 operators
 models
-graphs
 executors
-datastores
+graphs
 ```

@@ -13,35 +13,25 @@ import os
 from abc import ABC
 from typing import Dict, Optional, Tuple
 
-from monai.deploy.core.datastores.factory import DatastoreFactory
-from monai.deploy.core.executors.factory import ExecutorFactory
-from monai.deploy.core.graphs.factory import GraphFactory
-
 
 class RuntimeEnv(ABC):
-    """Class responsible to managing run time settings.
+    """Class responsible for managing run time settings.
 
     The expected environment variables are the keys in the defaults dictionary,
     and they can be set to override the defaults.
     """
 
     ENV_DEFAULT: Dict[str, Tuple[str, ...]] = {
-        "input": ("MONAI_INPUTPATH", "input"),
-        "output": ("MONAI_OUTPUTPATH", "output"),
-        "model": ("MONAI_MODELPATH", "models"),
-        "workdir": ("MONAI_WORKDIR", ""),
-        "graph": ("MONAI_GRAPH", GraphFactory.DEFAULT),  # The 'MONAI_GRAPH' is not part of MAP spec.
-        "datastore": ("MONAI_DATASTORE", DatastoreFactory.DEFAULT),  # The 'MONAI_DATASTORE' is not part of MAP spec.
-        "executor": ("MONAI_EXECUTOR", ExecutorFactory.DEFAULT),  # The 'MONAI_EXECUTOR' is not part of MAP spec.
+        "input": ("HOLOSCAN_INPUT_PATH", "input"),
+        "output": ("HOLOSCAN_OUTPUT_PATH", "output"),
+        "model": ("HOLOSCAN_MODEL_PATH", "models"),
+        "workdir": ("HOLOSCAN_WORKDIR", ""),
     }
 
     input: str = ""
     output: str = ""
     model: str = ""
     workdir: str = ""
-    graph: str = ""
-    datastore: str = ""
-    executor: str = ""
 
     def __init__(self, defaults: Optional[Dict[str, Tuple[str, ...]]] = None):
         if defaults is None:

@@ -23,10 +23,7 @@ from typing import Any, Dict, List, Optional, Tuple, Type, Union
 
 import numpy as np
 
-import monai.deploy.core as md
-from monai.deploy.core import DataPath, ExecutionContext, Image, InputContext, IOType, OutputContext
-from monai.deploy.core.operator import OperatorEnv
-from monai.deploy.exceptions import ItemNotExistsError
+from monai.deploy.core import AppContext, Fragment, Image, IOType, OperatorSpec
 from monai.deploy.utils.importutil import optional_import
 
 from .inference_operator import InferenceOperator
@@ -80,7 +77,7 @@ def get_bundle_config(bundle_path, config_names):
         for suffix in bundle_suffixes:
             path = Path(root_name, config_folder, config_name).with_suffix(suffix)
             try:
-                logging.debug(f"Trying to read config {config_name!r} content from {path}.")
+                logging.debug(f"Trying to read config {config_name!r} content from {path!r}.")
                 content_text = archive.read(str(path))
                 break
             except Exception:
@@ -94,7 +91,7 @@ def get_bundle_config(bundle_path, config_names):
             for suffix in bundle_suffixes:
                 for n in name_list:
                     if (f"{config_name}{suffix}").casefold in n.casefold():
-                        logging.debug(f"Trying to read content of config {config_name!r} from {n}.")
+                        logging.debug(f"Trying to read content of config {config_name!r} from {n!r}.")
                         content_text = archive.read(n)
                         break
 
@@ -276,7 +273,7 @@ DEFAULT_BundleConfigNames = BundleConfigNames()
 #       operator may choose to pass in a accessible bundle path at development and packaging stage. Ideally,
 #       the bundle path should be passed in by the Packager, e.g. via env var, when the App is initialized.
 #       As of now, the Packager only passes in the model path after the App including all operators are init'ed.
-@md.env(pip_packages=["monai>=1.0.0", "torch>=1.10.02", "numpy>=1.21", "nibabel>=3.2.1"])
+# @md.env(pip_packages=["monai>=1.0.0", "torch>=1.10.02", "numpy>=1.21", "nibabel>=3.2.1"])
 class MonaiBundleInferenceOperator(InferenceOperator):
     """This inference operator automates the inference operation for a given MONAI Bundle.
 
@@ -296,10 +293,8 @@ class MonaiBundleInferenceOperator(InferenceOperator):
     This operator is expected to be linked with both source and destination operators, e.g. receiving an `Image` object from
     the `DICOMSeriesToVolumeOperator`, and passing a segmentation `Image` to the `DICOMSegmentationWriterOperator`.
     In such cases, the I/O storage type can only be `IN_MEMORY` due to the restrictions imposed by the application executor.
-    However, when used as the first operator in an application, its input storage type needs to be `DISK`, and the file needs
-    to be a Python pickle file, e.g. containing an `Image` instance. When used as the last operator, its output storage type
-    also needs to `DISK` with the path being the application's output folder, and the operator's output will be saved as
-    a pickle file whose name is the same as the output name.
+
+    For the time being, the input and output to this operator are limited to in_memory object.
     """
 
     known_io_data_types = {
@@ -311,29 +306,35 @@ class MonaiBundleInferenceOperator(InferenceOperator):
 
     kw_preprocessed_inputs = "preprocessed_inputs"
 
+    # For testing the app directly, the model should be at the following path.
+    MODEL_LOCAL_PATH = Path(os.environ.get("HOLOSCAN_MODEL_PATH", Path.cwd() / "model/model.ts"))
+
     def __init__(
         self,
+        fragment: Fragment,
+        *args,
+        app_context: AppContext,
         input_mapping: List[IOMapping],
         output_mapping: List[IOMapping],
         model_name: Optional[str] = "",
-        bundle_path: Optional[str] = "",
+        bundle_path: Optional[Union[Path, str]] = None,
         bundle_config_names: Optional[BundleConfigNames] = DEFAULT_BundleConfigNames,
-        *args,
         **kwargs,
     ):
-        """_summary_
+        """Create an instance of this class, associated with an Application/Fragment.
 
         Args:
+            fragment (Fragment): An instance of the Application class which is derived from Fragment.
+            app_context (AppContext): Object holding the I/O and model paths, and potentially loaded models.
             input_mapping (List[IOMapping]): Define the inputs' name, type, and storage type.
             output_mapping (List[IOMapping]): Defines the outputs' name, type, and storage type.
             model_name (Optional[str], optional): Name of the model/bundle, needed in multi-model case.
                                                   Defaults to "".
-            bundle_path (Optional[str], optional): For completing . Defaults to None.
+            bundle_path (Optional[str], optional): Known path to the bundle file. Defaults to None.
             bundle_config_names (BundleConfigNames, optional): Relevant config item names in a the bundle.
                                                                Defaults to DEFAULT_BundleConfigNames.
         """
 
-        super().__init__(*args, **kwargs)
         self._executing = False
         self._lock = Lock()
 
@@ -350,28 +351,34 @@ class MonaiBundleInferenceOperator(InferenceOperator):
         # there is still a need to define what op inputs/outputs map to what keys in the bundle config,
         # along with the op input/output storage type.
         # Also, the App Executor needs to set the IO context of the operator before calling the compute function.
-        self._add_inputs(self._input_mapping)
-        self._add_outputs(self._output_mapping)
+        # Delay till setup is called, as the Application object does support the add_input and add_output now.
+        # self._add_inputs(self._input_mapping)
+        # self._add_outputs(self._output_mapping)
 
         # Complete the init if the bundle path is known, otherwise delay till the compute function is called
         # and try to get the model/bundle path from the execution context.
         try:
-            self._bundle_path = (
-                Path(bundle_path).expanduser().resolve() if bundle_path and len(bundle_path.strip()) > 0 else None
-            )
+            self._bundle_path = Path(bundle_path) if bundle_path and len(str(bundle_path).strip()) > 0 else None
 
-            if self._bundle_path and self._bundle_path.exists():
+            if self._bundle_path and self._bundle_path.is_file():
                 self._init_config(self._bundle_config_names.config_names)
                 self._init_completed = True
             else:
-                logging.debug(f"Bundle path, {self._bundle_path}, not valid. Will get it in the execution context.")
+                logging.debug(
+                    f"Bundle, at path {self._bundle_path}, not available. Will get it in the execution context."
+                )
                 self._bundle_path = None
         except Exception:
             logging.warn("Bundle parsing is not completed on init, delayed till this operator is called to execute.")
             self._bundle_path = None
 
+        self._fragment = fragment  # In case it is needed.
+        self.app_context = app_context
+
         # Lazy init of model network till execution time when the context is fully set.
         self._model_network: Any = None
+
+        super().__init__(fragment, *args, **kwargs)
 
     @property
     def model_name(self) -> str:
@@ -420,11 +427,13 @@ class MonaiBundleInferenceOperator(InferenceOperator):
 
         # When this function is NOT called by the __init__, setting the pip_packages env here
         # will not get dependencies to the App SDK Packager to install the packages in the MAP.
-        pip_packages = ["monai"] + [f"{k}=={v}" for k, v in meta["optional_packages_version"].items()]
-        if self._env:
-            self._env.pip_packages.extend(pip_packages)  # Duplicates will be figured out on use.
-        else:
-            self._env = OperatorEnv(pip_packages=pip_packages)
+        # pip_packages = ["monai"] + [f"{k}=={v}" for k, v in meta["optional_packages_version"].items()]
+
+        # Currently not support adding and installing dependent pip package at runtime.
+        # if self._env:
+        #     self._env.pip_packages.extend(pip_packages)  # Duplicates will be figured out on use.
+        # else:
+        #     self._env = OperatorEnv(pip_packages=pip_packages)
 
         if parser.get("device") is not None:
             self._device = parser.get_parsed_content("device")
@@ -515,7 +524,13 @@ class MonaiBundleInferenceOperator(InferenceOperator):
 
         [self.add_output(v.label, v.data_type, v.storage_type) for v in output_mapping]
 
-    def compute(self, op_input: InputContext, op_output: OutputContext, context: ExecutionContext):
+    def setup(self, spec: OperatorSpec):
+        [spec.input(v.label) for v in self._input_mapping]
+        for v in self._output_mapping:
+            if v.storage_type == IOType.IN_MEMORY:  # As of now the output port type can only be in_memory object.
+                spec.output(v.label)
+
+    def compute(self, op_input, op_output, context):
         """Infers with the input(s) and saves the prediction result(s) to output
 
         Args:
@@ -531,12 +546,15 @@ class MonaiBundleInferenceOperator(InferenceOperator):
         # `context.models.get(model_name)` returns a model instance if exists.
         # If model_name is not specified and only one model exists, it returns that model.
 
-        self._model_network = context.models.get(self._model_name) if context.models else None
+        # The models are loaded on contruction via the AppContext object in turn the model factory.
+        self._model_network = self.app_context.models.get(self._model_name) if self.app_context.models else None
+
         if self._model_network:
             if not self._init_completed:
                 with self._lock:
                     if not self._init_completed:
                         self._bundle_path = self._model_network.path
+                        logging.info(f"Parsing from bundle_path: {self._bundle_path}")
                         self._init_config(self._bundle_config_names.config_names)
                         self._init_completed = True
         elif self._bundle_path:
@@ -639,7 +657,7 @@ class MonaiBundleInferenceOperator(InferenceOperator):
 
             return self._postproc(data)
 
-    def _receive_input(self, name: str, op_input: InputContext, context: ExecutionContext):
+    def _receive_input(self, name: str, op_input, context):
         """Extracts the input value for the given input name."""
 
         # The op_input can have the storage type of IN_MEMORY with the data type being Image or others,
@@ -650,22 +668,22 @@ class MonaiBundleInferenceOperator(InferenceOperator):
         # as the op_input is the input for processing transforms, not necessarily directly for the network.
         in_conf = self._inputs[name]
         itype = self._get_io_data_type(in_conf)
-        value = op_input.get(name)
+        value = op_input.receive(name)
 
         metadata = None
-        if isinstance(value, DataPath):
-            if not value.path.exists():
-                raise ValueError(f"Input path, {value.path}, does not exist.")
+        if isinstance(value, Path):
+            if not value.exists():
+                raise ValueError(f"Input path, {value}, does not exist.")
 
-            file_path = value.path / name
+            file_path = value / name
             # The named input can only be a folder as of now, but just in case things change.
-            if value.path.is_file():
-                file_path = value.path
-            elif not file_path.exists() and value.path.is_dir:
+            if value.is_file():
+                file_path = value
+            elif not file_path.exists() and value.is_dir():
                 # Expect one and only one file exists for use.
-                files = [f for f in value.path.glob("*") if f.is_file()]
+                files = [f for f in value.glob("*") if f.is_file()]
                 if len(files) != 1:
-                    raise ValueError(f"Input path, {value.path}, should have one and only one file.")
+                    raise ValueError(f"Input path, {value}, should have one and only one file.")
 
                 file_path = files[0]
 
@@ -689,7 +707,7 @@ class MonaiBundleInferenceOperator(InferenceOperator):
 
         return value, metadata
 
-    def _send_output(self, value: Any, name: str, metadata: Dict, op_output: OutputContext, context: ExecutionContext):
+    def _send_output(self, value: Any, name: str, metadata: Dict, op_output, context):
         """Send the given output value to the output context."""
 
         logging.debug(f"Setting output {name}")
@@ -731,8 +749,8 @@ class MonaiBundleInferenceOperator(InferenceOperator):
         # and for leaf node if the storage type is IN_MEMORY.
         try:
             op_output_config = op_output.get(name)
-            if isinstance(op_output_config, DataPath):
-                output_file = op_output_config.path / name
+            if isinstance(op_output_config, Path):
+                output_file = op_output_config / name
                 output_file.parent.mkdir(exist_ok=True)
                 # Save pickle file
                 with open(output_file, "wb") as wf:
@@ -741,11 +759,11 @@ class MonaiBundleInferenceOperator(InferenceOperator):
                 # Cannot (re)set/modify the op_output path to the actual file like below
                 # op_output.set(str(output_file), name)
             else:
-                op_output.set(result, name)
-        except ItemNotExistsError:
+                op_output.emit(result, name)
+        except Exception:
             # The following throws if the output storage type is DISK, but The OutputContext
             # currently does not expose the storage type. Try and let it throw if need be.
-            op_output.set(result, name)
+            op_output.emit(result, name)
 
     def _convert_from_image(self, img: Image) -> Tuple[np.ndarray, Dict]:
         """Converts the Image object to the expected numpy array with metadata dictionary.
