@@ -9,19 +9,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import os
-import subprocess
+# import os
+# import subprocess
 
-from monai.deploy.cli.main import main as monai_deploy
+# from monai.deploy.cli.main import main as monai_deploy
 
 
-def test_packager():
-    test_map_tag = "monaitest:latest"
-    test_app_path_rel = "examples/apps/simple_imaging_app/"
-    test_app_path = os.path.abspath(test_app_path_rel)
-    args = ["monai-deploy", "package", "-t", test_map_tag, test_app_path]
-    monai_deploy(args)
+# def test_packager():
+#     test_map_tag = "monaitest:latest"
+#     test_app_path_rel = "examples/apps/simple_imaging_app/"
+#     test_app_path = os.path.abspath(test_app_path_rel)
+#     args = ["monai-deploy", "package", "-t", test_map_tag, test_app_path]
+#     monai_deploy(args)
 
-    # Delete MONAI application package image
-    docker_rmi_cmd = ["docker", "rmi", "-f", test_map_tag]
-    subprocess.Popen(docker_rmi_cmd)
+#     # Delete MONAI application package image
+#     docker_rmi_cmd = ["docker", "rmi", "-f", test_map_tag]
+#     subprocess.Popen(docker_rmi_cmd)

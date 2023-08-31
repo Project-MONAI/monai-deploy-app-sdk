@@ -1,14 +1,14 @@
-# Creating a Segmentation App
+# Creating a Segmentation App with a TorchScript Model
 
-This tutorial shows how to create an organ segmentation application for a PyTorch model that has been trained with MONAI. Please note that the example code used in the Jupyter Notebook is based on an earlier version of the segmentation application, i.e., not using MONAI Bundle Inference Operator, and the code is not necessarily the same as the latest source code on Github.
+This tutorial shows how to create an organ segmentation application for a PyTorch model that has been trained with MONAI and saved as TorchScript, without necessarily being a MONAI bundle.
+
+Please note that the following steps are for demonstration purpose. The code pulled from GitHub is not the same as that in the actual Jupyter Notebook, which deliberately does not use the MONAI Bundle Inference Operator.
 
 ## Setup
 
 ```bash
 # Create a virtual environment with Python 3.8.
 # Skip if you are already in a virtual environment.
-# (JupyterLab dropped its support for Python 3.6 since 2021-12-23.
-#  See https://github.com/jupyterlab/jupyterlab/pull/11740)
 conda create -n monai python=3.8 pytorch torchvision jupyterlab cudatoolkit=11.1 -c pytorch -c conda-forge
 conda activate monai
 
@@ -22,18 +22,6 @@ jupyter-lab
 :maxdepth: 4
 
 ../../notebooks/tutorials/03_segmentation_app.ipynb
-```
-
-```{raw} html
-<div style="text-align: center;">
-    <iframe width="560" height="315" src="https://www.youtube.com/embed/cqDVxzYt9lY" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
-</div>
-```
-
-```{raw} html
-<div style="text-align: center;">
-    <iframe width="560" height="315" src="https://www.youtube.com/embed/nivgfD4pwWE" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
-</div>
 ```
 
 ```{raw} html
@@ -61,25 +49,40 @@ pip install --upgrade monai-deploy-app-sdk
 pip install gdown
 gdown https://drive.google.com/uc?id=1Uds8mEvdGNYUuvFpTtCQ8gNU97bAPCaQ
 
-# After downloading it using gdown, unzip the zip file saved by gdown
+# After downloading it using gdown, unzip the zip file saved by gdown and
+# copy the model file into a folder structure that is required by CLI Packager
+rm -rf dcm
 unzip -o ai_spleen_seg_bundle_data.zip
+rm -rf spleen_model && mkdir -p spleen_model && mv model.ts spleen_model && ls spleen_model
 
 # Install necessary packages from the app; note that numpy-stl and trimesh are only
 # needed if the application uses the STL Conversion Operator
-pip install monai pydicom highdicom SimpleITK Pillow nibabel scikit-image numpy-stl trimesh
+pip install monai torch pydicom highdicom SimpleITK Pillow nibabel scikit-image numpy-stl trimesh
 
-# Local execution of the app
-python examples/apps/ai_spleen_seg_app/app.py -i dcm/ -o output -m model.ts
+# Use env variables for input, output, and model paths for local running of Python application
+export HOLOSCAN_INPUT_PATH=dcm
+export HOLOSCAN_MODEL_PATH=spleen_model/model.ts
+export HOLOSCAN_OUTPUT_PATH="output"
+export HOLOSCAN_LOG_LEVEL=TRACE
+
+# Local execution of the app directly or using MONAI Deploy CLI
+python examples/apps/ai_spleen_seg_app/app.py
 
 # Package app (creating MAP docker image) using `-l DEBUG` option to see progress.
 # This assumes that nvidia docker is installed in the local machine.
 # Please see https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html#docker to install nvidia-docker2.
-monai-deploy package examples/apps/ai_spleen_seg_app --tag seg_app:latest --model model.ts -l DEBUG
+monai-deploy package examples/apps/ai_spleen_seg_app \
+    --config examples/apps/ai_spleen_seg_app/app.yaml \
+    --tag seg_app:latest \
+    --models spleen_model/model.ts \
+    --platform x64-workstation \
+    -l DEBUG
 
-# For AMD GPUs, nvidia-docker is not required. Use --base [base image] option to override the docker base image.
-# Please see https://hub.docker.com/r/rocm/pytorch for rocm/pytorch docker images.
-monai-deploy package -b rocm/pytorch:rocm5.4.1_ubuntu20.04_py3.7_pytorch_1.12.1 examples/apps/ai_spleen_seg_app --tag seg_app:latest --model model.ts -l DEBUG
+# Note: for AMD GPUs, nvidia-docker is not required, but the dependency of the App SDK, namely Holoscan SDK
+#       has not been tested to work with a ROCM base image.
 
 # Run the app with docker image and input file locally
-monai-deploy run seg_app:latest dcm/ output
+rm -rf output
+monai-deploy run seg_app-x64-workstation-dgpu-linux-amd64:latest -i dcm -o output
+ls -R output
 ```

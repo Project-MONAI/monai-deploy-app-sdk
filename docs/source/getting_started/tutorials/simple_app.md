@@ -1,14 +1,12 @@
-# Creating a simple image processing app
+# Creating a Simple Image Processing App
 
-This tutorial shows how to develop a simple image processing application can be created with MONAI Deploy App SDK.
+This tutorial shows how a simple image processing application can be created with MONAI Deploy App SDK.
 
 ## Setup
 
 ```bash
 # Create a virtual environment with Python 3.8.
 # Skip if you are already in a virtual environment.
-# (JupyterLab dropped its support for Python 3.6 since 2021-12-23.
-#  See https://github.com/jupyterlab/jupyterlab/pull/11740)
 conda create -n monai python=3.8 pytorch torchvision jupyterlab cudatoolkit=11.1 -c pytorch -c conda-forge
 conda activate monai
 
@@ -49,25 +47,34 @@ cd monai-deploy-app-sdk
 # Install monai-deploy-app-sdk package
 pip install monai-deploy-app-sdk
 
-# Install necessary packages from the app
+# Install necessary packages from the app. Can simply run `pip install -r examples/apps/simple_imaging_app/requirements.txt`
 pip install scikit-image
+pip install setuptools
 
-# Local execution of the app
-python examples/apps/simple_imaging_app/app.py -i examples/apps/simple_imaging_app/brain_mr_input.jpg -o output
+# See the input file exists in the default `input`` folder in the current working directory
+ls examples/apps/simple_imaging_app/input/
+
+# Local execution of the app with output file in the `output` folder in the current working directory
+python examples/apps/simple_imaging_app/app.py
 
 # Check the output file
 ls output
 
-# Package app (creating MAP docker image) using `-l DEBUG` option to see progress.
+# Package app (creating MAP docker image) using `-l DEBUG` option to see progress. Note the container image name is postfixed with platform info.
 # This assumes that nvidia docker is installed in the local machine.
 # Please see https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html#docker to install nvidia-docker2.
 
-monai-deploy package examples/apps/simple_imaging_app -t simple_app:latest -l DEBUG
+monai-deploy package examples/apps/simple_imaging_app -c examples/apps/simple_imaging_app/app.yaml -t simple_app:latest --platform x64-workstation -l DEBUG
 
-# Copy a test input file to 'input' folder
-mkdir -p input && rm -rf input/*
-cp examples/apps/simple_imaging_app/brain_mr_input.jpg input/
+# Show the application and package manifest files of the MONAI Application Package
 
-# Run the app with docker image and input file locally
-monai-deploy run simple_app:latest input output
+docker images | grep simple_app
+docker run --rm simple_app-x64-workstation-dgpu-linux-amd64:latest show
+
+# Run the MAP container image with MONAI Deploy MAP Runner, with a cleaned output folder
+rm -rf output
+monai-deploy run simple_app-x64-workstation-dgpu-linux-amd64:latest -i input -o output
+
+# Check the output file
+ls output
 ```

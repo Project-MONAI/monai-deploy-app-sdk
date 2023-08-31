@@ -1,4 +1,4 @@
-# Copyright 2021 MONAI Consortium
+# Copyright 2021-2023 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -13,21 +13,22 @@ import logging
 import numbers
 import re
 from json import loads as json_loads
-from typing import Dict, List, Text
+from typing import List
 
-import monai.deploy.core as md
-from monai.deploy.core import ExecutionContext, InputContext, IOType, Operator, OutputContext
+from monai.deploy.core import ConditionType, Fragment, Operator, OperatorSpec
 from monai.deploy.core.domain.dicom_series import DICOMSeries
 from monai.deploy.core.domain.dicom_series_selection import SelectedSeries, StudySelectedSeries
 from monai.deploy.core.domain.dicom_study import DICOMStudy
-from monai.deploy.exceptions import ItemNotExistsError
 
 
-@md.input("dicom_study_list", List[DICOMStudy], IOType.IN_MEMORY)
-@md.input("selection_rules", Dict, IOType.IN_MEMORY)  # This overrides the rules in the instance.
-@md.output("study_selected_series_list", List[StudySelectedSeries], IOType.IN_MEMORY)
 class DICOMSeriesSelectorOperator(Operator):
     """This operator selects a list of DICOM Series in a DICOM Study for a given set of selection rules.
+
+    Named input:
+        dicom_study_list: A list of DICOMStudy objects.
+
+    Named output:
+        study_selected_series_list: A list of StudySelectedSeries objects. Downstream receiver optional.
 
     This class can be considered a base class, and a derived class can override the 'filer' function to with
     custom logics.
@@ -68,40 +69,39 @@ class DICOMSeriesSelectorOperator(Operator):
     }
     """
 
-    def __init__(self, rules: Text = "", all_matched: bool = False, *args, **kwargs) -> None:
-        super().__init__(*args, **kwargs)
+    def __init__(self, fragment: Fragment, *args, rules: str = "", all_matched: bool = False, **kwargs) -> None:
         """Instantiate an instance.
 
         Args:
+            fragment (Fragment): An instance of the Application class which is derived from Fragment.
             rules (Text): Selection rules in JSON string.
             all_matched (bool): Gets all matched series in a study. Defaults to False for first match only.
         """
 
+        # rules: Text = "", all_matched: bool = False,
+
         # Delay loading the rules as JSON string till compute time.
         self._rules_json_str = rules if rules and rules.strip() else None
-        self._all_matched = all_matched
+        self._all_matched = all_matched  # all_matched
+        self.input_name_study_list = "dicom_study_list"
+        self.output_name_selected_series = "study_selected_series_list"
 
-    def compute(self, op_input: InputContext, op_output: OutputContext, context: ExecutionContext):
+        super().__init__(fragment, *args, **kwargs)
+
+    def setup(self, spec: OperatorSpec):
+        spec.input(self.input_name_study_list)
+        spec.output(self.output_name_selected_series).condition(ConditionType.NONE)  # Receiver optional
+
+        # Can use the config file to alter the selection rules per app run
+        # spec.param("selection_rules")
+
+    def compute(self, op_input, op_output, context):
         """Performs computation for this operator."""
 
-        dicom_study_list = None
-        selection_rules = None
-        try:
-            dicom_study_list = op_input.get("dicom_study_list")
-        except ItemNotExistsError as ex:
-            logging.exception(f"Failed to find input 'dicom_study_list', {ex}")
-            raise
-
-        try:
-            selection_rules = op_input.get("selection_rules")
-        except ItemNotExistsError:
-            # OK for not providing selection rules.
-            pass
-
-        if not selection_rules:
-            selection_rules = self._load_rules() if self._rules_json_str else None
+        dicom_study_list = op_input.receive(self.input_name_study_list)
+        selection_rules = self._load_rules() if self._rules_json_str else None
         study_selected_series = self.filter(selection_rules, dicom_study_list, self._all_matched)
-        op_output.set(study_selected_series, "study_selected_series_list")
+        op_output.emit(study_selected_series, self.output_name_selected_series)
 
     def filter(self, selection_rules, dicom_study_list, all_matched: bool = False) -> List[StudySelectedSeries]:
         """Selects the series with the given matching rules.
@@ -133,7 +133,7 @@ class DICOMSeriesSelectorOperator(Operator):
             logging.warn("No selection rules given; select all series.")
             return self._select_all_series(dicom_study_list)
 
-        selections = selection_rules.get("selections", None)
+        selections = selection_rules.get("selections", None)  # TODO type is not json now.
         # If missing selections in the rules then it is an error.
         if not selections:
             raise ValueError('Expected "selections" not found in the rules.')
@@ -177,11 +177,9 @@ class DICOMSeriesSelectorOperator(Operator):
         study_selected_series_list = []
         for study in dicom_study_list:
             logging.info(f"Working on study, instance UID: {study.StudyInstanceUID}")
-            print(f"Working on study, instance UID: {study.StudyInstanceUID}")
             study_selected_series = StudySelectedSeries(study)
             for series in study.get_all_series():
                 logging.info(f"Working on series, instance UID: {str(series.SeriesInstanceUID)}")
-                print(f"Working on series, instance UID: {str(series.SeriesInstanceUID)}")
                 selected_series = SelectedSeries("", series, None)  # No selection name or Image obj.
                 study_selected_series.add_selected_series(selected_series)
             study_selected_series_list.append(study_selected_series)
@@ -295,11 +293,12 @@ def test():
     from monai.deploy.operators.dicom_data_loader_operator import DICOMDataLoaderOperator
 
     current_file_dir = Path(__file__).parent.resolve()
-    data_path = current_file_dir.joinpath("../../../examples/ai_spleen_seg_data/dcm-multi")
+    data_path = current_file_dir.joinpath("../../../inputs/spleen_ct/dcm").absolute()
 
-    loader = DICOMDataLoaderOperator()
-    study_list = loader.load_data_to_studies(data_path.absolute())
-    selector = DICOMSeriesSelectorOperator()
+    fragment = Fragment()
+    loader = DICOMDataLoaderOperator(fragment, name="loader_op")
+    selector = DICOMSeriesSelectorOperator(fragment, name="selector_op")
+    study_list = loader.load_data_to_studies(data_path)
     sample_selection_rule = json_loads(Sample_Rules_Text)
     print(f"Selection rules in JSON:\n{sample_selection_rule}")
     study_selected_seriee_list = selector.filter(sample_selection_rule, study_list)

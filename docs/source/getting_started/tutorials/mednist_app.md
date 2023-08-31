@@ -7,8 +7,6 @@ This tutorial demos the process of packaging up a trained model using MONAI Depl
 ```bash
 # Create a virtual environment with Python 3.8.
 # Skip if you are already in a virtual environment.
-# (JupyterLab dropped its support for Python 3.6 since 2021-12-23.
-#  See https://github.com/jupyterlab/jupyterlab/pull/11740)
 conda create -n mednist python=3.8 pytorch jupyterlab cudatoolkit=11.1 -c pytorch -c conda-forge
 conda activate mednist
 
@@ -71,32 +69,42 @@ pip install monai-deploy-app-sdk
 pip install gdown
 gdown https://drive.google.com/uc?id=1yJ4P-xMNEfN6lIOq_u6x1eMAq1_MJu-E
 
-# After downloading mednist_classifier_data.zip from the web browser or using gdown,
+# After downloading mednist_classifier_data.zip from the web browser or using gdown
 unzip -o mednist_classifier_data.zip
 
-# Install necessary packages from the app
-pip install monai Pillow
+# Install necessary packages required by the app
+pip install -r examples/apps/mednist_classifier_monaideploy/requirements.txt
 
-# Local execution of the app
-python examples/apps/mednist_classifier_monaideploy/mednist_classifier_monaideploy.py -i input/AbdomenCT_007000.jpeg -o output -m classifier.zip
+# Local execution of the app using environment variables for input, output, and model paths
+# instead of command line options, `-i input/AbdomenCT_007000.jpeg -o output -m classifier.zip`
+export HOLOSCAN_INPUT_PATH="input/AbdomenCT_007000.jpeg"
+export HOLOSCAN_MODEL_PATH="classifier.zip"
+export HOLOSCAN_OUTPUT_PATH="output"
+
+python examples/apps/mednist_classifier_monaideploy/mednist_classifier_monaideploy.py
+
+# See the classification result
+cat output/output.json
 
 # Package app (creating MAP docker image) using `-l DEBUG` option to see progress.
 # This assumes that nvidia docker is installed in the local machine.
 # Please see https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html#docker to install nvidia-docker2.
+
+# Need to move the model file to a clean folder as a workaround of an known packaging issue in v0.6
+mkdir -p mednist_model && rm -rf mednist_model/* && cp classifier.zip mednist_model/
+
 monai-deploy package examples/apps/mednist_classifier_monaideploy/mednist_classifier_monaideploy.py \
+    --config examples/apps/mednist_classifier_monaideploy/app.yaml \
     --tag mednist_app:latest \
-    --model classifier.zip \
+    --models mednist_model/classifier.zip \
+    --platform x64-workstation \
     -l DEBUG
 
-# For AMD GPUs, nvidia-docker is not required. Use --base [base image] option to override the docker base image.
-# Please see https://hub.docker.com/r/rocm/pytorch for rocm/pytorch docker images.
-monai-deploy package -b rocm/pytorch:rocm5.4.1_ubuntu20.04_py3.7_pytorch_1.12.1 \
-    examples/apps/mednist_classifier_monaideploy/mednist_classifier_monaideploy.py \
-    --tag mednist_app:latest \
-    --model classifier.zip \
-    -l DEBUG
+# Note: for AMD GPUs, nvidia-docker is not required, but the dependency of the App SDK, namely Holoscan SDK
+#       has not been tested to work with a ROCM base image.
 
 # Run the app with docker image and input file locally
-monai-deploy run mednist_app:latest input output
+rm -rf output
+monai-deploy run mednist_app-x64-workstation-dgpu-linux-amd64:latest -i input -o output
 cat output/output.json
 ```

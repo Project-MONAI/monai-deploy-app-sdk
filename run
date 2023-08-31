@@ -325,7 +325,17 @@ install_python_dev_deps() {
         exit 1
     fi
 
+    # Adding temp fix to address the issue of holoscan sdk dragging in low level dependencies, e.g. libcuda.so
+    fix_holoscan_import
+
     install_edit_mode
+}
+
+fix_holoscan_import() {
+    local holoscan_package_path=$(${MONAI_PY_EXE} $TOP/monai/deploy/utils/importutil.py dist_module_path holoscan)
+    c_echo b "holoscan_package_path : " Z "${holoscan_package_path}"
+    init_file_path=$(${MONAI_PY_EXE} $TOP/monai/deploy/utils/importutil.py fix_holoscan_import)
+    c_echo b "done fixing file: " Z "${init_file_path}"
 }
 
 install_edit_mode() {
@@ -398,6 +408,7 @@ clean() {
     if [ -n "${VIRTUAL_ENV}" ] || [ -n "${CONDA_PREFIX}" ]; then
         c_echo W "Uninstalling MONAI Deploy App SDK installation..."
         run_command ${MONAI_PY_EXE} -m pip uninstall monai-deploy-app-sdk
+        run_command ${MONAI_PY_EXE} -m pip uninstall holoscan
     fi
 
     local monai_package_path=$(${MONAI_PY_EXE} $TOP/monai/deploy/utils/importutil.py dist_module_path monai)

@@ -27,9 +27,11 @@ setup(
     packages=find_namespace_packages(include=["monai.*"]),
     include_package_data=True,
     zip_safe=False,
-    entry_points={
-        "console_scripts": [
-            "monai-deploy = monai.deploy.cli.main:main",
-        ]
-    },
+    # The following entry_points are for reference only as Holoscan sets them up
+    # entry_points={
+    #     "console_scripts": [
+    #         "holoscan = holoscan.cli.__main__:main",
+    #         "monai-deploy = holoscan.cli.__main__:main",
+    #     ]
+    # },
 )

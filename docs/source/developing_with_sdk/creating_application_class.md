@@ -16,9 +16,6 @@ caption: |
 from monai.deploy.core import Application, env, resource
 
 
-@resource(cpu=1, gpu=1, memory="2Gi")
-# pip_packages can be a string that is a path(str) to requirements.txt file or a list of packages.
-@env(pip_packages=["scikit-image >= 0.17.2"])
 class App(Application):
     """This is a very basic application.
 
@@ -37,27 +34,20 @@ class App(Application):
         pass
 
 if __name__ == "__main__":
-    App(do_run=True)
+    App().run()
 
 ```
-
-### Decorators
-
-The resource requirements (such as `cpu`, `memory`, and `gpu`) for the application can be specified by using [@resource](/modules/_autosummary/monai.deploy.core.resource) decorator. This information is used only when the packaged app (Docker image) is executed.
-
-[@env](/modules/_autosummary/monai.deploy.core.env) accepts `pip_packages` parameter as a string that is a path to requirements.txt file or a list of packages to install. If `pip_packages` is specified, the definition will be aggregated with the package dependency list of other operators. The aggregated requirement definitions are stored as a "[requirements.txt](https://pip.pypa.io/en/stable/cli/pip_install/#example-requirements-file)" file and it would be installed in [packaging time](/developing_with_sdk/executing_packaged_app_locally).
-
 
 ### compose() method
 
 In `compose()` method, operators are instantiated and connected through <a href="../modules/_autosummary/monai.deploy.core.Application.html#monai.deploy.core.Application.add_flow">self.add_flow()</a>.
 
-> add_flow(source_op, destination_op, io_map=None)
+> add_flow(source_op, destination_op, port_pairs )
 
-`io_map` is a dictionary of mapping from the source operator's label to the destination operator's label(s) and its type is `Dict[str, str|Set[str]]`.
+`port_pairs` is a sequence of string tuples mapping from the source operator's named output(s) to the destination operator's named input(s) and its type is `Set[Tuple[str, str]]`.
 
-We can skip specifying `io_map` if both the number of `source_op`'s outputs and the number of `destination_op`'s inputs are one.
-For example, if Operators named `task1` and `task2` has only one input and output (with the label `image`), `self.add_flow(task1, task2)` is same with `self.add_flow(task1, task2, {"image": "image"})` or `self.add_flow(task1, task2, {"image": {"image"}})`.
+We can skip specifying `Set[Tuple[str, str]]` if both the number of `source_op`'s outputs and the number of `destination_op`'s inputs are one.
+For example, if Operators named `task1` and `task2` has only one input and output (with the label `image`), `self.add_flow(task1, task2)` is same with `self.add_flow(task1, task2, {("image", "image")})` or `self.add_flow(task1, task2, {("image", "image")})`.
 
 ```python
     def compose(self):
@@ -65,13 +55,13 @@ For example, if Operators named `task1` and `task2` has only one input and outpu
         task2 = Task2()
 
         self.add_flow(task1, task2)
-        # self.add_flow(task1, task2, {"image": "image"})
-        # self.add_flow(task1, task2, {"image": {"image"}})
+        # self.add_flow(task1, task2, {("image", "image")})
+        # self.add_flow(task1, task2, {("image", "image")})
 ```
 
 > add_operator(operator)
 
-If an operator in the workflow graph is both a root node and a leaf node, you can execute <a href="../modules/_autosummary/monai.deploy.core.Application.html#monai.deploy.core.Application.add_flow">self.add_operator()</a> for adding the operator to the workflow graph of the application.
+If an operator in the workflow graph is both a root node and a leaf node, you can execute <a href="../modules/_autosummary/monai.deploy.core.Application.html#monai.deploy.core.Application.add_operator">self.add_operator()</a> for adding the operator to the workflow graph of the application.
 
 ```python
     def compose(self):
@@ -83,7 +73,7 @@ If an operator in the workflow graph is both a root node and a leaf node, you ca
 
 ```python
 if __name__ == "__main__":
-    App(do_run=True)
+    App().run()
 ```
 
 The above lines in `app.py` are needed to execute the application code by using `python` interpreter.
@@ -101,8 +91,14 @@ caption: |
 from app import App
 
 if __name__ == "__main__":
-    App(do_run=True)
+    App().run()
 ```
+
+## Package Dependency and Resource Requirements
+
+Unlike in previous versions where Python decorators are used to define the resource requirements (such as `cpu`, `memory`, and `gpu`) for the application, a YAML file is required to store such information with sections and attributes as defined in the [MONAI Application Package Specification](https://github.com/Project-MONAI/monai-deploy/blob/main/guidelines/monai-application-package.md). This file is only needed when the application is packaged into a MONAI Application Package container image. When the MAP is run, the executor is expected to parse the resource requirements embedded in the MAP to ensure they are met in the host system.
+
+Similarly, instead of using Python decorators, package dependencies of the application and all of its operators need to be aggregated and stored as a "[requirements.txt](https://pip.pypa.io/en/stable/cli/pip_install/#example-requirements-file)" file, to be installed at [packaging time](/developing_with_sdk/packaging_app).
 
 ## Creating a Reusable Application
 
@@ -174,12 +170,12 @@ The above workflow can be expressed like below
         notifier = Notifier()
         writer = Writer()
 
-        self.add_flow(reader1, processor1, {"image": {"image1", "image2"},
-                                            "metadata": "metadata"})
-        self.add_flow(reader2, processor2, {"roi": "roi"})
-        self.add_flow(processor1, processor2, {"image": "image"})
-        self.add_flow(processor1, writer, {"image": "image"})
+        self.add_flow(reader1, processor1, {("image", "image1"), ("image", "image2"),
+                                            ("metadata", "metadata")})
+        self.add_flow(reader2, processor2, {("roi", "roi")})
+        self.add_flow(processor1, processor2, {("image", "image")})
+        self.add_flow(processor1, writer, {("image", "image")})
         self.add_flow(processor2, notifier)
         self.add_flow(processor2, processor3)
-        self.add_flow(processor3, writer, {"seg_image": "seg_image"})
+        self.add_flow(processor3, writer, {("seg_image", "seg_image")})
 ```

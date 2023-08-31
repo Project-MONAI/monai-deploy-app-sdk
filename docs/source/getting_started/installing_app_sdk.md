@@ -19,12 +19,12 @@ For packaging your application, [MONAI Application Packager](/developing_with_sd
 
 <https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html#docker>
 
-Currently, `nvcr.io/nvidia/pytorch:22.08-py3` base Docker image is used by [MONAI Application Packager](/developing_with_sdk/packaging_app) by default.
+Currently, `nvcr.io/nvidia/clara-holoscan/holoscan:v0.6.0-dgpu` base Docker image is used by [MONAI Application Packager](/developing_with_sdk/packaging_app) by default for X86-64 in Linux system.
 
-The image size is large so please pull the image in advance to save time.
+The base image size is large so please pull the image in advance to save time. Note that the container image tag in the following example, e.g. v0.6.0, corresponds to the SDK version.
 
 ```bash
-docker pull nvcr.io/nvidia/pytorch:22.08-py3
+docker pull nvcr.io/nvidia/clara-holoscan/holoscan:v0.6.0-dgpu
 ```
 
 :::

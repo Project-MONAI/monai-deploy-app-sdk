@@ -1,4 +1,4 @@
-# Copyright 2021 MONAI Consortium
+# Copyright 2021-2023 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -9,10 +9,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from abc import abstractmethod
 from typing import Any, Dict, Tuple, Union
 
-from monai.deploy.core import ExecutionContext, Image, InputContext, Operator, OutputContext
+from monai.deploy.core import Fragment, Image, Operator
 
 
 class InferenceOperator(Operator):
@@ -22,11 +21,11 @@ class InferenceOperator(Operator):
     a given model, post-transforms, and final results generation.
     """
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, fragment: Fragment, *args, **kwargs):
         """Constructor of the operator."""
-        super().__init__()
+        super().__init__(fragment, *args, **kwargs)
 
-    @abstractmethod
+    # @abstractmethod
     def pre_process(self, data: Any, *args, **kwargs) -> Union[Image, Any, Tuple[Any, ...], Dict[Any, Any]]:
         """Transforms input before being used for predicting on a model.
 
@@ -38,8 +37,8 @@ class InferenceOperator(Operator):
 
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
 
-    @abstractmethod
-    def compute(self, op_input: InputContext, op_output: OutputContext, context: ExecutionContext):
+    # @abstractmethod
+    def compute(self, op_input, op_output, context):
         """An abstract method that needs to be implemented by the user.
 
         Args:
@@ -49,7 +48,7 @@ class InferenceOperator(Operator):
         """
         pass
 
-    @abstractmethod
+    # @abstractmethod
     def predict(self, data: Any, *args, **kwargs) -> Union[Image, Any, Tuple[Any, ...], Dict[Any, Any]]:
         """Predicts results using the models(s) with input tensors.
 
@@ -60,7 +59,7 @@ class InferenceOperator(Operator):
         """
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
 
-    @abstractmethod
+    # @abstractmethod
     def post_process(self, data: Any, *args, **kwargs) -> Union[Image, Any, Tuple[Any, ...], Dict[Any, Any]]:
         """Transform the prediction results from the model(s).
 
