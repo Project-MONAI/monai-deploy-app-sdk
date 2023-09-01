@@ -50,40 +50,40 @@ pip install scikit-image
 python examples/apps/simple_imaging_app/app.py -i examples/apps/simple_imaging_app/brain_mr_input.jpg -o output
 
 # Package app (creating MAP Docker image), using `-l DEBUG` option to see progress.
-monai-deploy package examples/apps/simple_imaging_app -t simple_app:latest -l DEBUG
+monai-deploy package examples/apps/simple_imaging_app -c simple_imaging_app/app.yaml -t simple_app:latest --platform x64-workstation -l DEBUG
 
 # Run the app with docker image and an input file locally
 ## Copy a test input file to 'input' folder
 mkdir -p input && rm -rf input/*
 cp examples/apps/simple_imaging_app/brain_mr_input.jpg input/
 ## Launch the app
-monai-deploy run simple_app:latest input output
+monai-deploy run simple_app-x64-workstation-dgpu-linux-amd64:latest -i input -o output
 ```
 
-### [Tutorials](https://docs.monai.io/projects/monai-deploy-app-sdk/en/latest/getting_started/tutorials/index.html)
+### [Tutorials](https://docs.monai.io/projects/monai-deploy-app-sdk/en/stable/getting_started/tutorials/index.html)
 
 Tutorials are provided to help getting started with the App SDK, to name but a few below.
 
-#### [1) Creating a simple image processing app](https://docs.monai.io/projects/monai-deploy-app-sdk/en/latest/getting_started/tutorials/simple_app.html)
+#### [1) Creating a simple image processing app](https://docs.monai.io/projects/monai-deploy-app-sdk/en/stable/getting_started/tutorials/simple_app.html)
 
-#### [2) Creating MedNIST Classifier app](https://docs.monai.io/projects/monai-deploy-app-sdk/en/latest/getting_started/tutorials/mednist_app.html)
+#### [2) Creating MedNIST Classifier app](https://docs.monai.io/projects/monai-deploy-app-sdk/en/stable/getting_started/tutorials/mednist_app.html)
 
-YouTube Video:
+YouTube Video (to be updated with the new version):
 
 - [MedNIST Classification Example](https://www.youtube.com/watch?v=WwjilJFHuU4)
 
-### [3) Creating a Segmentation app](https://docs.monai.io/projects/monai-deploy-app-sdk/en/latest/getting_started/tutorials/segmentation_app.html)
+### [3) Creating a Segmentation app](https://docs.monai.io/projects/monai-deploy-app-sdk/en/stable/getting_started/tutorials/segmentation_app.html)
 
-YouTube Video:
+YouTube Video (to be updated with the new version):
 
 - [Spleen Organ Segmentation - Jupyter Notebook Tutorial](https://www.youtube.com/watch?v=cqDVxzYt9lY)
 - [Spleen Organ Segmentation - Deep Dive](https://www.youtube.com/watch?v=nivgfD4pwWE)
 
-### [4) Creating a Segmentation app including visualization with Clara Viz](https://docs.monai.io/projects/monai-deploy-app-sdk/en/latest/getting_started/tutorials/segmentation_clara-viz_app.html)
+### [4) Creating a Segmentation app including visualization with Clara Viz](https://docs.monai.io/projects/monai-deploy-app-sdk/en/stable/getting_started/tutorials/segmentation_clara-viz_app.html)
 
-### [5) Creating a Segmentation app consuming a MONAI Bundle](https://docs.monai.io/projects/monai-deploy-app-sdk/en/latest/getting_started/tutorials/monai_bundle_app.html)
+### [5) Creating a Segmentation app consuming a MONAI Bundle](https://docs.monai.io/projects/monai-deploy-app-sdk/en/stable/getting_started/tutorials/monai_bundle_app.html)
 
-### [Examples](https://docs.monai.io/projects/monai-deploy-app-sdk/en/latest/getting_started/examples.html)
+### [Examples](https://docs.monai.io/projects/monai-deploy-app-sdk/en/stable/getting_started/examples.html)
 
 <https://github.com/Project-MONAI/monai-deploy-app-sdk/tree/main/examples/apps> has example apps that you can see.
 
