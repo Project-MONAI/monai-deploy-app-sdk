@@ -1,0 +1,113 @@
+# This workflow will install Python dependencies, build the latest models as containers, and push to the registry the resulting containers
+# TODO: Use cache for caching the docker images, to speed up the build
+# TODO: Can we have the dependencies stored somehow (predownloaded, a custom image, a container registry, our artifact server...) so this will always be reproduceable?
+# TODO: Can we have some kind of  Bill Of Materials of the resulting image? What packages are in there? What python "modules" ? Code version of monai?
+
+name: build_and_push_models
+
+# This is triggered manually. It could be changed to be triggered by new pushed tags.
+on: workflow_dispatch
+
+# Version could be infered from the new tag if this was triggered by a new tag push
+# FIXME: Python version could be inferred with "python --version" run inside the containers, and CP is the python version without '.'
+# FIXME: wheel name could be dynamically generated, by for example use "ls" on the download folder
+# ARM environment variables are used by the terraform azure provider for authentication using a client secret. 
+# See https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/guides/service_principal_client_secret
+#     https://github.com/Azure-Samples/terraform-github-actions/blob/main/.github/workflows/tf-plan-apply.yml
+env:
+  ARM_CLIENT_ID: "${{ secrets.AZURE_CLIENT_ID }}"
+  ARM_SUBSCRIPTION_ID: "${{ secrets.AZURE_SUBSCRIPTION_ID }}"
+  ARM_TENANT_ID: "${{ secrets.AZURE_TENANT_ID }}"
+  ARM_CLIENT_SECRET: "${{ secrets.AZURE_CLIENT_SECRET }}"
+  VERSION: "0.6.0"
+  PYTHON_VERSION: "3.8"
+  CP_VERSION: "38"
+  DOCKER_IMAGE_TAG : "latest"
+  APP_IMAGE_NAME : "simple_app"
+  PLATFORM : "x64-workstation"
+  DOCKER_IMAGE_NAME : "simple_app-x64-workstation-dgpu-linux-amd64-latest"
+  DOCKER_IMAGE_NAME_SHORT: "simple_app-x64-workstation-dgpu-linux-amd64"
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+  APP: "examples/apps/simple_imaging_app"
+
+jobs:
+  do:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v2
+      - name: Disclaimers
+        run: |
+          echo "!!! WARNING !!! This is a hackweek project, not meant for production or clinical usage, does not have any kind of guarantee, use at your own risk.https://hackweek.opensuse.org/23/projects/package-monai-machine-learning-models-for-medical-applications. !!! WARNING !!!"
+      # Install the latest version of the Terraform CLI
+      - name: Show disc space
+        run: df -h
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_wrapper: false 
+      - name: Initialize a new Terraform working directory
+        run: terraform init
+      - name: Check Terraform configuration files format
+        run: terraform fmt -check
+      - name: Generate unique SSH Key
+        run: ssh-keygen -t rsa -f /tmp/ssh_id_gh -N ""
+      - name: Terraform Apply
+        run: terraform apply -auto-approve
+      - name: Get IP address
+        run: echo "AZURE_IPADDRESS=$(terraform output | grep instance_public_ip | cut -d\" -f2)" >> $GITHUB_ENV
+      - name: Output ip address
+        run: echo "AZURE_IPADDRESS=$AZURE_IPADDRESS"
+      - name: Test connection
+        # We use StrictHostKeyChecking=no to accept the SSH fingerprint on the first connection
+        run: ssh -i /tmp/ssh_id_gh -o StrictHostKeyChecking=no adminuser@$AZURE_IPADDRESS "sudo uname -a"
+      - name: Add fixed libseccomp package
+        run: ssh -i /tmp/ssh_id_gh adminuser@${AZURE_IPADDRESS} "sudo zypper ar -G https://download.opensuse.org/repositories/home:/jordimassaguerpla:/branches:/openSUSE:/Leap:/15.5:/Update/pool-leap-15.5/home:jordimassaguerpla:branches:openSUSE:Leap:15.5:Update.repo && sudo zypper ref && sudo zypper -n install --from home_jordimassaguerpla_branches_openSUSE_Leap_15.5_Update --allow-vendor-change libseccomp"
+      - name: Install Deps
+        run: ssh -i /tmp/ssh_id_gh adminuser@${AZURE_IPADDRESS} "sudo zypper ar -G https://developer.download.nvidia.com/compute/cuda/repos/opensuse15/x86_64/ nvidia && sudo zypper ref && sudo zypper --non-interactive install patch python39 docker-buildx nvidia-container-toolkit nvidia-computeG05 cuda-cudart-devel-11-0 libyaml-cpp0_6 && wget -c https://bootstrap.pypa.io/get-pip.py && python3.9 get-pip.py && python3.9 --version" 
+      - name: Setup Nvidia container
+        run: ssh -i /tmp/ssh_id_gh adminuser@${AZURE_IPADDRESS} "sudo usermod -G docker,video adminuser && sudo nvidia-ctk runtime configure --runtime=docker && sudo nvidia-ctk runtime configure --runtime=containerd && sudo systemctl start docker && sudo systemctl start containerd && sudo sed -e \"s/user = \\\"\\\"/user = \\\"adminuser:video\\\"/g \" -i /etc/nvidia-container-runtime/config.toml && sudo modprobe nvidia"
+      - name: Check nvidia
+        run: ssh -i /tmp/ssh_id_gh adminuser@${AZURE_IPADDRESS} "sudo systemctl start docker && nvidia-smi && docker run --rm --runtime=nvidia --gpus all ubuntu nvidia-smi"
+      - name: Install Monai Deploy Sdk and Holoscan
+        run: ssh -i /tmp/ssh_id_gh adminuser@${AZURE_IPADDRESS} "python3.9 -m pip install monai-deploy-app-sdk holoscan"
+      - name: Fix Holoscan
+        run: ssh -i /tmp/ssh_id_gh adminuser@${AZURE_IPADDRESS} 'cd /home/adminuser/.local/lib/python3.9/site-packages/holoscan/lib ; to_link=$(ls libholoscan_*.so*);for i in $to_link; do name=$(echo $i | cut -d. -f1); ln -sv $name.so.$VERSION $name.so.0;done'
+      - name: Copy holoscan patch
+        run: scp -i /tmp/ssh_id_gh .github/workflows/142be17d7563c3499b548dae913cabd7b8242f78.patch adminuser@${AZURE_IPADDRESS}:/home/adminuser/.local/lib/python3.9/site-packages/holoscan
+      - name: Patch Holoscan
+        run: ssh -i /tmp/ssh_id_gh adminuser@${AZURE_IPADDRESS} "cd /home/adminuser/.local/lib/python3.9/site-packages/holoscan; patch -p3  < 142be17d7563c3499b548dae913cabd7b8242f78.patch" 
+      - name: Make work dir
+        run: ssh -i /tmp/ssh_id_gh adminuser@${AZURE_IPADDRESS} "mkdir /home/adminuser/work"
+      - name: Download wheels
+        run: ssh -i /tmp/ssh_id_gh adminuser@${AZURE_IPADDRESS} "cd /home/adminuser/work && python3.9 -m pip download --no-deps --python-version=$PYTHON_VERSION holoscan==$VERSION && python3.9 -m pip download --no-deps monai-deploy-app-sdk==$VERSION"
+      - name: Copy example code
+        run: scp -i /tmp/ssh_id_gh -r * adminuser@${AZURE_IPADDRESS}:/home/adminuser/work
+      - name: Monai Deploy package
+        run: ssh -i /tmp/ssh_id_gh adminuser@${AZURE_IPADDRESS} "mkdir /home/adminuser/work/output && cd /home/adminuser/work &&  monai-deploy package --no-cache /home/adminuser/work/$APP -c /home/adminuser/work/$APP/app.yaml -t $APP_IMAGE_NAME:$DOCKER_IMAGE_TAG --platform $PLATFORM -l DEBUG --holoscan-sdk-file=/home/adminuser/work/holoscan-$VERSION-cp$CP_VERSION-cp$CP_VERSION-manylinux2014_x86_64.whl   --monai-deploy-sdk-file=/home/adminuser/work/monai_deploy_app_sdk-$VERSION-py3-none-any.whl --platform-config dgpu --gid 1000 --output /home/adminuser/work/output"
+      - name: Size of docker image
+        run: ssh -i /tmp/ssh_id_gh adminuser@${AZURE_IPADDRESS} "du -hs /home/adminuser/work/output/*"
+      - name: Compress docker image
+        run: ssh -i /tmp/ssh_id_gh adminuser@${AZURE_IPADDRESS} "cd /home/adminuser/work/output && gzip $DOCKER_IMAGE_NAME.tar"
+      - name: Size of docker image
+        run: ssh -i /tmp/ssh_id_gh adminuser@${AZURE_IPADDRESS} "du -hs /home/adminuser/work/output/*"
+      - name: Show disc space
+        run: df -h
+      - name: Load docker image
+        run:  ssh -i /tmp/ssh_id_gh adminuser@${AZURE_IPADDRESS} "cat /home/adminuser/work/output/$DOCKER_IMAGE_NAME.tar.gz" | docker load
+      - name: Log in to the Container registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Tag Docker image
+        run: docker tag $DOCKER_IMAGE_NAME_SHORT:$DOCKER_IMAGE_TAG $REGISTRY/$IMAGE_NAME/$DOCKER_IMAGE_NAME_SHORT:$DOCKER_IMAGE_TAG
+      - name: Push Docker image
+        run: docker push $REGISTRY/$IMAGE_NAME/$DOCKER_IMAGE_NAME_SHORT:$DOCKER_IMAGE_TAG 
+      - name: Terraform Destroy
+        if: ${{ always() }}
+        run: terraform destroy -auto-approve
