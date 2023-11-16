@@ -19,7 +19,7 @@ import torch
 from monai.deploy.conditions import CountCondition
 from monai.deploy.core import AppContext, Application, ConditionType, Fragment, Image, Operator, OperatorSpec
 from monai.deploy.operators.dicom_text_sr_writer_operator import DICOMTextSRWriterOperator, EquipmentInfo, ModelInfo
-from monai.transforms import AddChannel, Compose, EnsureType, ScaleIntensity
+from monai.transforms import Compose, EnsureChannelFirst, EnsureType, ScaleIntensity
 
 MEDNIST_CLASSES = ["AbdomenCT", "BreastMRI", "CXR", "ChestCT", "Hand", "HeadCT"]
 
@@ -170,7 +170,7 @@ class MedNISTClassifierOperator(Operator):
 
     @property
     def transform(self):
-        return Compose([AddChannel(), ScaleIntensity(), EnsureType()])
+        return Compose([EnsureChannelFirst(channel_dim="no_channel"), ScaleIntensity(), EnsureType()])
 
     def compute(self, op_input, op_output, context):
         import json
@@ -218,7 +218,7 @@ class App(Application):
             self, app_context=app_context, output_folder=app_output_path, model_path=model_path, name="classifier_op"
         )
 
-        my_model_info = ModelInfo("MONAI WG Trainer", "MEDNIST Classifier", "0.1", "xyz")
+        my_model_info = ModelInfo("MONAI WG Trainer", "MEDNIST Classifier", "0.1", "1234")
         my_equipment = EquipmentInfo(manufacturer="MOANI Deploy App SDK", manufacturer_model="DICOM SR Writer")
         my_special_tags = {"SeriesDescription": "Not for clinical use. The result is for research use only."}
         dicom_sr_operator = DICOMTextSRWriterOperator(
