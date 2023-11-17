@@ -18,10 +18,10 @@ from monai.deploy.core import AppContext, ConditionType, Fragment, Operator, Ope
 from monai.deploy.operators.monai_seg_inference_operator import InMemImageReader, MonaiSegInferenceOperator
 from monai.transforms import (
     Activationsd,
-    AddChanneld,
     AsDiscreted,
     Compose,
     CropForegroundd,
+    EnsureChannelFirstd,
     Invertd,
     LoadImaged,
     Orientationd,
@@ -132,7 +132,7 @@ class UnetrSegOperator(Operator):
         return Compose(
             [
                 LoadImaged(keys=my_key, reader=img_reader),
-                AddChanneld(keys=my_key),
+                EnsureChannelFirstd(keys=my_key),
                 # The SaveImaged transform can be commented out to save a couple seconds.
                 # Uncompress NIfTI file, nii, is used favoring speed over size, but can be changed to nii.gz
                 SaveImaged(

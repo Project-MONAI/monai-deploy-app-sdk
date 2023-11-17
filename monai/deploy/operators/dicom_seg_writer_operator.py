@@ -184,6 +184,7 @@ class DICOMSegmentationWriterOperator(Operator):
         segment_descriptions: List[SegmentDescription],
         output_folder: Path,
         custom_tags: Optional[Dict[str, str]] = None,
+        omit_empty_frames: bool = True,
         **kwargs,
     ):
         """Instantiates the DICOM Seg Writer instance with optional list of segment label strings.
@@ -205,12 +206,16 @@ class DICOMSegmentationWriterOperator(Operator):
                 Object encapsulating the description of each segment present in the segmentation.
             output_folder: Folder for file output, overridden by named input on compute.
                            Defaults to current working dir's child folder, output.
-            custom_tags: OptonalDict[str, str], optional
+            custom_tags: Optonal[Dict[str, str]], optional
                 Dictionary for setting custom DICOM tags using Keywords and str values only
+            omit_empty_frames: bool, optional
+                Whether to omit frames that contain no segmented pixels from the output segmentation.
+                Defaults to True, same as the underlying lib API.
         """
 
         self._seg_descs = [sd.to_segment_description(n) for n, sd in enumerate(segment_descriptions, 1)]
         self._custom_tags = custom_tags
+        self._omit_empty_frames = omit_empty_frames
         self.output_folder = output_folder if output_folder else DICOMSegmentationWriterOperator.DEFAULT_OUTPUT_FOLDER
 
         self.input_name_seg = "seg_image"
@@ -323,6 +328,7 @@ class DICOMSegmentationWriterOperator(Operator):
             manufacturer_model_name="MONAI Deploy App SDK",
             software_versions=version_str,
             device_serial_number="0000",
+            omit_empty_frames=self._omit_empty_frames,
         )
 
         # Adding a few tags that are not in the Dataset

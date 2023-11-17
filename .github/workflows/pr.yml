@@ -30,8 +30,9 @@ jobs:
           python3 -c 'import sys; print(sys.executable)'
           python3 -c 'import site; print(site.getsitepackages())'
           python3 -m pip freeze
+          export LD_LIBRARY_PATH=`pwd`/.venv/lib/python3.8/site-packages/nvidia/cuda_runtime/lib:$LD_LIBRARY_PATH
           python3 -c 'from holoscan.core import *'
-          ./run check -f          
+          ./run check -f
       - name: Run Unit tests
         run: |
           source .venv/bin/activate
