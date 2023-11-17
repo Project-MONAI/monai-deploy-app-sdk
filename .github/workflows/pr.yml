@@ -27,7 +27,11 @@ jobs:
       - name: Check formatting
         run: |
           source .venv/bin/activate
-          ./run check -f
+          python3 -c 'import sys; print(sys.executable)'
+          python3 -c 'import site; print(site.getsitepackages())'
+          python3 -m pip freeze
+          python3 -c 'from holoscan.core import *'
+          ./run check -f          
       - name: Run Unit tests
         run: |
           source .venv/bin/activate
