@@ -1,7 +1,6 @@
 # This workflow will install Python dependencies, build the latest models as containers, and push to the registry the resulting containers
 # TODO: Use cache for caching the docker images, to speed up the build
 # TODO: Can we have the dependencies stored somehow (predownloaded, a custom image, a container registry, our artifact server...) so this will always be reproduceable?
-# TODO: Can we have some kind of  Bill Of Materials of the resulting image? What packages are in there? What python "modules" ? Code version of monai?
 
 name: build_and_push_models
 
@@ -37,6 +36,7 @@ jobs:
     permissions:
       contents: read
       packages: write
+      id-token: write
     steps:
       - uses: actions/checkout@v2
       - name: Disclaimers
@@ -67,7 +67,7 @@ jobs:
       - name: Add fixed libseccomp package
         run: ssh -i /tmp/ssh_id_gh adminuser@${AZURE_IPADDRESS} "sudo zypper ar -G https://download.opensuse.org/repositories/home:/jordimassaguerpla:/branches:/openSUSE:/Leap:/15.5:/Update/pool-leap-15.5/home:jordimassaguerpla:branches:openSUSE:Leap:15.5:Update.repo && sudo zypper ref && sudo zypper -n install --from home_jordimassaguerpla_branches_openSUSE_Leap_15.5_Update --allow-vendor-change libseccomp"
       - name: Install Deps
-        run: ssh -i /tmp/ssh_id_gh adminuser@${AZURE_IPADDRESS} "sudo zypper ar -G https://developer.download.nvidia.com/compute/cuda/repos/opensuse15/x86_64/ nvidia && sudo zypper ref && sudo zypper --non-interactive install patch python39 docker-buildx nvidia-container-toolkit nvidia-computeG05 cuda-cudart-devel-11-0 libyaml-cpp0_6 && wget -c https://bootstrap.pypa.io/get-pip.py && python3.9 get-pip.py && python3.9 --version" 
+        run: ssh -i /tmp/ssh_id_gh adminuser@${AZURE_IPADDRESS} "sudo zypper ar -G https://developer.download.nvidia.com/compute/cuda/repos/opensuse15/x86_64/ nvidia && sudo zypper ref && sudo zypper --non-interactive install patch python39 docker-buildx nvidia-container-toolkit nvidia-computeG05 cuda-cudart-devel-11-0 libyaml-cpp0_6 trivy && wget -c https://bootstrap.pypa.io/get-pip.py && python3.9 get-pip.py && python3.9 --version" 
       - name: Setup Nvidia container
         run: ssh -i /tmp/ssh_id_gh adminuser@${AZURE_IPADDRESS} "sudo usermod -G docker,video adminuser && sudo nvidia-ctk runtime configure --runtime=docker && sudo nvidia-ctk runtime configure --runtime=containerd && sudo systemctl start docker && sudo systemctl start containerd && sudo sed -e \"s/user = \\\"\\\"/user = \\\"adminuser:video\\\"/g \" -i /etc/nvidia-container-runtime/config.toml && sudo modprobe nvidia"
       - name: Check nvidia
@@ -88,6 +88,8 @@ jobs:
         run: scp -i /tmp/ssh_id_gh -r * adminuser@${AZURE_IPADDRESS}:/home/adminuser/work
       - name: Monai Deploy package
         run: ssh -i /tmp/ssh_id_gh adminuser@${AZURE_IPADDRESS} "mkdir /home/adminuser/work/output && cd /home/adminuser/work &&  monai-deploy package --no-cache /home/adminuser/work/$APP -c /home/adminuser/work/$APP/app.yaml -t $APP_IMAGE_NAME:$DOCKER_IMAGE_TAG --platform $PLATFORM -l DEBUG --holoscan-sdk-file=/home/adminuser/work/holoscan-$VERSION-cp$CP_VERSION-cp$CP_VERSION-manylinux2014_x86_64.whl   --monai-deploy-sdk-file=/home/adminuser/work/monai_deploy_app_sdk-$VERSION-py3-none-any.whl --platform-config dgpu --gid 1000 --output /home/adminuser/work/output"
+      - name: Build SBOM
+        run: ssh -i /tmp/ssh_id_gh adminuser@${AZURE_IPADDRESS} "trivy image --format spdx-json --input /home/adminuser/work/output/$DOCKER_IMAGE_NAME.tar > /home/adminuser/work/output/sbom.spdx.json"
       - name: Size of docker image
         run: ssh -i /tmp/ssh_id_gh adminuser@${AZURE_IPADDRESS} "du -hs /home/adminuser/work/output/*"
       - name: Compress docker image
@@ -98,6 +100,10 @@ jobs:
         run: df -h
       - name: Load docker image
         run:  ssh -i /tmp/ssh_id_gh adminuser@${AZURE_IPADDRESS} "cat /home/adminuser/work/output/$DOCKER_IMAGE_NAME.tar.gz" | docker load
+      - name: Get digest
+        run:  echo "IMAGE_DIGEST=$(docker images --no-trunc -q $DOCKER_IMAGE_NAME_SHORT:$DOCKER_IMAGE_TAG)" >> $GITHUB_ENV 
+      - name: Copy SBOM
+        run: scp -i /tmp/ssh_id_gh adminuser@${AZURE_IPADDRESS}:/home/adminuser/work/output/sbom.spdx.json .
       - name: Log in to the Container registry
         uses: docker/login-action@v3
         with:
@@ -108,6 +114,16 @@ jobs:
         run: docker tag $DOCKER_IMAGE_NAME_SHORT:$DOCKER_IMAGE_TAG $REGISTRY/$IMAGE_NAME/$DOCKER_IMAGE_NAME_SHORT:$DOCKER_IMAGE_TAG
       - name: Push Docker image
         run: docker push $REGISTRY/$IMAGE_NAME/$DOCKER_IMAGE_NAME_SHORT:$DOCKER_IMAGE_TAG 
+      - name: Install sigstore cosign
+        uses: sigstore/cosign-installer@main
+      - name: Sign image
+        env:
+          COSIGN_EXPERIMENTAL: "true"
+        run: cosign sign --yes ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@${{ env.IMAGE_DIGEST }}
+      - name: Sign attestations
+        env:
+          COSIGN_EXPERIMENTAL: "true"
+        run: cosign attest --yes --type spdx --predicate sbom.spdx.json ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@${{ env.IMAGE_DIGEST }}
       - name: Terraform Destroy
         if: ${{ always() }}
         run: terraform destroy -auto-approve
