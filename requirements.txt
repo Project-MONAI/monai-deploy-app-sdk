@@ -1,4 +1,4 @@
-holoscan~=0.6.0
+holoscan~=1.0
 numpy>=1.21.6
 colorama>=0.4.1
 typeguard>=3.0.0
