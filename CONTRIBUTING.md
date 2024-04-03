@@ -249,7 +249,7 @@ Please see this [general guidance](https://docs.github.com/en/pull-requests/coll
 
 ### Reviewing pull requests
 
-At least one contributor of the project need to approve a pull request.
+At least one contributor of the project needs to approve a pull request.
 
 ## Admin tasks
 
