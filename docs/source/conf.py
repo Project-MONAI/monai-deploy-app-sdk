@@ -41,7 +41,7 @@ print(sys.path)
 
 # -- Project information -----------------------------------------------------
 project = "MONAI Deploy App SDK"
-copyright = "2021 MONAI Consortium"
+copyright = "2021-2024 MONAI Consortium"
 author = "MONAI Contributors"
 
 # The full version, including alpha/beta/rc tags

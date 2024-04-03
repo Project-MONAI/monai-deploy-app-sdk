@@ -74,7 +74,7 @@ Before submitting a pull request, we recommend that all linting should pass, by 
 License information: all source code files should start with this paragraph:
 
 ```python
-# Copyright 2021 MONAI Consortium
+# Copyright 2021-2024 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -241,21 +241,22 @@ For string definition, [f-string](https://www.python.org/dev/peps/pep-0498/) is 
 
 ### Submitting pull requests
 
-TBD
+Please see this [general guidance](https://github.com/gabrieldemarmiesse/getting_started_open_source)
 
 ## The code reviewing process
 
-TBD
+Please see this [general guidance](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/reviewing-changes-in-pull-requests/about-pull-request-reviews)
 
 ### Reviewing pull requests
 
-TBD
+At least one contributor of the project need to approve a pull request.
 
 ## Admin tasks
 
-TBD
+The contributors with Admin role in the project handle admin tasks.
 
 ### Release a new version
 
-[github ci]: https://github.com/Project-MONAI/monai-deploy-app-sdk/actions
-[monai-deploy-app-sdk issue list]: https://github.com/Project-MONAI/monai-deploy-app-sdk/issues
+[github ci](https://github.com/Project-MONAI/monai-deploy-app-sdk/actions)
+
+[monai-deploy-app-sdk issue list](https://github.com/Project-MONAI/monai-deploy-app-sdk/issues)
