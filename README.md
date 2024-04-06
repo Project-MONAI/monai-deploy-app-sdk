@@ -44,7 +44,7 @@ git clone https://github.com/Project-MONAI/monai-deploy-app-sdk.git
 cd monai-deploy-app-sdk
 
 # Install necessary dependencies for simple_imaging_app
-pip install scikit-image
+pip install matplotlib Pillow scikit-image
 
 # Execute the app locally
 python examples/apps/simple_imaging_app/app.py -i examples/apps/simple_imaging_app/brain_mr_input.jpg -o output
