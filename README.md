@@ -22,7 +22,7 @@ MONAI Deploy App SDK offers a framework and associated tools to design, develop 
 
 ## User Guide
 
-User guide is available at [docs.monai.io](https://docs.monai.io/projects/monai-deploy-app-sdk/en/latest/).
+User guide is available at [docs.monai.io](https://docs.monai.io/projects/monai-deploy-app-sdk/en/stable/).
 
 ## Installation
 
@@ -34,7 +34,7 @@ pip install monai-deploy-app-sdk  # '--pre' to install a pre-release version.
 
 ## Getting Started
 
-Getting started guide is available at [here](https://docs.monai.io/projects/monai-deploy-app-sdk/en/latest/getting_started/index.html).
+Getting started guide is available at [here](https://docs.monai.io/projects/monai-deploy-app-sdk/en/stable/getting_started/index.html).
 
 ```bash
 pip install monai-deploy-app-sdk  # '--pre' to install a pre-release version.
