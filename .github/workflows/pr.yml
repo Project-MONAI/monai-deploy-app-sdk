@@ -39,7 +39,6 @@ jobs:
         run: |
           source .venv/bin/activate
           python3 -m pip install nvidia-cuda-runtime-cu12
-          python3 -m pip install nvidia-cuda-runtime-cu12
           ./run test all unit
       - name: Coverage
         run: |
