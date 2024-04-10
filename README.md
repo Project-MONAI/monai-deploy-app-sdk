@@ -32,6 +32,11 @@ To install [the current release](https://pypi.org/project/monai-deploy-app-sdk/)
 pip install monai-deploy-app-sdk  # '--pre' to install a pre-release version.
 ```
 
+Please also note the following system requirements:
+- Ubuntu 22.04 on X86-64 is required, as this is the only X86 platform that the underlying Holoscan SDK has been tested to support as of now.
+- [CUDA 12 runtime](https://pypi.org/project/nvidia-cuda-runtime-cu12/) is required if [CUDA Toolkit 12](https://docs.nvidia.com/cuda/cuda-toolkit-release-notes/index.html) is not installed on the host.  In addition, the `LIB_LIBRARY_PATH` must be set to include the installed shared library, e.g. in a Python 3.8 env, ```export LD_LIBRARY_PATH=`pwd`/.venv/lib/python3.8/site-packages/nvidia/cuda_runtime/lib:$LD_LIBRARY_PATH```
+
+
 ## Getting Started
 
 Getting started guide is available at [here](https://docs.monai.io/projects/monai-deploy-app-sdk/en/stable/getting_started/index.html).
