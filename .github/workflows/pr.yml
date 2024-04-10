@@ -39,11 +39,13 @@ jobs:
         run: |
           source .venv/bin/activate
           python3 -m pip install nvidia-cuda-runtime-cu12
+          export LD_LIBRARY_PATH=`pwd`/.venv/lib/python3.8/site-packages/nvidia/cuda_runtime/lib:$LD_LIBRARY_PATH
           ./run test all unit
       - name: Coverage
         run: |
           source .venv/bin/activate
           python3 -m pip install nvidia-cuda-runtime-cu12
+          export LD_LIBRARY_PATH=`pwd`/.venv/lib/python3.8/site-packages/nvidia/cuda_runtime/lib:$LD_LIBRARY_PATH
           coverage xml
       - name: Upload coverage
         uses: codecov/codecov-action@v2
