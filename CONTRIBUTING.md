@@ -19,6 +19,8 @@
 
 Welcome to Project MONAI Deploy App SDK! We're excited you're here and want to contribute. This documentation is intended for individuals and institutions interested in contributing to MONAI Deploy App SDK. MONAI Deploy App SDK is an open-source project and, as such, its success relies on its community of contributors willing to keep improving it. Your contribution will be a valued addition to the code base; we simply ask that you read this page and understand our contribution process, whether you are a seasoned open-source contributor or whether you are a first-time contributor.
 
+Please also refer to [MONAI Contributing Guide](https://github.com/Project-MONAI/MONAI/blob/dev/CONTRIBUTING.md) for general information as well as MONAI Core specifics.
+
 ### Communicate with us
 
 We are happy to talk with you about your needs for MONAI Deploy App SDK and your ideas for contributing to the project. One way to do this is to create an issue discussing your thoughts. It might be that a very similar feature is under development or already exists, so an issue is a great starting point. If you are looking for an issue to resolve that will help Project MONAI Deploy App SDK, see the [*good first issue*](https://github.com/Project-MONAI/monai-deploy-app-sdk/labels/good%20first%20issue) and [*Contribution wanted*](https://github.com/Project-MONAI/monai-deploy-app-sdk/labels/Contribution%20wanted) labels.
@@ -74,7 +76,7 @@ Before submitting a pull request, we recommend that all linting should pass, by 
 License information: all source code files should start with this paragraph:
 
 ```python
-# Copyright 2021 MONAI Consortium
+# Copyright 2021-2024 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -134,6 +136,10 @@ and you can reach out to us if you are unsure of how to proceed with testing.
 MONAI Deploy App SDK's code coverage report is available at [CodeCov](https://codecov.io/gh/Project-MONAI/monai-deploy-app-sdk).
 
 #### Building the documentation
+
+:::{note}
+Please note that the documentation builds successfully in Python 3.8 environment, but fails with Python 3.10.
+:::
 
 MONAI's documentation is located at `docs/`.
 
@@ -241,21 +247,22 @@ For string definition, [f-string](https://www.python.org/dev/peps/pep-0498/) is 
 
 ### Submitting pull requests
 
-TBD
+Please see this [general guidance](https://github.com/gabrieldemarmiesse/getting_started_open_source)
 
 ## The code reviewing process
 
-TBD
+Please see this [general guidance](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/reviewing-changes-in-pull-requests/about-pull-request-reviews)
 
 ### Reviewing pull requests
 
-TBD
+At least one contributor of the project needs to approve a pull request.
 
 ## Admin tasks
 
-TBD
+The contributors with Admin role in the project handle admin tasks.
 
 ### Release a new version
 
-[github ci]: https://github.com/Project-MONAI/monai-deploy-app-sdk/actions
-[monai-deploy-app-sdk issue list]: https://github.com/Project-MONAI/monai-deploy-app-sdk/issues
+[github ci](https://github.com/Project-MONAI/monai-deploy-app-sdk/actions)
+
+[monai-deploy-app-sdk issue list](https://github.com/Project-MONAI/monai-deploy-app-sdk/issues)
