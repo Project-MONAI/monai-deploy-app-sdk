@@ -5,9 +5,9 @@ This tutorial shows how to create an organ segmentation application for a PyTorc
 ## Setup
 
 ```bash
-# Create a virtual environment with Python 3.9.
+# Create a virtual environment with Python 3.8.
 # Skip if you are already in a virtual environment.
-conda create -n monai python=3.9 pytorch torchvision jupyterlab cudatoolkit=12.2 -c pytorch -c conda-forge
+conda create -n monai python=3.8 pytorch torchvision jupyterlab cudatoolkit=12.2 -c pytorch -c conda-forge
 conda activate monai
 
 # Launch JupyterLab if you want to work on Jupyter Notebook
@@ -32,21 +32,19 @@ jupyter-lab
 <div style="text-align: center;">
     <iframe width="560" height="315" src="https://www.youtube.com/embed/nivgfD4pwWE" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
 
-    <p>Video may show the use of previous SDK version.</p>
+    <p>Video may show the use of previous SDK verson.</p>
 </div>
 ```
 
 ```{raw} html
 <p style="text-align: center;">
-    <a class="sphinx-bs btn text-wrap btn-outline-primary col-md-6 reference external" href="../../_static/notebooks/tutorials/04_monai_bundle_app.ipynb">
+    <a class="sphinx-bs btn text-wrap btn-outline-primary col-md-6 reference external" href="../../_static/notebooks/tutorials/05_monai_bundle_app.ipynb">
         <span>Download 04_monai_bundle_app.ipynb</span>
     </a>
 </p>
 ```
 
 ## Executing from Shell
-
-**_Note:_** Data files are now access controlled. Please first request permission to access the [shared folder on Google Drive](https://drive.google.com/drive/folders/1EONJsrwbGsS30td0hs8zl4WKjihew1Z3?usp=sharing). Please download zip file, `mednist_classifieai_spleen_seg_bundle_data.zip` in the `ai_spleen_seg_app` folder, to the same folder as the notebook example.
 
 ```bash
 # Clone the github project (the latest version of main branch only)
@@ -59,7 +57,10 @@ pip install --upgrade monai-deploy-app-sdk
 
 # Download/Extract ai_spleen_bundle_data zip file from https://drive.google.com/file/d/1cJq0iQh_yzYIxVElSlVa141aEmHZADJh/view?usp=sharing
 
-# Download the zip file containing both the model and test data.
+# Download the zip file containing both the model and test data
+pip install gdown
+gdown https://drive.google.com/uc?id=1Uds8mEvdGNYUuvFpTtCQ8gNU97bAPCaQ
+
 # After downloading it using gdown, unzip the zip file saved by gdown and
 # copy the model file into a folder structure that is required by CLI Packager
 rm -rf dcm
@@ -86,7 +87,7 @@ monai-deploy package examples/apps/ai_spleen_seg_app \
     --config examples/apps/ai_spleen_seg_app/app.yaml \
     --tag seg_app:latest \
     --models spleen_model/model.ts \
-    --platform x86_64 \
+    --platform x64-workstation \
     -l DEBUG
 
 # Note: for AMD GPUs, nvidia-docker is not required, but the dependency of the App SDK, namely Holoscan SDK

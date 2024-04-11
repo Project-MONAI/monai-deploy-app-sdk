@@ -7,9 +7,9 @@ The models used in this example are trained with MONAI, and are packaged in the 
 ## Setup
 
 ```bash
-# Create a virtual environment with Python 3.9.
+# Create a virtual environment with Python 3.8.
 # Skip if you are already in a virtual environment.
-conda create -n monai python=3.9 pytorch torchvision jupyterlab cudatoolkit=12.2 -c pytorch -c conda-forge
+conda create -n monai python=3.8 pytorch torchvision jupyterlab cudatoolkit=12.2 -c pytorch -c conda-forge
 conda activate monai
 
 # Launch JupyterLab if you want to work on Jupyter Notebook
@@ -34,8 +34,6 @@ jupyter-lab
 
 ## Executing from Shell
 
-**_Note:_** Data files are now access controlled. Please first request permission to access the [shared folder on Google Drive](https://drive.google.com/drive/folders/1EONJsrwbGsS30td0hs8zl4WKjihew1Z3?usp=sharing). Please download zip file, `ai_multi_model_bundle_data.zip` in the `ai_multi_ai_app` folder, to the same folder as the notebook example.
-
 ```bash
 # Clone the github project (the latest version of main branch only)
 git clone --branch main --depth 1 https://github.com/Project-MONAI/monai-deploy-app-sdk.git
@@ -45,7 +43,10 @@ cd monai-deploy-app-sdk
 # Install monai-deploy-app-sdk package
 pip install --upgrade monai-deploy-app-sdk
 
-# Download the zip file containing both the model and test data.
+# Download the zip file containing both the model and test data
+pip install gdown
+gdown https://drive.google.com/uc?id=1llJ4NGNTjY187RLX4MtlmHYhfGxBNWmd
+
 # After downloading it using gdown, unzip the zip file saved by gdown
 rm -rf dcm && rm -rf multi_models
 unzip -o ai_multi_model_bundle_data.zip
@@ -70,7 +71,7 @@ monai-deploy package examples/apps/ai_multi_ai_app \
     --tag multi_model_app:latest \
     --config examples/apps/ai_multi_ai_app/app.yaml \
     --models multi_models \
-    --platform x86_64 \
+    --platform x64-workstation \
     -l DEBUG
 
 # Note: for AMD GPUs, nvidia-docker is not required, but the dependency of the App SDK, namely Holoscan SDK

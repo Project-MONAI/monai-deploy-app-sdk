@@ -5,9 +5,9 @@ This tutorial demos the process of packaging up a trained model using MONAI Depl
 ## Setup
 
 ```bash
-# Create a virtual environment with Python 3.9.
+# Create a virtual environment with Python 3.8.
 # Skip if you are already in a virtual environment.
-conda create -n mednist python=3.9 pytorch jupyterlab cudatoolkit=12.2 -c pytorch -c conda-forge
+conda create -n mednist python=3.8 pytorch jupyterlab cudatoolkit=12.2 -c pytorch -c conda-forge
 conda activate mednist
 
 # Launch JupyterLab if you want to work on Jupyter Notebook
@@ -42,7 +42,7 @@ jupyter-lab
 <div style="text-align: center;">
     <iframe width="560" height="315" src="https://www.youtube.com/embed/WwjilJFHuU4" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
 
-    <p>Video may show the use of previous SDK version.</p>
+    <p>Video may show the use of previous SDK verson.</p>
 </div>
 ```
 
@@ -56,8 +56,6 @@ jupyter-lab
 
 ## Executing from Shell
 
-**_Note:_** Data files are now access controlled. Please first request permission to access the [shared folder on Google Drive](https://drive.google.com/drive/folders/1EONJsrwbGsS30td0hs8zl4WKjihew1Z3?usp=sharing). Please download zip file, `mednist_classifier_data.zip` in the `medmist_classifier_app` folder, to the same folder as the notebook example.
-
 ```bash
 # Clone the github project (the latest version of the main branch only)
 git clone --branch main --depth 1 https://github.com/Project-MONAI/monai-deploy-app-sdk.git
@@ -69,8 +67,11 @@ pip install monai-deploy-app-sdk
 
 # Download/Extract mednist_classifier_data.zip from https://drive.google.com/file/d/1yJ4P-xMNEfN6lIOq_u6x1eMAq1_MJu-E/view?usp=sharing
 
+# Download mednist_classifier_data.zip
+pip install gdown
+gdown https://drive.google.com/uc?id=1yJ4P-xMNEfN6lIOq_u6x1eMAq1_MJu-E
 
-# After having downloaded mednist_classifier_data.zip from the web browser or using gdown
+# After downloading mednist_classifier_data.zip from the web browser or using gdown
 unzip -o mednist_classifier_data.zip
 
 # Install necessary packages required by the app
@@ -98,7 +99,7 @@ monai-deploy package examples/apps/mednist_classifier_monaideploy/mednist_classi
     --config examples/apps/mednist_classifier_monaideploy/app.yaml \
     --tag mednist_app:latest \
     --models mednist_model/classifier.zip \
-    --platform x86_64 \
+    --platform x64-workstation \
     -l DEBUG
 
 # Note: for AMD GPUs, nvidia-docker is not required, but the dependency of the App SDK, namely Holoscan SDK

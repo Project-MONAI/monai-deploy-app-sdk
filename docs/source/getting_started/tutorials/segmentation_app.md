@@ -7,9 +7,9 @@ Please note that the following steps are for demonstration purpose. The code pul
 ## Setup
 
 ```bash
-# Create a virtual environment with Python 3.9.
+# Create a virtual environment with Python 3.8.
 # Skip if you are already in a virtual environment.
-conda create -n monai python=3.9 pytorch torchvision jupyterlab cudatoolkit=12.2 -c pytorch -c conda-forge
+conda create -n monai python=3.8 pytorch torchvision jupyterlab cudatoolkit=12.2 -c pytorch -c conda-forge
 conda activate monai
 
 # Launch JupyterLab if you want to work on Jupyter Notebook
@@ -33,9 +33,7 @@ jupyter-lab
 ```
 
 ## Executing from Shell
-
-**_Note:_** Data files are now access controlled. Please first request permission to access the [shared folder on Google Drive](https://drive.google.com/drive/folders/1EONJsrwbGsS30td0hs8zl4WKjihew1Z3?usp=sharing). Please download zip file, `ai_spleen_seg_bundle_data.zip` in the `ai_spleen_seg_app` folder, to the same folder as the notebook example.
-
+Please note that this part of the example uses the latest application source code on Github, as well as the corresponding test data.
 ```bash
 # Clone the github project (the latest version of main branch only)
 git clone --branch main --depth 1 https://github.com/Project-MONAI/monai-deploy-app-sdk.git
@@ -45,7 +43,12 @@ cd monai-deploy-app-sdk
 # Install monai-deploy-app-sdk package
 pip install --upgrade monai-deploy-app-sdk
 
-# Download the zip file containing both the model and test data.
+# Download/Extract ai_spleen_bundle_data zip file from https://drive.google.com/file/d/1cJq0iQh_yzYIxVElSlVa141aEmHZADJh/view?usp=sharing
+
+# Download the zip file containing both the model and test data
+pip install gdown
+gdown https://drive.google.com/uc?id=1Uds8mEvdGNYUuvFpTtCQ8gNU97bAPCaQ
+
 # After downloading it using gdown, unzip the zip file saved by gdown and
 # copy the model file into a folder structure that is required by CLI Packager
 rm -rf dcm
@@ -72,7 +75,7 @@ monai-deploy package examples/apps/ai_spleen_seg_app \
     --config examples/apps/ai_spleen_seg_app/app.yaml \
     --tag seg_app:latest \
     --models spleen_model/model.ts \
-    --platform x86_64 \
+    --platform x64-workstation \
     -l DEBUG
 
 # Note: for AMD GPUs, nvidia-docker is not required, but the dependency of the App SDK, namely Holoscan SDK

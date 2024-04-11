@@ -1,6 +1,4 @@
-holoscan~=3.0
-holoscan-cli~=3.0
+holoscan~=1.0
 numpy>=1.21.6
 colorama>=0.4.1
-tritonclient[all]>=2.53.0
 typeguard>=3.0.0
