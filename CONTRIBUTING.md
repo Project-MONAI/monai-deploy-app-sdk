@@ -19,6 +19,8 @@
 
 Welcome to Project MONAI Deploy App SDK! We're excited you're here and want to contribute. This documentation is intended for individuals and institutions interested in contributing to MONAI Deploy App SDK. MONAI Deploy App SDK is an open-source project and, as such, its success relies on its community of contributors willing to keep improving it. Your contribution will be a valued addition to the code base; we simply ask that you read this page and understand our contribution process, whether you are a seasoned open-source contributor or whether you are a first-time contributor.
 
+Please also refer to [MONAI Contributing Guide](https://github.com/Project-MONAI/MONAI/blob/dev/CONTRIBUTING.md) for general information as well as MONAI Core specifics.
+
 ### Communicate with us
 
 We are happy to talk with you about your needs for MONAI Deploy App SDK and your ideas for contributing to the project. One way to do this is to create an issue discussing your thoughts. It might be that a very similar feature is under development or already exists, so an issue is a great starting point. If you are looking for an issue to resolve that will help Project MONAI Deploy App SDK, see the [*good first issue*](https://github.com/Project-MONAI/monai-deploy-app-sdk/labels/good%20first%20issue) and [*Contribution wanted*](https://github.com/Project-MONAI/monai-deploy-app-sdk/labels/Contribution%20wanted) labels.
