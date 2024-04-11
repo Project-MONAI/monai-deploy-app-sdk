@@ -326,7 +326,7 @@ install_python_dev_deps() {
     fi
 
     # Adding temp fix to address the issue of holoscan sdk dragging in low level dependencies, e.g. libcuda.so
-    fix_holoscan_import
+    # fix_holoscan_import
 
     install_edit_mode
 }

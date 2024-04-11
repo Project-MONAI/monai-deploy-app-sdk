@@ -7,7 +7,7 @@ This tutorial shows how a simple image processing application can be created wit
 ```bash
 # Create a virtual environment with Python 3.8.
 # Skip if you are already in a virtual environment.
-conda create -n monai python=3.8 pytorch torchvision jupyterlab cudatoolkit=11.1 -c pytorch -c conda-forge
+conda create -n monai python=3.8 pytorch torchvision jupyterlab cudatoolkit=12.2 -c pytorch -c conda-forge
 conda activate monai
 
 # Launch JupyterLab if you want to work on Jupyter Notebook
@@ -48,8 +48,7 @@ cd monai-deploy-app-sdk
 pip install monai-deploy-app-sdk
 
 # Install necessary packages from the app. Can simply run `pip install -r examples/apps/simple_imaging_app/requirements.txt`
-pip install scikit-image
-pip install setuptools
+pip install scikit-image, setuptools, Pillow, matplotlib
 
 # See the input file exists in the default `input`` folder in the current working directory
 ls examples/apps/simple_imaging_app/input/

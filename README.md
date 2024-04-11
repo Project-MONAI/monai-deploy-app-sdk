@@ -22,7 +22,7 @@ MONAI Deploy App SDK offers a framework and associated tools to design, develop 
 
 ## User Guide
 
-User guide is available at [docs.monai.io](https://docs.monai.io/projects/monai-deploy-app-sdk/en/latest/).
+User guide is available at [docs.monai.io](https://docs.monai.io/projects/monai-deploy-app-sdk/en/stable/).
 
 ## Installation
 
@@ -32,9 +32,15 @@ To install [the current release](https://pypi.org/project/monai-deploy-app-sdk/)
 pip install monai-deploy-app-sdk  # '--pre' to install a pre-release version.
 ```
 
+Please also note the following system requirements:
+- Ubuntu 22.04 on X86-64 is required, as this is the only X86 platform that the underlying Holoscan SDK has been tested to support as of now.
+- [CUDA 12](https://developer.nvidia.com/cuda-12-0-0-download-archive) is required along with a supported NVIDIA GPU with at least 8GB of video RAM. If AI inference is not used in the example application and a GPU is not installed, at least [CUDA 12 runtime](https://pypi.org/project/nvidia-cuda-runtime-cu12/) is required, as this is one of the requirements of Holoscan SDK, in addition, the `LIB_LIBRARY_PATH` must be set to include the installed shared library, e.g. in a Python 3.8 env, ```export LD_LIBRARY_PATH=`pwd`/.venv/lib/python3.8/site-packages/nvidia/cuda_runtime/lib:$LD_LIBRARY_PATH```
+
+
+
 ## Getting Started
 
-Getting started guide is available at [here](https://docs.monai.io/projects/monai-deploy-app-sdk/en/latest/getting_started/index.html).
+Getting started guide is available at [here](https://docs.monai.io/projects/monai-deploy-app-sdk/en/stable/getting_started/index.html).
 
 ```bash
 pip install monai-deploy-app-sdk  # '--pre' to install a pre-release version.
@@ -44,7 +50,7 @@ git clone https://github.com/Project-MONAI/monai-deploy-app-sdk.git
 cd monai-deploy-app-sdk
 
 # Install necessary dependencies for simple_imaging_app
-pip install scikit-image
+pip install matplotlib Pillow scikit-image
 
 # Execute the app locally
 python examples/apps/simple_imaging_app/app.py -i examples/apps/simple_imaging_app/brain_mr_input.jpg -o output
