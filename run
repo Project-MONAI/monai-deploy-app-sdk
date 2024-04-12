@@ -302,11 +302,12 @@ get_package_info() {
 
 install_python_dev_deps() {
     local config="${1:-dev}"
-    local is_read_the_docs="false"
     if [ -n "${VIRTUAL_ENV}" ] || [ -n "${CONDA_PREFIX}" ]; then
         # Read the Docs site is using specific setuptools version so should not upgrade it.
         if [ "$config" = "read_the_docs" ]; then
-            is_read_the_docs="true"
+            run_command ${MONAI_PY_EXE} -m pip install -q -U pip wheel build
+            # Install cuda runtime dependency
+            run_command ${MONAI_PY_EXE} -m pip install -q nvidia-cuda-runtime-cu12
         else
             run_command ${MONAI_PY_EXE} -m pip install -q -U setuptools pip wheel build
         fi
@@ -330,26 +331,6 @@ install_python_dev_deps() {
     # fix_holoscan_import
 
     install_edit_mode
-
-    # Install packages overridden by Holoscan package if readthedocs is enabled
-    if [ ${is_read_the_docs} = "true" ]; then
-        # Upgrade pip overridden by Holoscan
-        run_command ${MONAI_PY_EXE} -m pip install -q -U pip wheel build
-        # Upgrade PyYAML to avoid the issue with the version installed by Holoscan
-        run_command ${MONAI_PY_EXE} -m pip install -U PyYAML
-
-        # Install cuda runtime dependency
-        run_command ${MONAI_PY_EXE} -m pip install nvidia-cuda-runtime-cu12
-
-        # Copy the cuda runtime library to the fixed location (workaround for readthedocs) so that
-        # we can leverage the existing LD_LIBRARY_PATH (configured by the readthedocs UI) to locate the cuda runtime library.
-        # (LD_LIBRARY_PATH is set to /home/docs/ for that purpose)
-        # Note that 'python3.9' is hard-coded here, it should be updated if the Python version changes by
-        # .readthedocs.yml or other configurations.
-        run_command ls -al /home/docs/checkouts/readthedocs.org/user_builds/${READTHEDOCS_PROJECT}/envs/${READTHEDOCS_VERSION}/lib/python3.9/site-packages/nvidia/cuda_runtime/lib/
-        run_command cp /home/docs/checkouts/readthedocs.org/user_builds/${READTHEDOCS_PROJECT}/envs/${READTHEDOCS_VERSION}/lib/python3.9/site-packages/nvidia/cuda_runtime/lib/*.so* /home/docs/
-        run_command ls -al /home/docs/
-    fi
 }
 
 fix_holoscan_import() {
@@ -407,7 +388,7 @@ install_edit_mode() {
 
 setup_desc() { c_echo 'Setup development environment
 
-Arguments:
+Arguements:
   $1 - configuration (default: "dev")
 '
 }
@@ -468,7 +449,7 @@ build_desc() { c_echo 'Build distribution package
 Build a distribution package for this SDK using
 "build" (https://pypa-build.readthedocs.io/en/stable/index.html).
 
-Arguments:
+Arguements:
   $1 - destination folder (default: ${TOP}/dist)
 '
 }
@@ -970,7 +951,7 @@ setup_gen_docs() {
 
 gen_docs_desc() { c_echo 'Generate documents
 
-Generated docs would be available at ${TOP}/dist/docs.
+Generated docs would be avaialable at ${TOP}/dist/docs.
 
 Arguments:
   $1 - output folder path (html docs)
@@ -1012,7 +993,7 @@ gen_docs_dev_desc() { c_echo 'Generate documents (with dev-server)
 
 Launch dev-server for sphinx.
 
-Generated docs would be available at ${TOP}/dist/docs.
+Generated docs would be avaialable at ${TOP}/dist/docs.
 
 Arguments:
   -p <port> - port number
