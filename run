@@ -302,12 +302,11 @@ get_package_info() {
 
 install_python_dev_deps() {
     local config="${1:-dev}"
+    local is_read_the_docs="false"
     if [ -n "${VIRTUAL_ENV}" ] || [ -n "${CONDA_PREFIX}" ]; then
         # Read the Docs site is using specific setuptools version so should not upgrade it.
         if [ "$config" = "read_the_docs" ]; then
-            run_command ${MONAI_PY_EXE} -m pip install -q -U pip wheel build
-            # Install cuda runtime dependency
-            run_command ${MONAI_PY_EXE} -m pip install -q nvidia-cuda-runtime-cu12
+            is_read_the_docs="true"
         else
             run_command ${MONAI_PY_EXE} -m pip install -q -U setuptools pip wheel build
         fi
@@ -331,6 +330,26 @@ install_python_dev_deps() {
     # fix_holoscan_import
 
     install_edit_mode
+
+    # Install packages overridden by Holoscan package if readthedocs is enabled
+    if [ ${is_read_the_docs} = "true" ]; then
+        # Upgrade pip overridden by Holoscan
+        run_command ${MONAI_PY_EXE} -m pip install -q -U pip wheel build
+        # Upgrade PyYAML to avoid the issue with the version installed by Holoscan
+        run_command ${MONAI_PY_EXE} -m pip install -U PyYAML
+
+        # Install cuda runtime dependency
+        run_command ${MONAI_PY_EXE} -m pip install nvidia-cuda-runtime-cu12
+
+        # Copy the cuda runtime library to the fixed location (workaround for readthedocs) so that
+        # we can leverage the existing LD_LIBRARY_PATH (configured by the readthedocs UI) to locate the cuda runtime library.
+        # (LD_LIBRARY_PATH is set to /home/docs/ for that purpose)
+        # Note that 'python3.8' is hard-coded here, it should be updated if the Python version changes by
+        # .readthedocs.yml or other configurations.
+        run_command ls -al /home/docs/checkouts/readthedocs.org/user_builds/${READTHEDOCS_PROJECT}/envs/${READTHEDOCS_VERSION}/lib/python3.8/site-packages/nvidia/cuda_runtime/lib/
+        run_command cp /home/docs/checkouts/readthedocs.org/user_builds/${READTHEDOCS_PROJECT}/envs/${READTHEDOCS_VERSION}/lib/python3.8/site-packages/nvidia/cuda_runtime/lib/*.so* /home/docs/
+        run_command ls -al /home/docs/
+    fi
 }
 
 fix_holoscan_import() {

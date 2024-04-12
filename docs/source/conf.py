@@ -19,13 +19,9 @@ if on_rtd:
         f"{READTHEDOCS_PROJECT}/envs/{READTHEDOCS_VERSION}/bin/activate; ../../run setup read_the_docs'",
         shell=True,
     )
-    # Update LD_LIBRARY_PATH for CUDA runtime
-    old_ld_library_path = os.environ.get("LD_LIBRARY_PATH", "")
-    # Note that 'python3.8' is hard-coded here, it should be updated if the Python version changes by
-    # .readthedocs.yml or other configurations.
-    os.environ["LD_LIBRARY_PATH"] = (
-        f"{READTHEDOCS_PROJECT}/envs/{READTHEDOCS_VERSION}/lib/python3.8/site-packages/nvidia/cuda_runtime/lib:{old_ld_library_path}"
-    )
+    # Print LD_LIBRARY_PATH for verification
+    ld_library_path = os.environ.get("LD_LIBRARY_PATH", "")
+    print(f"LD_LIBRARY_PATH: {ld_library_path}")
     subprocess.call(
         "/bin/bash -c 'source /home/docs/checkouts/readthedocs.org/user_builds/"
         f"{READTHEDOCS_PROJECT}/envs/{READTHEDOCS_VERSION}/bin/activate; ../../run setup_gen_docs'",
