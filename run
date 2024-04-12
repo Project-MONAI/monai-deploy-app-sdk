@@ -306,6 +306,8 @@ install_python_dev_deps() {
         # Read the Docs site is using specific setuptools version so should not upgrade it.
         if [ "$config" = "read_the_docs" ]; then
             run_command ${MONAI_PY_EXE} -m pip install -q -U pip wheel build
+            # Install cuda runtime dependency
+            run_command ${MONAI_PY_EXE} -m pip install -q nvidia-cuda-runtime-cu12
         else
             run_command ${MONAI_PY_EXE} -m pip install -q -U setuptools pip wheel build
         fi
