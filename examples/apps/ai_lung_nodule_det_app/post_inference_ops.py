@@ -11,6 +11,7 @@
 
 import logging
 import os
+from pathlib import Path
 from random import randint
 from typing import Callable, List
 
@@ -19,26 +20,46 @@ import numpy as np
 from inference import DetectionResult, DetectionResultList
 
 import monai.deploy.core as md
-from monai.deploy.core import DataPath, ExecutionContext, InputContext, IOType, Operator, OutputContext
+from monai.deploy.core import AppContext, ConditionType, Fragment, Operator, OperatorSpec
 from monai.deploy.core.domain.dicom_series_selection import StudySelectedSeries
 
 
-@md.env(pip_packages=["highdicom==0.19.0"])
-@md.input("original_dicom", List[StudySelectedSeries], IOType.IN_MEMORY)
-@md.input("detection_predictions", DetectionResultList, IOType.IN_MEMORY)
-@md.output("gsps_files", DataPath, IOType.DISK)
+# @md.env(pip_packages=["highdicom==0.19.0"])
+# @md.input("original_dicom", List[StudySelectedSeries], IOType.IN_MEMORY)
+# @md.input("detection_predictions", DetectionResultList, IOType.IN_MEMORY)
+# @md.output("gsps_files", DataPath, IOType.DISK)
+
+DEFAULT_OUTPUT_FOLDER = Path.cwd() / "output/saved_images_folder"
+
 class GenerateGSPSOp(Operator):
-    def __init__(self, upload_gsps_fn: Callable, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(
+            self,
+            fragment: Fragment,
+            *args,
+            upload_gsps_fn: Callable,
+            app_context: AppContext,
+            output_folder: Path = DEFAULT_OUTPUT_FOLDER,
+            **kwargs
+            ):
+
         self.logger = logging.getLogger("{}.{}".format(__name__, type(self).__name__))
+        self.input_name_dicom = "original_dicom"
+        self.input_name_predictions = "detection_predictions"
+        self.output_folder = output_folder
+        self.output_folder.mkdir(parents=True, exist_ok=True)
         self.upload_gsps = upload_gsps_fn
 
-    def compute(self, op_input: InputContext, op_output: OutputContext, context: ExecutionContext):
+        super().__init__(fragment, *args, **kwargs)
 
-        selected_study = op_input.get("original_dicom")[0]  # assuming a single study
+    def setup(self, spec: OperatorSpec):
+        spec.input(self.input_name_dicom)
+        spec.input(self.input_name_predictions)
+
+    def compute(self, op_input, op_output, context):
+
+        selected_study = op_input.receive(self.input_name_dicom)[0]  # single study in List[StudySelectedSeries]
         selected_series = selected_study.selected_series[0]  # assuming a single series
-        detection_result: DetectionResult = op_input.get("detection_predictions").detection_list[0]
-        output_path = op_output.get("gsps_files").path
+        detection_result: DetectionResult = op_input.receive(self.input_name_predictions).detection_list[0]  # DetectionResultList
 
         slice_coords = list(range(len(selected_series.series.get_sop_instances())))
 
@@ -138,7 +159,7 @@ class GenerateGSPSOp(Operator):
             ],
         )
 
-        gsps_filename = os.path.join(output_path, f"{sop_uid}.dcm")
+        gsps_filename = os.path.join(self.output_folder, f"{sop_uid}.dcm")
         gsps.save_as(gsps_filename)
 
         if self.upload_gsps:

@@ -23,14 +23,14 @@ from monai.apps.detection.transforms.dictionary import (
     ClipBoxToImaged,
 )
 from monai.apps.detection.utils.anchor_utils import AnchorGeneratorWithAnchorShape
-from monai.deploy.core import ExecutionContext, Image, InputContext, IOType, Operator, OutputContext
+from monai.deploy.core import AppContext, ConditionType, ExecutionContext, Fragment, Image, InputContext, IOType, Operator, OperatorSpec, OutputContext
 from monai.deploy.core.domain import Domain
 from monai.deploy.operators.monai_seg_inference_operator import InMemImageReader
 from monai.deploy.utils.importutil import optional_import
 from monai.transforms import (
-    AddChanneld,
     Compose,
     CopyItemsd,
+    DeleteItemsd,
     EnsureChannelFirstd,
     EnsureTyped,
     LoadImaged,
@@ -78,29 +78,43 @@ class DetectionResultList(Domain):
         return self._detection_list
 
 
-@md.input("image", Image, IOType.IN_MEMORY)
-@md.output("detections", DetectionResultList, IOType.IN_MEMORY)
-@md.env(pip_packages=["monai==0.9.0", "torch>=1.10", "numpy>=1.21", "nibabel"])
+# @md.input("image", Image, IOType.IN_MEMORY)
+# @md.output("detections", DetectionResultList, IOType.IN_MEMORY)
+# @md.env(pip_packages=["monai==0.9.0", "torch>=1.10", "numpy>=1.21", "nibabel"])
 class LungNoduleInferenceOperator(Operator):
-    def __init__(self, model_path: str = "model/model.ts", model_name: str = ""):
+    def __init__(
+            self,
+            fragment: Fragment,
+            *args,
+            app_context: AppContext,
+            model_path: str = "model/model.ts",
+            model_name: str = "",
+            **kwargs,
+            ):
 
         self.logger = logging.getLogger("{}.{}".format(__name__, type(self).__name__))
-        super().__init__()
+        self._input_name_image = "image"
+        self._output_name_det = "detections"
         self._input_dataset_key = "image"
         self._input_dataset_orig_key = "image_orig"
         self._pred_box_regression = "box_regression"
         self._pred_label = "box_label"
         self._pred_score = "box_score"
         self._pred_labels = "labels"
-
-        # preload the model
+        self._app_context = app_context
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self._model_path = os.path.abspath(model_path)
         self._model_name = model_name
         self._model = None
         self._init_completed = False  # wati till the first call to complete init with model, etc.
 
-    def _delayed_init(self, context:ExecutionContext):
+        super().__init__(fragment, *args, **kwargs)
+
+    def setup(self, spec: OperatorSpec):
+        spec.input(self._input_name_image)
+        spec.output(self._output_name_det)
+
+    def _delayed_init(self, context: AppContext):
         if not self._init_completed:
             self.logger.info("Completing the model loading and detector creation.")
             if context.models:
@@ -108,7 +122,7 @@ class LungNoduleInferenceOperator(Operator):
                 # If model_name is not specified and only one model exists, it returns that model.
                 self._model = context.models.get(self._model_name)
 
-                # The model loaded in the context is missing expected network attrs whne infere runs.
+                # The model loaded in the context is missing expected network attrs when inference runs.
                 # So need to get the path of the model in the context, then load it explicitly in this function.
                 self._model_path = self._model.path
 
@@ -145,11 +159,11 @@ class LungNoduleInferenceOperator(Operator):
 
     def compute(self, op_input: InputContext, op_output: OutputContext, context: ExecutionContext):
 
-        input_image = op_input.get("image")
+        input_image = op_input.receive(self._input_name_image)
         if not input_image:
             raise ValueError("Input image not found.")
 
-        self._delayed_init(context=context)
+        self._delayed_init(context=self._app_context)  # The ExecutionContext does not have all info
 
         image_reader = InMemImageReader(input_image)
 
@@ -193,23 +207,25 @@ class LungNoduleInferenceOperator(Operator):
                 LoadImaged(
                     keys=image_key,
                     reader=img_reader,
-                    affine_lps_to_ras=True,
+                    # affine_lps_to_ras=True,  # load raw, no need for this
                 ),
-                CopyItemsd(
-                    keys=[image_key, f"{image_key}_meta_dict"],
-                    names=[orig_image_key, f"{orig_image_key}_meta_dict"],
-                ),
-                ToTensord(keys=image_key),
-                ToDeviced(keys=image_key, device=self.device),
-                EnsureChannelFirstd(keys=image_key),
-                Spacingd(keys=image_key, pixdim=(0.703125, 0.703125, 1.25)),
+                EnsureChannelFirstd(keys=image_key, channel_dim="no_channel"),
                 Orientationd(
                     keys=image_key,
                     axcodes="RAS",
                 ),
-                AddChanneld(keys=image_key),
+                Spacingd(keys=image_key, pixdim=(0.703125, 0.703125, 1.25)),
+                # AddChanneld(keys=image_key),  # Function deprecated already
+                EnsureChannelFirstd(keys=image_key, channel_dim="no_channel"),
                 ScaleIntensityRanged(image_key, a_min=-1024.0, a_max=300.0, b_min=0.0, b_max=1.0, clip=True),
                 EnsureTyped(image_key),
+
+                # CopyItemsd(
+                #     keys=[image_key, f"{image_key}_meta_dict"],
+                #     names=[orig_image_key, f"{orig_image_key}_meta_dict"],
+                # ),
+                # ToTensord(keys=image_key),
+                # ToDeviced(keys=image_key, device=self.device),
             ],
             unpack_items=True,
             map_items=False,
@@ -231,10 +247,11 @@ class LungNoduleInferenceOperator(Operator):
                     box_ref_image_keys=self._input_dataset_key,
                     affine_lps_to_ras=True,
                 ),
-                AffineBoxToImageCoordinated(
-                    box_keys=[self._pred_box_regression],
-                    box_ref_image_keys=self._input_dataset_orig_key,
-                    affine_lps_to_ras=True,
-                ),
+                # AffineBoxToImageCoordinated(
+                #     box_keys=[self._pred_box_regression],
+                #     box_ref_image_keys=self._input_dataset_orig_key,
+                #     affine_lps_to_ras=True,
+                # ),
+                DeleteItemsd(key=self._input_dataset_key)
             ]
         )

@@ -10,21 +10,23 @@
 # limitations under the License.
 
 import logging
+from pathlib import Path
 from typing import Callable, Optional
 
 from inference import LungNoduleInferenceOperator
 from post_inference_ops import GenerateGSPSOp
 
-from monai.deploy.core import Application, resource
+from monai.deploy.conditions import CountCondition
+from monai.deploy.core import AppContext, Application
 from monai.deploy.operators.dicom_data_loader_operator import DICOMDataLoaderOperator
 from monai.deploy.operators.dicom_series_selector_operator import DICOMSeriesSelectorOperator
 from monai.deploy.operators.dicom_series_to_volume_operator import DICOMSeriesToVolumeOperator
 
 
-@resource(cpu=1, gpu=1, memory="7Gi")
+# @resource(cpu=1, gpu=1, memory="7Gi")
 # The monai pkg is not required by this class, instead by the included operators.
 class LungNoduleDetectionApp(Application):
-    def __init__(self, upload_document: Optional[Callable]=None, upload_gsps: Optional[Callable]=None, *args, **kwargs):
+    def __init__(self, *args, upload_document: Optional[Callable]=None, upload_gsps: Optional[Callable]=None, **kwargs):
         """Creates an application instance."""
         self._logger = logging.getLogger("{}.{}".format(__name__, type(self).__name__))
         self.upload_document = upload_document
@@ -42,6 +44,11 @@ class LungNoduleDetectionApp(Application):
 
         logging.info(f"Begin {self.compose.__name__}")
 
+        # Use command line options over environment variables to init context.
+        app_context: AppContext = Application.init_app_context(self.argv)
+        app_input_path = Path(app_context.input_path)
+        app_output_path = Path(app_context.output_path)
+
         dicom_selection_rules = """
         {
             "selections": [
@@ -56,20 +63,22 @@ class LungNoduleDetectionApp(Application):
         """
 
         # Create the custom operator(s) as well as SDK built-in operator(s).
-        study_loader_op = DICOMDataLoaderOperator()
-        series_selector_op = DICOMSeriesSelectorOperator(dicom_selection_rules)
-        series_to_vol_op = DICOMSeriesToVolumeOperator()
-        detection_op = LungNoduleInferenceOperator()
-        gsps_op = GenerateGSPSOp(upload_gsps_fn=self.upload_gsps)
-
-        self.add_flow(study_loader_op, series_selector_op, {"dicom_study_list": "dicom_study_list"})
-        self.add_flow(
-            series_selector_op, series_to_vol_op, {"study_selected_series_list": "study_selected_series_list"}
+        study_loader_op = DICOMDataLoaderOperator(
+             self, CountCondition(self, 1), input_folder=app_input_path, name="dcm_loader_op"
         )
-        self.add_flow(series_to_vol_op, detection_op, {"image": "image"})
+        series_selector_op = DICOMSeriesSelectorOperator(self, rules=dicom_selection_rules, name="series_selector_op")
+        series_to_vol_op = DICOMSeriesToVolumeOperator(self, name="series_to_vol_op")
+        detection_op = LungNoduleInferenceOperator(self, app_context=app_context, model_path=app_context.model_path, name="detection_op")
+        gsps_op = GenerateGSPSOp(self, upload_gsps_fn=self.upload_gsps, app_context=app_context, model_path=app_context.model_path, name="gsps_op")  
 
-        self.add_flow(detection_op, gsps_op, {"detections": "detection_predictions"})
-        self.add_flow(series_selector_op, gsps_op, {"study_selected_series_list": "original_dicom"})
+        self.add_flow(study_loader_op, series_selector_op, {("dicom_study_list", "dicom_study_list")})
+        self.add_flow(
+            series_selector_op, series_to_vol_op, {("study_selected_series_list", "study_selected_series_list")}
+        )
+        self.add_flow(series_to_vol_op, detection_op, {("image", "image")})
+
+        self.add_flow(detection_op, gsps_op, {("detections", "detection_predictions")})
+        self.add_flow(series_selector_op, gsps_op, {("study_selected_series_list", "original_dicom")})
 
         logging.info(f"End {self.compose.__name__}")
 
@@ -82,5 +91,4 @@ if __name__ == "__main__":
     # e.g.
     #     monai-deploy exec app.py -i input -m model/model.ts
     #
-    logging.basicConfig(level=logging.DEBUG)
-    app_instance = LungNoduleDetectionApp(do_run=True)
+    app_instance = LungNoduleDetectionApp().run()
