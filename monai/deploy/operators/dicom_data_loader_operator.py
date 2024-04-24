@@ -42,6 +42,9 @@ class DICOMDataLoaderOperator(Operator):
 
     DEFAULT_INPUT_FOLDER = Path.cwd() / "input"
     DEFAULT_OUTPUT_NAME = "dicom_study_list"
+    SOP_CLASSES_TO_IGNORE = [
+        "1.2.840.10008.1.3.10",  # Media Storage Directory Storage, aka DICOMDIR
+    ]
 
     # For now, need to have the input folder as an instance attribute, set on init, because even there is the optional
     # named input to receive data containing the path, there might not be upstream operator to emit the data.
@@ -169,6 +172,18 @@ class DICOMDataLoaderOperator(Operator):
 
         for sop_instance in sop_instances:
             study_instance_uid = sop_instance[0x0020, 0x000D].value.name  # name is the UID as str
+
+            # First need to eliminate the SOP instances whose SOP Class is to be ignored.
+            if "SOPInstanceUID" not in sop_instance:
+                self._logger.warn("Instance ignored due to missing SOP instance UID tag")
+                continue
+            sop_instance_uid = sop_instance["SOPInstanceUID"].value
+            if "SOPClassUID" not in sop_instance:
+                self._logger.warn(f"Instance ignored due to missing SOP Class UID tag, {sop_instance_uid}")
+                continue
+            if sop_instance["SOPClassUID"].value in DICOMDataLoaderOperator.SOP_CLASSES_TO_IGNORE:
+                self._logger.warn(f"Instance ignored for being in the ignored class, {sop_instance_uid}")
+                continue
 
             if study_instance_uid not in study_dict:
                 study = DICOMStudy(study_instance_uid)
