@@ -174,7 +174,7 @@ class DICOMDataLoaderOperator(Operator):
             study_instance_uid = sop_instance[0x0020, 0x000D].value.name  # name is the UID as str
 
             # First need to eliminate the SOP instances whose SOP Class is to be ignored.
-            if not "SOPClassUID" in sop_instance:
+            if "SOPClassUID" not in sop_instance:
                 self._logger.warn("Instance ignored due to missing SOP Class UID tag.")
                 continue
             if sop_instance["SOPClassUID"].value in DICOMDataLoaderOperator.SOP_CLASSES_TO_IGNORE:
