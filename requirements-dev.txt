@@ -35,4 +35,4 @@ scikit-image>=0.17.2
 nibabel>=3.2.1
 numpy-stl>=2.12.0
 trimesh>=3.8.11
-torch~=2.0.1
+torch>=2.0.1
