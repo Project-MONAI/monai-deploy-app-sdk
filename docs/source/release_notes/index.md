@@ -5,6 +5,13 @@
 :maxdepth: 2
 
 ```
+## Version 2.0
+
+```{toctree}
+:maxdepth: 1
+
+v2.0.0
+```
 ## Version 1.0
 
 ```{toctree}
