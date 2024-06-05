@@ -1,0 +1,4 @@
+highdicom>=0.18.2
+monai>=1.2.0
+pydicom>=2.3.0
+torch>=1.12.0

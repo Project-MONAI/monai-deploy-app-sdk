@@ -1,4 +1,5 @@
 import json
+import logging
 import os
 from pathlib import Path
 from typing import Dict, Optional
@@ -94,7 +95,9 @@ class ClassifierOperator(Operator):
             # `app_context.models.get(model_name)` returns a model instance if exists.
             # If model_name is not specified and only one model exists, it returns that model.
             model = app_context.models.get(model_name)
+            logging.info("Got the model network from the app context.")
         else:
+            logging.info("Model network not in context. JIT loading from file...")
             model = torch.jit.load(
                 ClassifierOperator.MODEL_LOCAL_PATH,
                 map_location=torch.device("cuda" if torch.cuda.is_available() else "cpu"),
@@ -149,9 +152,7 @@ class ClassifierOperator(Operator):
 
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-        # Need to get the model from context, when it is re-implemented, and for now, load it directly here.
-        # model = context.models.get()
-        model = torch.jit.load(self.model_path, map_location=device)
+        # Model network loading has been handled during init.
 
         pre_transforms = self.pre_process(_reader)
         post_transforms = self.post_process()
@@ -162,7 +163,7 @@ class ClassifierOperator(Operator):
         with torch.no_grad():
             for d in dataloader:
                 image = d[0].to(device)
-                outputs = model(image)
+                outputs = self.model(image)
                 out = post_transforms(outputs).data.cpu().numpy()[0]
                 print(out)
 
