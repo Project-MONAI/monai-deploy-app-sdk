@@ -26,13 +26,15 @@ class BreastClassificationApp(Application):
 
     def compose(self):
         """Creates the app specific operators and chain them up in the processing DAG."""
-        logging.info(f"Begin {self.compose.__name__}")
+        self._logger.info(f"Begin {self.compose.__name__}")
 
         # Use command line options over environment variables to init context.
         app_context: AppContext = Application.init_app_context(self.argv)
         app_input_path = Path(app_context.input_path)
         app_output_path = Path(app_context.output_path)
         model_path = Path(app_context.model_path)
+
+        self._logger.info(f"App input, output path, & model path: {app_input_path}, {app_output_path}, {model_path}")
 
         model_info = ModelInfo(
             "MONAI Model for Breast Density",
