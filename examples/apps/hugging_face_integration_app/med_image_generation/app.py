@@ -25,7 +25,6 @@ class App(Application):
 		print("Input Prompt: ", input_prompt)
 		pipe = StableDiffusionPipeline.from_pretrained(model_id, torch_dtype=torch.float16)
 		pipe = pipe.to(device)
-		#prompt = "Show me an X ray of ankle with a fractured toe"
 		prompt = "Show me an X ray pevic fracture"
 		image = pipe(prompt).images[0]
 		image.save(output_path)
