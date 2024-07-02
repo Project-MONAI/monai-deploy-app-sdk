@@ -53,6 +53,12 @@ pip install scikit-image, setuptools, Pillow, matplotlib
 # See the input file exists in the default `input`` folder in the current working directory
 ls examples/apps/simple_imaging_app/input/
 
+# Set the environment variable for the input, with relative path in this example.
+export HOLOSCAN_INPUT_PATH="./examples/apps/simple_imaging_app/input"
+
+# Env var can also be used to direct the output instead of using the default folder as in the following steps
+export HOLOSCAN_OUTPUT_PATH="./output_simple_imaging"
+
 # Local execution of the app with output file in the `output` folder in the current working directory
 python examples/apps/simple_imaging_app/app.py
 
@@ -72,7 +78,7 @@ docker run --rm simple_app-x64-workstation-dgpu-linux-amd64:latest show
 
 # Run the MAP container image with MONAI Deploy MAP Runner, with a cleaned output folder
 rm -rf output
-monai-deploy run simple_app-x64-workstation-dgpu-linux-amd64:latest -i input -o output
+monai-deploy run simple_app-x64-workstation-dgpu-linux-amd64:latest -i $HOLOSCAN_INPUT_PATH -o output
 
 # Check the output file
 ls output
