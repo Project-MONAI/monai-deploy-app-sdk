@@ -24,6 +24,10 @@ MONAI Deploy App SDK offers a framework and associated tools to design, develop 
 
 User guide is available at [docs.monai.io](https://docs.monai.io/projects/monai-deploy-app-sdk/en/stable/).
 
+## Citation
+
+If you have used MONAI in your research, please cite us! The citation can be exported from: [https://arxiv.org/abs/2212.14177](https://arxiv.org/abs/2212.14177).
+
 ## Installation
 
 To install [the current release](https://pypi.org/project/monai-deploy-app-sdk/), you can simply run:
