@@ -237,6 +237,7 @@ class DICOMSeriesSelectorOperator(Operator):
                 if not attr_value:
                     matched = False
                 elif isinstance(attr_value, numbers.Number):
+                    # logic for numerical tag matching:
                     matched = value_to_match == attr_value
                 elif isinstance(attr_value, str):
                     matched = attr_value.casefold() == (value_to_match.casefold())
