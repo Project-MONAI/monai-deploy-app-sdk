@@ -44,7 +44,7 @@ class DICOMSeriesSelectorOperator(Operator):
         1. attribute "selections" value is a list of selections
         2. each selection has a "name", and its "conditions" value is a list of matching criteria
         3. each condition uses the implicit equal operator; in addition, the following are supported:
-            - regex and range matching for numerical types
+            - regex and range matching for float and int types
             - regex matching for str type
             - union matching for set type
         4. DICOM attribute keywords are used, and only for those defined as DICOMStudy and DICOMSeries properties
@@ -81,14 +81,22 @@ class DICOMSeriesSelectorOperator(Operator):
     }
     """
 
-    def __init__(self, fragment: Fragment, *args, rules: str = "", all_matched: bool = False, sort_by_sop_instance_count: bool = False, **kwargs) -> None:
+    def __init__(
+        self,
+        fragment: Fragment,
+        *args,
+        rules: str = "",
+        all_matched: bool = False,
+        sort_by_sop_instance_count: bool = False,
+        **kwargs,
+    ) -> None:
         """Instantiate an instance.
 
         Args:
             fragment (Fragment): An instance of the Application class which is derived from Fragment.
             rules (Text): Selection rules in JSON string.
             all_matched (bool): Gets all matched series in a study. Defaults to False for first match only.
-            sort_by_sop_instance_count (bool): If all_matched = True and multiple series are matched, sorts matched series in
+            sort_by_sop_instance_count (bool): If all_matched = True and multiple series are matched, sorts the matched series in
             descending SOP instance count. Defaults to False for no sorting.
         """
 
@@ -115,16 +123,20 @@ class DICOMSeriesSelectorOperator(Operator):
 
         dicom_study_list = op_input.receive(self.input_name_study_list)
         selection_rules = self._load_rules() if self._rules_json_str else None
-        study_selected_series = self.filter(selection_rules, dicom_study_list, self._all_matched, self._sort_by_sop_instance_count)
+        study_selected_series = self.filter(
+            selection_rules, dicom_study_list, self._all_matched, self._sort_by_sop_instance_count
+        )
         op_output.emit(study_selected_series, self.output_name_selected_series)
 
-    def filter(self, selection_rules, dicom_study_list, all_matched: bool = False, sort_by_sop_instance_count: bool = False) -> List[StudySelectedSeries]:
+    def filter(
+        self, selection_rules, dicom_study_list, all_matched: bool = False, sort_by_sop_instance_count: bool = False
+    ) -> List[StudySelectedSeries]:
         """Selects the series with the given matching rules.
 
         If rules object is None, all series will be returned with series instance UID as the selection name.
 
         Supported matching logic:
-            Number: exact matching, range matching (if a list with two numerical elements is provided), and regex matching
+            Float + Int: exact matching, range matching (if a list with two numerical elements is provided), and regex matching
             String: matches case insensitive, if fails then tries RegEx search
             String array (set): matches as subset, case insensitive
 
@@ -132,7 +144,7 @@ class DICOMSeriesSelectorOperator(Operator):
             selection_rules (object): JSON object containing the matching rules.
             dicom_study_list (list): A list of DICOMStudiy objects.
             all_matched (bool): Gets all matched series in a study. Defaults to False for first match only.
-            sort_by_sop_instance_count (bool): If all_matched = True and multiple series are matched, sorts matched series in
+            sort_by_sop_instance_count (bool): If all_matched = True and multiple series are matched, sorts the matched series in
             descending SOP instance count. Defaults to False for no sorting.
 
         Returns:
@@ -202,13 +214,15 @@ class DICOMSeriesSelectorOperator(Operator):
             study_selected_series_list.append(study_selected_series)
         return study_selected_series_list
 
-    def _select_series(self, attributes: dict, study: DICOMStudy, all_matched=False, sort_by_sop_instance_count=False) -> List[DICOMSeries]:
+    def _select_series(
+        self, attributes: dict, study: DICOMStudy, all_matched=False, sort_by_sop_instance_count=False
+    ) -> List[DICOMSeries]:
         """Finds series whose attributes match the given attributes.
 
         Args:
             attributes (dict): Dictionary of attributes for matching
             all_matched (bool): Gets all matched series in a study. Defaults to False for first match only.
-            sort_by_sop_instance_count (bool): If all_matched = True and multiple series are matched, sorts matched series in
+            sort_by_sop_instance_count (bool): If all_matched = True and multiple series are matched, sorts the matched series in
             descending SOP instance count. Defaults to False for no sorting.
 
         Returns:
@@ -255,14 +269,14 @@ class DICOMSeriesSelectorOperator(Operator):
 
                 if not attr_value:
                     matched = False
-                elif isinstance(attr_value, numbers.Number):
+                elif isinstance(attr_value, float) or isinstance(attr_value, int):
                     # range matching
                     if isinstance(value_to_match, list) and len(value_to_match) == 2:
                         lower_bound, upper_bound = map(float, value_to_match)
                         matched = lower_bound <= attr_value <= upper_bound
                     # RegEx matching
                     elif isinstance(value_to_match, str):
-                        matched = re.fullmatch(value_to_match, str(attr_value))
+                        matched = bool(re.fullmatch(value_to_match, str(attr_value)))
                     # exact matching
                     else:
                         matched = value_to_match == attr_value
@@ -300,7 +314,7 @@ class DICOMSeriesSelectorOperator(Operator):
         if sort_by_sop_instance_count and len(found_series) > 1:
             # sort series in descending SOP instance count
             found_series.sort(key=lambda x: len(x.get_sop_instances()), reverse=True)
-        
+
         return found_series
 
     @staticmethod
@@ -335,8 +349,6 @@ def test():
     sample_selection_rule = json_loads(Sample_Rules_Text)
     print(f"Selection rules in JSON:\n{sample_selection_rule}")
     study_selected_seriee_list = selector.filter(sample_selection_rule, study_list)
-    # # multiple series match testing:
-    # study_selected_seriee_list = selector.filter(sample_selection_rule, study_list, all_matched=False, sort_by_sop_instance_count=False)
 
     for sss_obj in study_selected_seriee_list:
         _print_instance_properties(sss_obj, pre_fix="", print_val=False)

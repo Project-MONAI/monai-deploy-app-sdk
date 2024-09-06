@@ -174,6 +174,8 @@ class STLConverter:
         if isinstance(output_file, Path):
             output_file.parent.mkdir(parents=True, exist_ok=True)
 
+        temp_folder = tempfile.mkdtemp()
+
         s_image = self.SpatialImage(image)
         nda = s_image.image_array
         self._logger.info(f"Image ndarray shape:{nda.shape}")
@@ -231,7 +233,6 @@ class STLConverter:
 
         # Write out the STL file, and then load into trimesh
         try:
-            temp_folder = tempfile.mkdtemp()
             raw_stl_filename = os.path.join(temp_folder, "temp.stl")
             STLConverter.write_stl(verts, faces, raw_stl_filename)
             mesh_data = trimesh.load(raw_stl_filename)
