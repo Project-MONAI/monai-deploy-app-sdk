@@ -97,7 +97,8 @@ class DICOMSeriesSelectorOperator(Operator):
             rules (Text): Selection rules in JSON string.
             all_matched (bool): Gets all matched series in a study. Defaults to False for first match only.
             sort_by_sop_instance_count (bool): If all_matched = True and multiple series are matched, sorts the matched series in
-            descending SOP instance count. Defaults to False for no sorting.
+            descending SOP instance count (i.e. the first Series in the returned List[StudySelectedSeries] will have the highest #
+            of DICOM images); Defaults to False for no sorting.
         """
 
         # rules: Text = "", all_matched: bool = False,
@@ -142,10 +143,11 @@ class DICOMSeriesSelectorOperator(Operator):
 
         Args:
             selection_rules (object): JSON object containing the matching rules.
-            dicom_study_list (list): A list of DICOMStudiy objects.
+            dicom_study_list (list): A list of DICOMStudy objects.
             all_matched (bool): Gets all matched series in a study. Defaults to False for first match only.
             sort_by_sop_instance_count (bool): If all_matched = True and multiple series are matched, sorts the matched series in
-            descending SOP instance count. Defaults to False for no sorting.
+            descending SOP instance count (i.e. the first Series in the returned List[StudySelectedSeries] will have the highest #
+            of DICOM images); Defaults to False for no sorting.
 
         Returns:
             list: A list of objects of type StudySelectedSeries.
@@ -223,7 +225,8 @@ class DICOMSeriesSelectorOperator(Operator):
             attributes (dict): Dictionary of attributes for matching
             all_matched (bool): Gets all matched series in a study. Defaults to False for first match only.
             sort_by_sop_instance_count (bool): If all_matched = True and multiple series are matched, sorts the matched series in
-            descending SOP instance count. Defaults to False for no sorting.
+            descending SOP instance count (i.e. the first Series in the returned List[StudySelectedSeries] will have the highest #
+            of DICOM images); Defaults to False for no sorting.
 
         Returns:
             List of DICOMSeries. At most one element if all_matched is False.
@@ -313,6 +316,9 @@ class DICOMSeriesSelectorOperator(Operator):
         # if sorting indicated and multiple series found
         if sort_by_sop_instance_count and len(found_series) > 1:
             # sort series in descending SOP instance count
+            logging.info(
+                "Multiple series matched the selection criteria; choosing series with the highest number of DICOM images."
+            )
             found_series.sort(key=lambda x: len(x.get_sop_instances()), reverse=True)
 
         return found_series
