@@ -127,6 +127,20 @@ class DICOMSeriesSelectorOperator(Operator):
         study_selected_series = self.filter(
             selection_rules, dicom_study_list, self._all_matched, self._sort_by_sop_instance_count
         )
+
+        # log Series Description and Series Instance UID of the first selected DICOM Series (i.e. the one to be used for inference)
+        if study_selected_series and len(study_selected_series) > 0:
+            inference_study = study_selected_series[0]
+            if inference_study.selected_series and len(inference_study.selected_series) > 0:
+                inference_series = inference_study.selected_series[0].series
+                logging.info("Series Selection finalized.")
+                logging.info(
+                    f"Series Description of selected DICOM Series for inference: {inference_series.SeriesDescription}"
+                )
+                logging.info(
+                    f"Series Instance UID of selected DICOM Series for inference: {inference_series.SeriesInstanceUID}"
+                )
+
         op_output.emit(study_selected_series, self.output_name_selected_series)
 
     def filter(
