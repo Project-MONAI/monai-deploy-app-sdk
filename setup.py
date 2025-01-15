@@ -9,10 +9,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+
+import atexit
 import site
 import sys
 
 from setuptools import find_namespace_packages, setup
+from setuptools.command.install import install
 
 import versioneer
 
@@ -20,10 +23,68 @@ import versioneer
 #   error: can't create or remove files in install directory
 # (https://github.com/pypa/pip/issues/7953#issuecomment-645133255)
 site.ENABLE_USER_SITE = "--user" in sys.argv[1:]
+class PostInstallCommand(install):
+    """Contains post install actions."""
+
+    def __init__(self, *args, **kwargs):
+        super(PostInstallCommand, self).__init__(*args, **kwargs)
+        atexit.register(PostInstallCommand.patch_holoscan)
+
+    @staticmethod
+    def patch_holoscan():
+        """ Patch Holoscan for its known issue of missing one import."""
+
+        import importlib.util
+        from pathlib import Path
+
+        def needed_to_patch():
+            from importlib.metadata import version
+            needed = False
+            try:
+                version = version("holoscan")
+                # This issue exists in the following versions
+                if "2.7" in version or "2.8" in version:
+                    print("Need to patch holoscan v2.7 and 2.8.")
+                    needed = True
+            except Exception:
+                pass
+
+            return needed
+
+        if not needed_to_patch():
+            return
+
+        spec = importlib.util.find_spec("holoscan")
+        if spec:
+            # holoscan core misses one class in its import in __init__.py
+            module_to_add = "        MultiMessageConditionInfo,"
+            module_path = Path(str(spec.origin)).joinpath('core')
+            if module_path.exists():
+                lines_r = []
+                existed = False
+                with module_path.open("r") as f_to_patch:
+                    block_begin = False
+                    for line_r in f_to_patch.readline():
+                        if "from ._core import (" in line_r:
+                            block_begin = True
+                        elif block_begin and module_to_add.strip() in line_r:
+                            existed = True
+                            break
+                        elif block_begin and ")" in line_r:
+                              # Need to add the missing class.
+                              line_r = f"{module_to_add}\n{line_r}"
+                              print("Added missing module in holoscan.")
+
+                        lines_r.append(line_r)
+
+                if not existed:
+                    with module_path.open("w") as f_w:
+                        f_w.writelines(lines_r)
+                print("Completed patching holoscan.")
 
 setup(
     version=versioneer.get_version(),
-    cmdclass=versioneer.get_cmdclass(),
+    cmdclass=versioneer.get_cmdclass({'install': PostInstallCommand}),
     packages=find_namespace_packages(include=["monai.*"]),
     include_package_data=True,
     zip_safe=False,
