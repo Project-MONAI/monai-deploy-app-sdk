@@ -46,6 +46,8 @@ jupyter-lab
 
 ## Executing from Shell
 
+**_Note:_** Data files are now access controlled. Please first request permission to access the [shared folder on Google Drive](https://drive.google.com/drive/folders/1EONJsrwbGsS30td0hs8zl4WKjihew1Z3?usp=sharing). Please download zip file, `mednist_classifieai_spleen_seg_bundle_data.zip` in the `ai_spleen_seg_app` folder, to the same folder as the notebook example.
+
 ```bash
 # Clone the github project (the latest version of main branch only)
 git clone --branch main --depth 1 https://github.com/Project-MONAI/monai-deploy-app-sdk.git
@@ -57,10 +59,7 @@ pip install --upgrade monai-deploy-app-sdk
 
 # Download/Extract ai_spleen_bundle_data zip file from https://drive.google.com/file/d/1cJq0iQh_yzYIxVElSlVa141aEmHZADJh/view?usp=sharing
 
-# Download the zip file containing both the model and test data
-pip install gdown
-gdown https://drive.google.com/uc?id=1Uds8mEvdGNYUuvFpTtCQ8gNU97bAPCaQ
-
+# Download the zip file containing both the model and test data.
 # After downloading it using gdown, unzip the zip file saved by gdown and
 # copy the model file into a folder structure that is required by CLI Packager
 rm -rf dcm
