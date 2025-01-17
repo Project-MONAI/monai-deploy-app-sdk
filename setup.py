@@ -39,41 +39,43 @@ class PostInstallCommand(install):
 
         def needed_to_patch():
             from importlib.metadata import version
-            needed = False
             try:
                 version = version("holoscan")
                 # This issue exists in the following versions
                 if "2.7" in version or "2.8" in version:
                     print("Need to patch holoscan v2.7 and 2.8.")
-                    needed = True
+                    return True
             except Exception:
                 pass
 
-            return needed
+            return False
 
         if not needed_to_patch():
             return
 
+        print("Patching holoscan as needed...")
         spec = importlib.util.find_spec("holoscan")
         if spec:
             # holoscan core misses one class in its import in __init__.py
             module_to_add = "        MultiMessageConditionInfo,"
-            module_path = Path(str(spec.origin)).joinpath('core')
+            module_path = Path(str(spec.origin)).parent.joinpath('core/__init__.py')
+            print(f"Patching file {module_path}")
             if module_path.exists():
                 lines_r = []
                 existed = False
                 with module_path.open("r") as f_to_patch:
-                    block_begin = False
-                    for line_r in f_to_patch.readline():
-                        if "from ._core import (" in line_r:
-                            block_begin = True
-                        elif block_begin and module_to_add.strip() in line_r:
+                    in_block = False
+                    for line_r in f_to_patch.readlines():
+                        if "from ._core import (\n" in line_r:
+                            in_block = True
+                        elif in_block and module_to_add.strip() in line_r:
                             existed = True
                             break
-                        elif block_begin and ")" in line_r:
-                              # Need to add the missing class.
-                              line_r = f"{module_to_add}\n{line_r}"
-                              print("Added missing module in holoscan.")
+                        elif in_block and ")\n" in line_r:
+                                # Need to add the missing class.
+                                line_r = f"{module_to_add}\n{line_r}"
+                                in_block = False
+                                print("Added missing module in holoscan.")
 
                         lines_r.append(line_r)
 
