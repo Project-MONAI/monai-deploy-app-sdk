@@ -23,6 +23,8 @@ import versioneer
 #   error: can't create or remove files in install directory
 # (https://github.com/pypa/pip/issues/7953#issuecomment-645133255)
 site.ENABLE_USER_SITE = "--user" in sys.argv[1:]
+
+
 class PostInstallCommand(install):
     """Contains post install actions."""
 
@@ -32,13 +34,14 @@ class PostInstallCommand(install):
 
     @staticmethod
     def patch_holoscan():
-        """ Patch Holoscan for its known issue of missing one import."""
+        """Patch Holoscan for its known issue of missing one import."""
 
         import importlib.util
         from pathlib import Path
 
         def needed_to_patch():
             from importlib.metadata import version
+
             try:
                 version = version("holoscan")
                 # This issue exists in the following versions
@@ -58,7 +61,7 @@ class PostInstallCommand(install):
         if spec:
             # holoscan core misses one class in its import in __init__.py
             module_to_add = "        MultiMessageConditionInfo,"
-            module_path = Path(str(spec.origin)).parent.joinpath('core/__init__.py')
+            module_path = Path(str(spec.origin)).parent.joinpath("core/__init__.py")
             print(f"Patching file {module_path}")
             if module_path.exists():
                 lines_r = []
@@ -72,10 +75,10 @@ class PostInstallCommand(install):
                             existed = True
                             break
                         elif in_block and ")\n" in line_r:
-                                # Need to add the missing class.
-                                line_r = f"{module_to_add}\n{line_r}"
-                                in_block = False
-                                print("Added missing module in holoscan.")
+                            # Need to add the missing class.
+                            line_r = f"{module_to_add}\n{line_r}"
+                            in_block = False
+                            print("Added missing module in holoscan.")
 
                         lines_r.append(line_r)
 
@@ -84,9 +87,10 @@ class PostInstallCommand(install):
                         f_w.writelines(lines_r)
                 print("Completed patching holoscan.")
 
+
 setup(
     version=versioneer.get_version(),
-    cmdclass=versioneer.get_cmdclass({'install': PostInstallCommand}),
+    cmdclass=versioneer.get_cmdclass({"install": PostInstallCommand}),
     packages=find_namespace_packages(include=["monai.*"]),
     include_package_data=True,
     zip_safe=False,
