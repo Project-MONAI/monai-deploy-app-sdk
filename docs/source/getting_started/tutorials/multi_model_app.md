@@ -34,6 +34,8 @@ jupyter-lab
 
 ## Executing from Shell
 
+**_Note:_** Data files are now access controlled. Please first request permission to access the [shared folder on Google Drive](https://drive.google.com/drive/folders/1EONJsrwbGsS30td0hs8zl4WKjihew1Z3?usp=sharing). Please download zip file, `ai_multi_model_bundle_data.zip` in the `ai_multi_ai_app` folder, to the same folder as the notebook example.
+
 ```bash
 # Clone the github project (the latest version of main branch only)
 git clone --branch main --depth 1 https://github.com/Project-MONAI/monai-deploy-app-sdk.git
@@ -43,10 +45,7 @@ cd monai-deploy-app-sdk
 # Install monai-deploy-app-sdk package
 pip install --upgrade monai-deploy-app-sdk
 
-# Download the zip file containing both the model and test data
-pip install gdown
-gdown https://drive.google.com/uc?id=1llJ4NGNTjY187RLX4MtlmHYhfGxBNWmd
-
+# Download the zip file containing both the model and test data.
 # After downloading it using gdown, unzip the zip file saved by gdown
 rm -rf dcm && rm -rf multi_models
 unzip -o ai_multi_model_bundle_data.zip
