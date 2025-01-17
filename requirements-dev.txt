@@ -12,7 +12,6 @@ pyflakes
 black
 isort
 pytype>=2020.6.1; platform_system != "Windows"
-types-pkg_resources
 mypy>=0.790
 psutil
 Sphinx==4.1.2

@@ -56,6 +56,8 @@ jupyter-lab
 
 ## Executing from Shell
 
+**_Note:_** Data files are now access controlled. Please first request permission to access the [shared folder on Google Drive](https://drive.google.com/drive/folders/1EONJsrwbGsS30td0hs8zl4WKjihew1Z3?usp=sharing). Please download zip file, `mednist_classifier_data.zip` in the `medmist_classifier_app` folder, to the same folder as the notebook example.
+
 ```bash
 # Clone the github project (the latest version of the main branch only)
 git clone --branch main --depth 1 https://github.com/Project-MONAI/monai-deploy-app-sdk.git
@@ -67,11 +69,8 @@ pip install monai-deploy-app-sdk
 
 # Download/Extract mednist_classifier_data.zip from https://drive.google.com/file/d/1yJ4P-xMNEfN6lIOq_u6x1eMAq1_MJu-E/view?usp=sharing
 
-# Download mednist_classifier_data.zip
-pip install gdown
-gdown https://drive.google.com/uc?id=1yJ4P-xMNEfN6lIOq_u6x1eMAq1_MJu-E
 
-# After downloading mednist_classifier_data.zip from the web browser or using gdown
+# After having downloaded mednist_classifier_data.zip from the web browser or using gdown
 unzip -o mednist_classifier_data.zip
 
 # Install necessary packages required by the app
