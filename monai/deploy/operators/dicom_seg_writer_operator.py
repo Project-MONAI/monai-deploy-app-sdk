@@ -288,8 +288,10 @@ class DICOMSegmentationWriterOperator(Operator):
             seg_image_numpy = image.asnumpy()
         elif isinstance(image, (Path, str)):
             seg_image_numpy = self._image_file_to_numpy(str(image))
-        elif not isinstance(image, np.ndarray):
-            raise ValueError("'image' is not a numpy array, Image object, or supported image file.")
+        else:
+            if not isinstance(image, np.ndarray):
+                raise ValueError("'image' is not a numpy array, Image object, or supported image file.")
+            seg_image_numpy = image
 
         # Pick DICOM Series that was used as input for getting the seg image.
         # For now, first one in the list.
