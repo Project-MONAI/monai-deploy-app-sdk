@@ -32,11 +32,12 @@ To install [the current release](https://pypi.org/project/monai-deploy-app-sdk/)
 pip install monai-deploy-app-sdk  # '--pre' to install a pre-release version.
 ```
 
-Please also note the following system requirements:
-- Ubuntu 22.04 on X86-64 is required, as this is the only X86 platform that the underlying Holoscan SDK has been tested to support as of now.
-- [CUDA 12](https://developer.nvidia.com/cuda-12-0-0-download-archive) is required along with a supported NVIDIA GPU with at least 8GB of video RAM. If AI inference is not used in the example application and a GPU is not installed, at least [CUDA 12 runtime](https://pypi.org/project/nvidia-cuda-runtime-cu12/) is required, as this is one of the requirements of Holoscan SDK, in addition, the `LIB_LIBRARY_PATH` must be set to include the installed shared library, e.g. in a Python 3.8 env, ```export LD_LIBRARY_PATH=`pwd`/.venv/lib/python3.8/site-packages/nvidia/cuda_runtime/lib:$LD_LIBRARY_PATH```
+### Prerequisites
 
-
+- This SDK depends on [NVIDIA Holoscan SDK](https://pypi.org/project/holoscan/) for its core implementation as well as its CLI, hence inherits its prerequisites, e.g. Ubuntu 22.04 with glibc 2.35 on X86-64 and NVIDIA dGPU drivers version 535 or above.
+- [CUDA 12.2](https://developer.nvidia.com/cuda-12-2-0-download-archive) or above is required along with a supported NVIDIA GPU with at least 8GB of video RAM.
+- If inference is not used in an example application and a GPU is not installed, at least [CUDA 12 runtime](https://pypi.org/project/nvidia-cuda-runtime-cu12/) is required, as this is one of the requirements of Holoscan SDK. In addition, the `LIB_LIBRARY_PATH` must be set to include the installed shared library, e.g. in a Python 3.10 env, ```export LD_LIBRARY_PATH=`pwd`/.venv/lib/python3.10/site-packages/nvidia/cuda_runtime/lib:$LD_LIBRARY_PATH```
+- Python: 3.9 to 3.12
 
 ## Getting Started
 
@@ -53,15 +54,16 @@ cd monai-deploy-app-sdk
 pip install matplotlib Pillow scikit-image
 
 # Execute the app locally
-python examples/apps/simple_imaging_app/app.py -i examples/apps/simple_imaging_app/brain_mr_input.jpg -o output
+python examples/apps/simple_imaging_app/app.py -i examples/apps/simple_imaging_app/input/brain_mr_input.jpg -o output
 
 # Package app (creating MAP Docker image), using `-l DEBUG` option to see progress.
-monai-deploy package examples/apps/simple_imaging_app -c simple_imaging_app/app.yaml -t simple_app:latest --platform x64-workstation -l DEBUG
+# Also please note that postfix will be added to user supplied tag for identifying CPU architecture and GPU type etc.
+monai-deploy package examples/apps/simple_imaging_app -c examples/apps/simple_imaging_app/app.yaml -t simple_app:latest --platform x64-workstation -l DEBUG
 
 # Run the app with docker image and an input file locally
 ## Copy a test input file to 'input' folder
 mkdir -p input && rm -rf input/*
-cp examples/apps/simple_imaging_app/brain_mr_input.jpg input/
+cp examples/apps/simple_imaging_app/input/brain_mr_input.jpg input/
 ## Launch the app
 monai-deploy run simple_app-x64-workstation-dgpu-linux-amd64:latest -i input -o output
 ```
