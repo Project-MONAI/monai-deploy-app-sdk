@@ -12,6 +12,9 @@
 COMMON_FOOTPRINT = """
     USER root
 
+    RUN curl http://archive.ubuntu.com/ubuntu/pool/main/o/openssl/libssl1.1_1.1.1f-1ubuntu2.23_amd64.deb -o libssl.deb && \\
+        dpkg -i libssl.deb && rm libssl.deb
+
     RUN pip install --no-cache-dir --upgrade setuptools==59.5.0 pip==22.3 wheel==0.37.1 numpy>=1.21.6
 
     RUN mkdir -p /etc/monai/ \\

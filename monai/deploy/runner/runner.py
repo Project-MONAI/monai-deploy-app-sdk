@@ -41,7 +41,7 @@ def fetch_map_manifest(map_name: str) -> Tuple[dict, dict, int]:
 
     with tempfile.TemporaryDirectory() as info_dir:
         if sys.platform == "win32":
-            cmd = f'docker run --rm -a STDOUT -a STDERR -v " {info_dir}":/var/run/monai/export/config {map_name}'
+            cmd = f'docker run --rm -a STDOUT -a STDERR -v "{info_dir}":/var/run/monai/export/config {map_name}'
         else:
             cmd = f"""docker_id=$(docker create {map_name})
 docker cp $docker_id:/etc/monai/app.json "{info_dir}/app.json"
@@ -89,7 +89,7 @@ def run_app(map_name: str, input_path: Path, output_path: Path, app_info: dict, 
     requested_gpus = get_requested_gpus(pkg_info)
     if requested_gpus > 0:
         if not has_rocm():
-            cmd = "nvidia-docker run --rm -a STDERR"
+            cmd = "docker run --rm --gpus all -a STDERR"
 
     if not quiet:
         cmd += " -a STDOUT"
@@ -163,11 +163,11 @@ def pkg_specific_dependency_verification(pkg_info: dict) -> bool:
     requested_gpus = get_requested_gpus(pkg_info)
     if requested_gpus > 0:
         if not has_rocm():
-            # check for nvidia-docker
-            prog = "nvidia-docker"
+            # check for docker
+            prog = "docker"
             logger.info('--> Verifying if "%s" is installed...\n', prog)
             if not shutil.which(prog):
-                logger.error('ERROR: "%s" not installed, please install nvidia-docker.', prog)
+                logger.error('ERROR: "%s" not installed, please install docker.', prog)
                 return False
 
     return True
