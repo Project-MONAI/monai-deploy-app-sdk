@@ -1,4 +1,4 @@
-# Copyright 2021-2024 MONAI Consortium
+# Copyright 2021-2025 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -149,6 +149,9 @@ class MongoDBEntryCreatorOperator(Operator):
         # and Value Multiplicity (VM) specifically for the CT Image CIOD
         # https://dicom.innolitics.com/ciods/ct-image
 
+        # define Tag Absent variable
+        tag_absent = "Tag Absent"
+
         # STUDY AND SERIES LEVEL DICOM TAGS
 
         # AccessionNumber - Type: Required (2), VR: SH, VM: 1
@@ -159,13 +162,13 @@ class MongoDBEntryCreatorOperator(Operator):
 
         # StudyDescription: Type: Optional (3), VR: LO, VM: 1
         # while Optional, only studies with this tag will be routed from Compass and MAP launched per workflow def
-        study_description = orig_ds.get("StudyDescription", "Tag Absent")
+        study_description = orig_ds.get("StudyDescription", tag_absent)
 
         # SeriesInstanceUID: Type: Required (1), VR: UI, VM: 1
         series_instance_uid = dicom_series._series_instance_uid
 
         # SeriesDescription: Type: Optional (3), VR: LO, VM: 1
-        series_description = orig_ds.get("SeriesDescription", "Tag Absent")
+        series_description = orig_ds.get("SeriesDescription", tag_absent)
 
         # sop instances should always be available on the MONAI DICOM Series object
         series_sop_instances = len(dicom_series._sop_instances)
@@ -186,10 +189,10 @@ class MongoDBEntryCreatorOperator(Operator):
         patient_birth_date = orig_ds.PatientBirthDate
 
         # PatientAge - Type: Optional (3), VR: AS, VM: 1
-        patient_age = orig_ds.get("PatientAge", "Tag Absent")
+        patient_age = orig_ds.get("PatientAge", tag_absent)
 
         # EthnicGroup - Type: Optional (3), VR: SH, VM: 1
-        ethnic_group = orig_ds.get("EthnicGroup", "Tag Absent")
+        ethnic_group = orig_ds.get("EthnicGroup", tag_absent)
 
         # SCAN ACQUISITION PARAMETER DICOM TAGS
 
@@ -199,10 +202,10 @@ class MongoDBEntryCreatorOperator(Operator):
         manufacturer = orig_ds.Manufacturer
 
         # ManufacturerModelName - Type: Optional (3), VR: LO, VM: 1
-        manufacturer_model_name = orig_ds.get("ManufacturerModelName", "Tag Absent")
+        manufacturer_model_name = orig_ds.get("ManufacturerModelName", tag_absent)
 
         # BodyPartExamined - Type: Optional (3), VR: CS, VM: 1
-        body_part_examined = orig_ds.get("BodyPartExamined", "Tag Absent")
+        body_part_examined = orig_ds.get("BodyPartExamined", tag_absent)
 
         # row and column pixel spacing are derived from PixelSpacing
         # PixelSpacing - Type: Required (1), VR: DS, VM: 2 (handled by MONAI)
@@ -222,7 +225,7 @@ class MongoDBEntryCreatorOperator(Operator):
         bits_stored = orig_ds.BitsStored
 
         # WindowWidth - Type: Conditionally Required (1C), VR: DS, VM: 1-n
-        window_width = orig_ds.get("WindowWidth", "Tag Absent")
+        window_width = orig_ds.get("WindowWidth", tag_absent)
         # for MultiValue case:
         if isinstance(window_width, pydicom.multival.MultiValue):
             # join multiple values into a single string separated by a |
@@ -230,10 +233,10 @@ class MongoDBEntryCreatorOperator(Operator):
             window_width = " | ".join([str(window) for window in window_width])
 
         # RevolutionTime - Type: Optional (3), VR: FD, VM: 1
-        revolution_time = orig_ds.get("RevolutionTime", "Tag Absent")
+        revolution_time = orig_ds.get("RevolutionTime", tag_absent)
 
         # FocalSpots - Type: Optional (3), VR: DS, VM: 1-n
-        focal_spots = orig_ds.get("FocalSpots", "Tag Absent")
+        focal_spots = orig_ds.get("FocalSpots", tag_absent)
         # for MultiValue case:
         if isinstance(focal_spots, pydicom.multival.MultiValue):
             # join multiple values into a single string separated by a |
@@ -241,17 +244,17 @@ class MongoDBEntryCreatorOperator(Operator):
             focal_spots = " | ".join([str(spot) for spot in focal_spots])
 
         # SpiralPitchFactor - Type: Optional (3), VR: FD, VM: 1
-        spiral_pitch_factor = orig_ds.get("SpiralPitchFactor", "Tag Absent")
+        spiral_pitch_factor = orig_ds.get("SpiralPitchFactor", tag_absent)
 
         # ConvolutionKernel - Type: Optional (3), VR: SH, VM: 1-n
-        convolution_kernel = orig_ds.get("ConvolutionKernel", "Tag Absent")
+        convolution_kernel = orig_ds.get("ConvolutionKernel", tag_absent)
         # for MultiValue case:
         if isinstance(convolution_kernel, pydicom.multival.MultiValue):
             # join multiple values into a single string separated by a |
             convolution_kernel = " | ".join(convolution_kernel)
 
         # ReconstructionDiameter - Type: Optional (3), VR: DS, VM: 1
-        reconstruction_diameter = orig_ds.get("ReconstructionDiameter", "Tag Absent")
+        reconstruction_diameter = orig_ds.get("ReconstructionDiameter", tag_absent)
 
         # KVP - Type: Required (2), VR: DS, VM: 1
         kvp = orig_ds.KVP
@@ -264,9 +267,9 @@ class MongoDBEntryCreatorOperator(Operator):
 
         # tags to check and average
         tags_to_average = {
-            "XRayTubeCurrent": "Tag Absent",  # Type: Optional (3), VR: IS, VM: 1
-            "Exposure": "Tag Absent",  # Type: Optional (3), VR: IS, VM: 1
-            "CTDIvol": "Tag Absent",  # Type: Optional (3), VR: FD, VM: 1
+            "XRayTubeCurrent": tag_absent,  # Type: Optional (3), VR: IS, VM: 1
+            "Exposure": tag_absent,  # Type: Optional (3), VR: IS, VM: 1
+            "CTDIvol": tag_absent,  # Type: Optional (3), VR: FD, VM: 1
         }
 
         # check which tags are present on the 1st SOP instance
@@ -290,29 +293,6 @@ class MongoDBEntryCreatorOperator(Operator):
             else:
                 # if the tag is absent in the first SOP instance, keep the default value
                 averaged_values[tag] = default_value
-
-        # the following tags were not present on any CCHMC test cases; as such, tag writing
-        # for these tags will not be implemented into production
-
-        # # WaterEquivalentDiameter - Type: Optional (3), VR: FD, VM: 1
-        # water_equivalent_diameter = orig_ds.get("WaterEquivalentDiameter", "Tag Absent")
-
-        # # IsocenterPosition - Type: Optional (3), VR: DS, VM: 3
-        # isocenter_position = orig_ds.get("IsocenterPosition", "Tag Absent")
-        # # tag is MultiValue; join multiple values into a single string separated by a |
-        # # convert DSfloat objects to strs to allow joining
-        # isocenter_position = ' | '.join([str(coordinate) for coordinate in isocenter_position])
-
-        # # SpatialResolution - Type: Optional (3), VR: DS, VM: 1
-        # spatial_resolution = orig_ds.get("SpatialResolution", "Tag Absent")
-
-        # # PixelAspectRatio - Type: Conditionally Required (1C), VR: IS, VM: 2
-        # pixel_aspect_ratio = orig_ds.get("PixelAspectRatio", "Tag Absent")
-        # # tag is MultiValue; join multiple values into a single string separated by a |
-        # # convert IS values to strings to allow join
-        # # still perform MultiValue check to allow correct formatting if tag absent
-        # if isinstance(pixel_aspect_ratio, pydicom.multival.MultiValue):
-        #     pixel_aspect_ratio = ' | '.join([str(x) for x in pixel_aspect_ratio])
 
         # parse result_text (i.e. predicted organ volumes) and format
         map_results = {}

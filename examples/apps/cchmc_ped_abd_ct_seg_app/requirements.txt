@@ -15,6 +15,7 @@ numpy-stl>=2.12.0
 trimesh>=3.8.11
 matplotlib>=3.7.2
 setuptools>=59.5.0 # for pkg_resources
+python-dotenv>=1.0.1
 
 # pymongo for MongoDB writing
 pymongo>=4.10.1
@@ -22,8 +23,8 @@ pymongo>=4.10.1
 # pytz for MongoDB Timestamp
 pytz>=2024.1
 
-# holoscan installation; python 3.9-3.12 is required to install V2.9.0
-holoscan==2.9.0
+# holoscan installation; python 3.8-3.11 is required to install V2.0.0
+holoscan==2.0.0
 
 # MONAI Deploy App SDK package installation
 monai-deploy-app-sdk

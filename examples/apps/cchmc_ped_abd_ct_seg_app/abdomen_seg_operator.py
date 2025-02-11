@@ -1,4 +1,4 @@
-# Copyright 2021-2024 MONAI Consortium
+# Copyright 2021-2025 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -13,12 +13,14 @@ import logging
 from pathlib import Path
 from typing import List
 
+import torch
 from numpy import float32, int16
 
 # import custom transforms from post_transforms.py
 from post_transforms import CalculateVolumeFromMaskd, ExtractVolumeToTextd, LabelToContourd, OverlayImageLabeld
 
-from monai.deploy.core import AppContext, Fragment, Operator, OperatorSpec
+import monai
+from monai.deploy.core import AppContext, Fragment, Model, Operator, OperatorSpec
 from monai.deploy.operators.monai_seg_inference_operator import InfererType, InMemImageReader, MonaiSegInferenceOperator
 from monai.transforms import (
     Activationsd,
@@ -35,11 +37,6 @@ from monai.transforms import (
     ScaleIntensityRanged,
     Spacingd,
 )
-
-# # PyTorch model pipeline dependencies
-# import torch
-# import monai
-# from monai.deploy.core import Model
 
 
 # this operator performs inference with the new version of the bundle
@@ -95,6 +92,48 @@ class AbdomenSegOperator(Operator):
 
         raise ValueError(f"Model file not found in the provided path: {model_path}")
 
+    # load a PyTorch model and register it in app_context
+    def _load_pytorch_model(self):
+
+        _device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        _kernel_size: tuple = (3, 3, 3, 3, 3, 3)
+        _strides: tuple = (1, 2, 2, 2, 2, (2, 2, 1))
+        _upsample_kernel_size: tuple = (2, 2, 2, 2, (2, 2, 1))
+
+        # create DynUNet model with the specified architecture parameters + move to computational device (GPU or CPU)
+        # parameters pulled from inference.yaml file of the MONAI bundle
+        model = monai.networks.nets.dynunet.DynUNet(
+            spatial_dims=3,
+            in_channels=1,
+            out_channels=4,
+            kernel_size=_kernel_size,
+            strides=_strides,
+            upsample_kernel_size=_upsample_kernel_size,
+            norm_name="INSTANCE",
+            deep_supervision=False,
+            res_block=True,
+        ).to(_device)
+
+        # load model state dictionary (i.e. mapping param names to tensors) via torch.load
+        # weights_only=True to avoid arbitrary code execution during unpickling
+        state_dict = torch.load(self.model_path, weights_only=True)
+
+        # assign loaded weights to model architecture via load_state_dict
+        model.load_state_dict(state_dict)
+
+        # set model in evaluation (inference) mode
+        model.eval()
+
+        # create a MONAI Model object to encapsulate the PyTorch model and metadata
+        loaded_model = Model(self.model_path, name="ped_abd_ct_seg")
+
+        # assign loaded PyTorch model as the predictor for the Model object
+        loaded_model.predictor = model
+
+        # register the loaded Model object in the application context so other operators can access it
+        # MonaiSegInferenceOperator uses _get_model method to load models; looks at app_context.models first
+        self.app_context.models = loaded_model
+
     def setup(self, spec: OperatorSpec):
         spec.input(self.input_name_image)
 
@@ -104,8 +143,8 @@ class AbdomenSegOperator(Operator):
         # DICOM SR
         spec.output(self.output_name_text_dicom_sr)
 
-        # # MongoDB
-        # spec.output(self.output_name_text_mongodb)
+        # MongoDB
+        spec.output(self.output_name_text_mongodb)
 
         # DICOM SC
         spec.output(self.output_name_sc_path)
@@ -122,50 +161,14 @@ class AbdomenSegOperator(Operator):
         pre_transforms = self.pre_process(_reader)
         post_transforms = self.post_process(pre_transforms)
 
-        ##########
-
-        # # PyTorch Model Loading:
-
-        # _device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        # _kernel_size: tuple = (3, 3, 3, 3, 3, 3)
-        # _strides: tuple = (1, 2, 2, 2, 2, (2, 2, 1))
-        # _upsample_kernel_size: tuple = (2, 2, 2, 2, (2, 2, 1))
-
-        # # create DynUNet model with the specified architecture parameters + move to computational device (GPU or CPU)
-        # # parameters pulled from inference.yaml file of the MONAI bundle
-        # model = monai.networks.nets.dynunet.DynUNet(
-        #     spatial_dims=3,
-        #     in_channels=1,
-        #     out_channels=4,
-        #     kernel_size=_kernel_size,
-        #     strides=_strides,
-        #     upsample_kernel_size=_upsample_kernel_size,
-        #     norm_name="INSTANCE",
-        #     deep_supervision=False,
-        #     res_block=True
-        # ).to(_device)
-
-        # # load model state dictionary (i.e. mapping param names to tensors) via torch.load
-        # # weights_only=True to avoid arbitrary code execution during unpickling
-        # state_dict = torch.load(self.model_path, weights_only=True)
-
-        # # assign loaded weights to model architecture via load_state_dict
-        # model.load_state_dict(state_dict)
-
-        # # set model in evaluation (inference) mode
-        # model.eval()
-
-        # # create a MONAI Model object to encapsulate the PyTorch model and metadata
-        # loaded_model = Model(self.model_path, name="ped_abd_ct_seg")
-
-        # # assign loaded PyTorch model as the predictor for the Model object
-        # loaded_model.predictor = model
-
-        # # register the loaded Model object in the application context so other operators can access it
-        # # MonaiSegInferenceOperator uses _get_model method to load models; looks at app_context.models first
-        # self.app_context.models = loaded_model
-
-        ##########
+        # if PyTorch model
+        if self.model_path.suffix.lower() == ".pt":
+            # load the PyTorch model
+            self._logger.info("PyTorch model detected")
+            self._load_pytorch_model()
+        # else, we have TorchScript model
+        else:
+            self._logger.info("TorchScript model detected")
 
         # delegates inference and saving output to the built-in operator.
         infer_operator = MonaiSegInferenceOperator(
@@ -202,8 +205,8 @@ class AbdomenSegOperator(Operator):
         # DICOM SR
         op_output.emit(result_text_dicom_sr, self.output_name_text_dicom_sr)
 
-        # # MongoDB
-        # op_output.emit(result_text_mongodb, self.output_name_text_mongodb)
+        # MongoDB
+        op_output.emit(result_text_mongodb, self.output_name_text_mongodb)
 
         # DICOM SC
         # temporary DICOM SC (w/o source DICOM metadata) saved in output_folder / temp directory

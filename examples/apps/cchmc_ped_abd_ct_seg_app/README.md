@@ -9,7 +9,7 @@ For questions, please feel free to contact Elan Somasundaram (Elanchezhian.Somas
 ## Unique Features
 
 Some unique features of this MAP pipeline include:
-- **Custom Inference Operator:** custom `AbdomenSegOperator` enables either PyTorch or TorchScript model loading as desired
+- **Custom Inference Operator:** custom `AbdomenSegOperator` enables either PyTorch or TorchScript model loading
 - **DICOM Secondary Capture Output:** custom `DICOMSecondaryCaptureWriterOperator` writes a DICOM SC with organ contours
 - **Output Filtering:** model produces Liver-Spleen-Pancreas segmentations, but seg visibility in the outputs (DICOM SEG, SC, SR) can be controlled in `app.py`
 - **MONAI Deploy Express MongoDB Write:** custom operators (`MongoDBEntryCreatorOperator` and `MongoDBWriterOperator`) allow for writing to the MongoDB database associated with MONAI Deploy Express
@@ -20,9 +20,18 @@ Several scripts have been compiled that quickly execute useful actions (such as 
 ## Notes
 The DICOM Series selection criteria has been customized based on the model's training and CCHMC use cases. By default, Axial CT series with Slice Thickness between 3.0 - 5.0 mm (inclusive) will be selected for. 
 
-If PyTorch model loading is desired, please uncomment the "PyTorch Model Loading" section in the `AbdomenSegOperator`.
+If MongoDB writing is not desired, please comment out the relevant sections in `app.py` and the `AbdomenSegOperator`. 
 
-If MongoDB writing is desired, please uncomment the relevant sections in `app.py` and the `AbdomenSegOperator`. Please note that MongoDB connection values (username, password, and port) are the default values pulled from the v0.6.0 MONAI Deploy Express [.env](https://github.com/Project-MONAI/monai-deploy/blob/main/deploy/monai-deploy-express/.env) and [docker-compose.yaml](https://github.com/Project-MONAI/monai-deploy/blob/main/deploy/monai-deploy-express/docker-compose.yml) files; these default values are harcoded into the `MongoDBWriterOperator`. If your instance of MONAI Deploy Express has modified values for these fields, the `MongoDBWriterOperator` will need to be udpated accordingly.
+To execute the pipeline with MongoDB writing enabled, it is best to create a `.env` file that the `MongoDBWriterOperator` can load in. Below is an example `.env` file that follows the format outlined in this operator; note that these values are the default variable values as defined in the [.env](https://github.com/Project-MONAI/monai-deploy/blob/main/deploy/monai-deploy-express/.env) and [docker-compose.yaml](https://github.com/Project-MONAI/monai-deploy/blob/main/deploy/monai-deploy-express/docker-compose.yml) files of v0.6.0 of MONAI Deploy Express:
+
+```dotenv
+MONGODB_USERNAME=root
+MONGODB_PASSWORD=rootpassword
+MONGODB_PORT=27017
+MONGODB_IP_DOCKER=172.17.0.1 # default Docker bridge network IP
+```
+
+Prior to packaging into a MAP, the MongoDB credentials should be harcoded into the `MongoDBWriterOperator`.
 
 The MONAI Deploy Express MongoDB Docker container (`mdl-mongodb`) needs to be connected to the Docker bridge network in order for the MongoDB write to be successful. Executing the following command in a MONAI Deploy Express terminal will establish this connection:
 

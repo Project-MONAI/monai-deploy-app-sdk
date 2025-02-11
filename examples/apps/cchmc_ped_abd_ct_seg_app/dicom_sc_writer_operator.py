@@ -1,4 +1,4 @@
-# Copyright 2021-2024 MONAI Consortium
+# Copyright 2021-2025 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -197,13 +197,8 @@ class DICOMSCWriterOperator(Operator):
 
         output_dir.mkdir(parents=True, exist_ok=True)  # just in case
 
-        # find the temporary DICOM SC file in the directory (assuming there's only one .dcm file)
+        # find the temporary DICOM SC file in the directory; there should only be one .dcm file present
         dicom_files = list(dicom_sc_dir.glob("*.dcm"))
-        if len(dicom_files) == 0:
-            raise FileNotFoundError(f"No DICOM files found in the directory: {dicom_sc_dir}")
-        if len(dicom_files) > 1:
-            self.logger.warning(f"Multiple DICOM files found, using the first one: {dicom_files[0]}")
-
         dicom_sc_file = dicom_files[0]
 
         # load the temporary DICOM SC file using pydicom

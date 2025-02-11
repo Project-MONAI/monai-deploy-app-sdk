@@ -1,4 +1,4 @@
-# Copyright 2021-2024 MONAI Consortium
+# Copyright 2021-2025 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -18,27 +18,21 @@ from abdomen_seg_operator import AbdomenSegOperator
 # custom DICOM Secondary Capture (SC) writer operator
 from dicom_sc_writer_operator import DICOMSCWriterOperator
 
+# custom MongoDB operators
+from mongodb_entry_creator_operator import MongoDBEntryCreatorOperator
+from mongodb_writer_operator import MongoDBWriterOperator
+
 # required for setting SegmentDescription attributes
 # direct import as this is not part of App SDK package
 from pydicom.sr.codedict import codes
 
 from monai.deploy.conditions import CountCondition
 from monai.deploy.core import Application
-
-# DICOM operators
 from monai.deploy.operators.dicom_data_loader_operator import DICOMDataLoaderOperator
-
-# DICOM writer operators
 from monai.deploy.operators.dicom_seg_writer_operator import DICOMSegmentationWriterOperator, SegmentDescription
-
-# custom DICOMSeriesSelectorOperator
 from monai.deploy.operators.dicom_series_selector_operator import DICOMSeriesSelectorOperator
 from monai.deploy.operators.dicom_series_to_volume_operator import DICOMSeriesToVolumeOperator
 from monai.deploy.operators.dicom_text_sr_writer_operator import DICOMTextSRWriterOperator, EquipmentInfo, ModelInfo
-
-# # MongoDB operators
-# from mongodb_entry_creator_operator import MongoDBEntryCreatorOperator
-# from mongodb_writer_operator import MongoDBWriterOperator
 
 
 # inherit new Application class instance, AIAbdomenSegApp, from MONAI Application base class
@@ -195,23 +189,16 @@ class AIAbdomenSegApp(Application):
             output_folder=app_output_path / "SC",
         )
 
-        # # MongoDB database, collection, and MAP version info
-        # database_name = "CTLiverSpleenSegPredictions"
-        # collection_name = "OrganVolumes"
-        # map_version = "1.0.0"
+        # MongoDB database, collection, and MAP version info
+        database_name = "CTLiverSpleenSegPredictions"
+        collection_name = "OrganVolumes"
+        map_version = "1.0.0"
 
-        # # custom MongoDB Entry Creator op
-        # mongodb_entry_creator = MongoDBEntryCreatorOperator(
-        #     self,
-        #     map_version=map_version
-        # )
+        # custom MongoDB Entry Creator op
+        mongodb_entry_creator = MongoDBEntryCreatorOperator(self, map_version=map_version)
 
-        # # custom MongoDB Writer op
-        # mongodb_writer = MongoDBWriterOperator(
-        #     self,
-        #     database_name=database_name,
-        #     collection_name=collection_name
-        # )
+        # custom MongoDB Writer op
+        mongodb_writer = MongoDBWriterOperator(self, database_name=database_name, collection_name=collection_name)
 
         # create the processing pipeline, by specifying the source and destination operators, and
         # ensuring the output from the former matches the input of the latter, in both name and type
@@ -243,10 +230,12 @@ class AIAbdomenSegApp(Application):
         )
         self.add_flow(abd_seg_op, dicom_sc_writer, {("dicom_sc_dir", "dicom_sc_dir")})
 
-        # # MongoDB
-        # self.add_flow(series_selector_op, mongodb_entry_creator, {("study_selected_series_list", "study_selected_series_list")})
-        # self.add_flow(abd_seg_op, mongodb_entry_creator, {("result_text_mongodb", "text")})
-        # self.add_flow(mongodb_entry_creator, mongodb_writer, {("mongodb_database_entry", "mongodb_database_entry")})
+        # MongoDB
+        self.add_flow(
+            series_selector_op, mongodb_entry_creator, {("study_selected_series_list", "study_selected_series_list")}
+        )
+        self.add_flow(abd_seg_op, mongodb_entry_creator, {("result_text_mongodb", "text")})
+        self.add_flow(mongodb_entry_creator, mongodb_writer, {("mongodb_database_entry", "mongodb_database_entry")})
 
         logging.info(f"End {self.compose.__name__}")
 

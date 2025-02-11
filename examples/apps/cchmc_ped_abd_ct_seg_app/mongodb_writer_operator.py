@@ -1,4 +1,4 @@
-# Copyright 2021-2024 MONAI Consortium
+# Copyright 2021-2025 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -11,6 +11,10 @@
 
 import logging
 import os
+
+from dotenv import load_dotenv
+
+load_dotenv()
 
 from pymongo import MongoClient, errors
 
@@ -48,6 +52,12 @@ class MongoDBWriterOperator(Operator):
 
         self.input_name_db_entry = "mongodb_database_entry"
 
+        # MongoDB credentials
+        self.mongodb_username = os.environ.get("MONGODB_USERNAME")
+        self.mongodb_password = os.environ.get("MONGODB_PASSWORD")
+        self.mongodb_port = os.environ.get("MONGODB_PORT")
+        self.docker_mongodb_ip = os.environ.get("MONGODB_IP_DOCKER")
+
         # determine the MongoDB IP address based on execution environment
         self.mongo_ip = self._get_mongo_ip()
         self._logger.info(f"Using MongoDB IP: {self.mongo_ip}")
@@ -57,8 +67,7 @@ class MongoDBWriterOperator(Operator):
 
         try:
             self.client = MongoClient(
-                # username, password, and port are MONAI Deploy Express defaults
-                f"mongodb://root:rootpassword@{self.mongo_ip}:27017/?authSource=admin",
+                f"mongodb://{self.mongodb_username}:{self.mongodb_password}@{self.mongo_ip}:{self.mongodb_port}/?authSource=admin",
                 serverSelectionTimeoutMS=10000,  # 10s timeout for testing connection; 20s by default
             )
             if self.client is None:
@@ -139,7 +148,7 @@ class MongoDBWriterOperator(Operator):
         # if running in a Docker container (/.dockerenv file present)
         if os.path.exists("/.dockerenv"):
             self._logger.info("Detected Docker environment")
-            return "172.17.0.1"  # default Docker bridge network IP
+            return self.docker_mongodb_ip
 
         # if not executing as Docker container, we are executing pythonically
         self._logger.info("Detected local environment (pythonic execution)")
@@ -148,7 +157,12 @@ class MongoDBWriterOperator(Operator):
 
 # Module function (helper function)
 def test():
-    """Test writing to and deleting from the MDE MongoDB instance"""
+    """Test writing to and deleting from the MDE MongoDB instance locally"""
+
+    # MongoDB credentials
+    mongodb_username = os.environ.get("MONGODB_USERNAME")
+    mongodb_password = os.environ.get("MONGODB_PASSWORD")
+    mongodb_port = os.environ.get("MONGODB_PORT")
 
     # sample information
     database_name = "CTLiverSpleenSegPredictions"
@@ -159,9 +173,11 @@ def test():
     try:
         # username, password, and port are MONAI Deploy Express defaults
         client = MongoClient(
-            "mongodb://root:rootpassword@localhost:27017/?authSource=admin",
+            f"mongodb://{mongodb_username}:{mongodb_password}@localhost:{mongodb_port}/?authSource=admin",
             serverSelectionTimeoutMS=10000,  # 10s timeout for testing connection; 20s by default
         )
+        if self.client is None:
+            raise RuntimeError("MongoClient was not created successfully")
         ping_response = client.admin.command("ping")
         print(f"Successfully connected to MongoDB at: {client.address}. Ping response: {ping_response}")
         db = client[database_name]

@@ -1,4 +1,4 @@
-# Copyright 2021-2024 MONAI Consortium
+# Copyright 2021-2025 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -14,6 +14,7 @@ import logging
 import os
 from typing import List
 
+import matplotlib.cm as cm
 import numpy as np
 
 from monai.config import KeysCollection
@@ -139,12 +140,6 @@ class LabelToContourd(MapTransform):
         return d
 
 
-import matplotlib.cm as cm
-
-from monai.config import KeysCollection
-from monai.transforms import MapTransform
-
-
 class OverlayImageLabeld(MapTransform):
     def __init__(
         self,
@@ -180,7 +175,6 @@ class OverlayImageLabeld(MapTransform):
         # Rearrange axes to get (3, H, W, D)
         label_rgb = np.transpose(label_rgb, (3, 0, 1, 2))
 
-        # assert label_rgb.shape == (*label_volume.shape, 3), f"Label RGB shape should be (H, W, D, 3) but got {label_rgb.shape}"
         assert label_rgb.shape == (
             3,
             *label_volume.shape,
@@ -195,11 +189,9 @@ class OverlayImageLabeld(MapTransform):
         assert image_volume.ndim == 3, "Image volume should have 3 dimensions (H, W, D) after removing channel."
 
         image_volume_normalized = (image_volume - image_volume.min()) / (image_volume.max() - image_volume.min())
-        # image_rgb = np.stack([image_volume_normalized] * 3, axis=-1)
         image_rgb = np.stack([image_volume_normalized] * 3, axis=0)
         image_rgb = (image_rgb * 255).astype(np.uint8)
 
-        # assert image_rgb.shape == (*image_volume.shape, 3), f"Image RGB shape should be (H, W, D, 3) but got {image_rgb.shape}"
         assert image_rgb.shape == (
             3,
             *image_volume.shape,
@@ -215,8 +207,6 @@ class OverlayImageLabeld(MapTransform):
         # Create an alpha-blended overlay
         overlay = image_rgb.copy()
         mask = label_volume > 0
-
-        # overlay[mask] = (self.alpha * label_rgb[mask] + (1 - self.alpha) * overlay[mask]).astype(np.uint8)
 
         # Apply the overlay where the mask is present
         for i in range(3):  # For each color channel
@@ -392,9 +382,6 @@ class ExtractVolumeToTextd(MapTransform):
 
         self.result_text_dicom_sr = "\n".join(volume_text_dicom_sr)
         self.result_text_mongodb = "\n".join(volume_text_mongodb)
-
-        # self._logger.info(f"DICOM SR Volumes: {self.result_text_dicom_sr}")
-        # self._logger.info(f"MongoDB Volumes: {self.result_text_mongodb}")
 
         # not adding result_text to dictionary; return dictionary unchanged as to not affect downstream operators
         return d
