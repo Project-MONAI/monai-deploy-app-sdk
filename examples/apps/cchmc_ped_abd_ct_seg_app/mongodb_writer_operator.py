@@ -171,12 +171,11 @@ def test():
 
     # connect to MongoDB instance (localhost as we are testing locally)
     try:
-        # username, password, and port are MONAI Deploy Express defaults
         client = MongoClient(
             f"mongodb://{mongodb_username}:{mongodb_password}@localhost:{mongodb_port}/?authSource=admin",
             serverSelectionTimeoutMS=10000,  # 10s timeout for testing connection; 20s by default
         )
-        if self.client is None:
+        if client is None:
             raise RuntimeError("MongoClient was not created successfully")
         ping_response = client.admin.command("ping")
         print(f"Successfully connected to MongoDB at: {client.address}. Ping response: {ping_response}")
