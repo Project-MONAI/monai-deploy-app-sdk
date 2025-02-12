@@ -56,7 +56,7 @@ class UnetrSegOperator(Operator):
 
     def __init__(
         self,
-        frament: Fragment,
+        fragment: Fragment,
         *args,
         app_context: AppContext,
         model_path: Path,
@@ -71,13 +71,13 @@ class UnetrSegOperator(Operator):
         self.model_path = model_path
         self.output_folder = output_folder
         self.output_folder.mkdir(parents=True, exist_ok=True)
-        self.fragement = frament  # Cache and later pass the Fragment/Application to contained operator(s)
+        self.app_fragment = fragment  # Cache and later pass the Fragment/Application to contained operator(s)
         self.app_context = app_context
         self.input_name_image = "image"
         self.output_name_seg = "seg_image"
         self.output_name_saved_images_folder = "saved_images_folder"
 
-        super().__init__(frament, *args, **kwargs)
+        super().__init__(fragment, *args, **kwargs)
 
     def setup(self, spec: OperatorSpec):
         spec.input(self.input_name_image)
@@ -102,7 +102,7 @@ class UnetrSegOperator(Operator):
 
         # Delegates inference and saving output to the built-in operator.
         infer_operator = MonaiSegInferenceOperator(
-            self.fragement,
+            self.app_fragment,
             roi_size=(
                 96,
                 96,

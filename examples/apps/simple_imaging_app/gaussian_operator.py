@@ -24,7 +24,7 @@ class GaussianOperator(Operator):
         single input:
           an image array object
         single output:
-          an image arrary object, without enforcing a downsteam receiver
+          an image array object, without enforcing a downstream receiver
 
     Besides, this operator also saves the image file in the given output folder.
     """
