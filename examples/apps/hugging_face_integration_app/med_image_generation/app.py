@@ -1,13 +1,10 @@
 import argparse
 import logging
-from pathlib import Path
 
-import numpy as np
 import torch
 from diffusers import StableDiffusionPipeline
-from PIL import Image
 
-from monai.deploy.core import AppContext, Application
+from monai.deploy.core import Application
 
 
 class App(Application):
