@@ -334,11 +334,11 @@ class MonaiSegInferenceOperator(InferenceOperator):
                 d = [post_transforms(i) for i in decollate_batch(d)]
                 self._logger.info(f"Post transform length/batch size of output: {len(d)}")
                 self._logger.info(
-                    f"Post transform pixel spacings of '{self._pred_dataset_key}' in the first output: {d[0][self._pred_dataset_key].pixdim}"
+                    f"Post transform pixel spacings for {self._pred_dataset_key}: {d[0][self._pred_dataset_key].pixdim}"
                 )
                 out_ndarray = d[0][self._pred_dataset_key].cpu().numpy()  # Single output to numpy on CPU
                 self._logger.info(
-                    f"Post transform '{self._pred_dataset_key}' of {type(out_ndarray)} shape: {out_ndarray.shape}"
+                    f"Post transform {self._pred_dataset_key} of {type(out_ndarray)} shape: {out_ndarray.shape}"
                 )
                 # Need to squeeze out the channel dim fist
                 out_ndarray = np.squeeze(out_ndarray, 0)
@@ -352,7 +352,7 @@ class MonaiSegInferenceOperator(InferenceOperator):
                 #       array index order is back to DHW, the same order as the in-memory input Image obj.
                 out_ndarray = out_ndarray.T.astype(np.uint8)
                 self._logger.info(
-                    f"Output Seg image numpy array of type '{type(out_ndarray)}' shape: {out_ndarray.shape}"
+                    f"Output Seg image numpy array of type {type(out_ndarray)} shape: {out_ndarray.shape}"
                 )
                 self._logger.info(f"Output Seg image pixel max value: {np.amax(out_ndarray)}")
 
