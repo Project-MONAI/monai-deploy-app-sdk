@@ -107,7 +107,7 @@ blockquote p {
 }
 
 /* Mermaid
-to avoid the lable text being cut off
+to avoid the label text being cut off
 */
 .edgeTerminals {
     font-size: 9px !important;
