@@ -13,3 +13,4 @@
 - ai_unetr_seg_app
 - dicom_series_to_image_app
 - breast_density_classifer_app
+- cchmc_ped_abd_ct_seg_app
