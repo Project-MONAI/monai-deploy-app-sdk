@@ -13,7 +13,7 @@ It is required that the application configuration yaml file as well as the depen
 ### Basic Usage of MONAI Application Packager
 
 ```bash
-monai-deploy package <APP_PATH> --config <COMFIG> --tag <TAG> --platform <x64-workstation> [--models <MODEL_PATH>] [--log-level <LEVEL>] [-h]
+monai-deploy package <APP_PATH> --config <CONFIG> --tag <TAG> --platform <x64-workstation> [--models <MODEL_PATH>] [--log-level <LEVEL>] [-h]
 ```
 
 #### Required Arguments

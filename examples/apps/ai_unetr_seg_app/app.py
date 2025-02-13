@@ -80,7 +80,7 @@ class AIUnetrSegApp(Application):
         _algorithm_family = codes.DCM.ArtificialIntelligence
         _algorithm_version = "0.1.0"
 
-        # List of (Segment name, [Code menaing str]), not including background which is value of 0.
+        # List of (Segment name, [Code meaning str]), not including background which is value of 0.
         # User must provide correct codes, which can be looked at, e.g.
         # https://bioportal.bioontology.org/ontologies/SNOMEDCT
         # Alternatively, consult the concept and code dictionaries in PyDicom

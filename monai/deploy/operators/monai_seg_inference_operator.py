@@ -58,7 +58,7 @@ class InfererType(StrEnum):
 class MonaiSegInferenceOperator(InferenceOperator):
     """This segmentation operator uses MONAI transforms and Sliding Window Inference.
 
-    This operator preforms pre-transforms on a input image, inference
+    This operator performs pre-transforms on a input image, inference
     using a given model, and post-transforms. The segmentation image is saved
     as a named Image object in memory.
 
@@ -241,7 +241,7 @@ class MonaiSegInferenceOperator(InferenceOperator):
         if not metadata:
             return metadata
 
-        # Try to convert data type for the well knowned attributes. Add more as needed.
+        # Try to convert data type for the well known attributes. Add more as needed.
         if metadata.get("SeriesInstanceUID", None):
             try:
                 metadata["SeriesInstanceUID"] = str(metadata["SeriesInstanceUID"])
@@ -313,6 +313,7 @@ class MonaiSegInferenceOperator(InferenceOperator):
         with torch.no_grad():
             for d in dataloader:
                 images = d[self._input_dataset_key].to(device)
+                self._logger.info(f"Input of {type(images)} shape: {images.shape}")
                 if self._inferer == InfererType.SLIDING_WINDOW:
                     d[self._pred_dataset_key] = sliding_window_inference(
                         inputs=images,
@@ -331,7 +332,14 @@ class MonaiSegInferenceOperator(InferenceOperator):
                     )
 
                 d = [post_transforms(i) for i in decollate_batch(d)]
-                out_ndarray = d[0][self._pred_dataset_key].cpu().numpy()
+                self._logger.info(f"Post transform length/batch size of output: {len(d)}")
+                self._logger.info(
+                    f"Post transform pixel spacings for {self._pred_dataset_key}: {d[0][self._pred_dataset_key].pixdim}"
+                )
+                out_ndarray = d[0][self._pred_dataset_key].cpu().numpy()  # Single output to numpy on CPU
+                self._logger.info(
+                    f"Post transform {self._pred_dataset_key} of {type(out_ndarray)} shape: {out_ndarray.shape}"
+                )
                 # Need to squeeze out the channel dim fist
                 out_ndarray = np.squeeze(out_ndarray, 0)
                 # NOTE: The domain Image object simply contains a Arraylike obj as image as of now.
@@ -343,7 +351,9 @@ class MonaiSegInferenceOperator(InferenceOperator):
                 #       the resultant ndarray for the prediction image needs to be transposed back, so the
                 #       array index order is back to DHW, the same order as the in-memory input Image obj.
                 out_ndarray = out_ndarray.T.astype(np.uint8)
-                self._logger.info(f"Output Seg image numpy array shaped: {out_ndarray.shape}")
+                self._logger.info(
+                    f"Output Seg image numpy array of type {type(out_ndarray)} shape: {out_ndarray.shape}"
+                )
                 self._logger.info(f"Output Seg image pixel max value: {np.amax(out_ndarray)}")
 
                 return Image(out_ndarray, input_img_metadata)

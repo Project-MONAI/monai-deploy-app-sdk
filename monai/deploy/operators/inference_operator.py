@@ -17,7 +17,7 @@ from monai.deploy.core import Fragment, Image, Operator
 class InferenceOperator(Operator):
     """The base operator for operators that perform AI inference.
 
-    This operator preforms pre-transforms on a input image, inference with
+    This operator performs pre-transforms on a input image, inference with
     a given model, post-transforms, and final results generation.
     """
 

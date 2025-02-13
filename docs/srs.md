@@ -521,7 +521,7 @@ The SDK shall allow the packaging of the application in a standardized format so
 
 ### Background
 
-Please refer to [MONAI Application Packge Spec](https://github.com/Project-MONAI/monai-deploy-experimental/blob/main/guidelines/monai-application-package.md)for details.
+Please refer to [MONAI Application Package Spec](https://github.com/Project-MONAI/monai-deploy-experimental/blob/main/guidelines/monai-application-package.md)for details.
 
 ### Verification Strategy
 
