@@ -546,7 +546,7 @@ class MonaiBundleInferenceOperator(InferenceOperator):
         # `context.models.get(model_name)` returns a model instance if exists.
         # If model_name is not specified and only one model exists, it returns that model.
 
-        # The models are loaded on contruction via the AppContext object in turn the model factory.
+        # The models are loaded on construction via the AppContext object in turn the model factory.
         self._model_network = self.app_context.models.get(self._model_name) if self.app_context.models else None
 
         if self._model_network:

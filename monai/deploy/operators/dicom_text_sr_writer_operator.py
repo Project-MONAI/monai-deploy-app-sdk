@@ -42,12 +42,12 @@ class DICOMTextSRWriterOperator(Operator):
         None
 
     File output:
-        Generaed DICOM instance file in the provided output folder.
+        Generated DICOM instance file in the provided output folder.
     """
 
     # File extension for the generated DICOM Part 10 file.
     DCM_EXTENSION = ".dcm"
-    # The default output folder for saveing the generated DICOM instance file.
+    # The default output folder for saving the generated DICOM instance file.
     # DEFAULT_OUTPUT_FOLDER = Path(os.path.join(os.path.dirname(__file__))) / "output"
     DEFAULT_OUTPUT_FOLDER = Path.cwd() / "output"
 
@@ -259,7 +259,7 @@ class DICOMTextSRWriterOperator(Operator):
         self._logger.info(f"DICOM SOP instance saved in {file_path}")
 
 
-# Commenting out the following as pttype complains about the contructor for no reason
+# Commenting out the following as pttype complains about the constructor for no reason
 # def test(test_copy_tags: bool = True):
 #     from monai.deploy.operators.dicom_data_loader_operator import DICOMDataLoaderOperator
 #     from monai.deploy.operators.dicom_series_selector_operator import DICOMSeriesSelectorOperator
