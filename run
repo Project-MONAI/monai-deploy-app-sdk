@@ -407,7 +407,7 @@ install_edit_mode() {
 
 setup_desc() { c_echo 'Setup development environment
 
-Arguements:
+Arguments:
   $1 - configuration (default: "dev")
 '
 }
@@ -468,7 +468,7 @@ build_desc() { c_echo 'Build distribution package
 Build a distribution package for this SDK using
 "build" (https://pypa-build.readthedocs.io/en/stable/index.html).
 
-Arguements:
+Arguments:
   $1 - destination folder (default: ${TOP}/dist)
 '
 }
@@ -970,7 +970,7 @@ setup_gen_docs() {
 
 gen_docs_desc() { c_echo 'Generate documents
 
-Generated docs would be avaialable at ${TOP}/dist/docs.
+Generated docs would be available at ${TOP}/dist/docs.
 
 Arguments:
   $1 - output folder path (html docs)
@@ -1012,7 +1012,7 @@ gen_docs_dev_desc() { c_echo 'Generate documents (with dev-server)
 
 Launch dev-server for sphinx.
 
-Generated docs would be avaialable at ${TOP}/dist/docs.
+Generated docs would be available at ${TOP}/dist/docs.
 
 Arguments:
   -p <port> - port number
