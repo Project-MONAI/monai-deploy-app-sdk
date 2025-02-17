@@ -23,8 +23,5 @@ pymongo>=4.10.1
 # pytz for MongoDB Timestamp
 pytz>=2024.1
 
-# holoscan installation; python 3.8-3.11 is required to install V2.0.0
-holoscan==2.0.0
-
 # MONAI Deploy App SDK package installation
 monai-deploy-app-sdk

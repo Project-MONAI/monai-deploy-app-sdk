@@ -243,10 +243,10 @@ class AIAbdomenSegApp(Application):
 # series selection rule in JSON, which selects for axial CT series; flexible ST choices:
 # StudyDescription: matches any value
 # Modality: matches "CT" value (case-insensitive); filters out non-CT modalities
-# ImageType: matches value that conatins "PRIMARY", "ORIGINAL", and "AXIAL"; filters out most cor and sag views
+# ImageType: matches value that contains "PRIMARY", "ORIGINAL", and "AXIAL"; filters out most cor and sag views
 # SeriesDescription: matches any values that do not contain "cor" or "sag" (case-insensitive); filters out cor and sag views
 # SliceThickness: supports list, string, and numerical matching:
-# [3, 5]: matches ST values beween 3 and 5
+# [3, 5]: matches ST values between 3 and 5
 # "^(5(\\\\.0+)?|5)$": RegEx; matches ST values of 5, 5.0, 5.00, etc.
 # 5: matches ST values of 5, 5.0, 5.00, etc.
 # all valid series will be selected; downstream operators only perform inference and write outputs for 1st selected series

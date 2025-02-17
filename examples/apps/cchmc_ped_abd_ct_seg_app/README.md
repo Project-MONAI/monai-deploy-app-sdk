@@ -31,7 +31,7 @@ MONGODB_PORT=27017
 MONGODB_IP_DOCKER=172.17.0.1 # default Docker bridge network IP
 ```
 
-Prior to packaging into a MAP, the MongoDB credentials should be harcoded into the `MongoDBWriterOperator`.
+Prior to packaging into a MAP, the MongoDB credentials should be hardcoded into the `MongoDBWriterOperator`.
 
 The MONAI Deploy Express MongoDB Docker container (`mdl-mongodb`) needs to be connected to the Docker bridge network in order for the MongoDB write to be successful. Executing the following command in a MONAI Deploy Express terminal will establish this connection:
 
