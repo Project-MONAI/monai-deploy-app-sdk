@@ -100,7 +100,7 @@ class MedNISTClassifierOperator(Operator):
 
     def __init__(
         self,
-        frament: Fragment,
+        fragment: Fragment,
         *args,
         app_context: AppContext,
         model_name: Optional[str] = "",
@@ -127,7 +127,7 @@ class MedNISTClassifierOperator(Operator):
         # The name of the optional input port for passing data to override the output folder path.
         self.input_name_output_folder = "output_folder"
 
-        # The output folder set on the object can be overriden at each compute by data in the optional named input
+        # The output folder set on the object can be overridden at each compute by data in the optional named input
         self.output_folder = output_folder
 
         # Need the name when there are multiple models loaded
@@ -138,7 +138,7 @@ class MedNISTClassifierOperator(Operator):
         self.model = self._get_model(self.app_context, self.model_path, self._model_name)
 
         # This needs to be at the end of the constructor.
-        super().__init__(frament, *args, **kwargs)
+        super().__init__(fragment, *args, **kwargs)
 
     def _get_model(self, app_context: AppContext, model_path: Path, model_name: str):
         """Load the model with the given name from context or model path

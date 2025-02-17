@@ -49,10 +49,10 @@ class App(Application):
         output_data_path = Path(app_context.output_path)
         logging.info(f"sample_data_path: {sample_data_path}")
 
-        # Please note that the Application object, self, is passed as the first positonal argument
+        # Please note that the Application object, self, is passed as the first positional argument
         # and the others as kwargs.
         # Also note the CountCondition of 1 on the first operator, indicating to the application executor
-        # to invoke this operator, hence the pipleline, only once.
+        # to invoke this operator, hence the pipeline, only once.
         sobel_op = SobelOperator(self, CountCondition(self, 1), input_path=sample_data_path, name="sobel_op")
         median_op = MedianOperator(self, name="median_op")
         gaussian_op = GaussianOperator(self, output_folder=output_data_path, name="gaussian_op")
