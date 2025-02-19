@@ -1,0 +1,32 @@
+# Copyright 2021-2025 MONAI Consortium
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#     http://www.apache.org/licenses/LICENSE-2.0
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# app.yaml is a configuration file that specifies MAP settings
+# used by MONAI App SDK to understand how to run our app in a MAP and what resources it needs
+
+# specifies high-level information about our app
+application:
+  title: MONAI Deploy App Package - CCHMC Pediatric CT Abdominal Segmentation
+  version: 0.0.1
+  inputFormats: ["file"]
+  outputFormats: ["file"]
+
+# specifies the resources our app needs to run
+# per MONAI docs (https://docs.monai.io/projects/monai-deploy-app-sdk/en/latest/developing_with_sdk/executing_packaged_app_locally.html)
+# MAR does not validate all of the resource requirements embedded in the MAP to ensure they are met in host system
+# e.g, MAR will throw an error if gpu requirement is not met on host system; however, gpuMemory parameter doesn't appear to be validated
+resources:
+  cpu: 1
+  gpu: 1
+  memory: 1Gi
+  # during MAP execution, for an input DICOM Series of 204 instances, GPU usage peaks at just under 8900 MiB ~= 9.3 GB ~= 8.7 Gi 
+  gpuMemory: 9Gi
