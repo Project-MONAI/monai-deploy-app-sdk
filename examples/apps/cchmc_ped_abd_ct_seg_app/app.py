@@ -109,7 +109,7 @@ class AIAbdomenSegApp(Application):
         # https://dicom.nema.org/medical/dicom/current/output/chtml/part05/sect_6.2.html
 
         # general algorithm information
-        _algorithm_name = "3D Abdominal Organ Segmentation from CT Image"
+        _algorithm_name = "CCHMC Pediatric CT Abdominal Segmentation"
         _algorithm_family = codes.DCM.ArtificialIntelligence
         _algorithm_version = "0.4.3"
 
@@ -140,8 +140,8 @@ class AIAbdomenSegApp(Application):
             ),
         ]
 
-        # custom tags
-        custom_tags_seg = {"SeriesDescription": "AI Generated DICOM SEG; Not for Clinical Use."}
+        # custom tags - add Device UID to DICOM SEG to match SR and SC tags
+        custom_tags_seg = {"SeriesDescription": "AI Generated DICOM SEG; Not for Clinical Use.", "DeviceUID": "0.0.1"}
         custom_tags_sr = {"SeriesDescription": "AI Generated DICOM SR; Not for Clinical Use."}
         custom_tags_sc = {"SeriesDescription": "AI Generated DICOM Secondary Capture; Not for Clinical Use."}
 
@@ -160,10 +160,8 @@ class AIAbdomenSegApp(Application):
         )
 
         # model and equipment info
-        my_model_info = ModelInfo(
-            "CCHMC Model for CT PED ABD SEG", "CT Pediatric Abdominal Segmentation", "0.4.3", "CCHMC"
-        )
-        my_equipment = EquipmentInfo(manufacturer="MONAI Deploy App SDK", manufacturer_model="DICOM Writer")
+        my_model_info = ModelInfo("CCHMC CAIIR", "CCHMC Pediatric CT Abdominal Segmentation", "0.4.3", "0.0.1")
+        my_equipment = EquipmentInfo(manufacturer="The MONAI Consortium", manufacturer_model="MONAI Deploy App SDK")
 
         # DICOM SR Writer op
         dicom_sr_writer = DICOMTextSRWriterOperator(
@@ -192,7 +190,7 @@ class AIAbdomenSegApp(Application):
         # MongoDB database, collection, and MAP version info
         database_name = "CTLiverSpleenSegPredictions"
         collection_name = "OrganVolumes"
-        map_version = "1.0.0"
+        map_version = "0.0.1"
 
         # custom MongoDB Entry Creator op
         mongodb_entry_creator = MongoDBEntryCreatorOperator(self, map_version=map_version)

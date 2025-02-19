@@ -15,8 +15,8 @@
 
 # specifies high-level information about our app
 application:
-  title: MONAI Deploy App Package - CCHMC Pediatric Abdomen CT Seg Inference
-  version: 1.0
+  title: MONAI Deploy App Package - CCHMC Pediatric CT Abdominal Segmentation
+  version: 0.0.1
   inputFormats: ["file"]
   outputFormats: ["file"]
 
