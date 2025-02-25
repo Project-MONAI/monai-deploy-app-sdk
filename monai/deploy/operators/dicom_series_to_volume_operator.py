@@ -1,4 +1,4 @@
-# Copyright 2021-2023 MONAI Consortium
+# Copyright 2021-2025 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -234,11 +234,17 @@ class DICOMSeriesToVolumeOperator(Operator):
                 series._sop_instances[slice_index].distance = distance
                 series._sop_instances[slice_index].first_pixel_on_slice_normal = point
             else:
-                print("going to removing slice ", slice_index)
+                logging.debug(f"Slice index to remove: {slice_index}")
                 slice_indices_to_be_removed.append(slice_index)
 
-        for sl_index, _ in enumerate(slice_indices_to_be_removed):
+        logging.debug(f"Total slices before removal (if applicable): {len(series._sop_instances)}")
+
+        # iterate in reverse order to avoid affecting subsequent indices after a deletion
+        for sl_index in sorted(slice_indices_to_be_removed, reverse=True):
             del series._sop_instances[sl_index]
+            logging.info(f"Removed slice index: {sl_index}")
+
+        logging.debug(f"Total slices after removal (if applicable): {len(series._sop_instances)}")
 
         series._sop_instances = sorted(series._sop_instances, key=lambda s: s.distance)
         series.depth_direction_cosine = copy.deepcopy(last_slice_normal)
