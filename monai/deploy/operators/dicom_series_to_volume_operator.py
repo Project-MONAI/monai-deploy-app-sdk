@@ -112,7 +112,8 @@ class DICOMSeriesToVolumeOperator(Operator):
         # with the NumPy array returned from the ITK GetArrayViewFromImage on the image
         # loaded from the same DICOM series.
         vol_data = np.stack([s.get_pixel_array() for s in slices], axis=0)
-        vol_data = vol_data.astype(np.uint16)
+        if slices[0][0x0028,0x0103].value == 1:
+            vol_data = vol_data.astype(np.uint16)
 
         # For now we support monochrome image only, for which DICOM Photometric Interpretation
         # (0028,0004) has defined terms, MONOCHROME1 and MONOCHROME2, with the former being:
@@ -161,8 +162,10 @@ class DICOMSeriesToVolumeOperator(Operator):
         # Check if vol_data can be cast to uint16 without data loss
         if np.can_cast(vol_data, np.uint16, casting='safe'):
             vol_data = np.array(vol_data, dtype=np.uint16)
-        else:
-            vol_data = np.array(vol_data, dtype=np.int32)
+        elif np.can_cast(vol_data, np.float32, casting='safe'):
+            vol_data = np.array(vol_data, dtype=np.float32)
+        elif np.can_cast(vol_data, np.float64, casting='safe'):
+            vol_data = np.array(vol_data, dtype=np.float32)
         return vol_data
 
     def create_volumetric_image(self, vox_data, metadata):
