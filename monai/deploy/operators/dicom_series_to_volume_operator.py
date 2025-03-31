@@ -155,17 +155,28 @@ class DICOMSeriesToVolumeOperator(Operator):
         except KeyError:
             slope = 1
 
-        if slope != 1:
-            vol_data = slope * vol_data.astype(np.float64)
-        vol_data += intercept
 
-        # Check if vol_data can be cast to uint16 without data loss
-        if np.can_cast(vol_data, np.uint16, casting='safe'):
+        # check if vol_data, intercept, and slope can be cast to uint16 without data loss
+        if np.can_cast(vol_data, np.uint16, casting='safe') and np.can_cast(intercept, np.uint16, casting='safe') and np.can_cast(slope, np.uint16, casting='safe'):
+            logging.info(f"Casting to uint16")
             vol_data = np.array(vol_data, dtype=np.uint16)
-        elif np.can_cast(vol_data, np.float32, casting='safe'):
+            intercept = np.uint16(intercept)
+            slope = np.uint16(slope)
+        elif np.can_cast(vol_data, np.float32, casting='safe') and np.can_cast(intercept, np.float32, casting='safe') and np.can_cast(slope, np.float32, casting='safe'):
+            logging.info(f"Casting to float32")
             vol_data = np.array(vol_data, dtype=np.float32)
-        elif np.can_cast(vol_data, np.float64, casting='safe'):
-            vol_data = np.array(vol_data, dtype=np.float32)
+            intercept = np.float32(intercept)
+            slope = np.float32(slope)
+        elif np.can_cast(vol_data, np.float64, casting='safe') and np.can_cast(intercept, np.float64, casting='safe') and np.can_cast(slope, np.float64, casting='safe'):
+            logging.info(f"Casting to float64")
+            vol_data = np.array(vol_data, dtype=np.float64)
+            intercept = np.float64(intercept)
+            slope = np.float64(slope)
+            
+        if slope != 1:
+            vol_data = slope * vol_data
+
+        vol_data += intercept
         return vol_data
 
     def create_volumetric_image(self, vox_data, metadata):
