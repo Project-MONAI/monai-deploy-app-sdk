@@ -15,7 +15,11 @@
 # limitations under the License.
 ---
 application:
+<<<<<<< HEAD
   title: MONAI Deploy App Package - Spleen MONet Seg Inference
+=======
+  title: MONAI Deploy App Package - Spleen nnUNet Seg Inference
+>>>>>>> dacfaa9 (Add nnUNet segmentation application and dependencies)
   version: 1.0
   inputFormats: ["file"]
   outputFormats: ["file"]
