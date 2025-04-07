@@ -1,4 +1,4 @@
-# Copyright 2021-2023 MONAI Consortium
+# Copyright 2021-2025 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -27,6 +27,7 @@ generate_uid, _ = optional_import("pydicom.uid", name="generate_uid")
 ImplicitVRLittleEndian, _ = optional_import("pydicom.uid", name="ImplicitVRLittleEndian")
 Dataset, _ = optional_import("pydicom.dataset", name="Dataset")
 FileDataset, _ = optional_import("pydicom.dataset", name="FileDataset")
+PyDicomSequence, _ = optional_import("pydicom.sequence", name="Sequence")
 sitk, _ = optional_import("SimpleITK")
 codes, _ = optional_import("pydicom.sr.codedict", name="codes")
 if TYPE_CHECKING:
@@ -39,6 +40,7 @@ else:
 from monai.deploy.core import ConditionType, Fragment, Image, Operator, OperatorSpec
 from monai.deploy.core.domain.dicom_series import DICOMSeries
 from monai.deploy.core.domain.dicom_series_selection import StudySelectedSeries
+from monai.deploy.operators.dicom_utils import ModelInfo
 
 
 class SegmentDescription:
@@ -183,6 +185,7 @@ class DICOMSegmentationWriterOperator(Operator):
         *args,
         segment_descriptions: List[SegmentDescription],
         output_folder: Path,
+        model_info: Optional[ModelInfo] = None,
         custom_tags: Optional[Dict[str, str]] = None,
         omit_empty_frames: bool = True,
         **kwargs,
@@ -206,6 +209,7 @@ class DICOMSegmentationWriterOperator(Operator):
                 Object encapsulating the description of each segment present in the segmentation.
             output_folder: Folder for file output, overridden by named input on compute.
                            Defaults to current working dir's child folder, output.
+            model_info (ModelInfo, optional): Object encapsulating model creator, name, version and UID.
             custom_tags: Optional[Dict[str, str]], optional
                 Dictionary for setting custom DICOM tags using Keywords and str values only
             omit_empty_frames: bool, optional
@@ -217,6 +221,7 @@ class DICOMSegmentationWriterOperator(Operator):
         self._custom_tags = custom_tags
         self._omit_empty_frames = omit_empty_frames
         self.output_folder = output_folder if output_folder else DICOMSegmentationWriterOperator.DEFAULT_OUTPUT_FOLDER
+        self.model_info = model_info if model_info else ModelInfo()
 
         self.input_name_seg = "seg_image"
         self.input_name_series = "study_selected_series_list"
@@ -355,6 +360,41 @@ class DICOMSegmentationWriterOperator(Operator):
                     except Exception as ex:
                         # Best effort for now.
                         logging.warning(f"Tag {k} was not written, due to {ex}")
+
+        # write model info
+        # code copied from write_common_modules method in monai.deploy.operators.dicom_utils
+
+        # Contributing Equipment Sequence
+        # The Creator shall describe each algorithm that was used to generate the results in the
+        # Contributing Equipment Sequence (0018,A001). Multiple items may be included. The Creator
+        # shall encode the following details in the Contributing Equipment Sequence:
+        #  • Purpose of Reference Code Sequence (0040,A170) shall be (Newcode1, 99IHE, 1630 "Processing Algorithm")
+        #  • Manufacturer (0008,0070)
+        #  • Manufacturer’s Model Name (0008,1090)
+        #  • Software Versions (0018,1020)
+        #  • Device UID (0018,1002)
+
+        if self.model_info:
+            # First create the Purpose of Reference Code Sequence
+            seq_purpose_of_reference_code = PyDicomSequence()
+            seg_purpose_of_reference_code = Dataset()
+            seg_purpose_of_reference_code.CodeValue = "Newcode1"
+            seg_purpose_of_reference_code.CodingSchemeDesignator = "99IHE"
+            seg_purpose_of_reference_code.CodeMeaning = '"Processing Algorithm'
+            seq_purpose_of_reference_code.append(seg_purpose_of_reference_code)
+
+            seq_contributing_equipment = PyDicomSequence()
+            seg_contributing_equipment = Dataset()
+            seg_contributing_equipment.PurposeOfReferenceCodeSequence = seq_purpose_of_reference_code
+            # '(121014, DCM, “Device Observer Manufacturer")'
+            seg_contributing_equipment.Manufacturer = self.model_info.creator
+            # u'(121015, DCM, “Device Observer Model Name")'
+            seg_contributing_equipment.ManufacturerModelName = self.model_info.name
+            # u'(111003, DCM, “Algorithm Version")'
+            seg_contributing_equipment.SoftwareVersions = self.model_info.version
+            seg_contributing_equipment.DeviceUID = self.model_info.uid  # u'(121012, DCM, “Device Observer UID")'
+            seq_contributing_equipment.append(seg_contributing_equipment)
+            seg.ContributingEquipmentSequence = seq_contributing_equipment
 
         seg.save_as(output_path)
 
