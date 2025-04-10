@@ -577,6 +577,7 @@ class MonaiBundleInferenceOperator(InferenceOperator):
                 # value: NdarrayOrTensor  # MyPy complaints
                 value, meta_data = self._receive_input(name, op_input, context)
                 value = convert_to_dst_type(value, dst=value)[0]
+                meta_data = meta_data or {}
                 if not isinstance(meta_data, dict):
                     raise ValueError("`meta_data` must be a dict.")
                 value = MetaTensor.ensure_torch_and_prune_meta(value, meta_data)
