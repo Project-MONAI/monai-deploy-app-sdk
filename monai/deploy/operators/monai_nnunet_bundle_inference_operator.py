@@ -75,7 +75,6 @@ class MonainnUNetBundleInferenceOperator(MonaiBundleInferenceOperator):
 
         super()._init_config(config_names)
         parser = get_bundle_config(str(self._bundle_path), config_names)       
-        parser['bundle_root'] = str(Path(self._bundle_path).parent.parent.parent)
         self._parser = parser
 
         self._nnunet_predictor = parser.get_parsed_content("network_def")
@@ -85,4 +84,6 @@ class MonainnUNetBundleInferenceOperator(MonaiBundleInferenceOperator):
 
         self._nnunet_predictor.predictor.network = self._model_network
         #os.environ['nnUNet_def_n_proc'] = "1"
-        return self._nnunet_predictor(torch.unsqueeze(data, 0))
+        if len(data.shape) == 4:
+            data = data[None]
+        return self._nnunet_predictor(data)
