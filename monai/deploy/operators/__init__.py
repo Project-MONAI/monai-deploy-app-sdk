@@ -54,3 +54,4 @@ from .nii_data_loader_operator import NiftiDataLoader
 from .png_converter_operator import PNGConverterOperator
 from .publisher_operator import PublisherOperator
 from .stl_conversion_operator import STLConversionOperator, STLConverter
+from .nii_data_writer_operator import NiftiDataWriter
