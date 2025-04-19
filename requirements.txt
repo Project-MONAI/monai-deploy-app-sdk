@@ -1,5 +1,5 @@
 holoscan~=2.0
 numpy>=1.21.6
 colorama>=0.4.1
-tritonclient[all]>=2.54.0 # released 2025-01-29
+tritonclient[all]
 typeguard>=3.0.0
