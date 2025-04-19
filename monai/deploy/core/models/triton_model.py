@@ -117,9 +117,9 @@ class TritonModel(Model):
         """
         super().__init__(path, name)
 
-        model_path: Path = Path(path)
-        self._name = model_path.stem
-        self._model_config = parse_triton_config_pbtxt(model_path / "config.pbtxt")
+        self._model_path: Path = Path(path)
+        self._name = self._model_path.stem
+        self._model_config = parse_triton_config_pbtxt(self._model_path / "config.pbtxt")
         # The model name in the config.pbtxt, if present, must match the model folder name.
         if self._model_config.name and self._model_config.name.casefold() != self._name.casefold():
             raise ValueError(
@@ -154,7 +154,7 @@ class TritonModel(Model):
     @property
     def model_config(self):
         if not self._model_config:  # not expected to happen with the current implementation.
-            self._model_config = parse_triton_config_pbtxt(self.path / "config.pbtxt")
+            self._model_config = parse_triton_config_pbtxt(self._model_path / "config.pbtxt")
         return self._model_config
 
     @property
@@ -171,24 +171,6 @@ class TritonModel(Model):
 
     @classmethod
     def accept(cls, path: str) -> tuple[bool, str]:
-        return cls.accept_local(path)
-
-    @classmethod
-    def accept_remote(cls, path: str) -> tuple[bool, str]:
-        # Check if the path is a valid Triton URL and also if the server is live
-        # This function is not yet fully implemneted or used, as it is meant to be used for
-        # dynamically querying the server for the model config instead of the local config.pbtxt file.
-        if path and not bool(re.search(r"\s", path)) and not Path(path).is_dir():
-            # Let's assume that the path is a url netloc, but
-            # for host:port, urlparse will parse it to
-            # (scheme='localhost', netloc='', path='80', params='', query='', fragment='')
-            # and for host only, path='localhost'
-            url = urlparse(path)
-            if url.scheme or url.path or url.netloc:
-                return True, cls.model_type
-
-    @classmethod
-    def accept_local(cls, path: str) -> tuple[bool, str]:
         model_folder: Path = Path(path)
 
         # The path should be a folder path, for an individual model, and must have the config.pbtxt file.
