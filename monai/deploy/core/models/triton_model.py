@@ -51,7 +51,7 @@ def parse_triton_config_pbtxt(pbtxt_path) -> ModelConfig:
             return model_config
 
     except Exception as e:
-        raise ValueError(f"Failed to parse config file {pbtxt_path}: {str(e)}")
+        raise ValueError(f"Failed to parse config file {pbtxt_path}") from e
 
 
 class TritonModel(Model):
