@@ -10,9 +10,7 @@
 # limitations under the License.
 
 import logging
-import re
 from pathlib import Path
-from urllib.parse import urlparse
 
 import tritonclient.http as httpclient
 from google.protobuf import text_format
