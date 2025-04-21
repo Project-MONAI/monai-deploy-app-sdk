@@ -64,7 +64,15 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
         type=argparse_types.valid_dir_path,
         help="Path to workspace folder (default: A temporary '.monai_workdir' folder in the current folder)",
     )
+    parser.add_argument(
+        "--triton-server-netloc",
+        "-t",
+        type=str,
+        default=None,
+        help="Triton server netloc, <host>:<port>. (default: None)",
+    )
 
+    # triton_server_netloc
     args = parser.parse_args(argv[1:])
     args.argv = argv  # save argv for later use in runpy
 
