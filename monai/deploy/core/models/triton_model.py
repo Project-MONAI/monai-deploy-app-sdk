@@ -11,6 +11,7 @@
 
 import logging
 from pathlib import Path
+from typing import Tuple
 
 import tritonclient.http as httpclient
 from google.protobuf import text_format
@@ -263,7 +264,7 @@ class TritonModel(Model):
         self._predictor = predictor
 
     @classmethod
-    def accept(cls, path: str) -> tuple[bool, str]:
+    def accept(cls, path: str) -> Tuple[bool, str]:
         model_folder: Path = Path(path)
 
         # The path should be a folder path, for an individual model, and must have the config.pbtxt file.
