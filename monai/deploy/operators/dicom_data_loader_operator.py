@@ -1,4 +1,4 @@
-# Copyright 2021-2023 MONAI Consortium
+# Copyright 2021-2025 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -12,7 +12,9 @@
 import logging
 import os
 from pathlib import Path
-from typing import List
+from typing import Dict, List, Optional, Tuple, cast
+
+from pydicom.dataset import Dataset
 
 from monai.deploy.core import ConditionType, Fragment, Operator, OperatorSpec
 from monai.deploy.core.domain.dicom_series import DICOMSeries
@@ -163,6 +165,7 @@ class DICOMDataLoaderOperator(Operator):
         study_dict = {}
         series_dict = {}
         sop_instances = []
+        sop_map: Dict[Tuple[str, str], Dict[Optional[Tuple[float, float, float]], List[Dataset]]] = {}
 
         for file in files:
             try:
@@ -171,34 +174,94 @@ class DICOMDataLoaderOperator(Operator):
                 self._logger.warn(f"Ignored {file}, reason being: {ex}")
 
         for sop_instance in sop_instances:
-            study_instance_uid = sop_instance[0x0020, 0x000D].value.name  # name is the UID as str
+            try:
+                study_instance_uid = sop_instance[0x0020, 0x000D].value.name  # name is the UID as str
 
-            # First need to eliminate the SOP instances whose SOP Class is to be ignored.
-            if "SOPInstanceUID" not in sop_instance:
-                self._logger.warn("Instance ignored due to missing SOP instance UID tag")
-                continue
-            sop_instance_uid = sop_instance["SOPInstanceUID"].value
-            if "SOPClassUID" not in sop_instance:
-                self._logger.warn(f"Instance ignored due to missing SOP Class UID tag, {sop_instance_uid}")
-                continue
-            if sop_instance["SOPClassUID"].value in DICOMDataLoaderOperator.SOP_CLASSES_TO_IGNORE:
-                self._logger.warn(f"Instance ignored for being in the ignored class, {sop_instance_uid}")
-                continue
+                # First need to eliminate the SOP instances whose SOP Class is to be ignored.
+                if "SOPInstanceUID" not in sop_instance:
+                    self._logger.warn("Instance ignored due to missing SOP instance UID tag")
+                    continue
+                sop_instance_uid = sop_instance["SOPInstanceUID"].value
+                if "SOPClassUID" not in sop_instance:
+                    self._logger.warn(f"Instance ignored due to missing SOP Class UID tag, {sop_instance_uid}")
+                    continue
+                if sop_instance["SOPClassUID"].value in DICOMDataLoaderOperator.SOP_CLASSES_TO_IGNORE:
+                    self._logger.warn(f"Instance ignored for being in the ignored class, {sop_instance_uid}")
+                    continue
 
-            if study_instance_uid not in study_dict:
-                study = DICOMStudy(study_instance_uid)
-                self.populate_study_attributes(study, sop_instance)
-                study_dict[study_instance_uid] = study
+                if study_instance_uid not in study_dict:
+                    study = DICOMStudy(study_instance_uid)
+                    self.populate_study_attributes(study, sop_instance)
+                    study_dict[study_instance_uid] = study
 
-            series_instance_uid = sop_instance[0x0020, 0x000E].value.name  # name is the UID as str
+                series_instance_uid = sop_instance[0x0020, 0x000E].value.name  # name is the UID as str
 
-            if series_instance_uid not in series_dict:
-                series = DICOMSeries(series_instance_uid)
-                series_dict[series_instance_uid] = series
-                self.populate_series_attributes(series, sop_instance)
-                study_dict[study_instance_uid].add_series(series)
+                if series_instance_uid not in series_dict:
+                    series = DICOMSeries(series_instance_uid)
+                    series_dict[series_instance_uid] = series
+                    self.populate_series_attributes(series, sop_instance)
+                    study_dict[study_instance_uid].add_series(series)
 
-            series_dict[series_instance_uid].add_sop_instance(sop_instance)
+                # Prepare sop_map entry
+                series_key = (study_instance_uid, series_instance_uid)
+                sop_map.setdefault(series_key, {})
+                ipp = sop_instance.get("ImagePositionPatient", None)
+                if ipp is not None:
+                    # Convert IPP to tuple
+                    ipp_tuple = cast(Tuple[float, float, float], tuple(float(v) for v in ipp))
+                else:
+                    # Non-image files will be missing IPP; store SOP instance under "None" key, move on to next SOP instance
+                    sop_map[series_key].setdefault(ipp, []).append(sop_instance)
+                    continue
+
+                sop_list = sop_map[series_key].setdefault(ipp_tuple, [])
+
+                if not sop_list:
+                    # First occurrence of this spatial position — store the SOP instance
+                    sop_list.append(sop_instance)
+                else:
+                    # Duplicate spatial location found — compare AcquisitionNumbers (if absent, set to -1)
+                    exist = sop_list[0]
+                    exist_acq_num = int(exist.get("AcquisitionNumber", -1))
+                    curr_acq_num = int(sop_instance.get("AcquisitionNumber", -1))
+                    if curr_acq_num > exist_acq_num:
+                        # Current SOP instance AcquisitionNumber is greater - replace existing SOP instance
+                        self._logger.info(
+                            f"Duplicate spatial coordinates detected; removing duplicate SOP at IPP {ipp_tuple} "
+                            f"in Series {series_instance_uid}; removed SOP instance with lower AcquisitionNumber "
+                            f"({curr_acq_num} < {exist_acq_num})"
+                        )
+                        sop_list[0] = sop_instance
+                    elif curr_acq_num < exist_acq_num:
+                        # Existing SOP instance AcquisitionNumber is greater - don't store current SOP instance
+                        self._logger.info(
+                            f"Duplicate spatial coordinates detected; removing duplicate SOP at IPP {ipp_tuple} "
+                            f"in Series {series_instance_uid}; kept SOP instance with higher AcquisitionNumber "
+                            f"({exist_acq_num} > {curr_acq_num})"
+                        )
+                    elif curr_acq_num == -1:
+                        # AcquisitionNumber tag is absent for compared SOP instances - don't store current SOP instance
+                        self._logger.info(
+                            f"Duplicate spatial coordinates detected; removing duplicate SOP at IPP {ipp_tuple} "
+                            f"in Series {series_instance_uid}; AcquisitionNumber tags are absent"
+                        )
+                    else:
+                        # AcquisitionNumber tag values are equal for compared SOP instances - don't store current SOP instance
+                        self._logger.info(
+                            f"Duplicate spatial coordinates detected; removing duplicate SOP at IPP {ipp_tuple} "
+                            f"in Series {series_instance_uid}; AcquisitionNumber tag values are equal "
+                            f"({exist_acq_num} = {curr_acq_num})"
+                        )
+
+            except Exception as ex:
+                self._logger.warn(f"Error parsing SOP Instance: {ex}")
+
+        # Add unique SOPs to series_dict following potential duplication removal
+        for (_, series_uid), ipp_dict in sop_map.items():
+            for _, sop_list in ipp_dict.items():
+                for sop_instance in sop_list:
+                    series_dict[series_uid].add_sop_instance(sop_instance)
+
         return list(study_dict.values())
 
     def populate_study_attributes(self, study, sop_instance):
