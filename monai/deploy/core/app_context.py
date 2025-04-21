@@ -63,7 +63,7 @@ class AppContext(object):
 
         # TritonModel instances are just clients and must be connected to the Triton Inference Server
         # at the provided network location. In-process hosting of Triton Inference Server is not supported.
-        if self.triton_server_netloc:
+        if self.triton_server_netloc and self.models:
             for _, model in self.models.items():
                 if isinstance(model, TritonModel):
                     model.connect(self.triton_server_netloc, verbose=args.get("log_level", "INFO") == "DEBUG")

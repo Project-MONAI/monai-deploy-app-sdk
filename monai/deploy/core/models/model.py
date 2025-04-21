@@ -81,7 +81,7 @@ class Model:
         else:
             self._name = Path(path).stem
 
-        self._predictor = None
+        self._predictor: Any = None
 
         # Add self to the list of models
         self._items: Dict[str, Model] = {self.name: self}

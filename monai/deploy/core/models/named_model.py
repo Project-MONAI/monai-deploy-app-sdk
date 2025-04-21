@@ -12,9 +12,7 @@
 import logging
 from pathlib import Path
 
-from monai.deploy.core.models import ModelFactory
-
-from .model import Model
+from monai.deploy.core.models import Model, ModelFactory
 
 logger = logging.getLogger(__name__)
 

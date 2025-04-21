@@ -52,6 +52,88 @@ def parse_triton_config_pbtxt(pbtxt_path) -> ModelConfig:
         raise ValueError(f"Failed to parse config file {pbtxt_path}") from e
 
 
+class TritonRemoteModel:
+    """A remote model that is hosted on a Triton Inference Server.
+
+    Args:
+        model_name (str): The name of the model.
+        netloc (str): The network location of the Triton Inference Server.
+        model_config (ModelConfig): The model config.
+        headers (dict): The headers to send to the Triton Inference Server.
+    """
+
+    def __init__(self, model_name, netloc, model_config, headers=None, **kwargs):
+        self._headers = headers
+        self._request_compression_algorithm = None
+        self._response_compression_algorithm = None
+        self._model_name = model_name
+        self._model_version = None
+        self._model_config = model_config
+        self._request_compression_algorithm = None
+        self._response_compression_algorithm = None
+        self._count = 0
+
+        try:
+            self._triton_client = httpclient.InferenceServerClient(url=netloc, verbose=kwargs.get("verbose", False))
+            logging.info(f"Created triton client: {self._triton_client}")
+        except Exception as e:
+            logging.error("channel creation failed: " + str(e))
+            raise
+
+    def __call__(self, data, **kwds):
+
+        self._count += 1
+        logging.info(f"{self.__class__.__name__}.__call__: {self._model_name} count: {self._count}")
+
+        inputs = []
+        outputs = []
+
+        # For now support only one input and one output
+        input_name = self._model_config.input[0].name
+        input_type = str.split(DataType.Name(self._model_config.input[0].data_type), "_")[1]  # remove the prefix
+        input_shape = list(self._model_config.input[0].dims)
+        data_shape = list(data.shape)
+        logging.info(f"Model config input data shape: {input_shape}")
+        logging.info(f"Actual input data shape: {data_shape}")
+
+        # The server side will handle the batching, and with dynamic batching
+        # the model config does not have the batch size in the input dims.
+        logging.info(f"Effective input_name: {input_name}, input_type: {input_type}, input_shape: {data_shape}")
+
+        inputs.append(httpclient.InferInput(input_name, data_shape, input_type))
+
+        # Move to tensor to CPU
+        input0_data_np = data.detach().cpu().numpy()
+        logging.debug(f"Input data shape: {input0_data_np.shape}")
+
+        # Initialize the data
+        inputs[0].set_data_from_numpy(input0_data_np, binary_data=False)
+
+        output_name = self._model_config.output[0].name
+        outputs.append(httpclient.InferRequestedOutput(output_name, binary_data=True))
+
+        query_params = {f"{self._model_name}_count": self._count}
+        results = self._triton_client.infer(
+            self._model_name,
+            inputs,
+            outputs=outputs,
+            query_params=query_params,
+            headers=self._headers,
+            request_compression_algorithm=self._request_compression_algorithm,
+            response_compression_algorithm=self._response_compression_algorithm,
+        )
+
+        logging.info(f"Got results{results.get_response()}")
+        output0_data = results.as_numpy(output_name)
+        logging.debug(f"as_numpy output0_data.shape: {output0_data.shape}")
+        logging.debug(f"as_numpy output0_data.dtype: {output0_data.dtype}")
+
+        # Convert numpy array to torch tensor as expected by the anticipated clients,
+        # e.g. monai cliding window inference
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        return torch.as_tensor(output0_data).to(device)  # from_numpy is fine too.
+
+
 class TritonModel(Model):
     """Represents Triton models in the model repository.
 
@@ -124,9 +206,7 @@ class TritonModel(Model):
                 f"Model name in config.pbtxt ({self._model_config.name}) does not match the folder name ({self._name})."
             )
 
-        self._netloc = None  # network location of the Triton Inference Server
-        self._predictor = None  # triton remote client
-
+        self._netloc: str = ""
         logging.info(f"Created Triton model: {self._name}")
 
     def connect(self, netloc: str, **kwargs):
@@ -137,35 +217,50 @@ class TritonModel(Model):
         """
 
         if not netloc:
-            if not self._predictor:
-                raise ValueError("Network location is required to connect to the Triton Inference Server.")
-            else:
-                logging.warning("No network location provided, using the last connected network location.")
+            raise ValueError("Network location is required to connect to the Triton Inference Server.")
 
-        if self._predictor and not self._netloc.casefold() == netloc.casefold():
+        if self._netloc and not self._netloc.casefold() == netloc.casefold():
             logging.warning(f"Reconnecting to a different Triton Inference Server at {netloc} from {self._netloc}.")
 
+        self._predictor = TritonRemoteModel(self._name, netloc, self._model_config, **kwargs)
         self._netloc = netloc
-        self._predictor = TritonRemoteModel(self._name, self._netloc, self._model_config, **kwargs)
+
         return self._predictor
 
     @property
     def model_config(self):
-        if not self._model_config:  # not expected to happen with the current implementation.
-            self._model_config = parse_triton_config_pbtxt(self._model_path / "config.pbtxt")
         return self._model_config
 
     @property
-    def predictor(self):
-        """Get the model's predictor (triton remote client)
+    def net_loc(self):
+        """Get the network location of the Triton Inference Server, i.e. "<host>:<port>".
 
         Returns:
-            the model's predictor
+            str: The network location of the Triton Inference Server.
         """
-        if self._predictor is None:
-            raise ValueError("Model is not connected to the Triton Inference Server.")
 
+        return self._netloc
+
+    @net_loc.setter
+    def net_loc(self, value: str):
+        """Set the network location of the Triton Inference Server, and causes re-connect."""
+        if not value:
+            raise ValueError("Network location cannot be empty.")
+        self._netloc = value
+        # Reconnect to the Triton Inference Server at the new network location.
+        self.connect(value)
+
+    @property
+    def predictor(self):
+        if not self._predictor:
+            raise ValueError("Model is not connected to the Triton Inference Server.")
         return self._predictor
+
+    @predictor.setter
+    def predictor(self, predictor: TritonRemoteModel):
+        if not isinstance(predictor, TritonRemoteModel):
+            raise ValueError("Predictor must be an instance of TritonRemoteModel.")
+        self._predictor = predictor
 
     @classmethod
     def accept(cls, path: str) -> tuple[bool, str]:
@@ -195,85 +290,3 @@ class TritonModel(Model):
             logging.info(f"Model {model_folder.name} only has config.pbtxt in client workspace.")
 
         return True, cls.model_type
-
-
-class TritonRemoteModel:
-    """A remote model that is hosted on a Triton Inference Server.
-
-    Args:
-        model_name (str): The name of the model.
-        netloc (str): The network location of the Triton Inference Server.
-        model_config (ModelConfig): The model config.
-        headers (dict): The headers to send to the Triton Inference Server.
-    """
-
-    def __init__(self, model_name, netloc, model_config, headers=None, **kwargs):
-        self._headers = headers
-        self._request_compression_algorithm = None
-        self._response_compression_algorithm = None
-        self._model_name = model_name
-        self._model_version = None
-        self._model_config = model_config
-        self._request_compression_algorithm = None
-        self._response_compression_algorithm = None
-        self._count = 0
-
-        try:
-            self._triton_client = httpclient.InferenceServerClient(url=netloc, verbose=kwargs.get("verbose", False))
-            print(f"Created triton client: {self._triton_client}")
-        except Exception as e:
-            logging.error("channel creation failed: " + str(e))
-            raise
-
-    def __call__(self, data, **kwds):
-
-        self._count += 1
-        logging.info(f"{self.__class__.__name__}.__call__: {self._model_name} count: {self._count}")
-
-        inputs = []
-        outputs = []
-
-        # For now support only one input and one output
-        input_name = self._model_config.input[0].name
-        input_type = str.split(DataType.Name(self._model_config.input[0].data_type), "_")[1]  # remove the prefix
-        input_shape = list(self._model_config.input[0].dims)
-        data_shape = list(data.shape)
-        logging.info(f"Model config input data shape: {input_shape}")
-        logging.info(f"Actual input data shape: {data_shape}")
-
-        # The server side will handle the batching, and with dynamic batching
-        # the model config does not have the batch size in the input dims.
-        logging.info(f"Effective input_name: {input_name}, input_type: {input_type}, input_shape: {data_shape}")
-
-        inputs.append(httpclient.InferInput(input_name, data_shape, input_type))
-
-        # Move to tensor to CPU
-        input0_data_np = data.detach().cpu().numpy()
-        logging.debug(f"Input data shape: {input0_data_np.shape}")
-
-        # Initialize the data
-        inputs[0].set_data_from_numpy(input0_data_np, binary_data=False)
-
-        output_name = self._model_config.output[0].name
-        outputs.append(httpclient.InferRequestedOutput(output_name, binary_data=True))
-
-        query_params = {f"{self._model_name}_count": self._count}
-        results = self._triton_client.infer(
-            self._model_name,
-            inputs,
-            outputs=outputs,
-            query_params=query_params,
-            headers=self._headers,
-            request_compression_algorithm=self._request_compression_algorithm,
-            response_compression_algorithm=self._response_compression_algorithm,
-        )
-
-        logging.info(f"Got results{results.get_response()}")
-        output0_data = results.as_numpy(output_name)
-        logging.debug(f"as_numpy output0_data.shape: {output0_data.shape}")
-        logging.debug(f"as_numpy output0_data.dtype: {output0_data.dtype}")
-
-        # Convert numpy array to torch tensor as expected by the anticipated clients,
-        # e.g. monai cliding window inference
-        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        return torch.as_tensor(output0_data).to(device)  # from_numpy is fine too.

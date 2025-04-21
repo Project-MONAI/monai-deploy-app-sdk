@@ -23,6 +23,6 @@ from .factory import ModelFactory
 from .model import Model
 from .named_model import NamedModel
 from .torch_model import TorchScriptModel
-from .triton_model import TritonModel
+from .triton_model import TritonModel, TritonRemoteModel
 
 Model.register([TritonModel, NamedModel, TorchScriptModel, Model])
