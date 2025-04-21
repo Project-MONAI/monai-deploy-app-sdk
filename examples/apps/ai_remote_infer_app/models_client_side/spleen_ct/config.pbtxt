@@ -1,0 +1,44 @@
+platform: "pytorch_libtorch"
+
+max_batch_size: 16  # The maximum batch size. 0 for no batching with full shape in dims
+
+default_model_filename: "model_spleen_ct_segmentation_v1.ts"  #  The name of the TorchScript model file
+
+input [
+  {
+    name: "INPUT_0"  # The name of the input tensor (or should match the input tensor name in your model if used)
+    data_type: TYPE_FP32  # Data type is FP32
+    dims: [ 1, 96, 96, 96 ]  # Input dimensions: [channels, width, height, depth], to be stacked as a batch
+  }
+]
+
+output [
+  {
+    name: "OUTPUT_0"  # The name of the output tensor (match this with your TorchScript model's output name)
+    data_type: TYPE_FP32  # Output is FP32
+    dims: [ 2, 96, 96, 96 ]  # Output dimensions: [channels, width, height, depth], stacked to match input batch size
+  }
+]
+
+version_policy: { latest: { num_versions: 1}}  # Only serve the latest version, which is the default
+
+instance_group [
+  {
+    kind: KIND_GPU  # Specify the hardware type (GPU in this case)
+    count: 1  # Number of instances created for each GPU listed in 'gpus' (adjust based on your resources)
+  }
+]
+
+dynamic_batching {
+  preferred_batch_size: [ 4, 8, 16 ]  # Preferred batch size(s) for dynamic batching. Matching the max_batch_size for sync calls.
+  max_queue_delay_microseconds: 1000  # Max delay before processing the batch.
+}
+
+# The initial calls to a loaded TorchScript model take extremely long.
+# Due to this longer model warmup issue, Triton allows execution of models without these optimizations.
+parameters: {
+  key: "DISABLE_OPTIMIZED_EXECUTION"
+  value: {
+    string_value: "true"
+  }
+}
