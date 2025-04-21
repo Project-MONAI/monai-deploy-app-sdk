@@ -1,4 +1,4 @@
-# Copyright 2021-2023 MONAI Consortium
+# Copyright 2021-2025 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -14,6 +14,7 @@ from os.path import abspath
 from typing import Dict, List, Optional
 
 from .arg_parser import parse_args, set_up_logging
+from .models import TritonModel
 from .models.factory import ModelFactory
 from .models.model import Model
 from .runtime_env import RuntimeEnv
@@ -45,6 +46,14 @@ class AppContext(object):
         # If model has not been loaded, or the model path has changed, get the path and load model(s)
         old_model_path = self.model_path
         self.model_path = args.get("model") or self.args.get("model") or self.runtime_env.model
+
+        # This parameter must be set if models are hosted on the Triton Inference Server.
+        self.triton_server_netloc = (
+            args.get("triton_server_netloc")
+            or self.args.get("triton_server_netloc")
+            or self.runtime_env.triton_server_netloc
+        )
+
         if old_model_path != self.model_path:
             self._model_loaded = False  # path changed, reset the flag to re-load
 
@@ -52,10 +61,19 @@ class AppContext(object):
             self.models: Optional[Model] = ModelFactory.create(abspath(self.model_path))
             self._model_loaded = True
 
+        # TritonModel instances are just clients and must be connected to the Triton Inference Server
+        # at the provided network location. In-process hosting of Triton Inference Server is not supported.
+        if self.triton_server_netloc and self.models:
+            for _, model in self.models.items():
+                if isinstance(model, TritonModel):
+                    model.connect(self.triton_server_netloc, verbose=args.get("log_level", "INFO") == "DEBUG")
+                    # Health check of the Triton Inference Server can be deferred.
+                    logging.info(f"Model {model.name} set to connect to Triton server at {self.triton_server_netloc}")
+
     def __repr__(self):
         return (
             f"AppContext(input_path={self.input_path}, output_path={self.output_path}, "
-            f"model_path={self.model_path}, workdir={self.workdir})"
+            f"model_path={self.model_path}, workdir={self.workdir}), triton_server_netloc={self.triton_server_netloc}"
         )
 
 

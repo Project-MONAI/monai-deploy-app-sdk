@@ -1,4 +1,4 @@
-# Copyright 2021 MONAI Consortium
+# Copyright 2021-2025 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -12,9 +12,7 @@
 import logging
 from pathlib import Path
 
-from monai.deploy.core.models import ModelFactory
-
-from .model import Model
+from monai.deploy.core.models import Model, ModelFactory
 
 logger = logging.getLogger(__name__)
 
@@ -58,8 +56,12 @@ class NamedModel(Model):
 
         for model_folder in model_path.iterdir():
             if model_folder.is_dir():
-                # Pick one file (assume that only one file exists in the folder)
+                # Pick one file (assume that only one file exists in the folder), except for Triton model
                 model_file = next(model_folder.iterdir())
+                # If Triton model, then use the current folder
+                if (model_folder / "config.pbtxt").exists():
+                    model_file = model_folder
+
                 if model_file:
                     # Recursive call to identify the model type
                     model = ModelFactory.create(str(model_file), model_folder.name)
@@ -81,10 +83,14 @@ class NamedModel(Model):
 
         for model_folder in model_path.iterdir():
             # 3) Each model folder must contain only one model definition file or folder.
-            if sum(1 for _ in model_folder.iterdir()) != 1:
+            #    This would not be confused with Trion model repository which would have
+            #    folders for named models which in turn contain at least one version folder
+            #    and the config.pbtxt file.
+            #    However, with detecting config.pbtxt, Triton model repository can also be accepted.
+            if sum(1 for _ in model_folder.iterdir()) != 1 and not (model_folder / "config.pbtxt").exists():
                 logger.warning(
-                    f"Model repository {model_folder!r} contains more than one model definition file or folder "
-                    "so not treated as NamedModel."
+                    f"Model repository {model_folder!r} contains more than one model definition file or folder, "
+                    "and is not a Triton model repository, so not treated as NamedModel."
                 )
                 return False, None
 

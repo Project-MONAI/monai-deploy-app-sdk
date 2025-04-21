@@ -1,4 +1,4 @@
-# Copyright 2021-2023 MONAI Consortium
+# Copyright 2021-2025 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -64,7 +64,15 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
         type=argparse_types.valid_dir_path,
         help="Path to workspace folder (default: A temporary '.monai_workdir' folder in the current folder)",
     )
+    parser.add_argument(
+        "--triton-server-netloc",
+        "-t",
+        type=str,
+        default=None,
+        help="Triton server netloc, <host>:<port>. (default: None)",
+    )
 
+    # triton_server_netloc
     args = parser.parse_args(argv[1:])
     args.argv = argv  # save argv for later use in runpy
 

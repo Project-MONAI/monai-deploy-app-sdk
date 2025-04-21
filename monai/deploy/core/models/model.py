@@ -1,4 +1,4 @@
-# Copyright 2021 MONAI Consortium
+# Copyright 2021-2025 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -81,7 +81,7 @@ class Model:
         else:
             self._name = Path(path).stem
 
-        self._predictor = None
+        self._predictor: Any = None
 
         # Add self to the list of models
         self._items: Dict[str, Model] = {self.name: self}
