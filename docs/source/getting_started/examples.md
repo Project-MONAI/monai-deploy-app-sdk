@@ -14,3 +14,4 @@
 - dicom_series_to_image_app
 - breast_density_classifer_app
 - cchmc_ped_abd_ct_seg_app
+- ai_remote_infer_app
