@@ -112,7 +112,9 @@ class DICOMSeriesToVolumeOperator(Operator):
         # with the NumPy array returned from the ITK GetArrayViewFromImage on the image
         # loaded from the same DICOM series.
         vol_data = np.stack([s.get_pixel_array() for s in slices], axis=0)
-        if slices[0][0x0028,0x0103].value == 1:
+        # The above get_pixel_array() already considers the PixelRepresentation attribute,
+        # 0 is unsigned int, 1 is signed int
+        if slices[0][0x0028,0x0103].value == 0:
             vol_data = vol_data.astype(np.uint16)
 
         # For now we support monochrome image only, for which DICOM Photometric Interpretation
