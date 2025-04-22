@@ -112,7 +112,8 @@ class DICOMSeriesToVolumeOperator(Operator):
         # with the NumPy array returned from the ITK GetArrayViewFromImage on the image
         # loaded from the same DICOM series.
         vol_data = np.stack([s.get_pixel_array() for s in slices], axis=0)
-        vol_data = vol_data.astype(np.int16)
+        if slices[0][0x0028,0x0103].value == 1:
+            vol_data = vol_data.astype(np.uint16)
 
         # For now we support monochrome image only, for which DICOM Photometric Interpretation
         # (0028,0004) has defined terms, MONOCHROME1 and MONOCHROME2, with the former being:
@@ -154,11 +155,29 @@ class DICOMSeriesToVolumeOperator(Operator):
         except KeyError:
             slope = 1
 
+
+        # check if vol_data, intercept, and slope can be cast to uint16 without data loss
+        if np.can_cast(vol_data, np.uint16, casting='safe') and np.can_cast(intercept, np.uint16, casting='safe') and np.can_cast(slope, np.uint16, casting='safe'):
+            logging.info(f"Casting to uint16")
+            vol_data = np.array(vol_data, dtype=np.uint16)
+            intercept = np.uint16(intercept)
+            slope = np.uint16(slope)
+        elif np.can_cast(vol_data, np.float32, casting='safe') and np.can_cast(intercept, np.float32, casting='safe') and np.can_cast(slope, np.float32, casting='safe'):
+            logging.info(f"Casting to float32")
+            vol_data = np.array(vol_data, dtype=np.float32)
+            intercept = np.float32(intercept)
+            slope = np.float32(slope)
+        elif np.can_cast(vol_data, np.float64, casting='safe') and np.can_cast(intercept, np.float64, casting='safe') and np.can_cast(slope, np.float64, casting='safe'):
+            logging.info(f"Casting to float64")
+            vol_data = np.array(vol_data, dtype=np.float64)
+            intercept = np.float64(intercept)
+            slope = np.float64(slope)
+            
         if slope != 1:
-            vol_data = slope * vol_data.astype(np.float64)
-            vol_data = vol_data.astype(np.int16)
-        vol_data += np.int16(intercept)
-        return np.array(vol_data, dtype=np.int16)
+            vol_data = slope * vol_data
+
+        vol_data += intercept
+        return vol_data
 
     def create_volumetric_image(self, vox_data, metadata):
         """Creates an instance of 3D image.
