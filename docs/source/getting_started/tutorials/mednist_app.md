@@ -98,7 +98,7 @@ monai-deploy package examples/apps/mednist_classifier_monaideploy/mednist_classi
     --config examples/apps/mednist_classifier_monaideploy/app.yaml \
     --tag mednist_app:latest \
     --models mednist_model/classifier.zip \
-    --platform x64-workstation \
+    --platform x86_64 \
     -l DEBUG
 
 # Note: for AMD GPUs, nvidia-docker is not required, but the dependency of the App SDK, namely Holoscan SDK

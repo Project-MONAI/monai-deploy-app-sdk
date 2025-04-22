@@ -69,7 +69,7 @@ ls output
 # This assumes that nvidia docker is installed in the local machine.
 # Please see https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html#docker to install nvidia-docker2.
 
-monai-deploy package examples/apps/simple_imaging_app -c examples/apps/simple_imaging_app/app.yaml -t simple_app:latest --platform x64-workstation -l DEBUG
+monai-deploy package examples/apps/simple_imaging_app -c examples/apps/simple_imaging_app/app.yaml -t simple_app:latest --platform x86_64 -l DEBUG
 
 # Show the application and package manifest files of the MONAI Application Package
 

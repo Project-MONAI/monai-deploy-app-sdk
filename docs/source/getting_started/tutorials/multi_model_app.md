@@ -70,7 +70,7 @@ monai-deploy package examples/apps/ai_multi_ai_app \
     --tag multi_model_app:latest \
     --config examples/apps/ai_multi_ai_app/app.yaml \
     --models multi_models \
-    --platform x64-workstation \
+    --platform x86_64 \
     -l DEBUG
 
 # Note: for AMD GPUs, nvidia-docker is not required, but the dependency of the App SDK, namely Holoscan SDK

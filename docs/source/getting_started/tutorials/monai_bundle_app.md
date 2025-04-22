@@ -38,7 +38,7 @@ jupyter-lab
 
 ```{raw} html
 <p style="text-align: center;">
-    <a class="sphinx-bs btn text-wrap btn-outline-primary col-md-6 reference external" href="../../_static/notebooks/tutorials/05_monai_bundle_app.ipynb">
+    <a class="sphinx-bs btn text-wrap btn-outline-primary col-md-6 reference external" href="../../_static/notebooks/tutorials/04_monai_bundle_app.ipynb">
         <span>Download 04_monai_bundle_app.ipynb</span>
     </a>
 </p>
@@ -86,7 +86,7 @@ monai-deploy package examples/apps/ai_spleen_seg_app \
     --config examples/apps/ai_spleen_seg_app/app.yaml \
     --tag seg_app:latest \
     --models spleen_model/model.ts \
-    --platform x64-workstation \
+    --platform x86_64 \
     -l DEBUG
 
 # Note: for AMD GPUs, nvidia-docker is not required, but the dependency of the App SDK, namely Holoscan SDK

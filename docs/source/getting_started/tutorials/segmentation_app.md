@@ -72,7 +72,7 @@ monai-deploy package examples/apps/ai_spleen_seg_app \
     --config examples/apps/ai_spleen_seg_app/app.yaml \
     --tag seg_app:latest \
     --models spleen_model/model.ts \
-    --platform x64-workstation \
+    --platform x86_64 \
     -l DEBUG
 
 # Note: for AMD GPUs, nvidia-docker is not required, but the dependency of the App SDK, namely Holoscan SDK
