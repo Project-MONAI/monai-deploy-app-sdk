@@ -1,6 +1,6 @@
 Sphinx==4.1.2
 sphinx-autobuild==2021.3.14
-myst-nb==0.17.2  # this version is fine in python 3.8 and avoids pulling in multiple nbformat packages
+myst-nb==0.17.2  # this version is fine in python 3.9 and avoids pulling in multiple nbformat packages
 myst-parser==0.18.0
 lxml_html_clean  # needed by myst-nb
 linkify-it-py==1.0.1  # https://myst-parser.readthedocs.io/en/latest/syntax/optional.html?highlight=linkify#linkify
