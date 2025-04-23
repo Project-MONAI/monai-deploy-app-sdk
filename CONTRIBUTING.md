@@ -138,7 +138,7 @@ MONAI Deploy App SDK's code coverage report is available at [CodeCov](https://co
 #### Building the documentation
 
 :::{note}
-Please note that the documentation builds successfully in Python 3.8 environment, but fails with Python 3.10.
+Please note that the documentation builds successfully in Python 3.9 environment, but fails with Python 3.10.
 :::
 
 MONAI's documentation is located at `docs/`.
