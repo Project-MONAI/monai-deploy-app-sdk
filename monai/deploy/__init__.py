@@ -23,4 +23,3 @@
 from . import _version, conditions, core, exceptions, logger, resources, utils
 
 __version__ = _version.get_versions()["version"]
-
