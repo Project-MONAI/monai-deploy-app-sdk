@@ -10,12 +10,10 @@
 # limitations under the License.
 
 
-import atexit
 import site
 import sys
 
 from setuptools import find_namespace_packages, setup
-from setuptools.command.install import install
 
 import versioneer
 
