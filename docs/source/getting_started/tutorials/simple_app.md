@@ -5,9 +5,9 @@ This tutorial shows how a simple image processing application can be created wit
 ## Setup
 
 ```bash
-# Create a virtual environment with Python 3.8.
+# Create a virtual environment with Python 3.9.
 # Skip if you are already in a virtual environment.
-conda create -n monai python=3.8 pytorch torchvision jupyterlab cudatoolkit=12.2 -c pytorch -c conda-forge
+conda create -n monai python=3.9 pytorch torchvision jupyterlab cudatoolkit=12.2 -c pytorch -c conda-forge
 conda activate monai
 
 # Launch JupyterLab if you want to work on Jupyter Notebook
@@ -69,7 +69,7 @@ ls output
 # This assumes that nvidia docker is installed in the local machine.
 # Please see https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html#docker to install nvidia-docker2.
 
-monai-deploy package examples/apps/simple_imaging_app -c examples/apps/simple_imaging_app/app.yaml -t simple_app:latest --platform x64-workstation -l DEBUG
+monai-deploy package examples/apps/simple_imaging_app -c examples/apps/simple_imaging_app/app.yaml -t simple_app:latest --platform x86_64 -l DEBUG
 
 # Show the application and package manifest files of the MONAI Application Package
 
