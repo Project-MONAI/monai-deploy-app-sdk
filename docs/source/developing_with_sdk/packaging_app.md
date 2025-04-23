@@ -13,7 +13,7 @@ It is required that the application configuration yaml file as well as the depen
 ### Basic Usage of MONAI Application Packager
 
 ```bash
-monai-deploy package <APP_PATH> --config <CONFIG> --tag <TAG> --platform <x64-workstation> [--models <MODEL_PATH>] [--log-level <LEVEL>] [-h]
+monai-deploy package <APP_PATH> --config <CONFIG> --tag <TAG> --platform <x86_64> [--models <MODEL_PATH>] [--log-level <LEVEL>] [-h]
 ```
 
 #### Required Arguments
@@ -21,7 +21,7 @@ monai-deploy package <APP_PATH> --config <CONFIG> --tag <TAG> --platform <x64-wo
 * `<APP_PATH>`: A path to MONAI Deploy Application folder or main code.
 * `--config, -c <CONFIG>`: Path to the application configuration file.
 * `--tag, -t <TAG>`: A MAP name and optionally a tag in the 'name:tag' format.
-* `--platform <PLATFORM>`: Platform type of the container image, must be `x64-workstation` for x86-64 system.
+* `--platform <PLATFORM>`: Platform type of the container image, must be `x86_64` for x86-64 system.
 
 :::{note}
 If `<APP_PATH>` refers to a python code (such as `./my_app.py`), the whole parent folder of the file would be packaged into the MAP container image, effectively the same as specifying the application folder path which includes `__main__.py` file. In both cases, the image's environment variable, `HOLOSCAN_APPLICATION` will be set with the path of the application folder in the image, i.e. `HOLOSCAN_APPLICATION=/opt/holoscan/app`. So, it is essential to provide the `__main__.py` file in the application folder, which usually would look like below:
@@ -54,7 +54,7 @@ The following lists a few most likely used [optional arguments](https://docs.nvi
 Given an example MONAI Deploy App SDK application with its code residing in a directory `./my_app`, packaging this application with the Packager to create a Docker image tagged `my_app:latest` would look like this:
 
 ```bash
-$ monai-deploy package ./my_app -c --config ./my_app/app.yaml -t my_app:latest --models ./model.ts --platform x64-workstation
+$ monai-deploy package ./my_app -c --config ./my_app/app.yaml -t my_app:latest --models ./model.ts --platform x86_64
 
 Building MONAI Application Package...
 Successfully built my_app:latest
@@ -65,7 +65,7 @@ The MAP image name will be postfixed with the platform info to become `my_app-x6
 :::{note}
 * The current implementation of the Packager **ONLY** supports a set of [platform](https://docs.nvidia.com/holoscan/sdk-user-guide/cli/package.html#platform-platform) specific base images from `nvcr.io` as base images for the MAP.
 
-* To package a MAP to run on ARMv8 AArch64 on Linux with discrete GPU, replace the commandline option `--platform x64-workstation` with `--platform igx-orin-devkit --platform-config dgpu`. It has been tested on [NVIDIA IGX Orin](https://www.nvidia.com/en-us/edge-computing/products/igx/).
+* To package a MAP to run on ARMv8 AArch64 on Linux with discrete GPU, replace the commandline option `--platform x86_64` with `--platform igx-dgpu`. It has been tested on [NVIDIA IGX Orin](https://www.nvidia.com/en-us/edge-computing/products/igx/).
 :::
 
 ## Next Step

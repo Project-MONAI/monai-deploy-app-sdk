@@ -344,10 +344,10 @@ install_python_dev_deps() {
         # Copy the cuda runtime library to the fixed location (workaround for readthedocs) so that
         # we can leverage the existing LD_LIBRARY_PATH (configured by the readthedocs UI) to locate the cuda runtime library.
         # (LD_LIBRARY_PATH is set to /home/docs/ for that purpose)
-        # Note that 'python3.8' is hard-coded here, it should be updated if the Python version changes by
+        # Note that 'python3.9' is hard-coded here, it should be updated if the Python version changes by
         # .readthedocs.yml or other configurations.
-        run_command ls -al /home/docs/checkouts/readthedocs.org/user_builds/${READTHEDOCS_PROJECT}/envs/${READTHEDOCS_VERSION}/lib/python3.8/site-packages/nvidia/cuda_runtime/lib/
-        run_command cp /home/docs/checkouts/readthedocs.org/user_builds/${READTHEDOCS_PROJECT}/envs/${READTHEDOCS_VERSION}/lib/python3.8/site-packages/nvidia/cuda_runtime/lib/*.so* /home/docs/
+        run_command ls -al /home/docs/checkouts/readthedocs.org/user_builds/${READTHEDOCS_PROJECT}/envs/${READTHEDOCS_VERSION}/lib/python3.9/site-packages/nvidia/cuda_runtime/lib/
+        run_command cp /home/docs/checkouts/readthedocs.org/user_builds/${READTHEDOCS_PROJECT}/envs/${READTHEDOCS_VERSION}/lib/python3.9/site-packages/nvidia/cuda_runtime/lib/*.so* /home/docs/
         run_command ls -al /home/docs/
     fi
 }

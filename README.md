@@ -15,7 +15,7 @@ MONAI Deploy App SDK offers a framework and associated tools to design, develop 
 - Build medical imaging inference applications using a flexible, extensible & usable Pythonic API
 - Easy management of inference applications via programmable Directed Acyclic Graphs (DAGs)
 - Built-in operators to load DICOM data to be ingested in an inference app
-- Out-of-the-box support for in-proc PyTorch based inference
+- Out-of-the-box support for in-proc PyTorch based inference, as well as remote inference via Triton Inference Server
 - Easy incorporation of MONAI based pre and post transformations in the inference application
 - Package inference application with a single command into a portable MONAI Application Package
 - Locally run and debug your inference application using App Runner
@@ -33,7 +33,7 @@ If you have used MONAI in your research, please cite us! The citation can be exp
 To install [the current release](https://pypi.org/project/monai-deploy-app-sdk/), you can simply run:
 
 ```bash
-pip install monai-deploy-app-sdk  # '--pre' to install a pre-release version.
+pip install monai-deploy-app-sdk
 ```
 
 ### Prerequisites
@@ -48,7 +48,7 @@ pip install monai-deploy-app-sdk  # '--pre' to install a pre-release version.
 Getting started guide is available at [here](https://docs.monai.io/projects/monai-deploy-app-sdk/en/stable/getting_started/index.html).
 
 ```bash
-pip install monai-deploy-app-sdk  # '--pre' to install a pre-release version.
+pip install monai-deploy-app-sdk
 
 # Clone monai-deploy-app-sdk repository for accessing examples.
 git clone https://github.com/Project-MONAI/monai-deploy-app-sdk.git
@@ -62,7 +62,7 @@ python examples/apps/simple_imaging_app/app.py -i examples/apps/simple_imaging_a
 
 # Package app (creating MAP Docker image), using `-l DEBUG` option to see progress.
 # Also please note that postfix will be added to user supplied tag for identifying CPU architecture and GPU type etc.
-monai-deploy package examples/apps/simple_imaging_app -c examples/apps/simple_imaging_app/app.yaml -t simple_app:latest --platform x64-workstation -l DEBUG
+monai-deploy package examples/apps/simple_imaging_app -c examples/apps/simple_imaging_app/app.yaml -t simple_app:latest --platform x86_64 -l DEBUG
 
 # Run the app with docker image and an input file locally
 ## Copy a test input file to 'input' folder
@@ -86,7 +86,7 @@ YouTube Video (to be updated with the new version):
 
 ### [3) Creating a Segmentation app](https://docs.monai.io/projects/monai-deploy-app-sdk/en/stable/getting_started/tutorials/segmentation_app.html)
 
-YouTube Video (to be updated with the new version):
+YouTube Video (demonstrating the previous version of the App SDK):
 
 - [Spleen Organ Segmentation - Jupyter Notebook Tutorial](https://www.youtube.com/watch?v=cqDVxzYt9lY)
 - [Spleen Organ Segmentation - Deep Dive](https://www.youtube.com/watch?v=nivgfD4pwWE)
@@ -97,14 +97,16 @@ YouTube Video (to be updated with the new version):
 
 ### [Examples](https://docs.monai.io/projects/monai-deploy-app-sdk/en/stable/getting_started/examples.html)
 
-<https://github.com/Project-MONAI/monai-deploy-app-sdk/tree/main/examples/apps> has example apps that you can see.
+<https://github.com/Project-MONAI/monai-deploy-app-sdk/tree/main/examples/apps> has example apps that you can see, to name but a few
 
+- simple_imaging_app
 - ai_livertumor_seg_app
 - ai_spleen_seg_app
 - ai_unetr_seg_app
 - dicom_series_to_image_app
 - mednist_classifier_monaideploy
-- simple_imaging_app
+- ai_remote_infer_app
+
 
 ## Contributing
 

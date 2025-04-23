@@ -5,9 +5,9 @@ This tutorial demos the process of packaging up a trained model using MONAI Depl
 ## Setup
 
 ```bash
-# Create a virtual environment with Python 3.8.
+# Create a virtual environment with Python 3.9.
 # Skip if you are already in a virtual environment.
-conda create -n mednist python=3.8 pytorch jupyterlab cudatoolkit=12.2 -c pytorch -c conda-forge
+conda create -n mednist python=3.9 pytorch jupyterlab cudatoolkit=12.2 -c pytorch -c conda-forge
 conda activate mednist
 
 # Launch JupyterLab if you want to work on Jupyter Notebook
@@ -98,7 +98,7 @@ monai-deploy package examples/apps/mednist_classifier_monaideploy/mednist_classi
     --config examples/apps/mednist_classifier_monaideploy/app.yaml \
     --tag mednist_app:latest \
     --models mednist_model/classifier.zip \
-    --platform x64-workstation \
+    --platform x86_64 \
     -l DEBUG
 
 # Note: for AMD GPUs, nvidia-docker is not required, but the dependency of the App SDK, namely Holoscan SDK

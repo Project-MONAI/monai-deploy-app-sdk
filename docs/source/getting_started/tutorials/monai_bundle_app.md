@@ -5,9 +5,9 @@ This tutorial shows how to create an organ segmentation application for a PyTorc
 ## Setup
 
 ```bash
-# Create a virtual environment with Python 3.8.
+# Create a virtual environment with Python 3.9.
 # Skip if you are already in a virtual environment.
-conda create -n monai python=3.8 pytorch torchvision jupyterlab cudatoolkit=12.2 -c pytorch -c conda-forge
+conda create -n monai python=3.9 pytorch torchvision jupyterlab cudatoolkit=12.2 -c pytorch -c conda-forge
 conda activate monai
 
 # Launch JupyterLab if you want to work on Jupyter Notebook
@@ -38,7 +38,7 @@ jupyter-lab
 
 ```{raw} html
 <p style="text-align: center;">
-    <a class="sphinx-bs btn text-wrap btn-outline-primary col-md-6 reference external" href="../../_static/notebooks/tutorials/05_monai_bundle_app.ipynb">
+    <a class="sphinx-bs btn text-wrap btn-outline-primary col-md-6 reference external" href="../../_static/notebooks/tutorials/04_monai_bundle_app.ipynb">
         <span>Download 04_monai_bundle_app.ipynb</span>
     </a>
 </p>
@@ -86,7 +86,7 @@ monai-deploy package examples/apps/ai_spleen_seg_app \
     --config examples/apps/ai_spleen_seg_app/app.yaml \
     --tag seg_app:latest \
     --models spleen_model/model.ts \
-    --platform x64-workstation \
+    --platform x86_64 \
     -l DEBUG
 
 # Note: for AMD GPUs, nvidia-docker is not required, but the dependency of the App SDK, namely Holoscan SDK
