@@ -70,8 +70,11 @@ class NiftiDataWriter(Operator):
         """
         image_writer = SimpleITK.ImageFileWriter()
 
+        pixdim = seg_image.metadata()["pixdim"]
+        if pixdim[0] == 1:
+            pixdim = np.array(pixdim[1:4])
         image = SimpleITK.GetImageFromArray(seg_image._data)
-        image.SetSpacing(seg_image.metadata()["pixdim"])
+        image.SetSpacing(pixdim)
         
         if len(seg_image.metadata()["direction"]) == 16:
             direction = []
