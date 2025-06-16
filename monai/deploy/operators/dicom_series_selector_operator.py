@@ -257,7 +257,7 @@ class DICOMSeriesSelectorOperator(Operator):
             List of DICOMSeries. At most one element if all_matched is False.
 
         Raises:
-            NotImplementedError: If the value_to_match type is not supported for matching.
+            NotImplementedError: If the value_to_match type is not supported for matching or unsupported PatientPosition value.
         """
         assert isinstance(attributes, dict), '"attributes" must be a dict.'
 
@@ -304,6 +304,13 @@ class DICOMSeriesSelectorOperator(Operator):
                     matched = False
                 # Image orientation check
                 elif key == "ImageOrientationPatient":
+                    patient_position = series_attr.get("PatientPosition")
+                    if patient_position is None:
+                        raise NotImplementedError(
+                            "PatientPosition tag absent; value required for image orientation calculation"
+                        )
+                    if patient_position not in ("HFP", "HFS", "HFDL", "HFDR", "FFP", "FFS", "FFDL", "FFDR"):
+                        raise NotImplementedError(f"No support for PatientPosition value {patient_position}")
                     matched = self._match_image_orientation(value_to_match, attr_value)
                 elif isinstance(attr_value, (float, int)):
                     matched = self._match_numeric_condition(value_to_match, attr_value)
@@ -413,6 +420,15 @@ class DICOMSeriesSelectorOperator(Operator):
     def _match_image_orientation(self, value_to_match, attr_value):
         """
         Helper method to calculate and match the image orientation using the ImageOrientationPatient tag.
+        The following PatientPosition values are supported and have been tested:
+            - "HFP"
+            - "HFS"
+            - "HFDL"
+            - "HFDR"
+            - "FFP"
+            - "FFS"
+            - "FFDL"
+            - "FFDR"
 
         Supported image orientation inputs for matching (case-insensitive):
             - "Axial"
