@@ -9,10 +9,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from typing import Any, Dict, Tuple, Union
+
+from monai.deploy.core import Image
 from monai.deploy.operators.monai_bundle_inference_operator import MonaiBundleInferenceOperator, get_bundle_config
 from monai.deploy.utils.importutil import optional_import
-from typing import Any, Dict, Tuple, Union
-from monai.deploy.core import Image
 
 MONAI_UTILS = "monai.utils"
 nibabel, _ = optional_import("nibabel", "3.2.1")
@@ -44,12 +45,12 @@ class MONetBundleInferenceOperator(MonaiBundleInferenceOperator):
     This operator extends the `MonaiBundleInferenceOperator` to support nnUNet-specific
     configurations and prediction logic. It initializes the nnUNet predictor and provides
     a method for performing inference on input data.
-    
+
     Attributes
     ----------
     _nnunet_predictor : torch.nn.Module
         The nnUNet predictor module used for inference.
-    
+
     Methods
     -------
     _init_config(config_names)
@@ -65,16 +66,14 @@ class MONetBundleInferenceOperator(MonaiBundleInferenceOperator):
         **kwargs,
     ):
 
-
         super().__init__(*args, **kwargs)
-        
-        self._nnunet_predictor : torch.nn.Module = None
-        
-       
-    def _init_config(self, config_names):   
+
+        self._nnunet_predictor: torch.nn.Module = None
+
+    def _init_config(self, config_names):
 
         super()._init_config(config_names)
-        parser = get_bundle_config(str(self._bundle_path), config_names)       
+        parser = get_bundle_config(str(self._bundle_path), config_names)
         self._parser = parser
 
         self._nnunet_predictor = parser.get_parsed_content("network_def")
@@ -83,7 +82,7 @@ class MONetBundleInferenceOperator(MonaiBundleInferenceOperator):
         """Predicts output using the inferer."""
 
         self._nnunet_predictor.predictor.network = self._model_network
-        #os.environ['nnUNet_def_n_proc'] = "1"
+        # os.environ['nnUNet_def_n_proc'] = "1"
         if len(data.shape) == 4:
             data = data[None]
         return self._nnunet_predictor(data)
