@@ -51,7 +51,6 @@ from .monai_bundle_inference_operator import BundleConfigNames, IOMapping, Monai
 from .monai_seg_inference_operator import MonaiSegInferenceOperator
 from .monet_bundle_inference_operator import MONetBundleInferenceOperator
 from .nii_data_loader_operator import NiftiDataLoader
-from .nii_data_writer_operator import NiftiDataWriter
 from .png_converter_operator import PNGConverterOperator
 from .publisher_operator import PublisherOperator
 from .stl_conversion_operator import STLConversionOperator, STLConverter
