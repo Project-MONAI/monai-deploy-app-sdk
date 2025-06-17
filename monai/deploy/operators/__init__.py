@@ -48,7 +48,7 @@ from .dicom_text_sr_writer_operator import DICOMTextSRWriterOperator
 from .dicom_utils import EquipmentInfo, ModelInfo, random_with_n_digits, save_dcm_file, write_common_modules
 from .inference_operator import InferenceOperator
 from .monai_bundle_inference_operator import BundleConfigNames, IOMapping, MonaiBundleInferenceOperator
-from .monai_nnunet_bundle_inference_operator import MonainnUNetBundleInferenceOperator
+from .monet_bundle_inference_operator import MONetBundleInferenceOperator
 from .monai_seg_inference_operator import MonaiSegInferenceOperator
 from .nii_data_loader_operator import NiftiDataLoader
 from .png_converter_operator import PNGConverterOperator

@@ -27,7 +27,7 @@ from monai.deploy.operators.monai_bundle_inference_operator import (
     IOMapping,
 
 )
-from monai.deploy.operators.monai_nnunet_bundle_inference_operator import MonainnUNetBundleInferenceOperator
+from monai.deploy.operators.monai_nnunet_bundle_inference_operator import MONetBundleInferenceOperator
 from monai.deploy.operators.stl_conversion_operator import STLConversionOperator
 
 
@@ -87,7 +87,7 @@ class AISpleennnUNetSegApp(Application):
 
         config_names = BundleConfigNames(config_names=["inference"])  # Same as the default
 
-        bundle_spleen_seg_op = MonainnUNetBundleInferenceOperator(
+        bundle_spleen_seg_op = MONetBundleInferenceOperator(
             self,
             input_mapping=[IOMapping("image", Image, IOType.IN_MEMORY)],
             output_mapping=[IOMapping("pred", Image, IOType.IN_MEMORY)],
