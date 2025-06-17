@@ -22,9 +22,9 @@ from threading import Lock
 from typing import Any, Dict, List, Optional, Tuple, Type, Union
 
 import numpy as np
-
 import SimpleITK
 from SimpleITK import Image as SimpleITKImage
+
 from monai.deploy.core import AppContext, Fragment, Image, IOType, OperatorSpec
 from monai.deploy.utils.importutil import optional_import
 
@@ -705,16 +705,6 @@ class MonaiBundleInferenceOperator(InferenceOperator):
             logging.debug(f"Metadata of the converted input image: {metadata}")
         elif isinstance(value, np.ndarray):
             value = torch.from_numpy(value).to(self._device)
-        elif isinstance(value, SimpleITKImage):
-            metadata = {}
-            metadata["pixdim"] = np.asarray(value.GetSpacing())
-            metadata["origin"] = np.asarray(value.GetOrigin())
-            metadata["direction"] = np.asarray(value.GetDirection())
-            if len(value.GetSize()) == 3:
-                metadata["pixdim"] = np.insert(np.asarray(value.GetSpacing()), 0, 1.0)
-                value = np.transpose(SimpleITK.GetArrayFromImage(value), [2, 1, 0])
-            else:
-                value = np.transpose(SimpleITK.GetArrayFromImage(value), [0, 3, 2, 1])
 
         # else value is some other object from memory
 
