@@ -35,10 +35,10 @@ from monai.deploy.operators.stl_conversion_operator import STLConversionOperator
 # pip_packages can be a string that is a path(str) to requirements.txt file or a list of packages.
 # The monai pkg is not required by this class, instead by the included operators.
 class AISpleennnUNetSegApp(Application):
-    """Demonstrates inference with built-in MONAI nnUNet Bundle inference operator with DICOM files as input/output
+    """Demonstrates inference with built-in MONet Bundle inference operator with DICOM files as input/output
 
     This application loads a set of DICOM instances, select the appropriate series, converts the series to
-    3D volume image, performs inference with the built-in MONAI nnUNet Bundle inference operator, including pre-processing
+    3D volume image, performs inference with the built-in MONet Bundle inference operator, including nnUNet resampling,pre-processing
     and post-processing, save the segmentation image in a DICOM Seg OID in an instance file, and optionally the
     surface mesh in STL format.
 
@@ -46,8 +46,8 @@ class AISpleennnUNetSegApp(Application):
       <Upload to the MONAI Model Zoo>
 
     Execution Time Estimate:
-      With a Nvidia RTXA600 48GB GPU, for an input DICOM Series of 139 instances, the execution time is around
-      75 seconds with saving both DICOM Seg and surface mesh STL file.
+      With a Nvidia RTXA600 48GB GPU, for an input DICOM Series of size 106x415x415 and patches of size 64x192x160, the execution time is around
+      50 seconds with saving both DICOM Seg and surface mesh STL file.
     """
 
     def __init__(self, *args, **kwargs):
@@ -162,16 +162,6 @@ Sample_Rules_Text = """
 """
 
 if __name__ == "__main__":
-    # Creates the app and test it standalone. When running is this mode, please note the following:
-    #     -m <model file>, for model file path
-    #     -i <DICOM folder>, for input DICOM CT series folder
-    #     -o <output folder>, for the output folder, default $PWD/output
-    # e.g.
-    #     monai-deploy exec app.py -i input -m model/model.ts
-    #
-    # export HOLOSCAN_INPUT_PATH=dcm
-    # export HOLOSCAN_MODEL_PATH=spleen_model/model.ts
-    # export HOLOSCAN_OUTPUT_PATH="output"
     logging.info(f"Begin {__name__}")
     AISpleennnUNetSegApp().run()
     logging.info(f"End {__name__}")
