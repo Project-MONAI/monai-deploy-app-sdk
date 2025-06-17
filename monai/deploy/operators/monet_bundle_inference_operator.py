@@ -13,7 +13,7 @@ from monai.deploy.operators.monai_bundle_inference_operator import MonaiBundleIn
 from monai.deploy.utils.importutil import optional_import
 from typing import Any, Dict, Tuple, Union
 from monai.deploy.core import Image
-from pathlib import Path
+
 MONAI_UTILS = "monai.utils"
 nibabel, _ = optional_import("nibabel", "3.2.1")
 torch, _ = optional_import("torch", "1.10.2")
@@ -35,10 +35,10 @@ SimpleInferer, _ = optional_import("monai.inferers", name="SimpleInferer")
 Compose: Any = Compose_
 MapTransform: Any = MapTransform_
 ConfigParser: Any = ConfigParser_
-__all__ = ["MonainnUNetBundleInferenceOperator"]
+__all__ = ["MONetBundleInferenceOperator"]
 
 
-class MonainnUNetBundleInferenceOperator(MonaiBundleInferenceOperator):
+class MONetBundleInferenceOperator(MonaiBundleInferenceOperator):
     """
     A specialized operator for performing inference using the MONAI nnUNet bundle.
     This operator extends the `MonaiBundleInferenceOperator` to support nnUNet-specific
