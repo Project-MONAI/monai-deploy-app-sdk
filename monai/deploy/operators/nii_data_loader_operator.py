@@ -80,7 +80,8 @@ class NiftiDataLoader(Operator):
         image_reader = SimpleITK.ImageFileReader()
         image_reader.SetFileName(str(nii_path))
         image = image_reader.Execute()
-        return image
+        image_np = np.transpose(SimpleITK.GetArrayFromImage(image), [2, 1, 0])
+        return image_np
 
 
 def test():
