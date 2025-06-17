@@ -15,7 +15,7 @@
 # limitations under the License.
 ---
 application:
-  title: MONAI Deploy App Package - Spleen nnUNet Seg Inference
+  title: MONAI Deploy App Package - Spleen MONet Seg Inference
   version: 1.0
   inputFormats: ["file"]
   outputFormats: ["file"]
