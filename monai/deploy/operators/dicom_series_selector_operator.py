@@ -48,7 +48,7 @@ class DICOMSeriesSelectorOperator(Operator):
         3. each condition uses the implicit equal operator; in addition, the following are supported:
             - regex, relational, and range matching for float and int types
             - regex matching for str type
-            - union matching for set type
+            - inclusion and exclusion matching for set type
             - image orientation check for the ImageOrientationPatient tag
         4. DICOM attribute keywords are used, and only for those defined as DICOMStudy and DICOMSeries properties
 
@@ -87,6 +87,14 @@ class DICOMSeriesSelectorOperator(Operator):
                     "Modality": "(?i)CT",
                     "ImageOrientationPatient": "Axial",
                     "SliceThickness": [2, ">"]
+                }
+            },
+            {
+                "name": "CT Series 5",
+                "conditions": {
+                    "StudyDescription": "(.*?)",
+                    "Modality": "(?i)CT",
+                    "ImageType": ["PRIMARY", "!SECONDARY"]
                 }
             }
         ]
@@ -163,7 +171,7 @@ class DICOMSeriesSelectorOperator(Operator):
         Supported matching logic:
             Float + Int: exact matching, relational matching, range matching, and regex matching
             String: matches case insensitive, if fails then tries RegEx search
-            String array (set): matches as subset, case insensitive
+            String array (set): inclusive and exclusive (via !) matching as subsets, case insensitive
             ImageOrientationPatient tag: image orientation (Axial, Coronal, Sagittal) matching
 
         Args:
@@ -326,9 +334,19 @@ class DICOMSeriesSelectorOperator(Operator):
                     meta_data_list = str(attr_value).lower()
                     if isinstance(value_to_match, list):
                         value_set = {str(element).lower() for element in value_to_match}
-                        matched = all(val in meta_data_list for val in value_set)
+                        # split inclusion and exclusion matches using ! indicator
+                        include_terms = {v for v in value_set if not v.startswith("!")}
+                        exclude_terms = {v[1:] for v in value_set if v.startswith("!")}
+                        matched = all(term in meta_data_list for term in include_terms) and all(
+                            term not in meta_data_list for term in exclude_terms
+                        )
                     elif isinstance(value_to_match, (str, numbers.Number)):
-                        matched = str(value_to_match).lower() in meta_data_list
+                        v = str(value_to_match).lower()
+                        # ! indicates exclusion match
+                        if v.startswith("!"):
+                            matched = v[1:] not in meta_data_list
+                        else:
+                            matched = v in meta_data_list
                 else:
                     raise NotImplementedError(
                         f"No support for matching condition {value_to_match} (type: {type(value_to_match)})"
@@ -593,6 +611,14 @@ Sample_Rules_Text = """
                 "Modality": "(?i)MR",
                 "ImageOrientationPatient": "Axial",
                 "SliceThickness": [2, ">"]
+            }
+        },
+        {
+            "name": "CT Series 5",
+            "conditions": {
+                "StudyDescription": "(.*?)",
+                "Modality": "(?i)CT",
+                "ImageType": ["PRIMARY", "!SECONDARY"]
             }
         }
     ]
