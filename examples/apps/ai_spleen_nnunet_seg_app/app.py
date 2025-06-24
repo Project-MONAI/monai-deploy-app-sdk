@@ -23,7 +23,7 @@ from monai.deploy.operators.dicom_seg_writer_operator import DICOMSegmentationWr
 from monai.deploy.operators.dicom_series_selector_operator import DICOMSeriesSelectorOperator
 from monai.deploy.operators.dicom_series_to_volume_operator import DICOMSeriesToVolumeOperator
 from monai.deploy.operators.monai_bundle_inference_operator import BundleConfigNames, IOMapping
-from monai.deploy.operators.monai_nnunet_bundle_inference_operator import MONetBundleInferenceOperator
+from monai.deploy.operators.monet_bundle_inference_operator import MONetBundleInferenceOperator
 from monai.deploy.operators.stl_conversion_operator import STLConversionOperator
 
 
