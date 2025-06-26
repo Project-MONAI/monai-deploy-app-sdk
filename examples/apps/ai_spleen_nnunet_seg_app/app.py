@@ -34,7 +34,7 @@ class AISpleennnUNetSegApp(Application):
     """Demonstrates inference with built-in MONet Bundle inference operator with DICOM files as input/output
 
     This application loads a set of DICOM instances, select the appropriate series, converts the series to
-    3D volume image, performs inference with the built-in MONet Bundle inference operator, including nnUNet resampling,pre-processing
+    3D volume image, performs inference with the built-in MONet Bundle inference operator, including nnUNet resampling, pre-processing
     and post-processing, save the segmentation image in a DICOM Seg OID in an instance file, and optionally the
     surface mesh in STL format.
 
