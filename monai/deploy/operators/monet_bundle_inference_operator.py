@@ -14,9 +14,10 @@ from typing import Any, Dict, Tuple, Union
 from monai.deploy.core import Image
 from monai.deploy.operators.monai_bundle_inference_operator import MonaiBundleInferenceOperator, get_bundle_config
 from monai.deploy.utils.importutil import optional_import
+from monai.transforms import ConcatItemsd, ResampleToMatch
 
 torch, _ = optional_import("torch", "1.10.2")
-
+MetaTensor, _ = optional_import("monai.data.meta_tensor", name="MetaTensor")
 __all__ = ["MONetBundleInferenceOperator"]
 
 
@@ -60,10 +61,18 @@ class MONetBundleInferenceOperator(MonaiBundleInferenceOperator):
         self._nnunet_predictor = parser.get_parsed_content("network_def")
 
     def predict(self, data: Any, *args, **kwargs) -> Union[Image, Any, Tuple[Any, ...], Dict[Any, Any]]:
-        """Predicts output using the inferer."""
+        """Predicts output using the inferer. If multimodal data is provided as keyword arguments,
+        it concatenates the data with the main input data."""
 
         self._nnunet_predictor.predictor.network = self._model_network
 
+        if len(kwargs) > 0:
+            multimodal_data = {"image": data}
+            for key in kwargs.keys():
+                if isinstance(kwargs[key], MetaTensor):
+                    multimodal_data[key] = ResampleToMatch(mode="bilinear")(kwargs[key], img_dst=data
+                                                         )
+            data = ConcatItemsd(keys=list(multimodal_data.keys()),name="image")(multimodal_data)["image"]
         if len(data.shape) == 4:
             data = data[None]
         return self._nnunet_predictor(data)
