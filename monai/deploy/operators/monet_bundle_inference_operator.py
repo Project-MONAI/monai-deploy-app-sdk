@@ -15,27 +15,8 @@ from monai.deploy.core import Image
 from monai.deploy.operators.monai_bundle_inference_operator import MonaiBundleInferenceOperator, get_bundle_config
 from monai.deploy.utils.importutil import optional_import
 
-MONAI_UTILS = "monai.utils"
-nibabel, _ = optional_import("nibabel", "3.2.1")
 torch, _ = optional_import("torch", "1.10.2")
 
-NdarrayOrTensor, _ = optional_import("monai.config", name="NdarrayOrTensor")
-MetaTensor, _ = optional_import("monai.data.meta_tensor", name="MetaTensor")
-PostFix, _ = optional_import("monai.utils.enums", name="PostFix")  # For the default meta_key_postfix
-first, _ = optional_import("monai.utils.misc", name="first")
-ensure_tuple, _ = optional_import(MONAI_UTILS, name="ensure_tuple")
-convert_to_dst_type, _ = optional_import(MONAI_UTILS, name="convert_to_dst_type")
-Key, _ = optional_import(MONAI_UTILS, name="ImageMetaKey")
-MetaKeys, _ = optional_import(MONAI_UTILS, name="MetaKeys")
-SpaceKeys, _ = optional_import(MONAI_UTILS, name="SpaceKeys")
-Compose_, _ = optional_import("monai.transforms", name="Compose")
-ConfigParser_, _ = optional_import("monai.bundle", name="ConfigParser")
-MapTransform_, _ = optional_import("monai.transforms", name="MapTransform")
-SimpleInferer, _ = optional_import("monai.inferers", name="SimpleInferer")
-
-Compose: Any = Compose_
-MapTransform: Any = MapTransform_
-ConfigParser: Any = ConfigParser_
 __all__ = ["MONetBundleInferenceOperator"]
 
 
@@ -82,7 +63,7 @@ class MONetBundleInferenceOperator(MonaiBundleInferenceOperator):
         """Predicts output using the inferer."""
 
         self._nnunet_predictor.predictor.network = self._model_network
-        # os.environ['nnUNet_def_n_proc'] = "1"
+
         if len(data.shape) == 4:
             data = data[None]
         return self._nnunet_predictor(data)
