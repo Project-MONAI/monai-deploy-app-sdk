@@ -22,8 +22,6 @@ from threading import Lock
 from typing import Any, Dict, List, Optional, Tuple, Type, Union
 
 import numpy as np
-import SimpleITK
-from SimpleITK import Image as SimpleITKImage
 
 from monai.deploy.core import AppContext, Fragment, Image, IOType, OperatorSpec
 from monai.deploy.utils.importutil import optional_import
