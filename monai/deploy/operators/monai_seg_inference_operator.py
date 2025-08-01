@@ -9,6 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import inspect
 import logging
 import os
 from pathlib import Path
@@ -19,6 +20,7 @@ import numpy as np
 
 from monai.deploy.utils.importutil import optional_import
 from monai.utils import StrEnum  # Will use the built-in StrEnum when SDK requires Python 3.11.
+from monai.utils import BlendMode, PytorchPadMode
 
 MONAI_UTILS = "monai.utils"
 torch, _ = optional_import("torch", "1.5")
@@ -47,13 +49,6 @@ from .inference_operator import InferenceOperator
 __all__ = ["MonaiSegInferenceOperator", "InfererType", "InMemImageReader"]
 
 
-class BlendModeType(StrEnum):
-    """Represents the supported blend modes for sliding window inference."""
-
-    CONSTANT = "constant"
-    GAUSSIAN = "gaussian"
-
-
 class InfererType(StrEnum):
     """Represents the supported types of the inferer, e.g. Simple and Sliding Window."""
 
@@ -61,24 +56,26 @@ class InfererType(StrEnum):
     SLIDING_WINDOW = "sliding_window"
 
 
-class PytorchPadModeType(StrEnum):
-    """Represents the supported padding modes for sliding window inference."""
-
-    CONSTANT = "constant"
-    REFLECT = "reflect"
-    REPLICATE = "replicate"
-    CIRCULAR = "circular"
+# define other StrEnum types
+BlendModeType = BlendMode
+PytorchPadModeType = PytorchPadMode
 
 
 # @md.env(pip_packages=["monai>=1.0.0", "torch>=1.10.2", "numpy>=1.21"])
 class MonaiSegInferenceOperator(InferenceOperator):
-    """This segmentation operator uses MONAI transforms and Sliding Window Inference.
+    """This segmentation operator uses MONAI transforms and performs Simple or Sliding Window Inference.
 
     This operator performs pre-transforms on a input image, inference
     using a given model, and post-transforms. The segmentation image is saved
     as a named Image object in memory.
 
     If specified in the post transforms, results may also be saved to disk.
+
+    This operator uses the MONAI inference utils functions for sliding window and simple inference,
+    and thus input parameters need to be as expected by these functions.
+
+    Any additional sliding window arguments not explicitly defined in this operator can be passed via
+    **kwargs for forwarding to 'sliding_window_inference'.
 
     Named Input:
         image: Image object of the input image.
@@ -89,6 +86,35 @@ class MonaiSegInferenceOperator(InferenceOperator):
 
     # For testing the app directly, the model should be at the following path.
     MODEL_LOCAL_PATH = Path(os.environ.get("HOLOSCAN_MODEL_PATH", Path.cwd() / "model/model.ts"))
+
+    @staticmethod
+    def filter_sw_kwargs(**kwargs) -> Dict[str, Any]:
+        """
+        Returns a dictionary of named parameters of the sliding_window_inference function that are:
+            - Not explicitly defined in the __init__ of this class
+            - Not explicitly used when calling sliding_window_inference
+
+        Args:
+            **kwargs: extra arguments passed into __init__ beyond the explicitly defined args.
+
+        Returns:
+            filtered_params: A filtered dictionary of arguments to be passed to sliding_window_inference.
+        """
+
+        init_params = inspect.signature(MonaiSegInferenceOperator).parameters
+
+        # inputs + predictor explicitly used when calling sliding_window_inference
+        explicit_used = ["inputs", "predictor"]
+
+        filtered_params = {}
+        for name, val in kwargs.items():
+            if name in init_params or name in explicit_used:
+                # match log formatting
+                logger = logging.getLogger(f"{__name__}.{MonaiSegInferenceOperator.__name__}")
+                logger.warning(f"{name!r} is already explicity defined or used; ignoring input arg")
+            else:
+                filtered_params[name] = val
+        return filtered_params
 
     def __init__(
         self,
@@ -122,13 +148,14 @@ class MonaiSegInferenceOperator(InferenceOperator):
                              Applicable for "SLIDING_WINDOW" only.
             sw_batch_size(int): The batch size to run window slices. Defaults to 4.
                              Applicable for "SLIDING_WINDOW" only.
-            mode (BlendMode): How to blend output of overlapping windows, "CONSTANT" or "GAUSSIAN". Defaults to "CONSTANT".
+            mode (BlendModeType): How to blend output of overlapping windows, "CONSTANT" or "GAUSSIAN". Defaults to "CONSTANT".
                              Applicable for "SLIDING_WINDOW" only.
-            padding_mode (PytorchPadMode): Padding mode for ``inputs``, when ``roi_size`` is larger than inputs,
+            padding_mode (PytorchPadModeType): Padding mode for ``inputs``, when ``roi_size`` is larger than inputs,
                              "CONSTANT", "REFLECT", "REPLICATE", or "CIRCULAR". Defaults to "CONSTANT".
                              Applicable for "SLIDING_WINDOW" only.
             inferer (InfererType): The type of inferer to use, "SIMPLE" or "SLIDING_WINDOW". Defaults to "SLIDING_WINDOW".
             model_path (Path): Path to the model file. Defaults to model/models.ts of current working dir.
+            **kwargs: any other sliding window parameters to forward (e.g. `sigma_scale`, `cval`, etc.).
         """
 
         self._logger = logging.getLogger("{}.{}".format(__name__, type(self).__name__))
@@ -147,6 +174,7 @@ class MonaiSegInferenceOperator(InferenceOperator):
         self._mode = mode
         self._padding_mode = padding_mode
         self._inferer = inferer
+        self._implicit_params = self.filter_sw_kwargs(**kwargs)  # Filter keyword args
 
         # Add this so that the local model path can be set from the calling app
         self.model_path = model_path
@@ -370,6 +398,7 @@ class MonaiSegInferenceOperator(InferenceOperator):
                         mode=self._mode,
                         padding_mode=self._padding_mode,
                         predictor=self.model,
+                        **self._implicit_params,  # additional sliding window arguments
                     )
                 elif self._inferer == InfererType.SIMPLE:
                     # Instantiates the SimpleInferer and directly uses its __call__ function
