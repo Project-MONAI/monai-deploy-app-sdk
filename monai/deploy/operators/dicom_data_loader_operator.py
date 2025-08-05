@@ -437,10 +437,10 @@ def test():
                 print(f"   'SeriesDescription': {ds.SeriesDescription if ds.SeriesDescription else ''}")
                 print(
                     "   'IssuerOfPatientID':"
-                    f" {ds.get('IssuerOfPatientID', '').repval if ds.get('IssuerOfPatientID', '') else '' }"
+                    f" {ds.get('IssuerOfPatientID', '').repval if ds.get('IssuerOfPatientID', '') else ''}"
                 )
                 try:
-                    print(f"   'IssuerOfPatientID': {ds.IssuerOfPatientID if ds.IssuerOfPatientID else '' }")
+                    print(f"   'IssuerOfPatientID': {ds.IssuerOfPatientID if ds.IssuerOfPatientID else ''}")
                 except AttributeError:
                     print(
                         "    If the IssuerOfPatientID does not exist, ds.IssuerOfPatientID would throw AttributeError."
