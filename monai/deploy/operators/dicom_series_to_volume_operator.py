@@ -127,7 +127,7 @@ class DICOMSeriesToVolumeOperator(Operator):
             vol_data = apply_rescale(vol_data, native_sop)
         except Exception as e:
             logging.error(f"Failed to apply rescale to DICOM volume: {e}")
-            raise RuntimeError(f"Error applying rescale to DICOM volume: {e}")
+            raise RuntimeError("Failed to apply rescale to DICOM volume.") from e
 
         # For now we support monochrome image only, for which DICOM Photometric Interpretation
         # (0028,0004) has defined terms, MONOCHROME1 and MONOCHROME2, with the former being:
