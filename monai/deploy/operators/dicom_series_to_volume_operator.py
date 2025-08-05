@@ -122,7 +122,12 @@ class DICOMSeriesToVolumeOperator(Operator):
         # If Modality LUT is present the return array is of np.uint8 or np.uint16, and if Rescale
         # Intercept and Rescale Slope are present, np.float64.
         # If the pixel array is already in the correct type, the return array is the same as the input array.
-        vol_data = apply_rescale(vol_data, slices[0].get_native_sop_instance())
+        try:
+            native_sop = slices[0].get_native_sop_instance()
+            vol_data = apply_rescale(vol_data, native_sop)
+        except Exception as e:
+            logging.error(f"Failed to apply rescale to DICOM volume: {e}")
+            raise RuntimeError(f"Error applying rescale to DICOM volume: {e}")
 
         # For now we support monochrome image only, for which DICOM Photometric Interpretation
         # (0028,0004) has defined terms, MONOCHROME1 and MONOCHROME2, with the former being:
