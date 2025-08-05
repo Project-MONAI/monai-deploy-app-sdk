@@ -16,6 +16,10 @@ from typing import Dict, List, Union
 
 import numpy as np
 
+from monai.deploy.utils.importutil import optional_import
+
+apply_rescale, _ = optional_import("pydicom.pixels", name="apply_rescale")
+
 from monai.deploy.core import ConditionType, Fragment, Operator, OperatorSpec
 from monai.deploy.core.domain.dicom_series_selection import StudySelectedSeries
 from monai.deploy.core.domain.image import Image
@@ -112,10 +116,13 @@ class DICOMSeriesToVolumeOperator(Operator):
         # with the NumPy array returned from the ITK GetArrayViewFromImage on the image
         # loaded from the same DICOM series.
         vol_data = np.stack([s.get_pixel_array() for s in slices], axis=0)
-        # The above get_pixel_array() already considers the PixelRepresentation attribute,
-        # 0 is unsigned int, 1 is signed int
-        if slices[0][0x0028, 0x0103].value == 0:
-            vol_data = vol_data.astype(np.uint16)
+
+        # Use pydicom utility to apply a modality lookup table or rescale operator to the pixel array.
+        # The pydicom Dataset is required which can be obtained from the first slice's native SOP instance.
+        # If Modality LUT is present the return array is of np.uint8 or np.uint16, and if Rescale
+        # Intercept and Rescale Slope are present, np.float64.
+        # If the pixel array is already in the correct type, the return array is the same as the input array.
+        vol_data = apply_rescale(vol_data, slices[0].get_native_sop_instance())
 
         # For now we support monochrome image only, for which DICOM Photometric Interpretation
         # (0028,0004) has defined terms, MONOCHROME1 and MONOCHROME2, with the former being:
@@ -146,50 +153,20 @@ class DICOMSeriesToVolumeOperator(Operator):
                     f"Cannot process pixel data with Photometric Interpretation of {photometric_interpretation}."
                 )
 
-        # Rescale Intercept and Slope attributes might be missing, but safe to assume defaults.
-        try:
-            intercept = slices[0][0x0028, 0x1052].value
-        except KeyError:
-            intercept = 0
-
-        try:
-            slope = slices[0][0x0028, 0x1053].value
-        except KeyError:
-            slope = 1
-
-        # check if vol_data, intercept, and slope can be cast to uint16 without data loss
-        if (
-            np.can_cast(vol_data, np.uint16, casting="safe")
-            and np.can_cast(intercept, np.uint16, casting="safe")
-            and np.can_cast(slope, np.uint16, casting="safe")
-        ):
+        # NumPy's np.can_cast function, as of version 2.0, no longer supports Python scalars directly and
+        # does not apply value-based logic for 0-D arrays and NumPy scalars.
+        # The following can_cast calls are expecting the array is already of the correct type.
+        if vol_data.dtype == np.uint8:
+            logging.info("Rescaled pixel data is of type uint8.")
+        elif np.can_cast(vol_data, np.uint16, casting="safe"):
             logging.info("Casting to uint16")
-            vol_data = np.array(vol_data, dtype=np.uint16)
-            intercept = np.uint16(intercept)
-            slope = np.uint16(slope)
-        elif (
-            np.can_cast(vol_data, np.float32, casting="safe")
-            and np.can_cast(intercept, np.float32, casting="safe")
-            and np.can_cast(slope, np.float32, casting="safe")
-        ):
+            vol_data = vol_data.astype(dtype=np.uint16, casting="safe")
+        elif np.can_cast(vol_data, np.float32, casting="safe"):
             logging.info("Casting to float32")
-            vol_data = np.array(vol_data, dtype=np.float32)
-            intercept = np.float32(intercept)
-            slope = np.float32(slope)
-        elif (
-            np.can_cast(vol_data, np.float64, casting="safe")
-            and np.can_cast(intercept, np.float64, casting="safe")
-            and np.can_cast(slope, np.float64, casting="safe")
-        ):
-            logging.info("Casting to float64")
-            vol_data = np.array(vol_data, dtype=np.float64)
-            intercept = np.float64(intercept)
-            slope = np.float64(slope)
+            vol_data = vol_data.astype(dtype=np.float32, casting="safe")
+        else:
+            logging.info("Rescaled pixel data remains as of type float64.")
 
-        if slope != 1:
-            vol_data = slope * vol_data
-
-        vol_data += intercept
         return vol_data
 
     def create_volumetric_image(self, vox_data, metadata):
