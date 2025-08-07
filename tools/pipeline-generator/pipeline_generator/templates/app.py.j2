@@ -1,0 +1,266 @@
+#!/usr/bin/env python3
+# Copyright 2025 MONAI Consortium
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#     http://www.apache.org/licenses/LICENSE-2.0
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+"""
+{{ app_title }}
+
+Generated from HuggingFace model: {{ model_id }}
+{{ app_description }}
+"""
+
+import logging
+import os
+from pathlib import Path
+
+{% if use_dicom %}
+# Required for setting SegmentDescription attributes. Direct import as this is not part of App SDK package.
+from pydicom.sr.codedict import codes
+
+from monai.deploy.conditions import CountCondition
+{% endif %}
+from monai.deploy.core import AppContext, Application
+from monai.deploy.core.domain import Image
+from monai.deploy.core.io_type import IOType
+{% if use_dicom %}
+from monai.deploy.operators.dicom_data_loader_operator import DICOMDataLoaderOperator
+from monai.deploy.operators.dicom_seg_writer_operator import DICOMSegmentationWriterOperator, SegmentDescription
+from monai.deploy.operators.dicom_series_selector_operator import DICOMSeriesSelectorOperator
+from monai.deploy.operators.dicom_series_to_volume_operator import DICOMSeriesToVolumeOperator
+{% if 'segmentation' in task.lower() %}
+from monai.deploy.operators.stl_conversion_operator import STLConversionOperator
+{% endif %}
+{% elif input_type == "image" %}
+from monai.deploy.operators.image_directory_loader_operator import ImageDirectoryLoader
+{% else %}
+from monai.deploy.operators.nifti_directory_loader_operator import NiftiDirectoryLoader
+{% endif %}
+{% if output_type == "json" %}
+from monai.deploy.operators.json_results_writer_operator import JSONResultsWriter
+{% elif not use_dicom %}
+from monai.deploy.operators.nifti_writer_operator import NiftiWriter
+{% endif %}
+{% if "classification" in task.lower() and input_type == "image" %}
+from monai.deploy.operators.monai_classification_operator import MonaiClassificationOperator
+{% else %}
+from monai.deploy.operators.monai_bundle_inference_operator import (
+    BundleConfigNames,
+    IOMapping,
+    MonaiBundleInferenceOperator,
+)
+{% endif %}
+
+
+class {{ app_name }}(Application):
+    """MONAI Deploy application for {{ app_title }} using a MONAI Bundle.
+    
+    {% if use_dicom %}
+    This application loads a set of DICOM instances, selects the appropriate series, converts the series to
+    3D volume image, performs inference with the built-in MONAI Bundle inference operator, including pre-processing
+    and post-processing, saves the segmentation image in a DICOM Seg OID in an instance file{% if 'segmentation' in task.lower() %}, and optionally the
+    surface mesh in STL format{% endif %}.
+
+    Pertinent MONAI Bundle: {{ model_id }}
+    {% elif input_type == "image" and output_type == "json" %}
+    This application processes common image formats (JPEG, PNG, etc.) and outputs
+    classification results as JSON files.
+    {% else %}
+    This application follows the pipeline structure:
+    [Source/{{ 'ImageDirectoryLoader' if input_type == 'image' else 'NiftiDirectoryLoader' }}] → [Preprocessing Op] → [Inference Op] → [Postprocessing Op] → [Sink/{{ 'JSONResultsWriter' if output_type == 'json' else 'NiftiWriter' }}]
+    
+    The MonaiBundleInferenceOperator handles preprocessing, inference, and postprocessing
+    based on configurations loaded dynamically from inference.json.
+    {% endif %}
+    """
+
+    def __init__(self, *args, **kwargs):
+        """Creates an application instance."""
+        self._logger = logging.getLogger("{}.{}".format(__name__, type(self).__name__))
+        super().__init__(*args, **kwargs)
+
+    def run(self, *args, **kwargs):
+        # This method calls the base class to run
+        self._logger.info(f"Begin {self.run.__name__}")
+        super().run(*args, **kwargs)
+        self._logger.info(f"End {self.run.__name__}")
+
+    def compose(self):
+        """Creates the app specific operators and chain them up in the processing DAG."""
+        
+        self._logger.info(f"Begin {self.compose.__name__}")
+        
+        # Use Commandline options over environment variables to init context
+        app_context: AppContext = Application.init_app_context(self.argv)
+        app_input_path = Path(app_context.input_path)
+        app_output_path = Path(app_context.output_path)
+        
+        # Set the bundle path from environment variable or use default
+        bundle_path = os.environ.get("BUNDLE_PATH", str(Path(__file__).parent / "model"))
+        bundle_path = Path(bundle_path)
+        if not bundle_path.exists():
+            self._logger.warning(f"Bundle path does not exist: {bundle_path}")
+        
+        # Create operators
+        {% if use_dicom %}
+        # Create the custom operator(s) as well as SDK built-in operator(s)
+        study_loader_op = DICOMDataLoaderOperator(
+            self, CountCondition(self, 1), input_folder=app_input_path, name="study_loader_op"
+        )
+        series_selector_op = DICOMSeriesSelectorOperator(self, rules=Sample_Rules_Text, name="series_selector_op")
+        series_to_vol_op = DICOMSeriesToVolumeOperator(self, name="series_to_vol_op")
+        {% elif input_type == "image" %}
+        # Image directory loader that processes common image files
+        loader_op = ImageDirectoryLoader(
+            self,
+            input_folder=app_input_path,
+            name="image_loader"
+        )
+        {% else %}
+        # NIfTI directory loader that processes all files in input directory
+        loader_op = NiftiDirectoryLoader(
+            self,
+            input_folder=app_input_path,
+            name="nifti_loader"
+        )
+        {% endif %}
+        
+        {% if "classification" in task.lower() and input_type == "image" %}
+        # MonaiClassificationOperator for classification models
+        # The bundle path can be overridden with -m argument at runtime
+        inference_op = MonaiClassificationOperator(
+            self,
+            app_context=app_context,
+            bundle_path=Path(bundle_path),
+            name="classification"
+        )
+        {% else %}
+        # MonaiBundleInferenceOperator with dynamic config loading
+        # The bundle path can be overridden with -m argument at runtime
+        {% if use_dicom %}
+        config_names = BundleConfigNames(config_names=["inference"])  # Same as the default
+        {% endif %}
+        inference_op = MonaiBundleInferenceOperator(
+            self,
+            input_mapping=[IOMapping("image", Image, IOType.IN_MEMORY)],
+            output_mapping=[IOMapping("pred", Image, IOType.IN_MEMORY)],
+            app_context=app_context,
+            bundle_path=Path(bundle_path),
+            {% if use_dicom %}bundle_config_names=config_names,{% endif %}
+            name="bundle_inference{% if use_dicom %}_op{% endif %}"
+        )
+        {% endif %}
+        
+        {% if use_dicom and 'segmentation' in task.lower() %}
+        # Create DICOM Seg writer providing the required segment description for each segment
+        segment_descriptions = [
+            SegmentDescription(
+                segment_label="{{ organ }}",
+                segmented_property_category=codes.SCT.Organ,
+                segmented_property_type=codes.SCT.{{ organ }},
+                algorithm_name="volumetric (3D) segmentation of the {{ organ|lower }} from {{ modality }} image",
+                algorithm_family=codes.DCM.ArtificialIntelligence,
+                algorithm_version="{{ version }}",
+            )
+        ]
+
+        custom_tags = {"SeriesDescription": "AI generated Seg, not for clinical use."}
+
+        dicom_seg_writer = DICOMSegmentationWriterOperator(
+            self,
+            segment_descriptions=segment_descriptions,
+            custom_tags=custom_tags,
+            output_folder=app_output_path,
+            name="dicom_seg_writer",
+        )
+        {% elif output_type == "json" %}
+        # JSON results writer that saves classification results
+        writer_op = JSONResultsWriter(
+            self,
+            output_folder=app_output_path,
+            name="json_writer"
+        )
+        {% elif not use_dicom %}
+        # NIfTI writer that saves results with proper naming from bundle config
+        writer_op = NiftiWriter(
+            self,
+            output_folder=app_output_path,
+            output_postfix="{{ output_postfix }}",  # Postfix from bundle config
+            name="nifti_writer"
+        )
+        {% endif %}
+        
+        # Connect operators in the pipeline
+        {% if use_dicom %}
+        # Create the processing pipeline, by specifying the source and destination operators, and
+        # ensuring the output from the former matches the input of the latter, in both name and type
+        self.add_flow(study_loader_op, series_selector_op, {("dicom_study_list", "dicom_study_list")})
+        self.add_flow(
+            series_selector_op, series_to_vol_op, {("study_selected_series_list", "study_selected_series_list")}
+        )
+        self.add_flow(series_to_vol_op, inference_op, {("image", "image")})
+        
+        {% if 'segmentation' in task.lower() %}
+        # Note below the dicom_seg_writer requires two inputs, each coming from a source operator
+        self.add_flow(
+            series_selector_op, dicom_seg_writer, {("study_selected_series_list", "study_selected_series_list")}
+        )
+        self.add_flow(inference_op, dicom_seg_writer, {("pred", "seg_image")})
+        
+        # Create the surface mesh STL conversion operator and add it to the app execution flow
+        stl_conversion_op = STLConversionOperator(
+            self, output_file=app_output_path.joinpath("stl/{{ organ|lower }}.stl"), name="stl_conversion_op"
+        )
+        self.add_flow(inference_op, stl_conversion_op, {("pred", "image")})
+        {% endif %}
+        {% else %}
+        self.add_flow(loader_op, inference_op, {("image", "image")})
+        self.add_flow(inference_op, writer_op, {("pred", "{% if output_type == 'json' %}pred{% else %}image{% endif %}")})
+        self.add_flow(loader_op, writer_op, {("filename", "filename")})
+        {% endif %}
+        
+        self._logger.info(f"End {self.compose.__name__}")
+
+
+{% if use_dicom %}
+# This is a sample series selection rule in JSON, simply selecting {{ modality }} series
+# If the study has more than 1 {{ modality }} series, then all of them will be selected
+Sample_Rules_Text = """
+{
+    "selections": [
+        {
+            "name": "{{ modality }} Series",
+            "conditions": {
+                "StudyDescription": "(.*?)",
+                "Modality": "(?i){{ modality }}",
+                "SeriesDescription": "(.*?)"
+            }
+        }
+    ]
+}
+"""
+{% endif %}
+
+if __name__ == "__main__":
+    # Creates the app and test it standalone. When running is this mode, please note the following:
+    #     -m <model file>, for model file path
+    {% if use_dicom %}
+    #     -i <DICOM folder>, for input DICOM {{ modality }} series folder
+    {% else %}
+    #     -i <input folder>, for input folder path
+    {% endif %}
+    #     -o <output folder>, for output folder path, default $PWD/output
+    # e.g.
+    #     python app.py -i /path/to/input -o /path/to/output -m /path/to/bundle
+    #
+    logging.basicConfig(level=logging.INFO)
+    logging.info(f"Begin {__name__}")
+    {{ app_name }}().run()
+    logging.info(f"End {__name__}")

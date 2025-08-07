@@ -1,0 +1,49 @@
+# Copyright 2025 MONAI Consortium
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#     http://www.apache.org/licenses/LICENSE-2.0
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Pipeline Generator Configuration
+
+# HuggingFace endpoints to scan for MONAI models
+endpoints:
+  - organization: "MONAI"
+    base_url: "https://huggingface.co"
+    description: "Official MONAI organization models"
+    models:            # tested models
+      - model_id: "MONAI/spleen_ct_segmentation"
+        input_type: "nifti"
+        output_type: "nifti"
+      - model_id: "MONAI/multi_organ_segmentation"
+        input_type: "nifti"
+        output_type: "nifti"
+      - model_id: "MONAI/breast_density_classification"
+        input_type: "image"
+        output_type: "json"
+additional_models:
+  - model_id: "LGAI-EXAONE/EXAONEPath"
+    base_url: "https://huggingface.co"
+    description: "ExaOnePath - Pathology foundation model with stain normalization"
+    model_type: "pathology"
+  - model_id: "LGAI-EXAONE/EXAONEPath-CRC-MSI-Predictor"
+    base_url: "https://huggingface.co"
+    description: "ExaOnePath CRC MSI Predictor - Colorectal cancer microsatellite instability prediction"
+    model_type: "pathology"
+  - model_id: "MONAI/Llama3-VILA-M3-8B"
+    base_url: "https://huggingface.co"
+    description: "Llama3 VILA M3 8B - Multimodal vision-language model"
+    model_type: "multimodal_llm"
+  - model_id: "MONAI/Llama3-VILA-M3-3B"
+    base_url: "https://huggingface.co"
+    description: "Llama3 VILA M3 3B - Multimodal vision-language model"
+    model_type: "multimodal_llm"
+  - model_id: "MONAI/Llama3-VILA-M3-13B"
+    base_url: "https://huggingface.co"
+    description: "Llama3 VILA M3 13B - Multimodal vision-language model"
+    model_type: "multimodal_llm" 

@@ -1,0 +1,254 @@
+# Copyright 2025 MONAI Consortium
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#     http://www.apache.org/licenses/LICENSE-2.0
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+"""Tests for HuggingFace Hub client."""
+
+from datetime import datetime
+from unittest.mock import Mock, patch
+
+import pytest
+from huggingface_hub.utils import HfHubHTTPError
+
+from pipeline_generator.core.hub_client import HuggingFaceClient
+from pipeline_generator.core.models import ModelInfo
+
+
+class SimpleModelData:
+    """Simple class to simulate HuggingFace model data."""
+    def __init__(self, **kwargs):
+        for key, value in kwargs.items():
+            setattr(self, key, value)
+
+
+class TestHuggingFaceClient:
+    """Test HuggingFace client functionality."""
+
+    def setup_method(self):
+        """Set up test fixtures."""
+        self.client = HuggingFaceClient()
+
+    @patch('pipeline_generator.core.hub_client.list_models')
+    def test_list_models_from_organization_success(self, mock_list_models):
+        """Test successfully listing models from organization."""
+        # Mock model data
+        mock_model1 = SimpleModelData(
+            modelId="MONAI/spleen_ct_segmentation",
+            author="MONAI",
+            downloads=100,
+            likes=10,
+            created_at=datetime(2023, 1, 1),
+            lastModified=datetime(2023, 12, 1),
+            tags=["medical", "segmentation"],
+            siblings=[Mock(rfilename="configs/metadata.json")]
+        )
+
+        mock_model2 = SimpleModelData(
+            modelId="MONAI/liver_segmentation",
+            author="MONAI",
+            downloads=50,
+            likes=5,
+            created_at=datetime(2023, 2, 1),
+            lastModified=datetime(2023, 11, 1),
+            tags=["medical"],
+            siblings=[]
+        )
+
+        mock_list_models.return_value = [mock_model1, mock_model2]
+
+        # Call the method
+        models = self.client.list_models_from_organization("MONAI")
+
+        # Verify results
+        assert len(models) == 2
+        assert models[0].model_id == "MONAI/spleen_ct_segmentation"
+        assert models[0].is_monai_bundle is True  # Has metadata.json
+        assert models[1].model_id == "MONAI/liver_segmentation"
+        assert models[1].is_monai_bundle is False  # No metadata.json
+
+    @patch('pipeline_generator.core.hub_client.list_models')
+    def test_list_models_from_organization_empty(self, mock_list_models):
+        """Test listing models from organization with no results."""
+        mock_list_models.return_value = []
+
+        models = self.client.list_models_from_organization("NonExistent")
+
+        assert len(models) == 0
+
+    @patch('pipeline_generator.core.hub_client.list_models')
+    def test_list_models_from_organization_error(self, mock_list_models):
+        """Test handling errors when listing models."""
+        mock_list_models.side_effect = Exception("API Error")
+
+        models = self.client.list_models_from_organization("MONAI")
+
+        assert len(models) == 0  # Should return empty list on error
+
+    @patch('pipeline_generator.core.hub_client.model_info')
+    def test_get_model_info_success(self, mock_model_info):
+        """Test successfully getting model info."""
+        # Mock model data
+        mock_model = SimpleModelData(
+            modelId="MONAI/spleen_ct_segmentation",
+            author="MONAI",
+            downloads=100,
+            likes=10,
+            created_at=datetime(2023, 1, 1),
+            lastModified=datetime(2023, 12, 1),
+            tags=["medical", "segmentation"],
+            siblings=[Mock(rfilename="configs/metadata.json")],
+            cardData={"description": "Spleen segmentation model"}
+        )
+
+        mock_model_info.return_value = mock_model
+
+        # Call the method
+        model = self.client.get_model_info("MONAI/spleen_ct_segmentation")
+
+        # Verify results
+        assert model is not None
+        assert model.model_id == "MONAI/spleen_ct_segmentation"
+        assert model.author == "MONAI"
+        assert model.is_monai_bundle is True
+        assert model.description == "Spleen segmentation model"
+
+    @patch('pipeline_generator.core.hub_client.model_info')
+    def test_get_model_info_not_found(self, mock_model_info):
+        """Test getting model info for non-existent model."""
+        mock_model_info.side_effect = HfHubHTTPError("Model not found", response=Mock(status_code=404))
+
+        model = self.client.get_model_info("MONAI/nonexistent")
+
+        assert model is None
+
+    @patch('pipeline_generator.core.hub_client.model_info')
+    def test_get_model_info_error(self, mock_model_info):
+        """Test handling errors when getting model info."""
+        mock_model_info.side_effect = Exception("API Error")
+
+        model = self.client.get_model_info("MONAI/spleen_ct_segmentation")
+
+        assert model is None
+
+    def test_extract_model_info_with_name(self):
+        """Test parsing model info with explicit name."""
+        mock_model = SimpleModelData(
+            modelId="MONAI/test_model",
+            name="Test Model",
+            author="MONAI",
+            downloads=100,
+            likes=10,
+            created_at=datetime(2023, 1, 1),
+            lastModified=datetime(2023, 12, 1),
+            tags=["test"],
+            siblings=[]
+        )
+
+        model = self.client._extract_model_info(mock_model)
+
+        assert model.model_id == "MONAI/test_model"
+        assert model.name == "Test Model"
+        assert model.display_name == "Test Model"
+
+    def test_extract_model_info_without_name(self):
+        """Test parsing model info without explicit name."""
+        mock_model = SimpleModelData(
+            modelId="MONAI/test_model",
+            author=None,
+            downloads=None,
+            likes=None,
+            created_at=None,
+            lastModified=None,
+            tags=[],
+            siblings=[]
+        )
+
+        model = self.client._extract_model_info(mock_model)
+
+        assert model.model_id == "MONAI/test_model"
+        assert model.name == "MONAI/test_model"  # Uses modelId as fallback
+        assert model.author is None
+
+    def test_extract_model_info_bundle_detection(self):
+        """Test MONAI bundle detection during parsing."""
+        # Test with metadata.json in siblings
+        mock_model = SimpleModelData(
+            modelId="MONAI/test_bundle",
+            author="MONAI",
+            downloads=100,
+            likes=10,
+            created_at=datetime(2023, 1, 1),
+            lastModified=datetime(2023, 12, 1),
+            tags=[],
+            siblings=[
+                Mock(rfilename="configs/metadata.json"),
+                Mock(rfilename="models/model.pt")
+            ]
+        )
+        model = self.client._extract_model_info(mock_model)
+        assert model.is_monai_bundle is True
+
+        # Test without metadata.json
+        mock_model.siblings = [Mock(rfilename="models/model.pt")]
+        model = self.client._extract_model_info(mock_model)
+        assert model.is_monai_bundle is False
+
+    def test_extract_model_info_missing_siblings(self):
+        """Test parsing model info when siblings attribute is missing."""
+        mock_model = SimpleModelData(
+            modelId="MONAI/test_model",
+            author="MONAI",
+            downloads=100,
+            likes=10,
+            created_at=datetime(2023, 1, 1),
+            lastModified=datetime(2023, 12, 1),
+            tags=[]
+        )
+        # Don't set siblings attribute
+
+        model = self.client._extract_model_info(mock_model)
+
+        assert model.is_monai_bundle is False  # Should default to False on error
+
+    def test_extract_model_info_with_description(self):
+        """Test parsing model info with description in cardData."""
+        mock_model = SimpleModelData(
+            modelId="MONAI/test_model",
+            author="MONAI",
+            downloads=100,
+            likes=10,
+            created_at=datetime(2023, 1, 1),
+            lastModified=datetime(2023, 12, 1),
+            tags=["medical"],
+            siblings=[],
+            cardData={"description": "This is a test model"}
+        )
+
+        model = self.client._extract_model_info(mock_model)
+
+        assert model.description == "This is a test model"
+
+    def test_extract_model_info_missing_optional_attributes(self):
+        """Test parsing model info with missing optional attributes."""
+        mock_model = SimpleModelData(
+            modelId="MONAI/test_model",
+            siblings=[]
+        )
+
+        model = self.client._extract_model_info(mock_model)
+
+        assert model.model_id == "MONAI/test_model"
+        assert model.author is None
+        assert model.downloads is None
+        assert model.likes is None
+        assert model.created_at is None
+        assert model.updated_at is None
+        assert model.tags == []
+        assert model.description is None

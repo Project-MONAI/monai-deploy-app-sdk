@@ -151,6 +151,45 @@ def get_bundle_config(bundle_path, config_names):
     if isinstance(config_names, str):
         config_names = [config_names]
 
+    # Check if bundle_path is a directory (for directory-based bundles)
+    bundle_path_obj = Path(bundle_path)
+    if bundle_path_obj.is_dir():
+        # Handle directory-based bundles
+        parser = ConfigParser()
+        
+        # Read metadata from configs/metadata.json
+        metadata_path = bundle_path_obj / "configs" / "metadata.json"
+        if not metadata_path.exists():
+            raise IOError(f"Cannot find metadata.json at {metadata_path}")
+        
+        with open(metadata_path, 'r') as f:
+            metadata_content = f.read()
+            parser.read_meta(f=json.loads(metadata_content))
+        
+        # Read other config files
+        config_files = []
+        for config_name in config_names:
+            config_name_base = config_name.split(".")[0]  # Remove extension if present
+            # Validate config name to prevent path traversal
+            if ".." in config_name_base or "/" in config_name_base or "\\" in config_name_base:
+                raise ValueError(f"Invalid config name: {config_name_base}")
+            found = False
+            for suffix in bundle_suffixes:
+                config_path = bundle_path_obj / "configs" / f"{config_name_base}{suffix}"
+                if config_path.exists():
+                    ...
+                    config_files.append(config_path)
+                    found = True
+                    break
+            if not found:
+                raise IOError(f"Cannot find config file for {config_name} in {bundle_path_obj / 'configs'}")
+        
+        parser.read_config(config_files)
+        parser.parse()
+        
+        return parser
+    
+    # Original ZIP file handling code
     name, _ = os.path.splitext(os.path.basename(bundle_path))  # bundle file name same archive folder name
     parser = ConfigParser()
 
@@ -363,6 +402,12 @@ class MonaiBundleInferenceOperator(InferenceOperator):
             if self._bundle_path and self._bundle_path.is_file():
                 self._init_config(self._bundle_config_names.config_names)
                 self._init_completed = True
+            elif self._bundle_path and self._bundle_path.is_dir():
+                # For directory-based bundles, delay initialization to compute method
+                logging.debug(
+                    f"Bundle path {self._bundle_path} is a directory. Will initialize during execution."
+                )
+                # Keep the bundle_path for directory-based bundles
             else:
                 logging.debug(
                     f"Bundle, at path {self._bundle_path}, not available. Will get it in the execution context."
@@ -562,7 +607,28 @@ class MonaiBundleInferenceOperator(InferenceOperator):
             # When run as a MAP docker, the bundle file is expected to be in the context, even if the model
             # network is loaded on a remote inference server (when the feature is introduced).
             logging.debug(f"Model network not loaded. Trying to load from model path: {self._bundle_path}")
-            self._model_network = torch.jit.load(self.bundle_path, map_location=self._device).eval()
+            
+            # Check if bundle_path is a directory
+            if self._bundle_path.is_dir():
+                # For directory-based bundles, look for model in models/ subdirectory
+                model_path = self._bundle_path / "models" / "model.ts"
+                if not model_path.exists():
+                    # Try model.pt as fallback
+                    model_path = self._bundle_path / "models" / "model.pt"
+                if not model_path.exists():
+                    raise IOError(f"Cannot find model.ts or model.pt in {self._bundle_path / 'models'}")
+                # Ensure device is set
+                if not hasattr(self, '_device'):
+                    self._device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+                self._model_network = torch.jit.load(str(model_path), map_location=self._device).eval()
+                # Initialize config for directory bundles if not already done
+                if not self._init_completed:
+                    logging.info(f"Initializing config from directory bundle: {self._bundle_path}")
+                    self._init_config(self._bundle_config_names.config_names)
+                    self._init_completed = True
+            else:
+                # Original ZIP bundle handling
+                self._model_network = torch.jit.load(self._bundle_path, map_location=self._device).eval()
         else:
             raise IOError("Model network is not load and model file not found.")
 
@@ -701,7 +767,15 @@ class MonaiBundleInferenceOperator(InferenceOperator):
             logging.debug(f"Shape of the converted input image: {value.shape}")
             logging.debug(f"Metadata of the converted input image: {metadata}")
         elif isinstance(value, np.ndarray):
+            # For 3D medical images without channel dimension, add one
+            if value.ndim == 3:
+                value = value[np.newaxis, ...]  # Add channel dimension
             value = torch.from_numpy(value).to(self._device)
+            # Ensure metadata is at least an empty dict for np.ndarray inputs
+            if metadata is None:
+                metadata = {}
+            # Set metadata to indicate channel is first (after we added it)
+            metadata["original_channel_dim"] = 0
 
         # else value is some other object from memory
 

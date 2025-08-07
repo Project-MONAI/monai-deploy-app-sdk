@@ -1,0 +1,146 @@
+# Copyright 2025 MONAI Consortium
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#     http://www.apache.org/licenses/LICENSE-2.0
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+"""Download MONAI Bundles from HuggingFace."""
+
+import logging
+import json
+from pathlib import Path
+from typing import Optional, Dict, Any
+
+from huggingface_hub import snapshot_download, HfApi
+
+logger = logging.getLogger(__name__)
+
+
+class BundleDownloader:
+    """Downloads MONAI Bundle files from HuggingFace."""
+
+    def __init__(self) -> None:
+        """Initialize the downloader."""
+        self.api = HfApi()
+
+    def download_bundle(
+        self, model_id: str, output_dir: Path, cache_dir: Optional[Path] = None
+    ) -> Path:
+        """Download all files from a MONAI Bundle repository.
+
+        Args:
+            model_id: HuggingFace model ID (e.g., 'MONAI/spleen_ct_segmentation')
+            output_dir: Directory to save the downloaded files
+            cache_dir: Optional cache directory for HuggingFace downloads
+
+        Returns:
+            Path to the downloaded bundle directory
+        """
+        logger.info(f"Downloading bundle: {model_id}")
+
+        # Create output directory
+        bundle_dir = output_dir / "model"
+        bundle_dir.mkdir(parents=True, exist_ok=True)
+
+        try:
+            # Download all files from the repository
+            local_path = snapshot_download(
+                repo_id=model_id,
+                local_dir=bundle_dir,
+                cache_dir=cache_dir,
+                local_dir_use_symlinks=False,  # Copy files instead of symlinks
+            )
+
+            logger.info(f"Bundle downloaded to: {local_path}")
+            return Path(local_path)
+
+        except Exception as e:
+            logger.error(f"Failed to download bundle {model_id}: {e}")
+            raise
+
+    def get_bundle_metadata(self, bundle_path: Path) -> Optional[Dict[str, Any]]:
+        """Read metadata.json from downloaded bundle.
+
+        Args:
+            bundle_path: Path to the downloaded bundle
+
+        Returns:
+            Dictionary containing bundle metadata or None if not found
+        """
+        metadata_paths = [bundle_path / "metadata.json", bundle_path / "configs" / "metadata.json"]
+
+        for metadata_path in metadata_paths:
+            if metadata_path.exists():
+                try:
+                    with open(metadata_path, "r") as f:
+                        data: Dict[str, Any] = json.load(f)
+                        return data
+                except Exception as e:
+                    logger.error(f"Failed to read metadata from {metadata_path}: {e}")
+
+        return None
+
+    def get_inference_config(self, bundle_path: Path) -> Optional[Dict[str, Any]]:
+        """Read inference.json from downloaded bundle.
+
+        Args:
+            bundle_path: Path to the downloaded bundle
+
+        Returns:
+            Dictionary containing inference configuration or None if not found
+        """
+        inference_paths = [
+            bundle_path / "inference.json",
+            bundle_path / "configs" / "inference.json",
+        ]
+
+        for inference_path in inference_paths:
+            if inference_path.exists():
+                try:
+                    with open(inference_path, "r") as f:
+                        data: Dict[str, Any] = json.load(f)
+                        return data
+                except Exception as e:
+                    logger.error(f"Failed to read inference config from {inference_path}: {e}")
+
+        return None
+
+    def detect_model_file(self, bundle_path: Path) -> Optional[Path]:
+        """Detect the model file in the bundle.
+
+        Args:
+            bundle_path: Path to the downloaded bundle
+
+        Returns:
+            Path to the model file or None if not found
+        """
+        # Common model file patterns
+        model_patterns = [
+            "models/model.ts",  # TorchScript
+            "models/model.pt",  # PyTorch
+            "models/model.onnx",  # ONNX
+            "model.ts",
+            "model.pt",
+            "model.onnx",
+        ]
+
+        for pattern in model_patterns:
+            model_path = bundle_path / pattern
+            if model_path.exists():
+                logger.info(f"Found model file: {model_path}")
+                return model_path
+
+        # If no standard pattern found, search for any model file
+        for ext in [".ts", ".pt", ".onnx"]:
+            model_files = list(bundle_path.glob(f"**/*{ext}"))
+            if model_files:
+                logger.info(f"Found model file: {model_files[0]}")
+                return model_files[0]
+
+        logger.warning(f"No model file found in bundle: {bundle_path}")
+        return None
