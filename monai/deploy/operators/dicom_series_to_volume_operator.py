@@ -158,17 +158,21 @@ class DICOMSeriesToVolumeOperator(Operator):
                     f"Cannot process pixel data with Photometric Interpretation of {photometric_interpretation}."
                 )
 
-        # NumPy's np.can_cast function, as of version 2.0, no longer supports Python scalars directly and
-        # does not apply value-based logic for 0-D arrays and NumPy scalars.
-        # The following can_cast calls are expecting the array is already of the correct type.
-        if vol_data.dtype == np.uint8:
-            logging.info("Rescaled pixel data is of type uint8.")
-        elif np.can_cast(vol_data, np.uint16, casting="safe"):
-            logging.info("Casting to uint16")
-            vol_data = vol_data.astype(dtype=np.uint16, casting="safe")
-        elif np.can_cast(vol_data, np.float32, casting="safe"):
-            logging.info("Casting to float32")
-            vol_data = vol_data.astype(dtype=np.float32, casting="safe")
+        # The following tests are expecting the array is already of the Numpy type.
+        if vol_data.dtype == np.uint8 or vol_data.dtype == np.uint16:
+            logging.info("Rescaled pixel array is alrady of type uint8 or uint16.")
+        # Check if casting to uint16 and back to float results in the same values.
+        elif np.all(vol_data > 0) and np.array_equal(vol_data, vol_data.astype(np.uint16)):
+            logging.info("Rescaled pixel array can be safely cast to uint16 with equivalence test.")
+            vol_data = vol_data.astype(dtype=np.uint16)
+        # Check if casting to int16 and back to float results in the same values.
+        elif np.array_equal(vol_data, vol_data.astype(np.int16)):
+            logging.info("Rescaled pixel array can be safely cast to int16 with equivalence test.")
+            vol_data = vol_data.astype(dtype=np.int16)
+        # Check casting to float32 with equivalence test
+        elif np.array_equal(vol_data, vol_data.astype(np.float32)):
+            logging.info("Rescaled pixel array can be cast to float32 with equivalence test.")
+            vol_data = vol_data.astype(np.float32)
         else:
             logging.info("Rescaled pixel data remains as of type float64.")
 
