@@ -26,6 +26,21 @@ endpoints:
       - model_id: "MONAI/breast_density_classification"
         input_type: "image"
         output_type: "json"
+      - model_id: "MONAI/endoscopic_tool_segmentation"
+        input_type: "image"
+        output_type: "image_overlay"
+        configs:
+          - channel_first: false
+      - model_id: "MONAI/wholeBrainSeg_Large_UNEST_segmentation"
+        input_type: "nifti"
+        output_type: "nifti"
+      - model_id: "MONAI/wholeBody_ct_segmentation"
+        input_type: "nifti"
+        output_type: "nifti"
+      - model_id: "MONAI/swin_unetr_btcv_segmentation"
+        input_type: "nifti"
+        output_type: "nifti"
+
 additional_models:
   - model_id: "LGAI-EXAONE/EXAONEPath"
     base_url: "https://huggingface.co"

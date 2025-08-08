@@ -1,4 +1,4 @@
-# Copyright 2024 MONAI Consortium
+# Copyright 2025 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -24,10 +24,14 @@ PILImage, _ = optional_import("PIL", name="Image")
 # @md.env(pip_packages=["Pillow >= 8.0.0"])
 class ImageDirectoryLoader(Operator):
     """Load common image files (JPEG, PNG, BMP, TIFF) from a directory and convert them to Image objects.
-    
-    This operator processes image files one at a time to avoid buffer overflow issues.
-    It supports batch processing of multiple images in a directory.
-    
+
+    This operator processes image files one at a time to avoid buffer overflow issues and supports
+    batch processing of multiple images in a directory.
+
+    By default it outputs channel-first arrays (CHW) to match many MONAI pipelines. For 2D RGB models
+    whose bundle preprocessing includes EnsureChannelFirstd(channel_dim=-1), set ``channel_first=False``
+    to emit HWC arrays so the bundle transform handles channel movement.
+
     Named Outputs:
         image: Image object loaded from file
         filename: Name of the loaded file (without extension)
@@ -35,15 +39,24 @@ class ImageDirectoryLoader(Operator):
     
     SUPPORTED_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.bmp', '.tiff', '.tif']
     
-    def __init__(self, fragment: Fragment, *args, input_folder: Path, **kwargs) -> None:
+    def __init__(
+        self,
+        fragment: Fragment,
+        *args,
+        input_folder: Path,
+        channel_first: bool = True,
+        **kwargs,
+    ) -> None:
         """Initialize the ImageDirectoryLoader.
-        
+
         Args:
             fragment: An instance of the Application class
             input_folder: Path to folder containing image files
+            channel_first: If True (default), emit CHW arrays. If False, emit HWC arrays.
         """
         self._logger = logging.getLogger("{}.{}".format(__name__, type(self).__name__))
         self._input_folder = Path(input_folder)
+        self._channel_first = bool(channel_first)
         
         super().__init__(fragment, *args, **kwargs)
         
@@ -51,8 +64,8 @@ class ImageDirectoryLoader(Operator):
         """Find all supported image files in the input directory."""
         image_files = []
         for ext in self.SUPPORTED_EXTENSIONS:
-            image_files.extend(self._input_folder.glob(f"*{ext}"))
-            image_files.extend(self._input_folder.glob(f"*{ext.upper()}"))
+            image_files.extend(self._input_folder.rglob(f"*{ext}"))
+            image_files.extend(self._input_folder.rglob(f"*{ext.upper()}"))
         
         # Sort files for consistent ordering
         image_files.sort()
@@ -93,12 +106,13 @@ class ImageDirectoryLoader(Operator):
             if pil_image.mode != 'RGB':
                 pil_image = pil_image.convert('RGB')
             
-            # Convert to numpy array
+            # Convert to numpy array (HWC float32). Intensity scaling (to [0,1]) is typically handled by bundle.
             image_array = np.array(pil_image).astype(np.float32)
-            
-            # Create Image object with channel-first format expected by MONAI
-            # PIL loads as HWC, but MONAI expects CHW
-            image_array = np.transpose(image_array, (2, 0, 1))
+
+            # Convert to channel-first when requested
+            if self._channel_first:
+                # PIL loads HWC; convert to CHW
+                image_array = np.transpose(image_array, (2, 0, 1))
             
             # Create metadata
             metadata = {

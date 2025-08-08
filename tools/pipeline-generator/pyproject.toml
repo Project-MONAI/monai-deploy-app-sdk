@@ -9,44 +9,45 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-[tool.poetry]
+[project]
 name = "pipeline-generator"
 version = "0.1.0"
-description = "A CLI tool for generating MONAI Deploy and Holoscan pipelines from MONAI Bundles"
-authors = ["MONAI"]
+description = "A CLI tool for generating MONAI Deploy pipelines from MONAI Bundles"
 readme = "README.md"
-packages = [{include = "pipeline_generator"}]
+requires-python = ">=3.10,<3.11"
+authors = [{ name = "MONAI" }]
+dependencies = [
+  "click>=8.2.1",
+  "pyyaml>=6.0.2",
+  "huggingface-hub>=0.34.3",
+  "pydantic>=2.11.7",
+  "rich>=14.1.0",
+  "jinja2>=3.1.6",
+]
 
-[tool.poetry.dependencies]
-python = "^3.12"
-click = "^8.2.1"
-pyyaml = "^6.0.2"
-huggingface-hub = "^0.34.3"
-pydantic = "^2.11.7"
-rich = "^14.1.0"
-jinja2 = "^3.1.6"
-
-[tool.poetry.group.dev.dependencies]
-pytest = "^8.4.1"
-pytest-cov = "^6.2.1"
-black = "^25.1.0"
-flake8 = "^7.3.0"
-mypy = "^1.17.1"
-types-pyyaml = "^6.0.12.20250516"
-
-[tool.poetry.scripts]
+[project.scripts]
 pg = "pipeline_generator.cli.main:cli"
 
 [build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
+requires = ["hatchling>=1.25.0"]
+build-backend = "hatchling.build"
+
+[dependency-groups]
+dev = [
+  "pytest>=8.4.1",
+  "pytest-cov>=6.2.1",
+  "black>=25.1.0",
+  "flake8>=7.3.0",
+  "mypy>=1.17.1",
+  "types-pyyaml>=6.0.12.20250516",
+]
 
 [tool.black]
 line-length = 100
-target-version = ['py312']
+target-version = ['py310']
 
 [tool.mypy]
-python_version = "3.12"
+python_version = "3.10"
 warn_return_any = true
 warn_unused_configs = true
 disallow_untyped_defs = true

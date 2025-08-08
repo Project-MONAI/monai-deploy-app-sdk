@@ -192,9 +192,9 @@ def gen(ctx: click.Context, model_id: str, output: str, app_name: Optional[str],
                 console.print(f"  • {relative_path}")
 
         console.print("\n[bold]Next steps:[/bold]")
-        console.print("\n[green]Option 1: Run with poetry (recommended)[/green]")
+        console.print("\n[green]Option 1: Run with uv (recommended)[/green]")
         console.print(
-            f"   [cyan]poetry run pg run {output_path} --input /path/to/input --output /path/to/output[/cyan]"
+            f"   [cyan]uv run pg run {output_path} --input /path/to/input --output /path/to/output[/cyan]"
         )
         console.print("\n[green]Option 2: Run with pg directly[/green]")
         console.print(

@@ -22,6 +22,7 @@
     DICOMTextSRWriterOperator
     EquipmentInfo
     ImageDirectoryLoader
+    ImageOverlayWriter
     InferenceOperator
     InfererType
     IOMapping
@@ -67,3 +68,4 @@ from .nifti_writer_operator import NiftiWriter
 from .png_converter_operator import PNGConverterOperator
 from .publisher_operator import PublisherOperator
 from .stl_conversion_operator import STLConversionOperator, STLConverter
+from .image_overlay_writer_operator import ImageOverlayWriter

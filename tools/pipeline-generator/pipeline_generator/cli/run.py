@@ -141,9 +141,28 @@ def run(app_path: str, input_dir: str, output_dir: str, model_path: Optional[str
         ) as progress:
             task = progress.add_task("Installing dependencies...", total=None)
 
-            # Check if local SDK path is mentioned in requirements
-            sdk_path = None
-            
+            # Ensure pip/setuptools/wheel are up to date for Python 3.12+
+            try:
+                # Ensure pip is present and upgraded inside the venv
+                subprocess.run(
+                    [str(python_exe), "-m", "ensurepip", "--upgrade"],
+                    check=False,
+                    capture_output=True,
+                    text=True,
+                )
+                subprocess.run(
+                    [str(pip_exe), "install", "--upgrade", "pip", "setuptools", "wheel"],
+                    check=True,
+                    capture_output=True,
+                    text=True,
+                )
+            except subprocess.CalledProcessError as e:
+                console.print(
+                    f"[yellow]Warning: Failed to upgrade pip/setuptools/wheel: {e.stderr}\nContinuing with dependency installation...[/yellow]"
+                )
+
+            # Detect local SDK checkout and install editable to expose local operators
+            local_sdk_installed = False
             script_path = Path(__file__).resolve()
             sdk_path = script_path.parent.parent.parent.parent.parent
             if (sdk_path / "monai" / "deploy" ).exists() and (sdk_path / "setup.py").exists():
@@ -157,6 +176,7 @@ def run(app_path: str, input_dir: str, output_dir: str, model_path: Optional[str
                         capture_output=True,
                         text=True,
                     )
+                    local_sdk_installed = True
                 except subprocess.CalledProcessError as e:
                     console.print(
                         f"[yellow]Warning: Failed to install local SDK: {e.stderr}[/yellow]"
@@ -164,12 +184,49 @@ def run(app_path: str, input_dir: str, output_dir: str, model_path: Optional[str
 
             # Install requirements
             try:
+                req_path_to_use = requirements_file
+                temp_req_path = None
+
+                if local_sdk_installed:
+                    # Filter out SDK line to avoid overriding local editable install
+                    try:
+                        raw = requirements_file.read_text()
+                        filtered_lines = []
+                        for line in raw.splitlines():
+                            s = line.strip()
+                            if not s or s.startswith('#'):
+                                filtered_lines.append(line)
+                                continue
+                            if s.lower().startswith('monai-deploy-app-sdk'):
+                                continue
+                            filtered_lines.append(line)
+                        temp_req_path = app_path_obj / ".requirements.filtered.txt"
+                        temp_req_path.write_text("\n".join(filtered_lines) + "\n")
+                        req_path_to_use = temp_req_path
+                        console.print("[dim]Using filtered requirements without monai-deploy-app-sdk[/dim]")
+                    except Exception as fr:
+                        console.print(f"[yellow]Warning: Failed to filter requirements: {fr}. Proceeding with original requirements.[/yellow]")
+                        req_path_to_use = requirements_file
+
                 subprocess.run(
-                    [str(pip_exe), "install", "-r", str(requirements_file), "-q"],
+                    [str(pip_exe), "install", "-r", str(req_path_to_use), "-q"],
                     check=True,
                     capture_output=True,
                     text=True,
                 )
+
+                # Re-assert local editable SDK in case it was overridden
+                if local_sdk_installed:
+                    try:
+                        subprocess.run(
+                            [str(pip_exe), "install", "-e", str(sdk_path)],
+                            check=True,
+                            capture_output=True,
+                            text=True,
+                        )
+                    except subprocess.CalledProcessError as re:
+                        console.print(f"[yellow]Warning: Re-installing local SDK failed: {re.stderr}[/yellow]")
+
                 progress.update(task, description="[green]Dependencies installed")
             except subprocess.CalledProcessError as e:
                 console.print(f"[red]Error installing dependencies: {e.stderr}[/red]")

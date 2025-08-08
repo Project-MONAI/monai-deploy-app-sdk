@@ -122,6 +122,9 @@ class NiftiDirectoryLoader(Operator):
         image_reader = SimpleITK.ImageFileReader()
         image_reader.SetFileName(str(nifti_path))
         image = image_reader.Execute()
-        # Transpose to match expected orientation
-        image_np = np.transpose(SimpleITK.GetArrayFromImage(image), [2, 1, 0])
+        # Convert to numpy array. SimpleITK returns arrays in (z, y, x) for 3D and (t, z, y, x) for 4D.
+        # Reverse axes to obtain (x, y, z) for 3D or (x, y, z, t) for 4D without assuming a fixed rank.
+        sitk_array = SimpleITK.GetArrayFromImage(image)
+        transpose_axes = tuple(range(sitk_array.ndim - 1, -1, -1))
+        image_np = np.transpose(sitk_array, transpose_axes)
         return image_np 

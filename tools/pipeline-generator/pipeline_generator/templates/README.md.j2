@@ -39,13 +39,13 @@ This application provides:
 
 ## Requirements
 
-### Option 1: Using Poetry (Recommended)
+### Option 1: Using uv (Recommended)
 
 If you're running from the pipeline generator directory:
 
 ```bash
-# Commands should be run with poetry
-poetry run pg run . --input /path/to/input --output /path/to/output
+# Commands should be run with uv
+uv run pg run . --input /path/to/input --output /path/to/output
 ```
 
 ### Option 2: Using Virtual Environment
@@ -75,12 +75,12 @@ pip install -e /path/to/monai-deploy-app-sdk
 
 ### Running the Application
 
-#### Option 1: Using Pipeline Generator with Poetry
+#### Option 1: Using Pipeline Generator with uv
 
 From the pipeline generator directory:
 
 ```bash
-poetry run pg run . --input /path/to/input --output /path/to/output
+uv run pg run . --input /path/to/input --output /path/to/output
 ```
 
 This command will automatically:
@@ -132,8 +132,8 @@ python app.py -i /path/to/input -o /path/to/output
 ### Examples
 
 ```bash
-# Using pg with poetry (from pipeline generator directory)
-poetry run pg run . --input ./test_data --output ./results
+# Using pg with uv (from pipeline generator directory)
+uv run pg run . --input ./test_data --output ./results
 
 # Using pg directly (if installed globally)
 pg run . --input ./test_data --output ./results

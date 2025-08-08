@@ -12,7 +12,7 @@
 """Settings and configuration management for Pipeline Generator."""
 
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import yaml
 from pydantic import BaseModel, Field
@@ -23,7 +23,14 @@ class ModelConfig(BaseModel):
     
     model_id: str = Field(..., description="Model ID (e.g., 'MONAI/spleen_ct_segmentation')")
     input_type: str = Field("nifti", description="Input data type: 'nifti', 'dicom', 'image'")
-    output_type: str = Field("nifti", description="Output data type: 'nifti', 'dicom', 'json'")
+    output_type: str = Field("nifti", description="Output data type: 'nifti', 'dicom', 'json', 'image_overlay'")
+    configs: Optional[Union[Dict[str, Any], List[Dict[str, Any]]]] = Field(
+        None, description="Additional template configs per model (dict or list of dicts)"
+    )
+    dependencies: Optional[List[str]] = Field(
+        default=[],
+        description="Additional pip requirement specifiers to include in generated requirements.txt",
+    )
 
 
 class Endpoint(BaseModel):

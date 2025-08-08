@@ -222,7 +222,7 @@ class TestGenCommand:
 
         assert result.exit_code == 0
         assert "Next steps:" in result.output
-        assert "Option 1: Run with poetry (recommended)" in result.output
+        assert "Option 1: Run with uv (recommended)" in result.output
         assert "Option 2: Run with pg directly" in result.output
         assert "pg run output" in result.output
         assert "Option 3: Run manually" in result.output

@@ -45,6 +45,8 @@ from monai.deploy.operators.nifti_directory_loader_operator import NiftiDirector
 {% endif %}
 {% if output_type == "json" %}
 from monai.deploy.operators.json_results_writer_operator import JSONResultsWriter
+{% elif output_type == "image_overlay" %}
+from monai.deploy.operators.image_overlay_writer_operator import ImageOverlayWriter
 {% elif not use_dicom %}
 from monai.deploy.operators.nifti_writer_operator import NiftiWriter
 {% endif %}
@@ -118,9 +120,12 @@ class {{ app_name }}(Application):
         series_to_vol_op = DICOMSeriesToVolumeOperator(self, name="series_to_vol_op")
         {% elif input_type == "image" %}
         # Image directory loader that processes common image files
+        # For 2D RGB bundles that include EnsureChannelFirstd(channel_dim=-1) in preprocessing,
+        # emit HWC arrays to let the bundle handle channel movement.
         loader_op = ImageDirectoryLoader(
             self,
             input_folder=app_input_path,
+            channel_first={% if channel_first_override is not none %}{{ 'True' if channel_first_override else 'False' }}{% else %}{{ 'False' if input_type == 'image' and 'classification' not in task.lower() else 'True' }}{% endif %},
             name="image_loader"
         )
         {% else %}
@@ -180,14 +185,21 @@ class {{ app_name }}(Application):
             output_folder=app_output_path,
             name="dicom_seg_writer",
         )
-        {% elif output_type == "json" %}
+{% elif output_type == "json" %}
         # JSON results writer that saves classification results
         writer_op = JSONResultsWriter(
             self,
             output_folder=app_output_path,
             name="json_writer"
         )
-        {% elif not use_dicom %}
+{% elif output_type == "image_overlay" %}
+        # Overlay writer to blend segmentation predictions on original images
+        writer_op = ImageOverlayWriter(
+            self,
+            output_folder=app_output_path,
+            name="overlay_writer"
+        )
+{% elif not use_dicom %}
         # NIfTI writer that saves results with proper naming from bundle config
         writer_op = NiftiWriter(
             self,
@@ -220,11 +232,20 @@ class {{ app_name }}(Application):
         )
         self.add_flow(inference_op, stl_conversion_op, {("pred", "image")})
         {% endif %}
-        {% else %}
+{% else %}
         self.add_flow(loader_op, inference_op, {("image", "image")})
-        self.add_flow(inference_op, writer_op, {("pred", "{% if output_type == 'json' %}pred{% else %}image{% endif %}")})
+        {% if output_type == 'json' %}
+        self.add_flow(inference_op, writer_op, {("pred", "pred")})
+        self.add_flow(loader_op, writer_op, {("filename", "filename")})
+        {% elif output_type == 'image_overlay' %}
+        # Connect both original image and prediction to overlay writer
+        self.add_flow(loader_op, writer_op, {("image", "image"), ("filename", "filename")})
+        self.add_flow(inference_op, writer_op, {("pred", "pred")})
+        {% else %}
+        self.add_flow(inference_op, writer_op, {("pred", "image")})
         self.add_flow(loader_op, writer_op, {("filename", "filename")})
         {% endif %}
+{% endif %}
         
         self._logger.info(f"End {self.compose.__name__}")
 

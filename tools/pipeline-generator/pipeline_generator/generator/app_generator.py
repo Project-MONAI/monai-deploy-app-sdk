@@ -108,6 +108,7 @@ class AppGenerator:
             model_type=model_type,
             input_type=input_type,
             output_type=output_type,
+            model_config=model_config,
         )
 
         # Generate app.py
@@ -133,6 +134,7 @@ class AppGenerator:
         model_type: str = "segmentation",
         input_type: Optional[str] = None,
         output_type: Optional[str] = None,
+        model_config: Optional[Any] = None,
     ) -> Dict[str, Any]:
         """Prepare context for template rendering.
 
@@ -193,6 +195,28 @@ class AppGenerator:
             if isinstance(postfix_value, str) and not postfix_value.startswith("@"):
                 output_postfix = postfix_value
 
+        # Resolve generator-level overrides/configs
+        resolved_channel_first = None
+        if model_config and getattr(model_config, "configs", None) is not None:
+            cfgs = model_config.configs
+            if isinstance(cfgs, list):
+                # Merge list of dicts; last one wins
+                merged = {}
+                for item in cfgs:
+                    if isinstance(item, dict):
+                        merged.update(item)
+                resolved_channel_first = merged.get("channel_first", None)
+            elif isinstance(cfgs, dict):
+                resolved_channel_first = cfgs.get("channel_first", None)
+
+        # Collect dependency hints from metadata.json
+        required_packages_version = metadata.get("required_packages_version", {}) if metadata else {}
+        extra_dependencies = getattr(model_config, "dependencies", []) if model_config else []
+        if metadata and "numpy_version" in metadata:
+            extra_dependencies.append(f"numpy=={metadata['numpy_version']}")
+        if metadata and "pytorch_version" in metadata:
+            extra_dependencies.append(f"torch=={metadata['pytorch_version']}")
+            
         return {
             "model_id": model_id,
             "model_short_name": model_short_name,
@@ -215,6 +239,9 @@ class AppGenerator:
             "authors": metadata.get("authors", "MONAI"),
             "output_postfix": output_postfix,
             "model_type": model_type,
+            "channel_first_override": resolved_channel_first,
+            "required_packages_version": required_packages_version,
+            "extra_dependencies": extra_dependencies,
         }
 
     def _detect_data_format(self, inference_config: Dict[str, Any], modality: str) -> bool:

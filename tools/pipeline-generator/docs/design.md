@@ -187,9 +187,8 @@ pg run path-to-generated-app --input test-data-dir --output result-dir
 
 ### Phase 5
 
-* Enhance the module to support the following MONAI models from Hugging Face:
-  * https://monai.io/model-zoo.html#/model/hf_exaonepath
-  * https://monai.io/model-zoo.html#/model/hf_exaonepath-crc-msi-predictor
-  * https://monai.io/model-zoo.html#/model/hf_llama3_vila_m3_8b
-  * https://monai.io/model-zoo.html#/model/hf_llama3_vila_m3_3b
-  * https://monai.io/model-zoo.html#/model/hf_llama3_vila_m3_13b
+Replace poetry with uv.
+
+* Ensure all existing docs are updated
+* Ensure all existing commands still work
+* Run unit test and ensure coverage is at least 90%

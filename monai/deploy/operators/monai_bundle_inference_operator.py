@@ -1,4 +1,4 @@
-# Copyright 2002 MONAI Consortium
+# Copyright 2022-2025 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -13,6 +13,7 @@ import json
 import logging
 import os
 import pickle
+import sys
 import tempfile
 import time
 import zipfile
@@ -617,15 +618,58 @@ class MonaiBundleInferenceOperator(InferenceOperator):
                     model_path = self._bundle_path / "models" / "model.pt"
                 if not model_path.exists():
                     raise IOError(f"Cannot find model.ts or model.pt in {self._bundle_path / 'models'}")
+
                 # Ensure device is set
                 if not hasattr(self, '_device'):
                     self._device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-                self._model_network = torch.jit.load(str(model_path), map_location=self._device).eval()
+
                 # Initialize config for directory bundles if not already done
                 if not self._init_completed:
                     logging.info(f"Initializing config from directory bundle: {self._bundle_path}")
                     self._init_config(self._bundle_config_names.config_names)
                     self._init_completed = True
+
+                # Load model based on file type
+                if model_path.suffix == ".ts":
+                    # TorchScript bundle
+                    self._model_network = torch.jit.load(str(model_path), map_location=self._device).eval()
+                else:
+                    # .pt checkpoint: instantiate network from config and load state dict
+                    try:
+                        # Some .pt files may still be TorchScript; try jit first
+                        self._model_network = torch.jit.load(str(model_path), map_location=self._device).eval()
+                    except Exception:
+                        # Fallback to eager model with loaded weights
+                        if self._parser is None:
+                            # Ensure parser/config are initialized
+                            self._init_config(self._bundle_config_names.config_names)
+                        # Instantiate network from config
+                        # Ensure bundle root is on sys.path so 'scripts.*' can be imported
+                        bundle_root = str(self._bundle_path)
+                        if bundle_root not in sys.path:
+                            sys.path.insert(0, bundle_root)
+                        network = self._parser.get_parsed_content("network") if self._parser.get("network") is not None else None
+                        if network is None:
+                            # Backward compatibility: some bundles use "network_def" then to(device)
+                            network = self._parser.get_parsed_content("network_def") if self._parser.get("network_def") is not None else None
+                            if network is not None:
+                                network = network.to(self._device)
+                        if network is None:
+                            raise RuntimeError("Unable to instantiate network from bundle configs.")
+
+                        checkpoint = torch.load(str(model_path), map_location=self._device)
+                        # Determine the state dict layout
+                        state_dict = None
+                        if isinstance(checkpoint, dict):
+                            if "state_dict" in checkpoint and isinstance(checkpoint["state_dict"], dict):
+                                state_dict = checkpoint["state_dict"]
+                            elif "model" in checkpoint and isinstance(checkpoint["model"], dict):
+                                state_dict = checkpoint["model"]
+                        if state_dict is None:
+                            # Assume raw state dict
+                            state_dict = checkpoint
+                        network.load_state_dict(state_dict, strict=True)
+                        self._model_network = network.eval()
             else:
                 # Original ZIP bundle handling
                 self._model_network = torch.jit.load(self._bundle_path, map_location=self._device).eval()
@@ -767,15 +811,52 @@ class MonaiBundleInferenceOperator(InferenceOperator):
             logging.debug(f"Shape of the converted input image: {value.shape}")
             logging.debug(f"Metadata of the converted input image: {metadata}")
         elif isinstance(value, np.ndarray):
-            # For 3D medical images without channel dimension, add one
-            if value.ndim == 3:
-                value = value[np.newaxis, ...]  # Add channel dimension
+            # Keep numpy array as-is when possible and set metadata so downstream transforms handle channels.
+            # Use bundle metadata to infer expected number of channels and adjust conservatively.
+            ndims = value.ndim
+            expected_channels = None
+            try:
+                in_meta = self._inputs.get(name, {})
+                if isinstance(in_meta, dict):
+                    expected_channels = in_meta.get("num_channels")
+            except Exception:
+                expected_channels = None
+
+            if ndims == 3:
+                # No channel present (W, H, D)
+                if expected_channels is not None and expected_channels > 1:
+                    raise ValueError(
+                        f"Input for '{name}' has no channel dimension but bundle expects {expected_channels} channels. "
+                        "Provide multi-channel input or add a transform to stack channels before inference."
+                    )
+                # else expected 1 or unknown -> proceed without channel
+            elif ndims == 4:
+                # Channel-last assumed (W, H, D, C)
+                actual_channels = value.shape[-1]
+                if expected_channels is not None and expected_channels != actual_channels:
+                    if expected_channels == 1 and actual_channels > 1:
+                        logging.warning(
+                            "Input for '%s' has %d channels but bundle expects 1; selecting channel 0.",
+                            name,
+                            actual_channels,
+                        )
+                        value = value[..., 0]
+                        ndims = 3
+                    else:
+                        raise ValueError(
+                            f"Input for '{name}' has {actual_channels} channels but bundle expects {expected_channels}."
+                        )
+                # else exact match or unknown -> keep as-is
+            else:
+                # Unsupported rank for medical image input
+                raise ValueError(
+                    f"Unsupported input rank {ndims} for '{name}'. Expected 3D (W,H,D) or 4D (W,H,D,C)."
+                )
             value = torch.from_numpy(value).to(self._device)
-            # Ensure metadata is at least an empty dict for np.ndarray inputs
             if metadata is None:
                 metadata = {}
-            # Set metadata to indicate channel is first (after we added it)
-            metadata["original_channel_dim"] = 0
+            # Indicate whether there was a channel for EnsureChannelFirstd
+            metadata["original_channel_dim"] = "no_channel" if ndims == 3 else -1
 
         # else value is some other object from memory
 
@@ -806,7 +887,28 @@ class MonaiBundleInferenceOperator(InferenceOperator):
                 raise TypeError("arg 1 must be of type torch.Tensor or ndarray.")
 
             logging.debug(f"Output {name} numpy image shape: {value.shape}")
-            result: Any = Image(np.swapaxes(np.squeeze(value, 0), 0, 2).astype(np.uint8), metadata=metadata)
+
+            # Handle 2D masks and generic 2D tensors gracefully
+            if value.ndim == 2:
+                # Already HxW image; binarize/scale left to downstream operators
+                out_img = value.astype(np.uint8)
+                result: Any = Image(out_img, metadata=metadata)
+            elif value.ndim == 3:
+                # Could be (C, H, W) with C==1 or (H, W, C)
+                if value.shape[0] == 1:  # (1, H, W) -> (H, W)
+                    out_img = value[0].astype(np.uint8)
+                    result = Image(out_img, metadata=metadata)
+                elif value.shape[-1] == 1:  # (H, W, 1) -> (H, W)
+                    out_img = value[..., 0].astype(np.uint8)
+                    result = Image(out_img, metadata=metadata)
+                else:
+                    # Fallback to original behavior for 3D volumetric layout assumptions
+                    out_img = np.swapaxes(np.squeeze(value, 0), 0, 2).astype(np.uint8)
+                    result = Image(out_img, metadata=metadata)
+            else:
+                # Keep existing behavior for higher-dimensional data (e.g., 3D volumes)
+                out_img = np.swapaxes(np.squeeze(value, 0), 0, 2).astype(np.uint8)
+                result = Image(out_img, metadata=metadata)
             logging.debug(f"Converted Image shape: {result.asnumpy().shape}")
         elif otype == np.ndarray:
             result = np.asarray(value)

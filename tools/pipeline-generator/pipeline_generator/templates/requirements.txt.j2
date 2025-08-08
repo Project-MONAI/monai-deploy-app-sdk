@@ -2,54 +2,38 @@
 # Generated from model: {{ model_id }}
 
 # MONAI Deploy App SDK and dependencies
-# Note: For directory-based bundle support, use the local modified SDK:
-# pip install -e /path/to/monai-deploy-app-sdk
-monai-deploy-app-sdk>=0.5.0
-monai>=1.2.0  # MONAI core library for bundle support
+monai-deploy-app-sdk>=3.0.0
+{% if metadata.monai_version is defined %}
+monai=={{ metadata.monai_version }}
+{% else %}
+monai>=1.5.0
+{% endif %}
+
 
 # Required by MONAI Deploy SDK (always needed)
 pydicom>=2.3.0  # Required by MONAI Deploy SDK even for NIfTI apps
 highdicom>=0.18.2  # Required for DICOM segmentation support
 
-# Additional dependencies based on model type
-{% if not use_dicom %}
-nibabel>=3.2.1  # For NIfTI file I/O
-SimpleITK>=2.0.2  # Required by MONAI Deploy's NiftiDataLoader
-{% endif %}
-
 {% if input_type == "image" %}
 # Image loading dependencies
 Pillow>=8.0.0  # For loading JPEG/PNG images
+{% elif input_type == "nifti" or output_type == "nifti" %}
+SimpleITK>=2.0.2
+
 {% endif %}
 
-{% if task == "classification" or (inputs.image is defined and inputs.image.format == "magnitude") %}
-# Classification model dependencies
-torchvision>=0.11.0  # Often required for classification models
+
+# Any additional requirements specified in bundle metadata
+{% if required_packages_version %}
+{% for pkg, ver in required_packages_version.items() %}
+{{ pkg }}=={{ ver }}
+{% endfor %}
+
 {% endif %}
 
-{% if model_type == "pathology" %}
-# Pathology-specific dependencies
-opencv-python>=4.5.0
-scikit-image>=0.19.0
-# Note: staintools or other stain normalization libraries may be needed
-# depending on the specific implementation
+# Additional dependencies specified in generator config
+{% if extra_dependencies %}
+{% for dep in extra_dependencies %}
+{{ dep }}
+{% endfor %}
 {% endif %}
-
-{% if model_type in ["multimodal", "multimodal_llm"] %}
-# Multimodal model dependencies
-transformers>=4.35.0
-accelerate>=0.24.0
-sentencepiece>=0.1.99
-{% if model_type == "multimodal_llm" %}
-# LLM-specific dependencies
-bitsandbytes>=0.41.0
-protobuf>=3.20.0
-{% endif %}
-{% endif %}
-
-# Core dependencies
-numpy>=1.21.0
-torch>=1.10.0
-
-# Any additional requirements specific to the model
-# can be added here 

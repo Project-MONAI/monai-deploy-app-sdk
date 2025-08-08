@@ -17,34 +17,19 @@ A CLI tool for generating MONAI Deploy and Holoscan pipelines from MONAI Bundles
 # Clone the repository
 cd tools/pipeline-generator/
 
-# Install with Poetry
-poetry install
+# Install with uv (no virtualenv needed; uv manages it per command)
+uv pip install -e .[dev]
 ```
 
 ### Running Commands
 
-With Poetry 2.0+, you can run commands in two ways:
+With uv, you can run commands directly without a prior "install":
 
-**Option 1: Using `poetry run` (Recommended)**
 ```bash
-poetry run pg --help
-poetry run pg list
-poetry run pg gen MONAI/model_name --output ./app
+uv run pg --help
+uv run pg list
+uv run pg gen MONAI/model_name --output ./app
 ```
-
-**Option 2: Activating the environment**
-```bash
-# On Linux/Mac
-source $(poetry env info --path)/bin/activate
-
-# On Windows
-$(poetry env info --path)\Scripts\activate
-
-# Then run commands directly
-pg --help
-```
-
-> **Note**: Poetry 2.0 removed the `poetry shell` command. Use `poetry run` or activate the environment manually as shown above.
 
 ## Usage
 
@@ -52,13 +37,13 @@ pg --help
 
 ```bash
 # 1. List available models
-poetry run pg list
+uv run pg list
 
 # 2. Generate an application from a model
-poetry run pg gen MONAI/spleen_ct_segmentation --output my_app
+uv run pg gen MONAI/spleen_ct_segmentation --output my_app
 
 # 3. Run the application
-poetry run pg run my_app --input /path/to/test/data --output ./results
+uv run pg run my_app --input /path/to/test/data --output ./results
 ```
 
 ### List Available Models
@@ -66,39 +51,39 @@ poetry run pg run my_app --input /path/to/test/data --output ./results
 List all models from configured endpoints:
 
 ```bash
-poetry run pg list
+uv run pg list
 ```
 
 Show only MONAI Bundles:
 
 ```bash
-poetry run pg list --bundles-only
+uv run pg list --bundles-only
 ```
 
 Show only tested models:
 
 ```bash
-poetry run pg list --tested-only
+uv run pg list --tested-only
 ```
 
 Combine filters:
 
 ```bash
-poetry run pg list --bundles-only --tested-only  # Show only tested MONAI Bundles
+uv run pg list --bundles-only --tested-only  # Show only tested MONAI Bundles
 ```
 
 Use different output formats:
 
 ```bash
-poetry run pg list --format simple  # Simple list format
-poetry run pg list --format json    # JSON output
-poetry run pg list --format table   # Default table format
+uv run pg list --format simple  # Simple list format
+uv run pg list --format json    # JSON output
+uv run pg list --format table   # Default table format
 ```
 
 Use a custom configuration file:
 
 ```bash
-poetry run pg --config /path/to/config.yaml list
+uv run pg --config /path/to/config.yaml list
 ```
 
 ### Generate MONAI Deploy Application
@@ -106,7 +91,7 @@ poetry run pg --config /path/to/config.yaml list
 Generate an application from a HuggingFace model:
 
 ```bash
-poetry run pg gen MONAI/spleen_ct_segmentation --output my_app
+uv run pg gen MONAI/spleen_ct_segmentation --output my_app
 ```
 
 Options:
@@ -120,20 +105,20 @@ Options:
 Generate with custom application class name:
 
 ```bash
-poetry run pg gen MONAI/lung_nodule_ct_detection --output lung_app --app-name LungDetectorApp
+uv run pg gen MONAI/lung_nodule_ct_detection --output lung_app --app-name LungDetectorApp
 ```
 
 Force overwrite existing directory:
 
 ```bash
-poetry run pg gen MONAI/example_spleen_segmentation --output test_app --force
+uv run pg gen MONAI/example_spleen_segmentation --output test_app --force
 ```
 
 Override data format (optional - auto-detected for tested models):
 
 ```bash
 # Force DICOM format instead of auto-detection
-poetry run pg gen MONAI/some_model --output my_app --format dicom
+uv run pg gen MONAI/some_model --output my_app --format dicom
 ```
 
 ### Run Generated Application
@@ -141,7 +126,7 @@ poetry run pg gen MONAI/some_model --output my_app --format dicom
 Run a generated application with automatic environment setup:
 
 ```bash
-poetry run pg run my_app --input /path/to/input --output /path/to/output
+uv run pg run my_app --input /path/to/input --output /path/to/output
 ```
 
 The `run` command will:
@@ -161,13 +146,13 @@ Examples:
 
 ```bash
 # Skip dependency installation (if already installed)
-poetry run pg run my_app --input test_data --output results --skip-install
+uv run pg run my_app --input test_data --output results --skip-install
 
 # Run without GPU
-poetry run pg run my_app --input test_data --output results --no-gpu
+uv run pg run my_app --input test_data --output results --no-gpu
 
 # Use custom model path
-poetry run pg run my_app --input test_data --output results --model ./custom_model
+uv run pg run my_app --input test_data --output results --model ./custom_model
 ```
 
 ## Configuration
@@ -214,26 +199,26 @@ output/
 
 ```bash
 # Run all tests
-poetry run pytest
+uv run pytest
 
 # Run with coverage
-poetry run pytest --cov=pipeline_generator
+uv run pytest --cov=pipeline_generator
 
 # Run specific test file
-poetry run pytest tests/test_cli.py
+uv run pytest tests/test_cli.py
 ```
 
 ### Code Quality
 
 ```bash
 # Format code
-poetry run black pipeline_generator tests
+uv run black pipeline_generator tests
 
 # Lint code
-poetry run flake8 pipeline_generator tests
+uv run flake8 pipeline_generator tests
 
 # Type checking
-poetry run mypy pipeline_generator
+uv run mypy pipeline_generator
 ```
 
 ## Future Commands
