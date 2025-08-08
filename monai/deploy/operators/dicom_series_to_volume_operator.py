@@ -134,7 +134,7 @@ class DICOMSeriesToVolumeOperator(Operator):
 
             # The following tests are expecting the array is already of the Numpy type.
             if rescaled_pixel_data.dtype == np.uint8 or rescaled_pixel_data.dtype == np.uint16:
-                logging.info("Rescaled pixel array is alreadydy of type uint8 or uint16.")
+                logging.info("Rescaled pixel array is already of type uint8 or uint16.")
             # Check if casting to uint16 and back to float results in the same values.
             elif np.all(rescaled_pixel_data > 0) and np.array_equal(
                 rescaled_pixel_data, rescaled_pixel_data.astype(np.uint16)
