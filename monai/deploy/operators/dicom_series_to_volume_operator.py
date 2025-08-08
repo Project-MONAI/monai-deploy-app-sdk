@@ -18,6 +18,7 @@ import numpy as np
 
 from monai.deploy.utils.importutil import optional_import
 
+apply_presentation_lut, _ = optional_import("pydicom.pixels", name="apply_presentation_lut")
 apply_rescale, _ = optional_import("pydicom.pixels", name="apply_rescale")
 
 from monai.deploy.core import ConditionType, Fragment, Operator, OperatorSpec
@@ -109,72 +110,82 @@ class DICOMSeriesToVolumeOperator(Operator):
         Returns:
             A 3D numpy tensor representing the volumetric data.
         """
+
+        def _get_rescaled_pixel_array(sop_instance):
+            # Use pydicom utility to apply a modality lookup table or rescale operator to the pixel array.
+            # The pydicom Dataset is required which can be obtained from the first slice's native SOP instance.
+            # If Modality LUT is present the return array is of np.uint8 or np.uint16, and if Rescale
+            # Intercept and Rescale Slope are present, np.float64.
+            # If the pixel array is already in the correct type, the return array is the same as the input array.
+
+            if not sop_instance:
+                return np.array([])
+
+            native_sop = None
+            try:
+                native_sop = sop_instance.get_native_sop_instance()
+                rescaled_pixel_data = apply_rescale(sop_instance.get_pixel_array(), native_sop)
+                # In our use cases, pixel data will be interpreted as if MONOCHROME2, hence need to
+                # apply the presentation lut.
+                rescaled_pixel_data = apply_presentation_lut(rescaled_pixel_data, native_sop)
+            except Exception as e:
+                logging.error(f"Failed to apply rescale to DICOM volume: {e}")
+                raise RuntimeError("Failed to apply rescale to DICOM volume.") from e
+
+            # The following tests are expecting the array is already of the Numpy type.
+            if rescaled_pixel_data.dtype == np.uint8 or rescaled_pixel_data.dtype == np.uint16:
+                logging.info("Rescaled pixel array is alreadydy of type uint8 or uint16.")
+            # Check if casting to uint16 and back to float results in the same values.
+            elif np.all(rescaled_pixel_data > 0) and np.array_equal(
+                rescaled_pixel_data, rescaled_pixel_data.astype(np.uint16)
+            ):
+                logging.info("Rescaled pixel array can be safely cast to uint16 with equivalence test.")
+                rescaled_pixel_data = rescaled_pixel_data.astype(dtype=np.uint16)
+            # Check if casting to int16 and back to float results in the same values.
+            elif np.array_equal(rescaled_pixel_data, rescaled_pixel_data.astype(np.int16)):
+                logging.info("Rescaled pixel array can be safely cast to int16 with equivalence test.")
+                rescaled_pixel_data = rescaled_pixel_data.astype(dtype=np.int16)
+            # Check casting to float32 with equivalence test
+            elif np.array_equal(rescaled_pixel_data, rescaled_pixel_data.astype(np.float32)):
+                logging.info("Rescaled pixel array can be cast to float32 with equivalence test.")
+                rescaled_pixel_data = rescaled_pixel_data.astype(np.float32)
+            else:
+                logging.info("Rescaled pixel data remains as of type float64.")
+
+            return rescaled_pixel_data
+
         slices = series.get_sop_instances()
         # The sop_instance get_pixel_array() returns a 2D NumPy array with index order
         # of `HW`. The pixel array of all instances will be stacked along the first axis,
         # so the final 3D NumPy array will have index order of [DHW]. This is consistent
         # with the NumPy array returned from the ITK GetArrayViewFromImage on the image
         # loaded from the same DICOM series.
-        vol_data = np.stack([s.get_pixel_array() for s in slices], axis=0)
+        # The below code loads all slice pixel data into a list of NumPy arrays in memory
+        # before stacking them into a single 3D volume. This can be inefficient for series
+        # with many slices.
+        if not slices:
+            return np.array([])
 
-        # Use pydicom utility to apply a modality lookup table or rescale operator to the pixel array.
-        # The pydicom Dataset is required which can be obtained from the first slice's native SOP instance.
-        # If Modality LUT is present the return array is of np.uint8 or np.uint16, and if Rescale
-        # Intercept and Rescale Slope are present, np.float64.
-        # If the pixel array is already in the correct type, the return array is the same as the input array.
+        # Get shape and dtype from the first slice to pre-allocate numpy array.
         try:
-            native_sop = slices[0].get_native_sop_instance()
-            vol_data = apply_rescale(vol_data, native_sop)
+            first_slice_pixel_array = _get_rescaled_pixel_array(slices[0])
+            vol_shape = (len(slices),) + first_slice_pixel_array.shape
+            dtype = first_slice_pixel_array.dtype
         except Exception as e:
-            logging.error(f"Failed to apply rescale to DICOM volume: {e}")
-            raise RuntimeError("Failed to apply rescale to DICOM volume.") from e
+            logging.error(f"Failed to get pixel array from the first slice: {e}")
+            raise
 
-        # For now we support monochrome image only, for which DICOM Photometric Interpretation
-        # (0028,0004) has defined terms, MONOCHROME1 and MONOCHROME2, with the former being:
-        #   Pixel data represent a single monochrome image plane. The minimum sample value is
-        #   intended to be displayed as white after any VOI gray scale transformations have been
-        #   performed. See PS3.4. This value may be used only when Samples per Pixel (0028,0002)
-        #   has a value of 1. May be used for pixel data in a Native (uncompressed) or Encapsulated
-        #   (compressed) format; see Section 8.2 in PS3.5.
-        # and for the latter "The minimum sample value is intended to be displayed as black"
-        #
-        # In this function, pixel data will be interpreted as if MONOCHROME2, hence inverting
-        # MONOCHROME1 for the final voxel data.
+        # Pre-allocate the volume data array.
+        vol_data = np.empty(vol_shape, dtype=dtype)
+        vol_data[0] = first_slice_pixel_array
 
-        photometric_interpretation = (
-            slices[0].get_native_sop_instance().get("PhotometricInterpretation", "").strip().upper()
-        )
-        presentation_lut_shape = slices[0].get_native_sop_instance().get("PresentationLUTShape", "").strip().upper()
-
-        if not photometric_interpretation:
-            logging.warning("Cannot get value of attribute Photometric Interpretation.")
-
-        if photometric_interpretation != "MONOCHROME2":
-            if photometric_interpretation == "MONOCHROME1" or presentation_lut_shape == "INVERSE":
-                logging.debug("Applying INVERSE transformation as required for MONOCHROME1 image.")
-                vol_data = np.amax(vol_data) - vol_data
-            else:
-                raise ValueError(
-                    f"Cannot process pixel data with Photometric Interpretation of {photometric_interpretation}."
-                )
-
-        # The following tests are expecting the array is already of the Numpy type.
-        if vol_data.dtype == np.uint8 or vol_data.dtype == np.uint16:
-            logging.info("Rescaled pixel array is alrady of type uint8 or uint16.")
-        # Check if casting to uint16 and back to float results in the same values.
-        elif np.all(vol_data > 0) and np.array_equal(vol_data, vol_data.astype(np.uint16)):
-            logging.info("Rescaled pixel array can be safely cast to uint16 with equivalence test.")
-            vol_data = vol_data.astype(dtype=np.uint16)
-        # Check if casting to int16 and back to float results in the same values.
-        elif np.array_equal(vol_data, vol_data.astype(np.int16)):
-            logging.info("Rescaled pixel array can be safely cast to int16 with equivalence test.")
-            vol_data = vol_data.astype(dtype=np.int16)
-        # Check casting to float32 with equivalence test
-        elif np.array_equal(vol_data, vol_data.astype(np.float32)):
-            logging.info("Rescaled pixel array can be cast to float32 with equivalence test.")
-            vol_data = vol_data.astype(np.float32)
-        else:
-            logging.info("Rescaled pixel data remains as of type float64.")
+        # Read subsequent slices directly into the pre-allocated array.
+        for i, s in enumerate(slices[1:], 1):
+            try:
+                vol_data[i] = _get_rescaled_pixel_array(s)
+            except Exception as e:
+                logging.error(f"Failed to get pixel array from slice {i}: {e}")
+                raise
 
         return vol_data
 
