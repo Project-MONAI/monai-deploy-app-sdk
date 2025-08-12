@@ -40,6 +40,15 @@ endpoints:
       - model_id: "MONAI/swin_unetr_btcv_segmentation"
         input_type: "nifti"
         output_type: "nifti"
+      - model_id: "MONAI/Llama3-VILA-M3-3B"
+        input_type: "custom"
+        output_type: "custom"
+      - model_id: "MONAI/Llama3-VILA-M3-8B"
+        input_type: "custom"
+        output_type: "custom"
+      - model_id: "MONAI/Llama3-VILA-M3-13B"
+        input_type: "custom"
+        output_type: "custom"
 
 additional_models:
   - model_id: "LGAI-EXAONE/EXAONEPath"

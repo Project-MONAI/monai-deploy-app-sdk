@@ -40,6 +40,11 @@ from monai.deploy.operators.stl_conversion_operator import STLConversionOperator
 {% endif %}
 {% elif input_type == "image" %}
 from monai.deploy.operators.image_directory_loader_operator import ImageDirectoryLoader
+{% elif input_type == "custom" %}
+# Custom operators for vision-language models
+from monai.deploy.operators.prompts_loader_operator import PromptsLoaderOperator
+from monai.deploy.operators.llama3_vila_inference_operator import Llama3VILAInferenceOperator
+from monai.deploy.operators.vlm_results_writer_operator import VLMResultsWriterOperator
 {% else %}
 from monai.deploy.operators.nifti_directory_loader_operator import NiftiDirectoryLoader
 {% endif %}
@@ -52,7 +57,7 @@ from monai.deploy.operators.nifti_writer_operator import NiftiWriter
 {% endif %}
 {% if "classification" in task.lower() and input_type == "image" %}
 from monai.deploy.operators.monai_classification_operator import MonaiClassificationOperator
-{% else %}
+{% elif not (input_type == "custom" and output_type == "custom") %}
 from monai.deploy.operators.monai_bundle_inference_operator import (
     BundleConfigNames,
     IOMapping,
@@ -74,6 +79,9 @@ class {{ app_name }}(Application):
     {% elif input_type == "image" and output_type == "json" %}
     This application processes common image formats (JPEG, PNG, etc.) and outputs
     classification results as JSON files.
+    {% elif input_type == "custom" and output_type == "custom" %}
+    This application processes prompts and images using a vision-language model.
+    It reads prompts from prompts.yaml and generates text or image outputs based on the specified output type.
     {% else %}
     This application follows the pipeline structure:
     [Source/{{ 'ImageDirectoryLoader' if input_type == 'image' else 'NiftiDirectoryLoader' }}] → [Preprocessing Op] → [Inference Op] → [Postprocessing Op] → [Sink/{{ 'JSONResultsWriter' if output_type == 'json' else 'NiftiWriter' }}]
@@ -128,6 +136,13 @@ class {{ app_name }}(Application):
             channel_first={% if channel_first_override is not none %}{{ 'True' if channel_first_override else 'False' }}{% else %}{{ 'False' if input_type == 'image' and 'classification' not in task.lower() else 'True' }}{% endif %},
             name="image_loader"
         )
+        {% elif input_type == "custom" %}
+        # Prompts loader for vision-language models
+        loader_op = PromptsLoaderOperator(
+            self,
+            input_folder=app_input_path,
+            name="prompts_loader"
+        )
         {% else %}
         # NIfTI directory loader that processes all files in input directory
         loader_op = NiftiDirectoryLoader(
@@ -137,7 +152,15 @@ class {{ app_name }}(Application):
         )
         {% endif %}
         
-        {% if "classification" in task.lower() and input_type == "image" %}
+        {% if input_type == "custom" and output_type == "custom" %}
+        # Vision-language model inference operator
+        inference_op = Llama3VILAInferenceOperator(
+            self,
+            app_context=app_context,
+            model_path=bundle_path,
+            name="vlm_inference"
+        )
+        {% elif "classification" in task.lower() and input_type == "image" %}
         # MonaiClassificationOperator for classification models
         # The bundle path can be overridden with -m argument at runtime
         inference_op = MonaiClassificationOperator(
@@ -199,6 +222,13 @@ class {{ app_name }}(Application):
             output_folder=app_output_path,
             name="overlay_writer"
         )
+{% elif output_type == "custom" %}
+        # VLM results writer for custom outputs
+        writer_op = VLMResultsWriterOperator(
+            self,
+            output_folder=app_output_path,
+            name="vlm_writer"
+        )
 {% elif not use_dicom %}
         # NIfTI writer that saves results with proper naming from bundle config
         writer_op = NiftiWriter(
@@ -232,6 +262,21 @@ class {{ app_name }}(Application):
         )
         self.add_flow(inference_op, stl_conversion_op, {("pred", "image")})
         {% endif %}
+{% elif input_type == "custom" and output_type == "custom" %}
+        # Connect prompts loader to inference operator
+        self.add_flow(loader_op, inference_op, {
+            ("image", "image"),
+            ("prompt", "prompt"),
+            ("output_type", "output_type"),
+            ("request_id", "request_id"),
+            ("generation_params", "generation_params")
+        })
+        # Connect inference operator to results writer
+        self.add_flow(inference_op, writer_op, {
+            ("result", "result"),
+            ("output_type", "output_type"),
+            ("request_id", "request_id")
+        })
 {% else %}
         self.add_flow(loader_op, inference_op, {("image", "image")})
         {% if output_type == 'json' %}

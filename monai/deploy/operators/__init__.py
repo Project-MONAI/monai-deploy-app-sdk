@@ -1,4 +1,4 @@
-# Copyright 2021-2023 MONAI Consortium
+# Copyright 2021-2025 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -27,6 +27,7 @@
     InfererType
     IOMapping
     JSONResultsWriter
+    Llama3VILAInferenceOperator
     ModelInfo
     MonaiBundleInferenceOperator
     MonaiClassificationOperator
@@ -35,10 +36,12 @@
     NiftiDirectoryLoader
     NiftiWriter
     PNGConverterOperator
+    PromptsLoaderOperator
     PublisherOperator
     SegmentDescription
     STLConversionOperator
     STLConverter
+    VLMResultsWriterOperator
 """
 
 # If needed, can choose to expose some or all of Holoscan SDK built-in operators.
@@ -69,3 +72,6 @@ from .png_converter_operator import PNGConverterOperator
 from .publisher_operator import PublisherOperator
 from .stl_conversion_operator import STLConversionOperator, STLConverter
 from .image_overlay_writer_operator import ImageOverlayWriter
+from .prompts_loader_operator import PromptsLoaderOperator
+from .llama3_vila_inference_operator import Llama3VILAInferenceOperator
+from .vlm_results_writer_operator import VLMResultsWriterOperator

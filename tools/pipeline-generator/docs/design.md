@@ -192,3 +192,51 @@ Replace poetry with uv.
 * Ensure all existing docs are updated
 * Ensure all existing commands still work
 * Run unit test and ensure coverage is at least 90%
+
+### Phase 6
+
+Add support for MONAI/Llama3-VILA-M3-3B model.
+
+* Create new operators for the model in 'monai/deploy/operators' so it can be reused by other Llama3 models. The first operator should be able to take a directory as input and scan for a prompts.yaml file in the following format:
+
+```yaml
+defaults:
+  max_new_tokens: 256
+  temperature: 0.2
+  top_p: 0.9
+prompts:
+  - prompt: Summarize key findings.
+    image: img1.png
+    output: json
+  - prompt: Is there a focal lesion? Answer yes/no and describe location.
+    image: img2.png
+    output: image
+    max_new_tokens: 128
+```
+
+Where `prompts.prompt` is the prompt fora set of images and `prompts.image` is an image associated with the prompt. The `prompts.output` indicates the type to expect for each prompt, it could be one of the following: json (see below for sample), image (generate a new image in the output directory with the AI response), image_overlay (this could be segmentation mask, bounding boxes etc...).
+
+
+The first operator (VLMPromptsLoaderOperator) shall have a single output port that includes image + prompt + output_type + request_id (filename + datetime) and shall emit one prompt only each time compute is called. The operator shall end the application once all prompts have been processed (see monai/deploy/operators/image_directory_loader_operator.py L92-96).
+
+
+The second operator (Llama3VILAInferenceOperator) takes the input from first operator and run the model. Once the model is ready with results, output it to the output port for the last operator.
+
+The third and last operator (VLMResultsWriterOperator) shall take input from the first operator and the results from second operator and then write the results to the results directory specified by the user. The type of data to write to disk depends on the output type defined in the prompt.
+
+The output of the JSON should be in the following format:
+
+```json
+{
+  "prompt": "original prompt",
+  "response": "AI generated response"
+}
+```
+Update config.yaml with the new model.
+
+Note: no changes to the pg run command.
+Note: in this phase, we will support a single 2D image (PNG/JPEG) only.
+Note: Since this model, the prompts.yaml, supports custom input/output formats, we will use "custom" as the input_type and output_type in the [config.yaml](tools/pipeline-generator/pipeline_generator/config/config.yaml).
+Note: results are saved to the destination directory from pg run --output parameter.
+
+**Phase 6 Status**: ✅ Completed - All three operators created and added to MONAI Deploy. The model appears in the pipeline generator list. Template integration requires additional work for full "custom" type support.

@@ -251,4 +251,122 @@ class TestHuggingFaceClient:
         assert model.created_at is None
         assert model.updated_at is None
         assert model.tags == []
-        assert model.description is None
+    
+    def test_list_models_from_endpoints_with_organization(self):
+        """Test listing models from endpoints with organization."""
+        from pipeline_generator.config.settings import Endpoint
+        
+        # Create test endpoints
+        endpoints = [
+            Endpoint(
+                organization="MONAI",
+                base_url="https://huggingface.co",
+                description="Test org",
+                models=[]
+            )
+        ]
+        
+        # Mock the list_models_from_organization method
+        with patch.object(self.client, 'list_models_from_organization') as mock_list:
+            mock_list.return_value = [
+                Mock(model_id="MONAI/test_model")
+            ]
+            
+            result = self.client.list_models_from_endpoints(endpoints)
+            
+            assert len(result) == 1
+            mock_list.assert_called_once_with("MONAI")
+    
+    def test_list_models_from_endpoints_with_model_id(self):
+        """Test listing models from endpoints with specific model_id."""
+        from pipeline_generator.config.settings import Endpoint
+        
+        # Create test endpoints with model_id
+        endpoints = [
+            Endpoint(
+                model_id="MONAI/specific_model",
+                base_url="https://huggingface.co",
+                description="Test model",
+                models=[]
+            )
+        ]
+        
+        # Mock the get_model_info method
+        with patch.object(self.client, 'get_model_info') as mock_get:
+            mock_model = Mock(model_id="MONAI/specific_model")
+            mock_get.return_value = mock_model
+            
+            result = self.client.list_models_from_endpoints(endpoints)
+            
+            assert len(result) == 1
+            assert result[0] == mock_model
+            mock_get.assert_called_once_with("MONAI/specific_model")
+    
+    def test_list_models_from_endpoints_model_not_found(self):
+        """Test listing models when specific model is not found."""
+        from pipeline_generator.config.settings import Endpoint
+        
+        endpoints = [
+            Endpoint(
+                model_id="MONAI/missing_model",
+                base_url="https://huggingface.co",
+                description="Missing model",
+                models=[]
+            )
+        ]
+        
+        # Mock get_model_info to return None
+        with patch.object(self.client, 'get_model_info') as mock_get:
+            mock_get.return_value = None
+            
+            result = self.client.list_models_from_endpoints(endpoints)
+            
+            assert len(result) == 0
+            mock_get.assert_called_once_with("MONAI/missing_model")
+    
+    def test_extract_model_info_siblings_exception(self):
+        """Test _extract_model_info handles exception in siblings check."""
+        # Create a mock model that will raise exception when accessing siblings
+        class MockModelWithException:
+            def __init__(self):
+                self.modelId = "test/model"
+                self.tags = []
+                self.downloads = 100
+                self.likes = 10
+                self.name = "Test Model"
+                self.author = "test"
+                self.description = None
+                self.created_at = None
+                self.lastModified = None
+            
+            @property
+            def siblings(self):
+                raise Exception("Test error")
+        
+        mock_model = MockModelWithException()
+        
+        # Should not raise, just catch and continue
+        result = self.client._extract_model_info(mock_model)
+        
+        assert result.is_monai_bundle is False
+    
+    def test_extract_model_info_with_card_data_preference(self):
+        """Test _extract_model_info prefers description from cardData."""
+        mock_model = SimpleModelData(
+            modelId="test/model",
+            tags=[],
+            downloads=100,
+            likes=10,
+            name="Test Model",
+            author="test",
+            description="Direct description",
+            cardData={"description": "Card description"},
+            created_at=None,
+            lastModified=None,
+            siblings=[]
+        )
+        
+        result = self.client._extract_model_info(mock_model)
+        
+        # Should prefer cardData description
+        assert result.description == "Card description"

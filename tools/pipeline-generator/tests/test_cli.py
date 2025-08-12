@@ -170,4 +170,133 @@ endpoints:
                 
                 result = self.runner.invoke(cli, ['--config', 'test_config.yaml', 'list'])
                 
-                assert result.exit_code == 0 
+                assert result.exit_code == 0
+    
+    @patch('pipeline_generator.cli.main.HuggingFaceClient')
+    @patch('pipeline_generator.cli.main.load_config')
+    def test_list_command_json_format(self, mock_load_config, mock_client_class):
+        """Test list command with JSON format output."""
+        import json
+        
+        # Mock setup
+        mock_settings = Mock()
+        mock_settings.endpoints = []
+        mock_load_config.return_value = mock_settings
+        
+        mock_client = Mock()
+        mock_client_class.return_value = mock_client
+        
+        test_models = [
+            ModelInfo(
+                model_id="MONAI/test",
+                name="Test Model",
+                is_monai_bundle=True,
+                downloads=100,
+                likes=10,
+                tags=["medical", "segmentation"]
+            )
+        ]
+        mock_client.list_models_from_endpoints.return_value = test_models
+        
+        # Run command with JSON format
+        result = self.runner.invoke(cli, ['list', '--format', 'json'])
+        
+        assert result.exit_code == 0
+        
+        # Extract JSON from output (skip header line)
+        lines = result.output.strip().split('\n')
+        json_start = -1
+        for i, line in enumerate(lines):
+            if line.strip().startswith('['):
+                json_start = i
+                break
+        
+        if json_start >= 0:
+            json_text = '\n'.join(lines[json_start:])
+            if '\nTotal models:' in json_text:
+                json_text = json_text[:json_text.rfind('\nTotal models:')]
+            
+            data = json.loads(json_text)
+            assert len(data) == 1
+            assert data[0]["model_id"] == "MONAI/test"
+            assert data[0]["is_monai_bundle"] is True
+    
+    @patch('pipeline_generator.cli.main.HuggingFaceClient')
+    @patch('pipeline_generator.cli.main.load_config')
+    def test_list_command_no_models(self, mock_load_config, mock_client_class):
+        """Test list command when no models are found."""
+        # Mock setup
+        mock_settings = Mock()
+        mock_settings.endpoints = []
+        mock_load_config.return_value = mock_settings
+        
+        mock_client = Mock()
+        mock_client_class.return_value = mock_client
+        mock_client.list_models_from_endpoints.return_value = []
+        
+        result = self.runner.invoke(cli, ['list'])
+        
+        assert result.exit_code == 0
+        assert ("No models found" in result.output or "Total models: 0" in result.output)
+    
+    @patch('pipeline_generator.cli.main.HuggingFaceClient')
+    @patch('pipeline_generator.cli.main.load_config')
+    def test_list_command_tested_only(self, mock_load_config, mock_client_class):
+        """Test list command with tested-only filter."""
+        # Mock setup
+        mock_settings = Mock()
+        
+        # Create tested models in settings
+        tested_model = Mock()
+        tested_model.model_id = "MONAI/tested_model"
+        
+        mock_endpoint = Mock()
+        mock_endpoint.models = [tested_model]
+        mock_settings.endpoints = [mock_endpoint]
+        
+        mock_load_config.return_value = mock_settings
+        
+        mock_client = Mock()
+        mock_client_class.return_value = mock_client
+        
+        # Mock the list response
+        test_models = [
+            ModelInfo(
+                model_id="MONAI/tested_model",
+                name="Tested Model",
+                is_monai_bundle=True
+            ),
+            ModelInfo(
+                model_id="MONAI/untested_model",
+                name="Untested Model",
+                is_monai_bundle=True
+            )
+        ]
+        mock_client.list_models_from_endpoints.return_value = test_models
+        
+        # Test with tested-only filter
+        result = self.runner.invoke(cli, ['list', '--tested-only'])
+        
+        assert result.exit_code == 0
+        assert "MONAI/tested_model" in result.output
+        assert "MONAI/untested_model" not in result.output
+    
+    @patch('pipeline_generator.cli.main.AppGenerator')
+    @patch('pipeline_generator.cli.main.load_config')
+    def test_gen_command_error_handling(self, mock_load_config, mock_generator_class):
+        """Test gen command error handling."""
+        mock_settings = Mock()
+        mock_load_config.return_value = mock_settings
+        
+        mock_generator = Mock()
+        mock_generator_class.return_value = mock_generator
+        
+        # Make generate_app raise an exception
+        mock_generator.generate_app.side_effect = Exception("Test error")
+        
+        with patch('pipeline_generator.cli.main.logger') as mock_logger:
+            result = self.runner.invoke(cli, ['gen', 'MONAI/test_model'])
+            
+            # Should log the exception
+            assert mock_logger.exception.called
+            assert result.exit_code != 0 
