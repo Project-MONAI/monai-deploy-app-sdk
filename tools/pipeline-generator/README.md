@@ -69,15 +69,15 @@ uv run pg list --tested-only
 Combine filters:
 
 ```bash
-uv run pg list --bundles-only --tested-only  # Show only tested MONAI Bundles
+uv run pg list --bundles-only --tested-only # Show only tested MONAI Bundles
 ```
 
 Use different output formats:
 
 ```bash
-uv run pg list --format simple  # Simple list format
-uv run pg list --format json    # JSON output
-uv run pg list --format table   # Default table format
+uv run pg list --format simple # Simple list format
+uv run pg list --format json   # JSON output
+uv run pg list --format table  # Default table format
 ```
 
 Use a custom configuration file:
@@ -95,6 +95,7 @@ uv run pg gen MONAI/spleen_ct_segmentation --output my_app
 ```
 
 Options:
+
 - `--output, -o`: Output directory for generated app (default: ./output)
 - `--app-name, -n`: Custom application class name (default: derived from model name)
 - `--format`: Input/output data format (optional): auto, dicom, or nifti (default: auto)
@@ -130,11 +131,13 @@ uv run pg run my_app --input /path/to/input --output /path/to/output
 ```
 
 The `run` command will:
+
 1. Create a virtual environment if it doesn't exist
-2. Install dependencies from requirements.txt
-3. Run the application with the specified input/output
+1. Install dependencies from requirements.txt
+1. Run the application with the specified input/output
 
 Options:
+
 - `--input, -i`: Input data directory (required)
 - `--output, -o`: Output directory for results (default: ./output)
 - `--model, -m`: Override model/bundle path
@@ -229,4 +232,4 @@ The CLI is designed to be extensible. Planned commands include:
 
 ## License
 
-This project is part of the MONAI Deploy App SDK and is licensed under the Apache License 2.0. See the main repository's LICENSE file for details. 
+This project is part of the MONAI Deploy App SDK and is licensed under the Apache License 2.0. See the main repository's LICENSE file for details.

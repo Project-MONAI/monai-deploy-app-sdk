@@ -27,7 +27,7 @@ class AppGenerator:
 
     def __init__(self, settings: Optional[Settings] = None) -> None:
         """Initialize the generator.
-        
+
         Args:
             settings: Configuration settings (loads default if None)
         """
@@ -37,7 +37,9 @@ class AppGenerator:
         # Set up Jinja2 template environment
         template_dir = Path(__file__).parent.parent / "templates"
         self.env = Environment(
-            loader=FileSystemLoader(str(template_dir)), trim_blocks=True, lstrip_blocks=True
+            loader=FileSystemLoader(str(template_dir)),
+            trim_blocks=True,
+            lstrip_blocks=True,
         )
 
     def generate_app(
@@ -85,7 +87,7 @@ class AppGenerator:
 
         # Detect model type from model_id or metadata
         model_type = self._detect_model_type(model_id, metadata)
-        
+
         # Get model configuration if available
         model_config = self.settings.get_model_config(model_id)
         if model_config and data_format == "auto":
@@ -96,7 +98,7 @@ class AppGenerator:
             # Fall back to detection
             input_type = None
             output_type = None
-        
+
         # Prepare template context
         context = self._prepare_context(
             model_id=model_id,
@@ -155,8 +157,8 @@ class AppGenerator:
         # Determine app name
         if not app_name:
             # Sanitize name to ensure valid Python identifier
-            sanitized_name = ''.join(
-                c if c.isalnum() else '' for c in model_short_name.title()
+            sanitized_name = "".join(
+                c if c.isalnum() else "" for c in model_short_name.title()
             )
             app_name = f"{sanitized_name}App" if sanitized_name else "GeneratedApp"
 
@@ -210,13 +212,17 @@ class AppGenerator:
                 resolved_channel_first = cfgs.get("channel_first", None)
 
         # Collect dependency hints from metadata.json
-        required_packages_version = metadata.get("required_packages_version", {}) if metadata else {}
-        extra_dependencies = getattr(model_config, "dependencies", []) if model_config else []
+        required_packages_version = (
+            metadata.get("required_packages_version", {}) if metadata else {}
+        )
+        extra_dependencies = (
+            getattr(model_config, "dependencies", []) if model_config else []
+        )
         if metadata and "numpy_version" in metadata:
             extra_dependencies.append(f"numpy=={metadata['numpy_version']}")
         if metadata and "pytorch_version" in metadata:
             extra_dependencies.append(f"torch=={metadata['pytorch_version']}")
-            
+
         return {
             "model_id": model_id,
             "model_short_name": model_short_name,
@@ -229,7 +235,8 @@ class AppGenerator:
             "use_dicom": use_dicom,
             "use_image": use_image,
             "input_type": input_type or ("dicom" if use_dicom else "nifti"),
-            "output_type": output_type or ("json" if task == "classification" else "nifti"),
+            "output_type": output_type
+            or ("json" if task == "classification" else "nifti"),
             "model_file": str(model_file) if model_file else "models/model.ts",
             "inference_config": inference_config,
             "metadata": metadata,
@@ -244,7 +251,9 @@ class AppGenerator:
             "extra_dependencies": extra_dependencies,
         }
 
-    def _detect_data_format(self, inference_config: Dict[str, Any], modality: str) -> bool:
+    def _detect_data_format(
+        self, inference_config: Dict[str, Any], modality: str
+    ) -> bool:
         """Detect whether to use DICOM or NIfTI based on inference config and modality.
 
         Args:
@@ -304,28 +313,28 @@ class AppGenerator:
 
     def _detect_model_type(self, model_id: str, metadata: Dict[str, Any]) -> str:
         """Detect the model type based on model ID and metadata.
-        
+
         Args:
             model_id: HuggingFace model ID
             metadata: Bundle metadata
-            
+
         Returns:
             Model type: segmentation, pathology, multimodal, multimodal_llm
         """
         model_lower = model_id.lower()
-        
+
         # Check for pathology models
         if "exaonepath" in model_lower or "pathology" in model_lower:
             return "pathology"
-        
+
         # Check for multimodal LLMs
         if "llama" in model_lower or "vila" in model_lower:
             return "multimodal_llm"
-        
+
         # Check for multimodal models
         if "chat" in model_lower or "multimodal" in model_lower:
             return "multimodal"
-        
+
         # Check metadata for hints
         if metadata:
             task = metadata.get("task", "").lower()
@@ -333,7 +342,7 @@ class AppGenerator:
                 return "pathology"
             elif "chat" in task or "qa" in task:
                 return "multimodal"
-        
+
         # Default to segmentation
         return "segmentation"
 
@@ -348,7 +357,7 @@ class AppGenerator:
         model_type = context.get("model_type", "segmentation")
         input_type = context.get("input_type", "nifti")
         output_type = context.get("output_type", "nifti")
-        
+
         # Use the unified template for all cases
         template = self.env.get_template("app.py.j2")
 

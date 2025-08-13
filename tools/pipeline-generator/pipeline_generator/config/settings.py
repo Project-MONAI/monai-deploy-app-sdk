@@ -20,12 +20,20 @@ from pydantic import BaseModel, Field
 
 class ModelConfig(BaseModel):
     """Configuration for a specific model."""
-    
-    model_id: str = Field(..., description="Model ID (e.g., 'MONAI/spleen_ct_segmentation')")
-    input_type: str = Field("nifti", description="Input data type: 'nifti', 'dicom', 'image'")
-    output_type: str = Field("nifti", description="Output data type: 'nifti', 'dicom', 'json', 'image_overlay'")
+
+    model_id: str = Field(
+        ..., description="Model ID (e.g., 'MONAI/spleen_ct_segmentation')"
+    )
+    input_type: str = Field(
+        "nifti", description="Input data type: 'nifti', 'dicom', 'image'"
+    )
+    output_type: str = Field(
+        "nifti",
+        description="Output data type: 'nifti', 'dicom', 'json', 'image_overlay'",
+    )
     configs: Optional[Union[Dict[str, Any], List[Dict[str, Any]]]] = Field(
-        None, description="Additional template configs per model (dict or list of dicts)"
+        None,
+        description="Additional template configs per model (dict or list of dicts)",
     )
     dependencies: Optional[List[str]] = Field(
         default=[],
@@ -36,12 +44,21 @@ class ModelConfig(BaseModel):
 class Endpoint(BaseModel):
     """Model endpoint configuration."""
 
-    organization: Optional[str] = Field(None, description="HuggingFace organization name")
+    organization: Optional[str] = Field(
+        None, description="HuggingFace organization name"
+    )
     model_id: Optional[str] = Field(None, description="Specific model ID")
-    base_url: str = Field("https://huggingface.co", description="Base URL for the endpoint")
+    base_url: str = Field(
+        "https://huggingface.co", description="Base URL for the endpoint"
+    )
     description: str = Field("", description="Endpoint description")
-    model_type: Optional[str] = Field(None, description="Model type: segmentation, pathology, multimodal, multimodal_llm")
-    models: List[ModelConfig] = Field(default_factory=list, description="Tested models with known data types")
+    model_type: Optional[str] = Field(
+        None,
+        description="Model type: segmentation, pathology, multimodal, multimodal_llm",
+    )
+    models: List[ModelConfig] = Field(
+        default_factory=list, description="Tested models with known data types"
+    )
 
 
 class Settings(BaseModel):
@@ -53,10 +70,10 @@ class Settings(BaseModel):
     @classmethod
     def from_yaml(cls, path: Path) -> "Settings":
         """Load settings from YAML file.
-        
+
         Args:
             path: Path to YAML configuration file
-            
+
         Returns:
             Settings object initialized from YAML data
         """
@@ -66,24 +83,24 @@ class Settings(BaseModel):
 
     def get_all_endpoints(self) -> List[Endpoint]:
         """Get all endpoints including additional models.
-        
+
         Combines the main endpoints list with additional_models to provide
         a single list of all configured endpoints.
-        
+
         Returns:
             List of all Endpoint configurations
         """
         return self.endpoints + self.additional_models
-    
+
     def get_model_config(self, model_id: str) -> Optional[ModelConfig]:
         """Get model configuration for a specific model ID.
-        
+
         Searches through all endpoints' model configurations to find
         the configuration for the specified model ID.
-        
+
         Args:
             model_id: The model ID to search for
-            
+
         Returns:
             ModelConfig if found, None otherwise
         """
@@ -96,14 +113,14 @@ class Settings(BaseModel):
 
 def load_config(config_path: Optional[Path] = None) -> Settings:
     """Load configuration from file or use defaults.
-    
+
     Attempts to load configuration from the specified path, falling back to
     a config.yaml in the package directory, or finally to default settings
     if no config file is found.
-    
+
     Args:
         config_path: Optional path to configuration file
-        
+
     Returns:
         Settings object with loaded or default configuration
     """

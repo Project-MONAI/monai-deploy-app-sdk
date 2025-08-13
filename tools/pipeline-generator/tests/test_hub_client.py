@@ -14,15 +14,14 @@
 from datetime import datetime
 from unittest.mock import Mock, patch
 
-import pytest
 from huggingface_hub.utils import HfHubHTTPError
 
 from pipeline_generator.core.hub_client import HuggingFaceClient
-from pipeline_generator.core.models import ModelInfo
 
 
 class SimpleModelData:
     """Simple class to simulate HuggingFace model data."""
+
     def __init__(self, **kwargs):
         for key, value in kwargs.items():
             setattr(self, key, value)
@@ -35,7 +34,7 @@ class TestHuggingFaceClient:
         """Set up test fixtures."""
         self.client = HuggingFaceClient()
 
-    @patch('pipeline_generator.core.hub_client.list_models')
+    @patch("pipeline_generator.core.hub_client.list_models")
     def test_list_models_from_organization_success(self, mock_list_models):
         """Test successfully listing models from organization."""
         # Mock model data
@@ -47,7 +46,7 @@ class TestHuggingFaceClient:
             created_at=datetime(2023, 1, 1),
             lastModified=datetime(2023, 12, 1),
             tags=["medical", "segmentation"],
-            siblings=[Mock(rfilename="configs/metadata.json")]
+            siblings=[Mock(rfilename="configs/metadata.json")],
         )
 
         mock_model2 = SimpleModelData(
@@ -58,7 +57,7 @@ class TestHuggingFaceClient:
             created_at=datetime(2023, 2, 1),
             lastModified=datetime(2023, 11, 1),
             tags=["medical"],
-            siblings=[]
+            siblings=[],
         )
 
         mock_list_models.return_value = [mock_model1, mock_model2]
@@ -73,7 +72,7 @@ class TestHuggingFaceClient:
         assert models[1].model_id == "MONAI/liver_segmentation"
         assert models[1].is_monai_bundle is False  # No metadata.json
 
-    @patch('pipeline_generator.core.hub_client.list_models')
+    @patch("pipeline_generator.core.hub_client.list_models")
     def test_list_models_from_organization_empty(self, mock_list_models):
         """Test listing models from organization with no results."""
         mock_list_models.return_value = []
@@ -82,7 +81,7 @@ class TestHuggingFaceClient:
 
         assert len(models) == 0
 
-    @patch('pipeline_generator.core.hub_client.list_models')
+    @patch("pipeline_generator.core.hub_client.list_models")
     def test_list_models_from_organization_error(self, mock_list_models):
         """Test handling errors when listing models."""
         mock_list_models.side_effect = Exception("API Error")
@@ -91,7 +90,7 @@ class TestHuggingFaceClient:
 
         assert len(models) == 0  # Should return empty list on error
 
-    @patch('pipeline_generator.core.hub_client.model_info')
+    @patch("pipeline_generator.core.hub_client.model_info")
     def test_get_model_info_success(self, mock_model_info):
         """Test successfully getting model info."""
         # Mock model data
@@ -104,7 +103,7 @@ class TestHuggingFaceClient:
             lastModified=datetime(2023, 12, 1),
             tags=["medical", "segmentation"],
             siblings=[Mock(rfilename="configs/metadata.json")],
-            cardData={"description": "Spleen segmentation model"}
+            cardData={"description": "Spleen segmentation model"},
         )
 
         mock_model_info.return_value = mock_model
@@ -119,16 +118,18 @@ class TestHuggingFaceClient:
         assert model.is_monai_bundle is True
         assert model.description == "Spleen segmentation model"
 
-    @patch('pipeline_generator.core.hub_client.model_info')
+    @patch("pipeline_generator.core.hub_client.model_info")
     def test_get_model_info_not_found(self, mock_model_info):
         """Test getting model info for non-existent model."""
-        mock_model_info.side_effect = HfHubHTTPError("Model not found", response=Mock(status_code=404))
+        mock_model_info.side_effect = HfHubHTTPError(
+            "Model not found", response=Mock(status_code=404)
+        )
 
         model = self.client.get_model_info("MONAI/nonexistent")
 
         assert model is None
 
-    @patch('pipeline_generator.core.hub_client.model_info')
+    @patch("pipeline_generator.core.hub_client.model_info")
     def test_get_model_info_error(self, mock_model_info):
         """Test handling errors when getting model info."""
         mock_model_info.side_effect = Exception("API Error")
@@ -148,7 +149,7 @@ class TestHuggingFaceClient:
             created_at=datetime(2023, 1, 1),
             lastModified=datetime(2023, 12, 1),
             tags=["test"],
-            siblings=[]
+            siblings=[],
         )
 
         model = self.client._extract_model_info(mock_model)
@@ -167,7 +168,7 @@ class TestHuggingFaceClient:
             created_at=None,
             lastModified=None,
             tags=[],
-            siblings=[]
+            siblings=[],
         )
 
         model = self.client._extract_model_info(mock_model)
@@ -189,8 +190,8 @@ class TestHuggingFaceClient:
             tags=[],
             siblings=[
                 Mock(rfilename="configs/metadata.json"),
-                Mock(rfilename="models/model.pt")
-            ]
+                Mock(rfilename="models/model.pt"),
+            ],
         )
         model = self.client._extract_model_info(mock_model)
         assert model.is_monai_bundle is True
@@ -209,7 +210,7 @@ class TestHuggingFaceClient:
             likes=10,
             created_at=datetime(2023, 1, 1),
             lastModified=datetime(2023, 12, 1),
-            tags=[]
+            tags=[],
         )
         # Don't set siblings attribute
 
@@ -228,7 +229,7 @@ class TestHuggingFaceClient:
             lastModified=datetime(2023, 12, 1),
             tags=["medical"],
             siblings=[],
-            cardData={"description": "This is a test model"}
+            cardData={"description": "This is a test model"},
         )
 
         model = self.client._extract_model_info(mock_model)
@@ -237,10 +238,7 @@ class TestHuggingFaceClient:
 
     def test_extract_model_info_missing_optional_attributes(self):
         """Test parsing model info with missing optional attributes."""
-        mock_model = SimpleModelData(
-            modelId="MONAI/test_model",
-            siblings=[]
-        )
+        mock_model = SimpleModelData(modelId="MONAI/test_model", siblings=[])
 
         model = self.client._extract_model_info(mock_model)
 
@@ -251,81 +249,80 @@ class TestHuggingFaceClient:
         assert model.created_at is None
         assert model.updated_at is None
         assert model.tags == []
-    
+
     def test_list_models_from_endpoints_with_organization(self):
         """Test listing models from endpoints with organization."""
         from pipeline_generator.config.settings import Endpoint
-        
+
         # Create test endpoints
         endpoints = [
             Endpoint(
                 organization="MONAI",
                 base_url="https://huggingface.co",
                 description="Test org",
-                models=[]
+                models=[],
             )
         ]
-        
+
         # Mock the list_models_from_organization method
-        with patch.object(self.client, 'list_models_from_organization') as mock_list:
-            mock_list.return_value = [
-                Mock(model_id="MONAI/test_model")
-            ]
-            
+        with patch.object(self.client, "list_models_from_organization") as mock_list:
+            mock_list.return_value = [Mock(model_id="MONAI/test_model")]
+
             result = self.client.list_models_from_endpoints(endpoints)
-            
+
             assert len(result) == 1
             mock_list.assert_called_once_with("MONAI")
-    
+
     def test_list_models_from_endpoints_with_model_id(self):
         """Test listing models from endpoints with specific model_id."""
         from pipeline_generator.config.settings import Endpoint
-        
+
         # Create test endpoints with model_id
         endpoints = [
             Endpoint(
                 model_id="MONAI/specific_model",
                 base_url="https://huggingface.co",
                 description="Test model",
-                models=[]
+                models=[],
             )
         ]
-        
+
         # Mock the get_model_info method
-        with patch.object(self.client, 'get_model_info') as mock_get:
+        with patch.object(self.client, "get_model_info") as mock_get:
             mock_model = Mock(model_id="MONAI/specific_model")
             mock_get.return_value = mock_model
-            
+
             result = self.client.list_models_from_endpoints(endpoints)
-            
+
             assert len(result) == 1
             assert result[0] == mock_model
             mock_get.assert_called_once_with("MONAI/specific_model")
-    
+
     def test_list_models_from_endpoints_model_not_found(self):
         """Test listing models when specific model is not found."""
         from pipeline_generator.config.settings import Endpoint
-        
+
         endpoints = [
             Endpoint(
                 model_id="MONAI/missing_model",
                 base_url="https://huggingface.co",
                 description="Missing model",
-                models=[]
+                models=[],
             )
         ]
-        
+
         # Mock get_model_info to return None
-        with patch.object(self.client, 'get_model_info') as mock_get:
+        with patch.object(self.client, "get_model_info") as mock_get:
             mock_get.return_value = None
-            
+
             result = self.client.list_models_from_endpoints(endpoints)
-            
+
             assert len(result) == 0
             mock_get.assert_called_once_with("MONAI/missing_model")
-    
+
     def test_extract_model_info_siblings_exception(self):
         """Test _extract_model_info handles exception in siblings check."""
+
         # Create a mock model that will raise exception when accessing siblings
         class MockModelWithException:
             def __init__(self):
@@ -338,18 +335,18 @@ class TestHuggingFaceClient:
                 self.description = None
                 self.created_at = None
                 self.lastModified = None
-            
+
             @property
             def siblings(self):
                 raise Exception("Test error")
-        
+
         mock_model = MockModelWithException()
-        
+
         # Should not raise, just catch and continue
         result = self.client._extract_model_info(mock_model)
-        
+
         assert result.is_monai_bundle is False
-    
+
     def test_extract_model_info_with_card_data_preference(self):
         """Test _extract_model_info prefers description from cardData."""
         mock_model = SimpleModelData(
@@ -363,10 +360,10 @@ class TestHuggingFaceClient:
             cardData={"description": "Card description"},
             created_at=None,
             lastModified=None,
-            siblings=[]
+            siblings=[],
         )
-        
+
         result = self.client._extract_model_info(mock_model)
-        
+
         # Should prefer cardData description
         assert result.description == "Card description"

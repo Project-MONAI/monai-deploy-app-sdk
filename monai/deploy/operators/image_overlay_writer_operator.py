@@ -78,7 +78,9 @@ class ImageOverlayWriter(Operator):
         else:
             arr = np.asarray(image)
         if arr.ndim != 3 or arr.shape[2] not in (3, 4):
-            raise ValueError(f"Expected HWC image with 3 or 4 channels, got shape {arr.shape}")
+            raise ValueError(
+                f"Expected HWC image with 3 or 4 channels, got shape {arr.shape}"
+            )
         # Drop alpha if present
         if arr.shape[2] == 4:
             arr = arr[..., :3]
@@ -103,15 +105,17 @@ class ImageOverlayWriter(Operator):
         return arr
 
     @staticmethod
-    def _blend_overlay(img: np.ndarray, mask_u8: np.ndarray, alpha: float, color: Tuple[int, int, int]) -> np.ndarray:
+    def _blend_overlay(
+        img: np.ndarray, mask_u8: np.ndarray, alpha: float, color: Tuple[int, int, int]
+    ) -> np.ndarray:
         # img: HWC uint8, mask_u8: HW uint8
         mask = (mask_u8 > 0).astype(np.float32)[..., None]
         color_img = np.zeros_like(img, dtype=np.uint8)
         color_img[..., 0] = color[0]
         color_img[..., 1] = color[1]
         color_img[..., 2] = color[2]
-        blended = (img.astype(np.float32) * (1.0 - alpha * mask) + color_img.astype(np.float32) * (alpha * mask)).astype(
-            np.uint8
-        )
+        blended = (
+            img.astype(np.float32) * (1.0 - alpha * mask)
+            + color_img.astype(np.float32) * (alpha * mask)
+        ).astype(np.uint8)
         return blended
-

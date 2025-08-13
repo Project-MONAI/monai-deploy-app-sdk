@@ -38,7 +38,9 @@ console = Console()
 
 @click.group()
 @click.version_option()
-@click.option("--config", "-c", type=click.Path(exists=True), help="Path to configuration file")
+@click.option(
+    "--config", "-c", type=click.Path(exists=True), help="Path to configuration file"
+)
 @click.pass_context
 def cli(ctx: click.Context, config: Optional[str]) -> None:
     """Pipeline Generator - Generate MONAI Deploy and Holoscan pipelines from MONAI Bundles."""
@@ -46,9 +48,10 @@ def cli(ctx: click.Context, config: Optional[str]) -> None:
     ctx.ensure_object(dict)
     config_path = Path(config) if config else None
     ctx.obj["config_path"] = config_path
-    
+
     # Load settings
     from ..config.settings import load_config
+
     settings = load_config(config_path)
     ctx.obj["settings"] = settings
 
@@ -64,15 +67,17 @@ def cli(ctx: click.Context, config: Optional[str]) -> None:
 @click.option("--bundles-only", "-b", is_flag=True, help="Show only MONAI Bundles")
 @click.option("--tested-only", "-t", is_flag=True, help="Show only tested models")
 @click.pass_context
-def list(ctx: click.Context, format: str, bundles_only: bool, tested_only: bool) -> None:
+def list(
+    ctx: click.Context, format: str, bundles_only: bool, tested_only: bool
+) -> None:
     """List available models from configured endpoints.
-    
+
     Args:
         ctx: Click context containing configuration
         format: Output format (table, simple, or json)
         bundles_only: If True, show only MONAI Bundles
         tested_only: If True, show only tested models
-    
+
     Example:
         pg list --format table --bundles-only
     """
@@ -97,7 +102,7 @@ def list(ctx: click.Context, format: str, bundles_only: bool, tested_only: bool)
     # Filter for bundles if requested
     if bundles_only:
         models = [m for m in models if m.is_monai_bundle]
-    
+
     # Filter for tested models if requested
     if tested_only:
         models = [m for m in models if m.model_id in tested_models]
@@ -116,7 +121,9 @@ def list(ctx: click.Context, format: str, bundles_only: bool, tested_only: bool)
     # Summary
     bundle_count = sum(1 for m in models if m.is_monai_bundle)
     tested_count = sum(1 for m in models if m.model_id in tested_models)
-    console.print(f"\n[green]Total models: {len(models)} (MONAI Bundles: {bundle_count}, Tested: {tested_count})[/green]")
+    console.print(
+        f"\n[green]Total models: {len(models)} (MONAI Bundles: {bundle_count}, Tested: {tested_count})[/green]"
+    )
 
 
 @cli.command()
@@ -137,7 +144,14 @@ def list(ctx: click.Context, format: str, bundles_only: bool, tested_only: bool)
 )
 @click.option("--force", "-f", is_flag=True, help="Overwrite existing output directory")
 @click.pass_context
-def gen(ctx: click.Context, model_id: str, output: str, app_name: Optional[str], format: str, force: bool) -> None:
+def gen(
+    ctx: click.Context,
+    model_id: str,
+    output: str,
+    app_name: Optional[str],
+    format: str,
+    force: bool,
+) -> None:
     """Generate a MONAI Deploy application from a HuggingFace model.
 
     Downloads the specified model from HuggingFace and generates a complete
@@ -165,21 +179,28 @@ def gen(ctx: click.Context, model_id: str, output: str, app_name: Optional[str],
             console.print(
                 f"[red]Error: Output directory '{output_path}' already exists and is not empty.[/red]"
             )
-            console.print("Use --force to overwrite or choose a different output directory.")
+            console.print(
+                "Use --force to overwrite or choose a different output directory."
+            )
             raise click.Abort()
 
     # Create generator with settings from context
     settings = ctx.obj.get("settings") if ctx.obj else None
     generator = AppGenerator(settings=settings)
 
-    console.print(f"[blue]Generating MONAI Deploy application for model: {model_id}[/blue]")
+    console.print(
+        f"[blue]Generating MONAI Deploy application for model: {model_id}[/blue]"
+    )
     console.print(f"[blue]Output directory: {output_path}[/blue]")
     console.print(f"[blue]Format: {format}[/blue]")
 
     try:
         # Generate the application
         app_path = generator.generate_app(
-            model_id=model_id, output_dir=output_path, app_name=app_name, data_format=format
+            model_id=model_id,
+            output_dir=output_path,
+            app_name=app_name,
+            data_format=format,
         )
 
         console.print("\n[green]✓ Application generated successfully![/green]")
@@ -210,7 +231,9 @@ def gen(ctx: click.Context, model_id: str, output: str, app_name: Optional[str],
         console.print("   3. Install dependencies:")
         console.print("      [cyan]pip install -r requirements.txt[/cyan]")
         console.print("   4. Run the application:")
-        console.print("      [cyan]python app.py -i /path/to/input -o /path/to/output[/cyan]")
+        console.print(
+            "      [cyan]python app.py -i /path/to/input -o /path/to/output[/cyan]"
+        )
 
     except Exception as e:
         console.print(f"[red]Error generating application: {e}[/red]")
@@ -220,12 +243,14 @@ def gen(ctx: click.Context, model_id: str, output: str, app_name: Optional[str],
 
 def _display_table(models: List[ModelInfo], tested_models: Set[str]) -> None:
     """Display models in a rich table format.
-    
+
     Args:
         models: List of ModelInfo objects to display
         tested_models: Set of tested model IDs
     """
-    table = Table(title="Available Models", show_header=True, header_style="bold magenta")
+    table = Table(
+        title="Available Models", show_header=True, header_style="bold magenta"
+    )
     table.add_column("Model ID", style="cyan", width=40)
     table.add_column("Name", style="white")
     table.add_column("Type", style="green")
@@ -235,7 +260,11 @@ def _display_table(models: List[ModelInfo], tested_models: Set[str]) -> None:
 
     for model in models:
         model_type = "[green]MONAI Bundle[/green]" if model.is_monai_bundle else "Model"
-        status = "[bold green]✓ Verified[/bold green]" if model.model_id in tested_models else ""
+        status = (
+            "[bold green]✓ Verified[/bold green]"
+            if model.model_id in tested_models
+            else ""
+        )
         table.add_row(
             model.model_id,
             model.display_name,
@@ -250,11 +279,11 @@ def _display_table(models: List[ModelInfo], tested_models: Set[str]) -> None:
 
 def _display_simple(models: List[ModelInfo], tested_models: Set[str]) -> None:
     """Display models in a simple list format.
-    
+
     Shows each model with emoji indicators:
     - 📦 for MONAI Bundle, 📄 for regular model
     - ✓ for tested models
-    
+
     Args:
         models: List of ModelInfo objects to display
         tested_models: Set of tested model IDs
@@ -262,14 +291,16 @@ def _display_simple(models: List[ModelInfo], tested_models: Set[str]) -> None:
     for model in models:
         bundle_marker = "📦" if model.is_monai_bundle else "📄"
         tested_marker = " ✓" if model.model_id in tested_models else ""
-        console.print(f"{bundle_marker} {model.model_id} - {model.display_name}{tested_marker}")
+        console.print(
+            f"{bundle_marker} {model.model_id} - {model.display_name}{tested_marker}"
+        )
 
 
 def _display_json(models: List[ModelInfo], tested_models: Set[str]) -> None:
     """Display models in JSON format.
-    
+
     Outputs a JSON array of model information suitable for programmatic consumption.
-    
+
     Args:
         models: List of ModelInfo objects to display
         tested_models: Set of tested model IDs

@@ -4,8 +4,8 @@ Generated from HuggingFace model: [{{ model_id }}](https://huggingface.co/{{ mod
 
 ## Model Information
 
-**Task**: {{ task|title }}  
-**Modality**: {{ modality }}  
+**Task**: {{ task|title }}
+**Modality**: {{ modality }}
 **Network**: {{ metadata.get('network_data_format', {}).get('network', 'Unknown') }}
 {% if model_type %}**Model Type**: {{ model_type|replace('_', ' ')|title }}{% endif %}
 
@@ -108,14 +108,14 @@ pg run . --input /path/to/input --output /path/to/output
 python app.py -i /path/to/input -o /path/to/output
 ```
 
-**Input**: 
+**Input**:
 {% if use_dicom %}
 - Directory containing DICOM series
 {% else %}
 - Directory containing NIfTI files (.nii or .nii.gz)
 {% endif %}
 
-**Output**: 
+**Output**:
 {% if use_dicom %}
 - DICOM Segmentation objects
 - (Optional) STL mesh files
@@ -174,7 +174,7 @@ Package the application as a container using Holoscan CLI:
 # Package for x64 workstations
 holoscan package app -c app.yaml --platform linux/amd64 -t {{ model_short_name|lower }}:latest
 
-# Package for IGX Orin devkits  
+# Package for IGX Orin devkits
 holoscan package app -c app.yaml --platform linux/arm64 -t {{ model_short_name|lower }}:latest
 ```
 
@@ -211,4 +211,4 @@ For more details, visit the model page: [{{ model_id }}](https://huggingface.co/
 ## License
 
 This application is generated using the MONAI Deploy Pipeline Generator.
-Please refer to the model's license for usage restrictions. 
+Please refer to the model's license for usage restrictions.

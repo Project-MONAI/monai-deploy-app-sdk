@@ -20,7 +20,9 @@ from pydantic import BaseModel, Field
 class ModelInfo(BaseModel):
     """Model information from HuggingFace."""
 
-    model_id: str = Field(..., description="Model ID (e.g., 'MONAI/spleen_ct_segmentation')")
+    model_id: str = Field(
+        ..., description="Model ID (e.g., 'MONAI/spleen_ct_segmentation')"
+    )
     name: str = Field(..., description="Model name")
     author: Optional[str] = Field(None, description="Model author/organization")
     description: Optional[str] = Field(None, description="Model description")
@@ -37,11 +39,11 @@ class ModelInfo(BaseModel):
     @property
     def display_name(self) -> str:
         """Get a display-friendly name for the model.
-        
+
         Returns the model's name if available, otherwise generates a
         human-readable name from the model ID by removing the organization
         prefix and converting underscores to spaces.
-        
+
         Returns:
             str: Display-friendly model name
         """
@@ -52,10 +54,10 @@ class ModelInfo(BaseModel):
     @property
     def short_id(self) -> str:
         """Get the short model ID without the organization prefix.
-        
+
         Example:
             'MONAI/spleen_ct_segmentation' -> 'spleen_ct_segmentation'
-        
+
         Returns:
             str: Model ID without organization prefix
         """

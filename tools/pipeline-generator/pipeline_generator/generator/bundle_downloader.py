@@ -72,7 +72,10 @@ class BundleDownloader:
         Returns:
             Dictionary containing bundle metadata or None if not found
         """
-        metadata_paths = [bundle_path / "metadata.json", bundle_path / "configs" / "metadata.json"]
+        metadata_paths = [
+            bundle_path / "metadata.json",
+            bundle_path / "configs" / "metadata.json",
+        ]
 
         for metadata_path in metadata_paths:
             if metadata_path.exists():
@@ -106,7 +109,9 @@ class BundleDownloader:
                         data: Dict[str, Any] = json.load(f)
                         return data
                 except Exception as e:
-                    logger.error(f"Failed to read inference config from {inference_path}: {e}")
+                    logger.error(
+                        f"Failed to read inference config from {inference_path}: {e}"
+                    )
 
         return None
 

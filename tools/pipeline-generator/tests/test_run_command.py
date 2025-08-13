@@ -12,12 +12,8 @@
 """Tests for the run command."""
 
 import subprocess
-import sys
-from pathlib import Path
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import Mock, patch
 
-import click
-import pytest
 from click.testing import CliRunner
 
 from pipeline_generator.cli.run import run
@@ -42,12 +38,7 @@ class TestRunCommand:
         (app_path / "requirements.txt").write_text("monai-deploy-app-sdk\n")
 
         result = self.runner.invoke(
-            run,
-            [
-                str(app_path),
-                "--input", str(input_dir),
-                "--output", str(output_dir)
-            ]
+            run, [str(app_path), "--input", str(input_dir), "--output", str(output_dir)]
         )
 
         assert result.exit_code == 1
@@ -65,19 +56,14 @@ class TestRunCommand:
         (app_path / "app.py").write_text("print('test')")
 
         result = self.runner.invoke(
-            run,
-            [
-                str(app_path),
-                "--input", str(input_dir),
-                "--output", str(output_dir)
-            ]
+            run, [str(app_path), "--input", str(input_dir), "--output", str(output_dir)]
         )
 
         assert result.exit_code == 1
         assert "Error: requirements.txt not found" in result.output
 
-    @patch('subprocess.run')
-    @patch('subprocess.Popen')
+    @patch("subprocess.run")
+    @patch("subprocess.Popen")
     def test_run_successful_with_new_venv(self, mock_popen, mock_run, tmp_path):
         """Test successful run with new virtual environment creation."""
         # Set up test directories
@@ -101,12 +87,7 @@ class TestRunCommand:
         mock_popen.return_value = mock_process
 
         result = self.runner.invoke(
-            run,
-            [
-                str(app_path),
-                "--input", str(input_dir),
-                "--output", str(output_dir)
-            ]
+            run, [str(app_path), "--input", str(input_dir), "--output", str(output_dir)]
         )
 
         assert result.exit_code == 0
@@ -114,8 +95,8 @@ class TestRunCommand:
         assert "Application completed successfully" in result.output
         mock_run.assert_called()  # Verify venv was created
 
-    @patch('subprocess.run')
-    @patch('subprocess.Popen')
+    @patch("subprocess.run")
+    @patch("subprocess.Popen")
     def test_run_skip_install(self, mock_popen, mock_run, tmp_path):
         """Test run command with --skip-install flag."""
         # Set up test directories
@@ -141,18 +122,20 @@ class TestRunCommand:
             run,
             [
                 str(app_path),
-                "--input", str(input_dir),
-                "--output", str(output_dir),
-                "--skip-install"
-            ]
+                "--input",
+                str(input_dir),
+                "--output",
+                str(output_dir),
+                "--skip-install",
+            ],
         )
 
         assert result.exit_code == 0
         assert "Running MONAI Deploy application" in result.output
         mock_run.assert_not_called()  # Verify no install happened
 
-    @patch('subprocess.run')
-    @patch('subprocess.Popen')
+    @patch("subprocess.run")
+    @patch("subprocess.Popen")
     def test_run_with_model_path(self, mock_popen, mock_run, tmp_path):
         """Test run command with custom model path."""
         # Set up test directories
@@ -180,11 +163,14 @@ class TestRunCommand:
             run,
             [
                 str(app_path),
-                "-i", str(input_dir),
-                "-o", str(output_dir),
-                "-m", str(model_path),
-                "--skip-install"
-            ]
+                "-i",
+                str(input_dir),
+                "-o",
+                str(output_dir),
+                "-m",
+                str(model_path),
+                "--skip-install",
+            ],
         )
 
         if result.exit_code != 0:
@@ -196,8 +182,8 @@ class TestRunCommand:
         assert "-m" in call_args
         assert str(model_path) in call_args
 
-    @patch('subprocess.run')
-    @patch('subprocess.Popen')
+    @patch("subprocess.run")
+    @patch("subprocess.Popen")
     def test_run_app_failure(self, mock_popen, mock_run, tmp_path):
         """Test run command when application fails."""
         # Set up test directories
@@ -223,16 +209,18 @@ class TestRunCommand:
             run,
             [
                 str(app_path),
-                "--input", str(input_dir),
-                "--output", str(output_dir),
-                "--skip-install"
-            ]
+                "--input",
+                str(input_dir),
+                "--output",
+                str(output_dir),
+                "--skip-install",
+            ],
         )
 
         assert result.exit_code == 1
         assert "Application failed with exit code: 1" in result.output
 
-    @patch('subprocess.run')
+    @patch("subprocess.run")
     def test_run_venv_creation_failure(self, mock_run, tmp_path):
         """Test run command when venv creation fails."""
         # Set up test directories
@@ -247,22 +235,19 @@ class TestRunCommand:
         (app_path / "requirements.txt").write_text("monai-deploy-app-sdk\n")
 
         # Mock subprocess for venv creation failure
-        mock_run.side_effect = subprocess.CalledProcessError(1, "python", stderr="Error creating venv")
+        mock_run.side_effect = subprocess.CalledProcessError(
+            1, "python", stderr="Error creating venv"
+        )
 
         result = self.runner.invoke(
-            run,
-            [
-                str(app_path),
-                "--input", str(input_dir),
-                "--output", str(output_dir)
-            ]
+            run, [str(app_path), "--input", str(input_dir), "--output", str(output_dir)]
         )
 
         assert result.exit_code == 1
         assert "Error creating virtual environment" in result.output
 
-    @patch('subprocess.run')
-    @patch('subprocess.Popen')
+    @patch("subprocess.run")
+    @patch("subprocess.Popen")
     def test_run_with_existing_venv(self, mock_popen, mock_run, tmp_path):
         """Test run command with existing virtual environment."""
         # Set up test directories
@@ -288,18 +273,13 @@ class TestRunCommand:
         mock_run.return_value = Mock(returncode=0)
 
         result = self.runner.invoke(
-            run,
-            [
-                str(app_path),
-                "--input", str(input_dir),
-                "--output", str(output_dir)
-            ]
+            run, [str(app_path), "--input", str(input_dir), "--output", str(output_dir)]
         )
 
         assert result.exit_code == 0
         assert "Using existing virtual environment" in result.output
 
-    @patch('subprocess.run')
+    @patch("subprocess.run")
     def test_run_pip_install_failure(self, mock_run, tmp_path):
         """Test run command when pip install fails."""
         # Set up test directories
@@ -316,15 +296,12 @@ class TestRunCommand:
         (app_path / "requirements.txt").write_text("nonexistent-package\n")
 
         # Mock subprocess for pip install failure
-        mock_run.side_effect = subprocess.CalledProcessError(1, "pip", stderr="Package not found")
+        mock_run.side_effect = subprocess.CalledProcessError(
+            1, "pip", stderr="Package not found"
+        )
 
         result = self.runner.invoke(
-            run,
-            [
-                str(app_path),
-                "--input", str(input_dir),
-                "--output", str(output_dir)
-            ]
+            run, [str(app_path), "--input", str(input_dir), "--output", str(output_dir)]
         )
 
         assert result.exit_code == 1
@@ -345,7 +322,7 @@ class TestRunCommand:
         (app_path / "app.py").write_text("print('test')")
         (app_path / "requirements.txt").write_text("monai-deploy-app-sdk\n")
 
-        with patch('subprocess.Popen') as mock_popen:
+        with patch("subprocess.Popen") as mock_popen:
             mock_process = Mock()
             mock_process.wait.return_value = 0
             mock_process.stdout = iter(["Processing...\n", "Complete!\n"])
@@ -355,17 +332,20 @@ class TestRunCommand:
                 run,
                 [
                     str(app_path),
-                    "--input", str(input_dir),
-                    "--output", str(output_dir),
-                    "--venv-name", "myenv",
-                    "--skip-install"
-                ]
+                    "--input",
+                    str(input_dir),
+                    "--output",
+                    str(output_dir),
+                    "--venv-name",
+                    "myenv",
+                    "--skip-install",
+                ],
             )
 
         assert result.exit_code == 0
         assert "Using existing virtual environment: myenv" in result.output
 
-    @patch('subprocess.Popen')
+    @patch("subprocess.Popen")
     def test_run_with_no_gpu(self, mock_popen, tmp_path):
         """Test run command with --no-gpu flag."""
         # Set up test directories
@@ -391,11 +371,13 @@ class TestRunCommand:
             run,
             [
                 str(app_path),
-                "--input", str(input_dir),
-                "--output", str(output_dir),
+                "--input",
+                str(input_dir),
+                "--output",
+                str(output_dir),
                 "--no-gpu",
-                "--skip-install"
-            ]
+                "--skip-install",
+            ],
         )
 
         assert result.exit_code == 0

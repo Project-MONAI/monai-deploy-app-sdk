@@ -36,9 +36,9 @@ class ImageDirectoryLoader(Operator):
         image: Image object loaded from file
         filename: Name of the loaded file (without extension)
     """
-    
-    SUPPORTED_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.bmp', '.tiff', '.tif']
-    
+
+    SUPPORTED_EXTENSIONS = [".jpg", ".jpeg", ".png", ".bmp", ".tiff", ".tif"]
+
     def __init__(
         self,
         fragment: Fragment,
@@ -57,55 +57,55 @@ class ImageDirectoryLoader(Operator):
         self._logger = logging.getLogger("{}.{}".format(__name__, type(self).__name__))
         self._input_folder = Path(input_folder)
         self._channel_first = bool(channel_first)
-        
+
         super().__init__(fragment, *args, **kwargs)
-        
+
     def _find_image_files(self) -> List[Path]:
         """Find all supported image files in the input directory."""
         image_files = []
         for ext in self.SUPPORTED_EXTENSIONS:
             image_files.extend(self._input_folder.rglob(f"*{ext}"))
             image_files.extend(self._input_folder.rglob(f"*{ext.upper()}"))
-        
+
         # Sort files for consistent ordering
         image_files.sort()
         return image_files
-        
+
     def setup(self, spec: OperatorSpec):
         """Define the operator outputs."""
         spec.output("image")
         spec.output("filename")
-        
+
         # Pre-initialize the image files list
         self._image_files = self._find_image_files()
         self._current_index = 0
-        
+
         if not self._image_files:
             self._logger.warning(f"No image files found in {self._input_folder}")
         else:
             self._logger.info(f"Found {len(self._image_files)} image files to process")
-        
+
     def compute(self, op_input, op_output, context):
         """Load one image and emit it."""
-        
+
         # Check if we have more images to process
         if self._current_index >= len(self._image_files):
             # No more images to process
             self._logger.info("All images have been processed")
             self.fragment.stop_execution()
             return
-            
+
         # Get the current image path
         image_path = self._image_files[self._current_index]
-        
+
         try:
             # Load image using PIL
             pil_image = PILImage.open(image_path)
-            
+
             # Convert to RGB if necessary
-            if pil_image.mode != 'RGB':
-                pil_image = pil_image.convert('RGB')
-            
+            if pil_image.mode != "RGB":
+                pil_image = pil_image.convert("RGB")
+
             # Convert to numpy array (HWC float32). Intensity scaling (to [0,1]) is typically handled by bundle.
             image_array = np.array(pil_image).astype(np.float32)
 
@@ -113,26 +113,28 @@ class ImageDirectoryLoader(Operator):
             if self._channel_first:
                 # PIL loads HWC; convert to CHW
                 image_array = np.transpose(image_array, (2, 0, 1))
-            
+
             # Create metadata
             metadata = {
                 "filename": str(image_path),
                 "original_shape": image_array.shape,
                 "source_format": image_path.suffix.lower(),
             }
-            
+
             # Create Image object
             image_obj = Image(image_array, metadata=metadata)
-            
+
             # Emit the image and filename
             op_output.emit(image_obj, "image")
             op_output.emit(image_path.stem, "filename")
-            
-            self._logger.info(f"Loaded and emitted image: {image_path.name} ({self._current_index + 1}/{len(self._image_files)})")
-            
+
+            self._logger.info(
+                f"Loaded and emitted image: {image_path.name} ({self._current_index + 1}/{len(self._image_files)})"
+            )
+
         except Exception as e:
             self._logger.error(f"Failed to load image {image_path}: {e}")
-            
+
         # Move to the next image
         self._current_index += 1
 
@@ -141,27 +143,28 @@ def test():
     """Test the ImageDirectoryLoader operator."""
     import tempfile
     from PIL import Image as PILImageCreate
-    
+
     # Create a temporary directory with test images
     with tempfile.TemporaryDirectory() as temp_dir:
         temp_path = Path(temp_dir)
-        
+
         # Create test images
         for i in range(3):
-            img = PILImageCreate.new('RGB', (100, 100), color=(i*50, i*50, i*50))
+            img = PILImageCreate.new("RGB", (100, 100), color=(i * 50, i * 50, i * 50))
             img.save(temp_path / f"test_{i}.jpg")
-        
+
         # Test the operator
         fragment = Fragment()
         loader = ImageDirectoryLoader(fragment, input_folder=temp_path)
-        
+
         # Simulate setup
         from monai.deploy.core import OperatorSpec
+
         spec = OperatorSpec()
         loader.setup(spec)
-        
+
         print(f"Found {len(loader._image_files)} test images")
-        
+
         # Simulate compute calls
         class MockOutput:
             def emit(self, data, name):
@@ -169,9 +172,9 @@ def test():
                     print(f"Emitted filename: {data}")
                 elif name == "image":
                     print(f"Emitted image with shape: {data.asnumpy().shape}")
-        
+
         mock_output = MockOutput()
-        
+
         # Process all images
         while loader._current_index < len(loader._image_files):
             loader.compute(None, mock_output, None)

@@ -86,7 +86,9 @@ class HuggingFaceClient:
         for endpoint in endpoints:
             if endpoint.organization:
                 # List all models from organization
-                logger.info(f"Fetching models from organization: {endpoint.organization}")
+                logger.info(
+                    f"Fetching models from organization: {endpoint.organization}"
+                )
                 models = self.list_models_from_organization(endpoint.organization)
                 all_models.extend(models)
 

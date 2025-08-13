@@ -25,9 +25,11 @@ from rich.progress import Progress, SpinnerColumn, TextColumn
 logger = logging.getLogger(__name__)
 console = Console()
 
+
 @click.command()
 @click.argument(
-    "app_path", type=click.Path(exists=True, file_okay=False, dir_okay=True, path_type=Path)
+    "app_path",
+    type=click.Path(exists=True, file_okay=False, dir_okay=True, path_type=Path),
 )
 @click.option(
     "--input",
@@ -55,7 +57,15 @@ console = Console()
 @click.option("--venv-name", default=".venv", help="Virtual environment directory name")
 @click.option("--skip-install", is_flag=True, help="Skip dependency installation")
 @click.option("--gpu/--no-gpu", default=True, help="Enable/disable GPU support")
-def run(app_path: str, input_dir: str, output_dir: str, model_path: Optional[str], venv_name: str, skip_install: bool, gpu: bool) -> None:
+def run(
+    app_path: str,
+    input_dir: str,
+    output_dir: str,
+    model_path: Optional[str],
+    venv_name: str,
+    skip_install: bool,
+    gpu: bool,
+) -> None:
     """Run a generated MONAI Deploy application.
 
     This command automates the process of setting up and running a MONAI Deploy
@@ -109,7 +119,9 @@ def run(app_path: str, input_dir: str, output_dir: str, model_path: Optional[str
     # Step 1: Create virtual environment if needed
     if not venv_path.exists():
         with Progress(
-            SpinnerColumn(), TextColumn("[progress.description]{task.description}"), console=console
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            console=console,
         ) as progress:
             task = progress.add_task("Creating virtual environment...", total=None)
             try:
@@ -121,7 +133,9 @@ def run(app_path: str, input_dir: str, output_dir: str, model_path: Optional[str
                 )
                 progress.update(task, description="[green]Virtual environment created")
             except subprocess.CalledProcessError as e:
-                console.print(f"[red]Error creating virtual environment: {e.stderr}[/red]")
+                console.print(
+                    f"[red]Error creating virtual environment: {e.stderr}[/red]"
+                )
                 raise click.Abort()
     else:
         console.print(f"[dim]Using existing virtual environment: {venv_name}[/dim]")
@@ -137,7 +151,9 @@ def run(app_path: str, input_dir: str, output_dir: str, model_path: Optional[str
     # Step 2: Install dependencies
     if not skip_install:
         with Progress(
-            SpinnerColumn(), TextColumn("[progress.description]{task.description}"), console=console
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            console=console,
         ) as progress:
             task = progress.add_task("Installing dependencies...", total=None)
 
@@ -151,7 +167,14 @@ def run(app_path: str, input_dir: str, output_dir: str, model_path: Optional[str
                     text=True,
                 )
                 subprocess.run(
-                    [str(pip_exe), "install", "--upgrade", "pip", "setuptools", "wheel"],
+                    [
+                        str(pip_exe),
+                        "install",
+                        "--upgrade",
+                        "pip",
+                        "setuptools",
+                        "wheel",
+                    ],
                     check=True,
                     capture_output=True,
                     text=True,
@@ -165,7 +188,9 @@ def run(app_path: str, input_dir: str, output_dir: str, model_path: Optional[str
             local_sdk_installed = False
             script_path = Path(__file__).resolve()
             sdk_path = script_path.parent.parent.parent.parent.parent
-            if (sdk_path / "monai" / "deploy" ).exists() and (sdk_path / "setup.py").exists():
+            if (sdk_path / "monai" / "deploy").exists() and (
+                sdk_path / "setup.py"
+            ).exists():
                 console.print(f"[dim]Found local SDK at: {sdk_path}[/dim]")
 
                 # Install local SDK first
@@ -194,18 +219,22 @@ def run(app_path: str, input_dir: str, output_dir: str, model_path: Optional[str
                         filtered_lines = []
                         for line in raw.splitlines():
                             s = line.strip()
-                            if not s or s.startswith('#'):
+                            if not s or s.startswith("#"):
                                 filtered_lines.append(line)
                                 continue
-                            if s.lower().startswith('monai-deploy-app-sdk'):
+                            if s.lower().startswith("monai-deploy-app-sdk"):
                                 continue
                             filtered_lines.append(line)
                         temp_req_path = app_path_obj / ".requirements.filtered.txt"
                         temp_req_path.write_text("\n".join(filtered_lines) + "\n")
                         req_path_to_use = temp_req_path
-                        console.print("[dim]Using filtered requirements without monai-deploy-app-sdk[/dim]")
+                        console.print(
+                            "[dim]Using filtered requirements without monai-deploy-app-sdk[/dim]"
+                        )
                     except Exception as fr:
-                        console.print(f"[yellow]Warning: Failed to filter requirements: {fr}. Proceeding with original requirements.[/yellow]")
+                        console.print(
+                            f"[yellow]Warning: Failed to filter requirements: {fr}. Proceeding with original requirements.[/yellow]"
+                        )
                         req_path_to_use = requirements_file
 
                 subprocess.run(
@@ -225,7 +254,9 @@ def run(app_path: str, input_dir: str, output_dir: str, model_path: Optional[str
                             text=True,
                         )
                     except subprocess.CalledProcessError as re:
-                        console.print(f"[yellow]Warning: Re-installing local SDK failed: {re.stderr}[/yellow]")
+                        console.print(
+                            f"[yellow]Warning: Re-installing local SDK failed: {re.stderr}[/yellow]"
+                        )
 
                 progress.update(task, description="[green]Dependencies installed")
             except subprocess.CalledProcessError as e:
@@ -236,7 +267,14 @@ def run(app_path: str, input_dir: str, output_dir: str, model_path: Optional[str
     console.print("\n[green]Starting application...[/green]\n")
 
     # Build command
-    cmd = [str(python_exe), str(app_file), "-i", str(input_dir_obj), "-o", str(output_dir_obj)]
+    cmd = [
+        str(python_exe),
+        str(app_file),
+        "-i",
+        str(input_dir_obj),
+        "-o",
+        str(output_dir_obj),
+    ]
 
     # Add model path if provided
     if model_path:
@@ -271,7 +309,9 @@ def run(app_path: str, input_dir: str, output_dir: str, model_path: Optional[str
             console.print("\n[green]✓ Application completed successfully![/green]")
             console.print(f"[green]Results saved to: {output_dir_obj}[/green]")
         else:
-            console.print(f"\n[red]✗ Application failed with exit code: {return_code}[/red]")
+            console.print(
+                f"\n[red]✗ Application failed with exit code: {return_code}[/red]"
+            )
             raise click.Abort()
 
     except KeyboardInterrupt:

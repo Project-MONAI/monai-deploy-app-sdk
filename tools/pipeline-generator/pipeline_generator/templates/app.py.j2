@@ -68,7 +68,7 @@ from monai.deploy.operators.monai_bundle_inference_operator import (
 
 class {{ app_name }}(Application):
     """MONAI Deploy application for {{ app_title }} using a MONAI Bundle.
-    
+
     {% if use_dicom %}
     This application loads a set of DICOM instances, selects the appropriate series, converts the series to
     3D volume image, performs inference with the built-in MONAI Bundle inference operator, including pre-processing
@@ -85,7 +85,7 @@ class {{ app_name }}(Application):
     {% else %}
     This application follows the pipeline structure:
     [Source/{{ 'ImageDirectoryLoader' if input_type == 'image' else 'NiftiDirectoryLoader' }}] → [Preprocessing Op] → [Inference Op] → [Postprocessing Op] → [Sink/{{ 'JSONResultsWriter' if output_type == 'json' else 'NiftiWriter' }}]
-    
+
     The MonaiBundleInferenceOperator handles preprocessing, inference, and postprocessing
     based on configurations loaded dynamically from inference.json.
     {% endif %}
@@ -104,20 +104,20 @@ class {{ app_name }}(Application):
 
     def compose(self):
         """Creates the app specific operators and chain them up in the processing DAG."""
-        
+
         self._logger.info(f"Begin {self.compose.__name__}")
-        
+
         # Use Commandline options over environment variables to init context
         app_context: AppContext = Application.init_app_context(self.argv)
         app_input_path = Path(app_context.input_path)
         app_output_path = Path(app_context.output_path)
-        
+
         # Set the bundle path from environment variable or use default
         bundle_path = os.environ.get("BUNDLE_PATH", str(Path(__file__).parent / "model"))
         bundle_path = Path(bundle_path)
         if not bundle_path.exists():
             self._logger.warning(f"Bundle path does not exist: {bundle_path}")
-        
+
         # Create operators
         {% if use_dicom %}
         # Create the custom operator(s) as well as SDK built-in operator(s)
@@ -151,7 +151,7 @@ class {{ app_name }}(Application):
             name="nifti_loader"
         )
         {% endif %}
-        
+
         {% if input_type == "custom" and output_type == "custom" %}
         # Vision-language model inference operator
         inference_op = Llama3VILAInferenceOperator(
@@ -185,7 +185,7 @@ class {{ app_name }}(Application):
             name="bundle_inference{% if use_dicom %}_op{% endif %}"
         )
         {% endif %}
-        
+
         {% if use_dicom and 'segmentation' in task.lower() %}
         # Create DICOM Seg writer providing the required segment description for each segment
         segment_descriptions = [
@@ -238,7 +238,7 @@ class {{ app_name }}(Application):
             name="nifti_writer"
         )
         {% endif %}
-        
+
         # Connect operators in the pipeline
         {% if use_dicom %}
         # Create the processing pipeline, by specifying the source and destination operators, and
@@ -248,14 +248,14 @@ class {{ app_name }}(Application):
             series_selector_op, series_to_vol_op, {("study_selected_series_list", "study_selected_series_list")}
         )
         self.add_flow(series_to_vol_op, inference_op, {("image", "image")})
-        
+
         {% if 'segmentation' in task.lower() %}
         # Note below the dicom_seg_writer requires two inputs, each coming from a source operator
         self.add_flow(
             series_selector_op, dicom_seg_writer, {("study_selected_series_list", "study_selected_series_list")}
         )
         self.add_flow(inference_op, dicom_seg_writer, {("pred", "seg_image")})
-        
+
         # Create the surface mesh STL conversion operator and add it to the app execution flow
         stl_conversion_op = STLConversionOperator(
             self, output_file=app_output_path.joinpath("stl/{{ organ|lower }}.stl"), name="stl_conversion_op"
@@ -291,7 +291,7 @@ class {{ app_name }}(Application):
         self.add_flow(loader_op, writer_op, {("filename", "filename")})
         {% endif %}
 {% endif %}
-        
+
         self._logger.info(f"End {self.compose.__name__}")
 
 
