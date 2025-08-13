@@ -11,12 +11,12 @@
 
 """Download MONAI Bundles from HuggingFace."""
 
-import logging
 import json
+import logging
 from pathlib import Path
-from typing import Optional, Dict, Any
+from typing import Any, Dict, Optional
 
-from huggingface_hub import snapshot_download, HfApi
+from huggingface_hub import HfApi, snapshot_download
 
 logger = logging.getLogger(__name__)
 
@@ -28,9 +28,7 @@ class BundleDownloader:
         """Initialize the downloader."""
         self.api = HfApi()
 
-    def download_bundle(
-        self, model_id: str, output_dir: Path, cache_dir: Optional[Path] = None
-    ) -> Path:
+    def download_bundle(self, model_id: str, output_dir: Path, cache_dir: Optional[Path] = None) -> Path:
         """Download all files from a MONAI Bundle repository.
 
         Args:
@@ -53,7 +51,6 @@ class BundleDownloader:
                 repo_id=model_id,
                 local_dir=bundle_dir,
                 cache_dir=cache_dir,
-                local_dir_use_symlinks=False,  # Copy files instead of symlinks
             )
 
             logger.info(f"Bundle downloaded to: {local_path}")
@@ -109,9 +106,7 @@ class BundleDownloader:
                         data: Dict[str, Any] = json.load(f)
                         return data
                 except Exception as e:
-                    logger.error(
-                        f"Failed to read inference config from {inference_path}: {e}"
-                    )
+                    logger.error(f"Failed to read inference config from {inference_path}: {e}")
 
         return None
 

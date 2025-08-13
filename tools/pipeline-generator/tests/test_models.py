@@ -12,6 +12,7 @@
 """Tests for ModelInfo data model."""
 
 from datetime import datetime
+
 from pipeline_generator.core.models import ModelInfo
 
 
@@ -20,9 +21,7 @@ class TestModelInfo:
 
     def test_basic_model_creation(self):
         """Test creating a basic ModelInfo object."""
-        model = ModelInfo(
-            model_id="MONAI/spleen_ct_segmentation", name="Spleen CT Segmentation"
-        )
+        model = ModelInfo(model_id="MONAI/spleen_ct_segmentation", name="Spleen CT Segmentation")
 
         assert model.model_id == "MONAI/spleen_ct_segmentation"
         assert model.name == "Spleen CT Segmentation"

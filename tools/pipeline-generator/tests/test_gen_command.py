@@ -15,7 +15,6 @@ from pathlib import Path
 from unittest.mock import Mock, patch
 
 from click.testing import CliRunner
-
 from pipeline_generator.cli.main import cli
 
 
@@ -89,9 +88,7 @@ class TestGenCommand:
         mock_generator.generate_app.return_value = tmp_path / "output"
 
         with self.runner.isolated_filesystem():
-            result = self.runner.invoke(
-                cli, ["gen", "MONAI/spleen_ct_segmentation", "--format", "nifti"]
-            )
+            result = self.runner.invoke(cli, ["gen", "MONAI/spleen_ct_segmentation", "--format", "nifti"])
 
         assert result.exit_code == 0
         assert "Format: nifti" in result.output
@@ -115,9 +112,7 @@ class TestGenCommand:
         assert "already exists" in result.output
 
     @patch("pipeline_generator.cli.main.AppGenerator")
-    def test_gen_command_existing_directory_with_force(
-        self, mock_generator_class, tmp_path
-    ):
+    def test_gen_command_existing_directory_with_force(self, mock_generator_class, tmp_path):
         """Test gen command when output directory exists with force."""
         mock_generator = Mock()
         mock_generator_class.return_value = mock_generator
@@ -129,9 +124,7 @@ class TestGenCommand:
             output_dir.mkdir()
             (output_dir / "existing_file.txt").write_text("test")
 
-            result = self.runner.invoke(
-                cli, ["gen", "MONAI/spleen_ct_segmentation", "--force"]
-            )
+            result = self.runner.invoke(cli, ["gen", "MONAI/spleen_ct_segmentation", "--force"])
 
         assert result.exit_code == 0
         assert "✓ Application generated successfully!" in result.output
@@ -141,9 +134,7 @@ class TestGenCommand:
         """Test gen command when bundle download fails."""
         mock_generator = Mock()
         mock_generator_class.return_value = mock_generator
-        mock_generator.generate_app.side_effect = RuntimeError(
-            "Failed to download bundle"
-        )
+        mock_generator.generate_app.side_effect = RuntimeError("Failed to download bundle")
 
         with self.runner.isolated_filesystem():
             result = self.runner.invoke(cli, ["gen", "MONAI/nonexistent_model"])

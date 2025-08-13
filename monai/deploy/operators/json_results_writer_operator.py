@@ -128,15 +128,11 @@ class JSONResultsWriter(Operator):
                     }
                 else:
                     # Generic classification
-                    result["probabilities"] = {
-                        f"class_{i}": float(pred_data[i]) for i in range(len(pred_data))
-                    }
+                    result["probabilities"] = {f"class_{i}": float(pred_data[i]) for i in range(len(pred_data))}
 
                 # Add predicted class
                 max_idx = int(np.argmax(pred_data))
-                result["predicted_class"] = list(result["probabilities"].keys())[
-                    max_idx
-                ]
+                result["predicted_class"] = list(result["probabilities"].keys())[max_idx]
                 result["confidence"] = float(pred_data[max_idx])
 
             elif pred_data.ndim == 2:  # 2D array (batch of predictions)
@@ -172,14 +168,13 @@ class JSONResultsWriter(Operator):
         for class_name, prob in probs.items():
             print(f"  {class_name}: {prob:.4f}")
         if "predicted_class" in result:
-            print(
-                f"  Predicted: {result['predicted_class']} (confidence: {result['confidence']:.4f})"
-            )
+            print(f"  Predicted: {result['predicted_class']} (confidence: {result['confidence']:.4f})")
 
 
 def test():
     """Test the JSONResultsWriter operator."""
     import tempfile
+
     import numpy as np
 
     with tempfile.TemporaryDirectory() as temp_dir:

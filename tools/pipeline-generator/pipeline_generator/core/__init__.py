@@ -11,7 +11,7 @@
 
 """Core functionality for Pipeline Generator."""
 
-from .models import ModelInfo
 from .hub_client import HuggingFaceClient
+from .models import ModelInfo
 
 __all__ = ["ModelInfo", "HuggingFaceClient"]

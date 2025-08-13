@@ -133,10 +133,8 @@ def run(
                 )
                 progress.update(task, description="[green]Virtual environment created")
             except subprocess.CalledProcessError as e:
-                console.print(
-                    f"[red]Error creating virtual environment: {e.stderr}[/red]"
-                )
-                raise click.Abort()
+                console.print(f"[red]Error creating virtual environment: {e.stderr}[/red]")
+                raise click.Abort() from e
     else:
         console.print(f"[dim]Using existing virtual environment: {venv_name}[/dim]")
 
@@ -181,16 +179,17 @@ def run(
                 )
             except subprocess.CalledProcessError as e:
                 console.print(
-                    f"[yellow]Warning: Failed to upgrade pip/setuptools/wheel: {e.stderr}\nContinuing with dependency installation...[/yellow]"
+                    (
+                        "[yellow]Warning: Failed to upgrade pip/setuptools/wheel: "
+                        f"{e.stderr}\nContinuing with dependency installation...[/yellow]"
+                    )
                 )
 
             # Detect local SDK checkout and install editable to expose local operators
             local_sdk_installed = False
             script_path = Path(__file__).resolve()
             sdk_path = script_path.parent.parent.parent.parent.parent
-            if (sdk_path / "monai" / "deploy").exists() and (
-                sdk_path / "setup.py"
-            ).exists():
+            if (sdk_path / "monai" / "deploy").exists() and (sdk_path / "setup.py").exists():
                 console.print(f"[dim]Found local SDK at: {sdk_path}[/dim]")
 
                 # Install local SDK first
@@ -203,9 +202,7 @@ def run(
                     )
                     local_sdk_installed = True
                 except subprocess.CalledProcessError as e:
-                    console.print(
-                        f"[yellow]Warning: Failed to install local SDK: {e.stderr}[/yellow]"
-                    )
+                    console.print(f"[yellow]Warning: Failed to install local SDK: {e.stderr}[/yellow]")
 
             # Install requirements
             try:
@@ -228,9 +225,7 @@ def run(
                         temp_req_path = app_path_obj / ".requirements.filtered.txt"
                         temp_req_path.write_text("\n".join(filtered_lines) + "\n")
                         req_path_to_use = temp_req_path
-                        console.print(
-                            "[dim]Using filtered requirements without monai-deploy-app-sdk[/dim]"
-                        )
+                        console.print("[dim]Using filtered requirements without monai-deploy-app-sdk[/dim]")
                     except Exception as fr:
                         console.print(
                             f"[yellow]Warning: Failed to filter requirements: {fr}. Proceeding with original requirements.[/yellow]"
@@ -254,14 +249,12 @@ def run(
                             text=True,
                         )
                     except subprocess.CalledProcessError as re:
-                        console.print(
-                            f"[yellow]Warning: Re-installing local SDK failed: {re.stderr}[/yellow]"
-                        )
+                        console.print(f"[yellow]Warning: Re-installing local SDK failed: {re.stderr}[/yellow]")
 
                 progress.update(task, description="[green]Dependencies installed")
             except subprocess.CalledProcessError as e:
                 console.print(f"[red]Error installing dependencies: {e.stderr}[/red]")
-                raise click.Abort()
+                raise click.Abort() from e
 
     # Step 3: Run the application
     console.print("\n[green]Starting application...[/green]\n")
@@ -309,18 +302,16 @@ def run(
             console.print("\n[green]✓ Application completed successfully![/green]")
             console.print(f"[green]Results saved to: {output_dir_obj}[/green]")
         else:
-            console.print(
-                f"\n[red]✗ Application failed with exit code: {return_code}[/red]"
-            )
-            raise click.Abort()
+            console.print(f"\n[red]✗ Application failed with exit code: {return_code}[/red]")
+            raise click.Abort() from None
 
-    except KeyboardInterrupt:
+    except KeyboardInterrupt as e:
         console.print("\n[yellow]Application interrupted by user[/yellow]")
         process.terminate()
-        raise click.Abort()
+        raise click.Abort() from e
     except Exception as e:
         console.print(f"[red]Error running application: {e}[/red]")
-        raise click.Abort()
+        raise click.Abort() from e
 
 
 if __name__ == "__main__":

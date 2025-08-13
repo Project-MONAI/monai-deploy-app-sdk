@@ -15,7 +15,6 @@ import subprocess
 from unittest.mock import Mock, patch
 
 from click.testing import CliRunner
-
 from pipeline_generator.cli.run import run
 
 
@@ -37,9 +36,7 @@ class TestRunCommand:
         # Create requirements.txt but not app.py
         (app_path / "requirements.txt").write_text("monai-deploy-app-sdk\n")
 
-        result = self.runner.invoke(
-            run, [str(app_path), "--input", str(input_dir), "--output", str(output_dir)]
-        )
+        result = self.runner.invoke(run, [str(app_path), "--input", str(input_dir), "--output", str(output_dir)])
 
         assert result.exit_code == 1
         assert "Error: app.py not found" in result.output
@@ -55,9 +52,7 @@ class TestRunCommand:
         # Create app.py but not requirements.txt
         (app_path / "app.py").write_text("print('test')")
 
-        result = self.runner.invoke(
-            run, [str(app_path), "--input", str(input_dir), "--output", str(output_dir)]
-        )
+        result = self.runner.invoke(run, [str(app_path), "--input", str(input_dir), "--output", str(output_dir)])
 
         assert result.exit_code == 1
         assert "Error: requirements.txt not found" in result.output
@@ -86,9 +81,7 @@ class TestRunCommand:
         mock_process.stdout = iter(["Processing...\n", "Complete!\n"])
         mock_popen.return_value = mock_process
 
-        result = self.runner.invoke(
-            run, [str(app_path), "--input", str(input_dir), "--output", str(output_dir)]
-        )
+        result = self.runner.invoke(run, [str(app_path), "--input", str(input_dir), "--output", str(output_dir)])
 
         assert result.exit_code == 0
         assert "Running MONAI Deploy application" in result.output
@@ -235,13 +228,9 @@ class TestRunCommand:
         (app_path / "requirements.txt").write_text("monai-deploy-app-sdk\n")
 
         # Mock subprocess for venv creation failure
-        mock_run.side_effect = subprocess.CalledProcessError(
-            1, "python", stderr="Error creating venv"
-        )
+        mock_run.side_effect = subprocess.CalledProcessError(1, "python", stderr="Error creating venv")
 
-        result = self.runner.invoke(
-            run, [str(app_path), "--input", str(input_dir), "--output", str(output_dir)]
-        )
+        result = self.runner.invoke(run, [str(app_path), "--input", str(input_dir), "--output", str(output_dir)])
 
         assert result.exit_code == 1
         assert "Error creating virtual environment" in result.output
@@ -272,9 +261,7 @@ class TestRunCommand:
         # Mock pip install
         mock_run.return_value = Mock(returncode=0)
 
-        result = self.runner.invoke(
-            run, [str(app_path), "--input", str(input_dir), "--output", str(output_dir)]
-        )
+        result = self.runner.invoke(run, [str(app_path), "--input", str(input_dir), "--output", str(output_dir)])
 
         assert result.exit_code == 0
         assert "Using existing virtual environment" in result.output
@@ -296,13 +283,9 @@ class TestRunCommand:
         (app_path / "requirements.txt").write_text("nonexistent-package\n")
 
         # Mock subprocess for pip install failure
-        mock_run.side_effect = subprocess.CalledProcessError(
-            1, "pip", stderr="Package not found"
-        )
+        mock_run.side_effect = subprocess.CalledProcessError(1, "pip", stderr="Package not found")
 
-        result = self.runner.invoke(
-            run, [str(app_path), "--input", str(input_dir), "--output", str(output_dir)]
-        )
+        result = self.runner.invoke(run, [str(app_path), "--input", str(input_dir), "--output", str(output_dir)])
 
         assert result.exit_code == 1
         assert "Error installing dependencies" in result.output

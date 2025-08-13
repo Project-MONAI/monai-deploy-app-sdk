@@ -117,9 +117,7 @@ class VLMResultsWriterOperator(Operator):
         output_type = op_input.receive("output_type")
         request_id = op_input.receive("request_id")
 
-        self._logger.info(
-            f"Writing result for request {request_id} with output type '{output_type}'"
-        )
+        self._logger.info(f"Writing result for request {request_id} with output type {output_type!r}")
 
         try:
             if output_type == "json":
@@ -133,24 +131,18 @@ class VLMResultsWriterOperator(Operator):
                 if isinstance(result, Image):
                     self._write_image_result(result, request_id)
                 else:
-                    self._logger.error(
-                        f"Expected Image object for image output, got {type(result)}"
-                    )
+                    self._logger.error(f"Expected Image object for image output, got {type(result)}")
 
             elif output_type == "image_overlay":
                 if isinstance(result, Image):
                     self._write_image_result(result, request_id, suffix="_overlay")
                 else:
-                    self._logger.error(
-                        f"Expected Image object for image_overlay output, got {type(result)}"
-                    )
+                    self._logger.error(f"Expected Image object for image_overlay output, got {type(result)}")
 
             else:
                 self._logger.warning(f"Unknown output type: {output_type}")
                 # Write as JSON fallback
-                self._write_json_result(
-                    {"result": str(result), "output_type": output_type}, request_id
-                )
+                self._write_json_result({"result": str(result), "output_type": output_type}, request_id)
 
             self._results_written += 1
             self._logger.info(f"Total results written: {self._results_written}")
@@ -171,5 +163,5 @@ class VLMResultsWriterOperator(Operator):
                         f,
                         indent=2,
                     )
-            except:
+            except Exception:
                 pass

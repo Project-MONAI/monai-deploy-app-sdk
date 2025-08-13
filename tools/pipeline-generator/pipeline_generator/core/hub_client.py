@@ -11,15 +11,14 @@
 
 """HuggingFace Hub client for fetching model information."""
 
-from typing import List, Optional, Any
 import logging
+from typing import Any, List, Optional
 
-from huggingface_hub import HfApi, model_info, list_models
+from huggingface_hub import HfApi, list_models, model_info
 from huggingface_hub.utils import HfHubHTTPError
 
-from .models import ModelInfo
 from ..config import Endpoint
-
+from .models import ModelInfo
 
 logger = logging.getLogger(__name__)
 
@@ -86,9 +85,7 @@ class HuggingFaceClient:
         for endpoint in endpoints:
             if endpoint.organization:
                 # List all models from organization
-                logger.info(
-                    f"Fetching models from organization: {endpoint.organization}"
-                )
+                logger.info(f"Fetching models from organization: {endpoint.organization}")
                 models = self.list_models_from_organization(endpoint.organization)
                 all_models.extend(models)
 

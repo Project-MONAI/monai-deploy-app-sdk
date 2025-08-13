@@ -14,11 +14,11 @@ from pathlib import Path
 from typing import List, Optional, Union
 
 import torch
-from monai.bundle import ConfigParser
-from monai.transforms import Compose
 
+from monai.bundle import ConfigParser
 from monai.deploy.core import AppContext, Fragment, Image, Operator, OperatorSpec
 from monai.deploy.utils.importutil import optional_import
+from monai.transforms import Compose
 
 # Dynamic class imports to match MONAI model loader behavior
 monai, _ = optional_import("monai")
@@ -101,10 +101,7 @@ class MonaiClassificationOperator(Operator):
         self._inference_config = parser.config
 
         # Load preprocessing - get the transforms directly
-        if (
-            "preprocessing" in parser.config
-            and "transforms" in parser.config["preprocessing"]
-        ):
+        if "preprocessing" in parser.config and "transforms" in parser.config["preprocessing"]:
             pre_transforms = parser.get_parsed_content("preprocessing#transforms")
             # Skip LoadImaged since our image is already loaded
             filtered_transforms = []
@@ -112,28 +109,19 @@ class MonaiClassificationOperator(Operator):
                 if type(t).__name__ not in ["LoadImaged", "LoadImage"]:
                     filtered_transforms.append(t)
                 else:
-                    self._logger.info(
-                        f"Skipping {type(t).__name__} transform as image is already loaded"
-                    )
+                    self._logger.info(f"Skipping {type(t).__name__} transform as image is already loaded")
             if filtered_transforms:
                 self._pre_processor = Compose(filtered_transforms)
-                self._logger.info(
-                    f"Loaded preprocessing transforms: {[type(t).__name__ for t in filtered_transforms]}"
-                )
+                self._logger.info(f"Loaded preprocessing transforms: {[type(t).__name__ for t in filtered_transforms]}")
 
         # Load model
         self._load_model(parser)
 
         # Load postprocessing - get the transforms directly
-        if (
-            "postprocessing" in parser.config
-            and "transforms" in parser.config["postprocessing"]
-        ):
+        if "postprocessing" in parser.config and "transforms" in parser.config["postprocessing"]:
             post_transforms = parser.get_parsed_content("postprocessing#transforms")
             self._post_processor = Compose(post_transforms)
-            self._logger.info(
-                f"Loaded postprocessing transforms: {[type(t).__name__ for t in post_transforms]}"
-            )
+            self._logger.info(f"Loaded postprocessing transforms: {[type(t).__name__ for t in post_transforms]}")
 
     def _load_model(self, parser: ConfigParser):
         """Load the model from the bundle."""
@@ -161,9 +149,7 @@ class MonaiClassificationOperator(Operator):
                     model_path = alt_path
                     break
             else:
-                raise FileNotFoundError(
-                    f"Model file not found. Looked in: {model_path} and alternatives"
-                )
+                raise FileNotFoundError(f"Model file not found. Looked in: {model_path} and alternatives")
 
         self._logger.info(f"Loading model weights from: {model_path}")
 
@@ -173,13 +159,9 @@ class MonaiClassificationOperator(Operator):
         # Load state dict
         # Use weights_only=True for security (requires PyTorch 1.13+)
         try:
-            state_dict = torch.load(
-                str(model_path), map_location=device, weights_only=True
-            )
+            state_dict = torch.load(str(model_path), map_location=device, weights_only=True)
         except TypeError:
-            self._logger.warning(
-                "Using torch.load without weights_only restriction - ensure model files are trusted"
-            )
+            self._logger.warning("Using torch.load without weights_only restriction - ensure model files are trusted")
             state_dict = torch.load(str(model_path), map_location=device)
 
         # Handle different state dict formats

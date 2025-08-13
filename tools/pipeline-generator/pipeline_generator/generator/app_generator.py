@@ -13,17 +13,44 @@
 
 import logging
 from pathlib import Path
-from typing import Dict, Any, Optional
+from typing import Any, Dict, Optional
+
 from jinja2 import Environment, FileSystemLoader
 
-from .bundle_downloader import BundleDownloader
 from ..config.settings import Settings, load_config
+from .bundle_downloader import BundleDownloader
 
 logger = logging.getLogger(__name__)
 
 
 class AppGenerator:
     """Generates MONAI Deploy applications from MONAI Bundles."""
+
+    @staticmethod
+    def _sanitize_for_python_identifier(name: str) -> str:
+        """Sanitize a string to be a valid Python identifier.
+
+        Args:
+            name: String to sanitize
+
+        Returns:
+            Valid Python identifier
+        """
+        # Replace invalid characters with underscores
+        sanitized = "".join(c if c.isalnum() or c == "_" else "_" for c in name)
+
+        # Remove leading/trailing underscores
+        sanitized = sanitized.strip("_")
+
+        # Ensure it doesn't start with a digit
+        if sanitized and sanitized[0].isdigit():
+            sanitized = f"_{sanitized}"
+
+        # Ensure it's not empty (all chars were invalid)
+        if not sanitized:
+            sanitized = "app"
+
+        return sanitized
 
     def __init__(self, settings: Optional[Settings] = None) -> None:
         """Initialize the generator.
@@ -40,6 +67,11 @@ class AppGenerator:
             loader=FileSystemLoader(str(template_dir)),
             trim_blocks=True,
             lstrip_blocks=True,
+            # Autoescape is intentionally disabled because we're generating
+            # Python code, YAML, and other non-HTML files. HTML escaping would
+            # break the generated code. Security is handled via input validation
+            # in generate_app() method.
+            autoescape=False,  # nosec B701
         )
 
     def generate_app(
@@ -60,6 +92,10 @@ class AppGenerator:
         Returns:
             Path to the generated application directory
         """
+        # Validate model_id to prevent code injection
+        if not model_id or not all(c.isalnum() or c in "/-_" for c in model_id):
+            raise ValueError(f"Invalid model_id: {model_id}. Only alphanumeric characters, /, -, and _ are allowed.")
+
         # Create output directory
         output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -156,11 +192,14 @@ class AppGenerator:
 
         # Determine app name
         if not app_name:
-            # Sanitize name to ensure valid Python identifier
-            sanitized_name = "".join(
-                c if c.isalnum() else "" for c in model_short_name.title()
-            )
-            app_name = f"{sanitized_name}App" if sanitized_name else "GeneratedApp"
+            # For auto-generated names, apply title case after replacing underscores
+            # This ensures "test_model" becomes "TestModel" not "Test_Model"
+            title_name = model_short_name.replace("_", " ").replace("-", " ").title().replace(" ", "")
+            sanitized_name = self._sanitize_for_python_identifier(title_name)
+            app_name = f"{sanitized_name}App"
+        else:
+            # Ensure user-provided app_name is also a valid Python identifier
+            app_name = self._sanitize_for_python_identifier(app_name)
 
         # Determine task type from metadata
         task = metadata.get("task", "segmentation").lower()
@@ -212,12 +251,8 @@ class AppGenerator:
                 resolved_channel_first = cfgs.get("channel_first", None)
 
         # Collect dependency hints from metadata.json
-        required_packages_version = (
-            metadata.get("required_packages_version", {}) if metadata else {}
-        )
-        extra_dependencies = (
-            getattr(model_config, "dependencies", []) if model_config else []
-        )
+        required_packages_version = metadata.get("required_packages_version", {}) if metadata else {}
+        extra_dependencies = getattr(model_config, "dependencies", []) if model_config else []
         if metadata and "numpy_version" in metadata:
             extra_dependencies.append(f"numpy=={metadata['numpy_version']}")
         if metadata and "pytorch_version" in metadata:
@@ -235,8 +270,7 @@ class AppGenerator:
             "use_dicom": use_dicom,
             "use_image": use_image,
             "input_type": input_type or ("dicom" if use_dicom else "nifti"),
-            "output_type": output_type
-            or ("json" if task == "classification" else "nifti"),
+            "output_type": output_type or ("json" if task == "classification" else "nifti"),
             "model_file": str(model_file) if model_file else "models/model.ts",
             "inference_config": inference_config,
             "metadata": metadata,
@@ -251,9 +285,7 @@ class AppGenerator:
             "extra_dependencies": extra_dependencies,
         }
 
-    def _detect_data_format(
-        self, inference_config: Dict[str, Any], modality: str
-    ) -> bool:
+    def _detect_data_format(self, inference_config: Dict[str, Any], modality: str) -> bool:
         """Detect whether to use DICOM or NIfTI based on inference config and modality.
 
         Args:

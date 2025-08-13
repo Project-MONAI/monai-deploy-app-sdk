@@ -116,9 +116,7 @@ class Llama3VILAInferenceOperator(Operator):
             config = AutoConfig.from_pretrained(self.model_path)
 
             # Load tokenizer
-            self.tokenizer = AutoTokenizer.from_pretrained(
-                self.model_path / "llm", use_fast=False
-            )
+            self.tokenizer = AutoTokenizer.from_pretrained(self.model_path / "llm", use_fast=False)
 
             # For LLaVA-style models, we typically need to handle image processing
             # and model loading in a specific way. For now, we'll create a simplified
@@ -156,17 +154,15 @@ class Llama3VILAInferenceOperator(Operator):
         # For now, we'll just convert to tensor
         return torch.from_numpy(image_array).float()
 
-    def _generate_response(
-        self, image_tensor: torch.Tensor, prompt: str, generation_params: Dict[str, Any]
-    ) -> str:
+    def _generate_response(self, image_tensor: torch.Tensor, prompt: str, generation_params: Dict[str, Any]) -> str:
         """Generate text response from the model."""
         if self._mock_mode:
             # Mock response based on common medical VQA patterns
             mock_responses = {
-                "what is this image showing": "This medical image shows anatomical structures with various tissue densities and contrast patterns.",
-                "summarize key findings": "Key findings include: 1) Normal anatomical structures visible, 2) No obvious pathological changes detected, 3) Image quality is adequate for assessment.",
-                "is there a focal lesion": "No focal lesion is identified in the visible field of view.",
-                "describe the image": "This appears to be a medical imaging study showing cross-sectional anatomy with good tissue contrast.",
+                "what is this image showing": "This medical image shows anatomical structures with various tissue densities and contrast patterns.",  # noqa: B950
+                "summarize key findings": "Key findings include: 1) Normal anatomical structures visible, 2) No obvious pathological changes detected, 3) Image quality is adequate for assessment.",  # noqa: B950
+                "is there a focal lesion": "No focal lesion is identified in the visible field of view.",  # noqa: B950
+                "describe the image": "This appears to be a medical imaging study showing cross-sectional anatomy with good tissue contrast.",  # noqa: B950
             }
 
             # Find best matching response
@@ -176,7 +172,7 @@ class Llama3VILAInferenceOperator(Operator):
                     return response
 
             # Default response
-            return f"Analysis of the medical image based on the prompt: '{prompt}'. [Mock response - actual model not loaded]"
+            return f"Analysis of the medical image based on the prompt: {prompt!r}. [Mock response - actual model not loaded]"
 
         # In a real implementation, you would:
         # 1. Tokenize the prompt
@@ -189,8 +185,8 @@ class Llama3VILAInferenceOperator(Operator):
         self,
         text_response: str,
         request_id: str,
-        prompt: str = None,
-        image_metadata: Dict = None,
+        prompt: Optional[str] = None,
+        image_metadata: Optional[Dict] = None,
     ) -> Dict[str, Any]:
         """Create a JSON result from the text response."""
         result = {
@@ -276,31 +272,21 @@ class Llama3VILAInferenceOperator(Operator):
         request_id = op_input.receive("request_id")
         generation_params = op_input.receive("generation_params")
 
-        self._logger.info(
-            f"Processing request {request_id} with output type '{output_type}'"
-        )
+        self._logger.info(f"Processing request {request_id} with output type {output_type!r}")
 
         try:
             # Preprocess image
             image_tensor = self._preprocess_image(image)
 
             # Generate text response
-            text_response = self._generate_response(
-                image_tensor, prompt, generation_params
-            )
+            text_response = self._generate_response(image_tensor, prompt, generation_params)
 
             # Get image metadata if available
-            image_metadata = (
-                image.metadata()
-                if hasattr(image, "metadata") and callable(image.metadata)
-                else None
-            )
+            image_metadata = image.metadata() if hasattr(image, "metadata") and callable(image.metadata) else None
 
             # Create result based on output type
             if output_type == "json":
-                result = self._create_json_result(
-                    text_response, request_id, prompt, image_metadata
-                )
+                result = self._create_json_result(text_response, request_id, prompt, image_metadata)
             elif output_type == "image":
                 # For now, just return the original image
                 # In future, this could generate new images
@@ -308,12 +294,8 @@ class Llama3VILAInferenceOperator(Operator):
             elif output_type == "image_overlay":
                 result = self._create_image_overlay(image, text_response)
             else:
-                self._logger.warning(
-                    f"Unknown output type: {output_type}, defaulting to json"
-                )
-                result = self._create_json_result(
-                    text_response, request_id, prompt, image_metadata
-                )
+                self._logger.warning(f"Unknown output type: {output_type}, defaulting to json")
+                result = self._create_json_result(text_response, request_id, prompt, image_metadata)
 
             # Emit outputs
             op_output.emit(result, "result")
@@ -335,3 +317,4 @@ class Llama3VILAInferenceOperator(Operator):
             op_output.emit(error_result, "result")
             op_output.emit(output_type, "output_type")
             op_output.emit(request_id, "request_id")
+            raise e from None

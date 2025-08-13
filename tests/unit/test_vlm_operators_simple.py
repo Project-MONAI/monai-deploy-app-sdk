@@ -25,9 +25,7 @@ class TestVLMOperatorsBasic(unittest.TestCase):
         # Test YAML structure
         prompts_data = {
             "defaults": {"max_new_tokens": 256, "temperature": 0.2, "top_p": 0.9},
-            "prompts": [
-                {"prompt": "Test prompt", "image": "test.jpg", "output": "json"}
-            ],
+            "prompts": [{"prompt": "Test prompt", "image": "test.jpg", "output": "json"}],
         }
 
         # Verify structure
@@ -106,9 +104,7 @@ class TestVLMOperatorsBasic(unittest.TestCase):
         """Test merging of default and prompt-specific generation parameters."""
         defaults = {"max_new_tokens": 256, "temperature": 0.2, "top_p": 0.9}
 
-        prompt_params = {
-            "max_new_tokens": 128  # Override
-        }
+        prompt_params = {"max_new_tokens": 128}  # Override
 
         # Merge logic
         gen_params = defaults.copy()

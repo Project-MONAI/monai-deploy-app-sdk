@@ -13,17 +13,17 @@
 
 import logging
 from pathlib import Path
-from typing import Optional, List, Set
+from typing import List, Optional, Set
+
 import click
 from rich.console import Console
-from rich.table import Table
 from rich.logging import RichHandler
+from rich.table import Table
 
 from ..config import load_config
 from ..core import HuggingFaceClient, ModelInfo
 from ..generator import AppGenerator
 from .run import run as run_command
-
 
 # Set up logging with Rich
 logging.basicConfig(
@@ -38,9 +38,7 @@ console = Console()
 
 @click.group()
 @click.version_option()
-@click.option(
-    "--config", "-c", type=click.Path(exists=True), help="Path to configuration file"
-)
+@click.option("--config", "-c", type=click.Path(exists=True), help="Path to configuration file")
 @click.pass_context
 def cli(ctx: click.Context, config: Optional[str]) -> None:
     """Pipeline Generator - Generate MONAI Deploy and Holoscan pipelines from MONAI Bundles."""
@@ -67,9 +65,7 @@ def cli(ctx: click.Context, config: Optional[str]) -> None:
 @click.option("--bundles-only", "-b", is_flag=True, help="Show only MONAI Bundles")
 @click.option("--tested-only", "-t", is_flag=True, help="Show only tested models")
 @click.pass_context
-def list(
-    ctx: click.Context, format: str, bundles_only: bool, tested_only: bool
-) -> None:
+def list(ctx: click.Context, format: str, bundles_only: bool, tested_only: bool) -> None:
     """List available models from configured endpoints.
 
     Args:
@@ -176,21 +172,15 @@ def gen(
     # Check if output directory exists
     if output_path.exists() and not force:
         if any(output_path.iterdir()):  # Directory is not empty
-            console.print(
-                f"[red]Error: Output directory '{output_path}' already exists and is not empty.[/red]"
-            )
-            console.print(
-                "Use --force to overwrite or choose a different output directory."
-            )
+            console.print(f"[red]Error: Output directory '{output_path!r}' already exists and is not empty.[/red]")
+            console.print("Use --force to overwrite or choose a different output directory.")
             raise click.Abort()
 
     # Create generator with settings from context
     settings = ctx.obj.get("settings") if ctx.obj else None
     generator = AppGenerator(settings=settings)
 
-    console.print(
-        f"[blue]Generating MONAI Deploy application for model: {model_id}[/blue]"
-    )
+    console.print(f"[blue]Generating MONAI Deploy application for model: {model_id}[/blue]")
     console.print(f"[blue]Output directory: {output_path}[/blue]")
     console.print(f"[blue]Format: {format}[/blue]")
 
@@ -214,13 +204,9 @@ def gen(
 
         console.print("\n[bold]Next steps:[/bold]")
         console.print("\n[green]Option 1: Run with uv (recommended)[/green]")
-        console.print(
-            f"   [cyan]uv run pg run {output_path} --input /path/to/input --output /path/to/output[/cyan]"
-        )
+        console.print(f"   [cyan]uv run pg run {output_path} --input /path/to/input --output /path/to/output[/cyan]")
         console.print("\n[green]Option 2: Run with pg directly[/green]")
-        console.print(
-            f"   [cyan]pg run {output_path} --input /path/to/input --output /path/to/output[/cyan]"
-        )
+        console.print(f"   [cyan]pg run {output_path} --input /path/to/input --output /path/to/output[/cyan]")
         console.print("\n[dim]Option 3: Run manually[/dim]")
         console.print("   1. Navigate to the application directory:")
         console.print(f"      [cyan]cd {output_path}[/cyan]")
@@ -231,14 +217,12 @@ def gen(
         console.print("   3. Install dependencies:")
         console.print("      [cyan]pip install -r requirements.txt[/cyan]")
         console.print("   4. Run the application:")
-        console.print(
-            "      [cyan]python app.py -i /path/to/input -o /path/to/output[/cyan]"
-        )
+        console.print("      [cyan]python app.py -i /path/to/input -o /path/to/output[/cyan]")
 
     except Exception as e:
         console.print(f"[red]Error generating application: {e}[/red]")
         logger.exception("Generation failed")
-        raise click.Abort()
+        raise click.Abort() from e
 
 
 def _display_table(models: List[ModelInfo], tested_models: Set[str]) -> None:
@@ -248,9 +232,7 @@ def _display_table(models: List[ModelInfo], tested_models: Set[str]) -> None:
         models: List of ModelInfo objects to display
         tested_models: Set of tested model IDs
     """
-    table = Table(
-        title="Available Models", show_header=True, header_style="bold magenta"
-    )
+    table = Table(title="Available Models", show_header=True, header_style="bold magenta")
     table.add_column("Model ID", style="cyan", width=40)
     table.add_column("Name", style="white")
     table.add_column("Type", style="green")
@@ -260,11 +242,7 @@ def _display_table(models: List[ModelInfo], tested_models: Set[str]) -> None:
 
     for model in models:
         model_type = "[green]MONAI Bundle[/green]" if model.is_monai_bundle else "Model"
-        status = (
-            "[bold green]✓ Verified[/bold green]"
-            if model.model_id in tested_models
-            else ""
-        )
+        status = "[bold green]✓ Verified[/bold green]" if model.model_id in tested_models else ""
         table.add_row(
             model.model_id,
             model.display_name,
@@ -291,9 +269,7 @@ def _display_simple(models: List[ModelInfo], tested_models: Set[str]) -> None:
     for model in models:
         bundle_marker = "📦" if model.is_monai_bundle else "📄"
         tested_marker = " ✓" if model.model_id in tested_models else ""
-        console.print(
-            f"{bundle_marker} {model.model_id} - {model.display_name}{tested_marker}"
-        )
+        console.print(f"{bundle_marker} {model.model_id} - {model.display_name}{tested_marker}")
 
 
 def _display_json(models: List[ModelInfo], tested_models: Set[str]) -> None:

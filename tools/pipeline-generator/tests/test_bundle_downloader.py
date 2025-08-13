@@ -15,7 +15,6 @@ import json
 from unittest.mock import patch
 
 import pytest
-
 from pipeline_generator.generator.bundle_downloader import BundleDownloader
 
 
@@ -35,16 +34,13 @@ class TestBundleDownloader:
         # Mock successful download
         mock_snapshot_download.return_value = str(output_dir / "model")
 
-        result = self.downloader.download_bundle(
-            "MONAI/spleen_ct_segmentation", output_dir, cache_dir
-        )
+        result = self.downloader.download_bundle("MONAI/spleen_ct_segmentation", output_dir, cache_dir)
 
         assert result == output_dir / "model"
         mock_snapshot_download.assert_called_once_with(
             repo_id="MONAI/spleen_ct_segmentation",
             local_dir=output_dir / "model",
             cache_dir=cache_dir,
-            local_dir_use_symlinks=False,
         )
 
     @patch("pipeline_generator.generator.bundle_downloader.snapshot_download")
@@ -125,12 +121,8 @@ class TestBundleDownloader:
 
         # Create inference.json
         inference_config = {
-            "preprocessing": {
-                "transforms": [{"name": "LoadImaged"}, {"name": "EnsureChannelFirstd"}]
-            },
-            "postprocessing": {
-                "transforms": [{"name": "Activationsd", "sigmoid": True}]
-            },
+            "preprocessing": {"transforms": [{"name": "LoadImaged"}, {"name": "EnsureChannelFirstd"}]},
+            "postprocessing": {"transforms": [{"name": "Activationsd", "sigmoid": True}]},
         }
         inference_file = configs_dir / "inference.json"
         inference_file.write_text(json.dumps(inference_config))

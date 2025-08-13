@@ -11,8 +11,9 @@
 
 """Tests for CLI commands."""
 
-from click.testing import CliRunner
 from unittest.mock import Mock, patch
+
+from click.testing import CliRunner
 from pipeline_generator.cli.main import cli
 from pipeline_generator.core.models import ModelInfo
 
@@ -123,9 +124,7 @@ class TestCLI:
         mock_client = Mock()
         mock_client_class.return_value = mock_client
 
-        test_models = [
-            ModelInfo(model_id="MONAI/test", name="Test", is_monai_bundle=True)
-        ]
+        test_models = [ModelInfo(model_id="MONAI/test", name="Test", is_monai_bundle=True)]
         mock_client.list_models_from_endpoints.return_value = test_models
 
         # Run command with simple format
@@ -139,23 +138,21 @@ class TestCLI:
         with self.runner.isolated_filesystem():
             # Create a test config file
             with open("test_config.yaml", "w") as f:
-                f.write("""
+                f.write(
+                    """
 endpoints:
   - organization: "TestOrg"
     description: "Test organization"
-""")
+"""
+                )
 
             # Run command with config file
-            with patch(
-                "pipeline_generator.cli.main.HuggingFaceClient"
-            ) as mock_client_class:
+            with patch("pipeline_generator.cli.main.HuggingFaceClient") as mock_client_class:
                 mock_client = Mock()
                 mock_client_class.return_value = mock_client
                 mock_client.list_models_from_endpoints.return_value = []
 
-                result = self.runner.invoke(
-                    cli, ["--config", "test_config.yaml", "list"]
-                )
+                result = self.runner.invoke(cli, ["--config", "test_config.yaml", "list"])
 
                 assert result.exit_code == 0
 
@@ -248,9 +245,7 @@ endpoints:
 
         # Mock the list response
         test_models = [
-            ModelInfo(
-                model_id="MONAI/tested_model", name="Tested Model", is_monai_bundle=True
-            ),
+            ModelInfo(model_id="MONAI/tested_model", name="Tested Model", is_monai_bundle=True),
             ModelInfo(
                 model_id="MONAI/untested_model",
                 name="Untested Model",

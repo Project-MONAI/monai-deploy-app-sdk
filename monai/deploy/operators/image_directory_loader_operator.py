@@ -142,6 +142,7 @@ class ImageDirectoryLoader(Operator):
 def test():
     """Test the ImageDirectoryLoader operator."""
     import tempfile
+
     from PIL import Image as PILImageCreate
 
     # Create a temporary directory with test images

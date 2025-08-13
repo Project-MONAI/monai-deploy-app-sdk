@@ -12,7 +12,7 @@
 """Data models for Pipeline Generator."""
 
 from datetime import datetime
-from typing import List, Optional, Dict, Any
+from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, Field
 
@@ -20,9 +20,7 @@ from pydantic import BaseModel, Field
 class ModelInfo(BaseModel):
     """Model information from HuggingFace."""
 
-    model_id: str = Field(
-        ..., description="Model ID (e.g., 'MONAI/spleen_ct_segmentation')"
-    )
+    model_id: str = Field(..., description="Model ID (e.g., 'MONAI/spleen_ct_segmentation')")
     name: str = Field(..., description="Model name")
     author: Optional[str] = Field(None, description="Model author/organization")
     description: Optional[str] = Field(None, description="Model description")
@@ -32,9 +30,7 @@ class ModelInfo(BaseModel):
     updated_at: Optional[datetime] = Field(None, description="Last update date")
     tags: List[str] = Field(default_factory=list, description="Model tags")
     is_monai_bundle: bool = Field(False, description="Whether this is a MONAI Bundle")
-    bundle_metadata: Optional[Dict[str, Any]] = Field(
-        None, description="MONAI Bundle metadata if available"
-    )
+    bundle_metadata: Optional[Dict[str, Any]] = Field(None, description="MONAI Bundle metadata if available")
 
     @property
     def display_name(self) -> str:

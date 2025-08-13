@@ -50,7 +50,10 @@ class TestVLMGeneration:
 
         # Set up template environment
         template_dir = Path(__file__).parent.parent / "pipeline_generator" / "templates"
-        env = Environment(loader=FileSystemLoader(str(template_dir)))
+        env = Environment(
+            loader=FileSystemLoader(str(template_dir)),
+            autoescape=False,
+        )
 
         # Render template with VLM config
         template = env.get_template("app.py.j2")
@@ -99,7 +102,10 @@ class TestVLMGeneration:
         from jinja2 import Environment, FileSystemLoader
 
         template_dir = Path(__file__).parent.parent / "pipeline_generator" / "templates"
-        env = Environment(loader=FileSystemLoader(str(template_dir)))
+        env = Environment(
+            loader=FileSystemLoader(str(template_dir)),
+            autoescape=False,
+        )
 
         template = env.get_template("requirements.txt.j2")
 
@@ -121,7 +127,10 @@ class TestVLMGeneration:
         from jinja2 import Environment, FileSystemLoader
 
         template_dir = Path(__file__).parent.parent / "pipeline_generator" / "templates"
-        env = Environment(loader=FileSystemLoader(str(template_dir)))
+        env = Environment(
+            loader=FileSystemLoader(str(template_dir)),
+            autoescape=False,
+        )
 
         template = env.get_template("README.md.j2")
 
@@ -145,8 +154,9 @@ class TestVLMGeneration:
     @patch("pipeline_generator.core.hub_client.list_models")
     def test_vlm_model_listing(self, mock_list_models):
         """Test that VLM models appear correctly in listings."""
-        from pipeline_generator.core.hub_client import HuggingFaceClient
         from types import SimpleNamespace
+
+        from pipeline_generator.core.hub_client import HuggingFaceClient
 
         # Mock the list_models response
         mock_model = SimpleNamespace(

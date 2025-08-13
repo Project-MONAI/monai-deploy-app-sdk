@@ -85,9 +85,7 @@ class PromptsLoaderOperator(Operator):
         self._current_index = 0
 
         if not self._prompts_data:
-            self._logger.warning(
-                f"No prompts found in {self._input_folder}/prompts.yaml"
-            )
+            self._logger.warning(f"No prompts found in {self._input_folder}/prompts.yaml")
         else:
             self._logger.info(f"Found {len(self._prompts_data)} prompts to process")
 

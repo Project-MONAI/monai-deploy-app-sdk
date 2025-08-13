@@ -76,7 +76,7 @@ class NiftiWriter(Operator):
         filename = None
         try:
             filename = op_input.receive(self.input_name_filename)
-        except:
+        except Exception:
             pass
 
         if image is None:
@@ -84,16 +84,10 @@ class NiftiWriter(Operator):
 
         # Get the image array
         if isinstance(image, Image):
-            image_array = (
-                image.asnumpy() if hasattr(image, "asnumpy") else np.array(image)
-            )
+            image_array = image.asnumpy() if hasattr(image, "asnumpy") else np.array(image)
             # Try to get metadata
             metadata = (
-                image.metadata()
-                if callable(image.metadata)
-                else image.metadata
-                if hasattr(image, "metadata")
-                else {}
+                image.metadata() if callable(image.metadata) else image.metadata if hasattr(image, "metadata") else {}
             )
         else:
             image_array = np.array(image)

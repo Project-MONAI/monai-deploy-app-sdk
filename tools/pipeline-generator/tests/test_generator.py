@@ -11,11 +11,11 @@
 
 """Tests for the app generator."""
 
-import pytest
+import tempfile
 from pathlib import Path
 from unittest.mock import patch
-import tempfile
 
+import pytest
 from pipeline_generator.generator import AppGenerator, BundleDownloader
 
 
@@ -97,9 +97,7 @@ class TestAppGenerator:
         assert generator._extract_organ_name("kidney_segmentation", {}) == "Kidney"
 
         # Test with metadata
-        assert (
-            generator._extract_organ_name("test_model", {"organ": "Heart"}) == "Heart"
-        )
+        assert generator._extract_organ_name("test_model", {"organ": "Heart"}) == "Heart"
 
         # Test default
         assert generator._extract_organ_name("unknown_model", {}) == "Organ"
@@ -134,9 +132,7 @@ class TestAppGenerator:
     @patch.object(BundleDownloader, "get_bundle_metadata")
     @patch.object(BundleDownloader, "get_inference_config")
     @patch.object(BundleDownloader, "detect_model_file")
-    def test_generate_app(
-        self, mock_detect_model, mock_get_inference, mock_get_metadata, mock_download
-    ):
+    def test_generate_app(self, mock_detect_model, mock_get_inference, mock_get_metadata, mock_download):
         """Test full app generation."""
         generator = AppGenerator()
 
@@ -191,31 +187,17 @@ class TestAppGenerator:
             with patch.object(generator.downloader, "download_bundle") as mock_download:
                 mock_download.return_value = bundle_path
 
-                with patch.object(
-                    generator.downloader, "get_bundle_metadata"
-                ) as mock_meta:
-                    with patch.object(
-                        generator.downloader, "get_inference_config"
-                    ) as mock_inf:
-                        with patch.object(
-                            generator.downloader, "detect_model_file"
-                        ) as mock_detect:
+                with patch.object(generator.downloader, "get_bundle_metadata") as mock_meta:
+                    with patch.object(generator.downloader, "get_inference_config") as mock_inf:
+                        with patch.object(generator.downloader, "detect_model_file") as mock_detect:
                             mock_meta.return_value = None  # No metadata
                             mock_inf.return_value = {}
                             mock_detect.return_value = None
 
-                            with patch.object(
-                                generator, "_prepare_context"
-                            ) as mock_prepare:
-                                with patch.object(
-                                    generator, "_generate_app_py"
-                                ) as mock_app_py:
-                                    with patch.object(
-                                        generator, "_generate_app_yaml"
-                                    ) as mock_yaml:
-                                        with patch.object(
-                                            generator, "_copy_additional_files"
-                                        ) as mock_copy:
+                            with patch.object(generator, "_prepare_context") as mock_prepare:
+                                with patch.object(generator, "_generate_app_py") as mock_app_py:
+                                    with patch.object(generator, "_generate_app_yaml") as mock_yaml:
+                                        with patch.object(generator, "_copy_additional_files") as mock_copy:
                                             # Return a valid context
                                             mock_prepare.return_value = {
                                                 "model_id": "MONAI/test_model",
@@ -250,39 +232,23 @@ class TestAppGenerator:
             bundle_path.mkdir()
 
             # Create inference config with output_postfix
-            inference_config = {
-                "output_postfix": "_prediction"  # String value, not @variable
-            }
+            inference_config = {"output_postfix": "_prediction"}  # String value, not @variable
 
             metadata = {"name": "Test Model"}
 
             with patch.object(generator.downloader, "download_bundle") as mock_download:
                 mock_download.return_value = bundle_path
 
-                with patch.object(
-                    generator.downloader, "get_bundle_metadata"
-                ) as mock_meta:
-                    with patch.object(
-                        generator.downloader, "get_inference_config"
-                    ) as mock_inf:
-                        with patch.object(
-                            generator.downloader, "detect_model_file"
-                        ) as mock_detect:
+                with patch.object(generator.downloader, "get_bundle_metadata") as mock_meta:
+                    with patch.object(generator.downloader, "get_inference_config") as mock_inf:
+                        with patch.object(generator.downloader, "detect_model_file") as mock_detect:
                             mock_meta.return_value = metadata
-                            mock_inf.return_value = (
-                                inference_config  # This triggers lines 194-196
-                            )
+                            mock_inf.return_value = inference_config  # This triggers lines 194-196
                             mock_detect.return_value = None
 
-                            with patch.object(
-                                generator, "_generate_app_py"
-                            ) as mock_app_py:
-                                with patch.object(
-                                    generator, "_generate_app_yaml"
-                                ) as mock_yaml:
-                                    with patch.object(
-                                        generator, "_copy_additional_files"
-                                    ) as mock_copy:
+                            with patch.object(generator, "_generate_app_py") as mock_app_py:
+                                with patch.object(generator, "_generate_app_yaml") as mock_yaml:
+                                    with patch.object(generator, "_copy_additional_files") as mock_copy:
                                         result = generator.generate_app(
                                             "MONAI/test_model",
                                             output_dir,
@@ -291,9 +257,7 @@ class TestAppGenerator:
 
                                         # Verify the output_postfix was extracted
                                         call_args = mock_app_py.call_args[0][1]
-                                        assert (
-                                            call_args["output_postfix"] == "_prediction"
-                                        )
+                                        assert call_args["output_postfix"] == "_prediction"
 
     def test_model_config_with_channel_first_override(self):
         """Test model config with channel_first override in configs list."""
@@ -320,38 +284,22 @@ class TestAppGenerator:
             )
 
             # Mock settings.get_model_config using patch
-            with patch(
-                "pipeline_generator.generator.app_generator.Settings.get_model_config"
-            ) as mock_get_config:
+            with patch("pipeline_generator.generator.app_generator.Settings.get_model_config") as mock_get_config:
                 mock_get_config.return_value = model_config
 
-                with patch.object(
-                    generator.downloader, "download_bundle"
-                ) as mock_download:
+                with patch.object(generator.downloader, "download_bundle") as mock_download:
                     mock_download.return_value = bundle_path
 
-                    with patch.object(
-                        generator.downloader, "get_bundle_metadata"
-                    ) as mock_meta:
-                        with patch.object(
-                            generator.downloader, "get_inference_config"
-                        ) as mock_inf:
-                            with patch.object(
-                                generator.downloader, "detect_model_file"
-                            ) as mock_detect:
+                    with patch.object(generator.downloader, "get_bundle_metadata") as mock_meta:
+                        with patch.object(generator.downloader, "get_inference_config") as mock_inf:
+                            with patch.object(generator.downloader, "detect_model_file") as mock_detect:
                                 mock_meta.return_value = {"name": "Test"}
                                 mock_inf.return_value = {}
                                 mock_detect.return_value = None
 
-                                with patch.object(
-                                    generator, "_generate_app_py"
-                                ) as mock_app_py:
-                                    with patch.object(
-                                        generator, "_generate_app_yaml"
-                                    ) as mock_yaml:
-                                        with patch.object(
-                                            generator, "_copy_additional_files"
-                                        ) as mock_copy:
+                                with patch.object(generator, "_generate_app_py") as mock_app_py:
+                                    with patch.object(generator, "_generate_app_yaml") as mock_yaml:
+                                        with patch.object(generator, "_copy_additional_files") as mock_copy:
                                             generator.generate_app(
                                                 "MONAI/test_model",
                                                 output_dir,
@@ -360,10 +308,7 @@ class TestAppGenerator:
 
                                             # This covers lines 201-210
                                             call_args = mock_app_py.call_args[0][1]
-                                            assert (
-                                                call_args["channel_first_override"]
-                                                is False
-                                            )
+                                            assert call_args["channel_first_override"] is False
 
     def test_metadata_with_numpy_pytorch_versions(self):
         """Test metadata with numpy_version and pytorch_version."""
@@ -386,30 +331,16 @@ class TestAppGenerator:
             with patch.object(generator.downloader, "download_bundle") as mock_download:
                 mock_download.return_value = bundle_path
 
-                with patch.object(
-                    generator.downloader, "get_bundle_metadata"
-                ) as mock_meta:
-                    with patch.object(
-                        generator.downloader, "get_inference_config"
-                    ) as mock_inf:
-                        with patch.object(
-                            generator.downloader, "detect_model_file"
-                        ) as mock_detect:
-                            mock_meta.return_value = (
-                                metadata  # This triggers lines 216, 218
-                            )
+                with patch.object(generator.downloader, "get_bundle_metadata") as mock_meta:
+                    with patch.object(generator.downloader, "get_inference_config") as mock_inf:
+                        with patch.object(generator.downloader, "detect_model_file") as mock_detect:
+                            mock_meta.return_value = metadata  # This triggers lines 216, 218
                             mock_inf.return_value = {}
                             mock_detect.return_value = None
 
-                            with patch.object(
-                                generator, "_generate_app_py"
-                            ) as mock_app_py:
-                                with patch.object(
-                                    generator, "_generate_app_yaml"
-                                ) as mock_yaml:
-                                    with patch.object(
-                                        generator, "_copy_additional_files"
-                                    ) as mock_copy:
+                            with patch.object(generator, "_generate_app_py") as mock_app_py:
+                                with patch.object(generator, "_generate_app_yaml") as mock_yaml:
+                                    with patch.object(generator, "_copy_additional_files") as mock_copy:
                                         generator.generate_app(
                                             "MONAI/test_model",
                                             output_dir,
@@ -418,14 +349,8 @@ class TestAppGenerator:
 
                                         # Verify dependencies were added
                                         call_args = mock_copy.call_args[0][1]
-                                        assert (
-                                            "numpy==1.21.0"
-                                            in call_args["extra_dependencies"]
-                                        )
-                                        assert (
-                                            "torch==2.0.0"
-                                            in call_args["extra_dependencies"]
-                                        )
+                                        assert "numpy==1.21.0" in call_args["extra_dependencies"]
+                                        assert "torch==2.0.0" in call_args["extra_dependencies"]
 
     def test_inference_config_with_loadimage_transform(self):
         """Test _detect_data_format with LoadImaged transform."""
@@ -462,10 +387,7 @@ class TestAppGenerator:
         generator = AppGenerator()
 
         # Test LLM detection - covers line 323
-        assert (
-            generator._detect_model_type("MONAI/Llama3-VILA-M3-3B", {})
-            == "multimodal_llm"
-        )
+        assert generator._detect_model_type("MONAI/Llama3-VILA-M3-3B", {}) == "multimodal_llm"
         assert generator._detect_model_type("MONAI/vila_model", {}) == "multimodal_llm"
 
     def test_detect_model_type_multimodal(self):
@@ -478,14 +400,10 @@ class TestAppGenerator:
 
         # Test multimodal detection by metadata - covers line 335
         metadata = {"task": "medical chat"}
-        assert (
-            generator._detect_model_type("MONAI/some_model", metadata) == "multimodal"
-        )
+        assert generator._detect_model_type("MONAI/some_model", metadata) == "multimodal"
 
         metadata = {"task": "visual qa"}
-        assert (
-            generator._detect_model_type("MONAI/some_model", metadata) == "multimodal"
-        )
+        assert generator._detect_model_type("MONAI/some_model", metadata) == "multimodal"
 
     def test_model_config_with_dict_configs(self):
         """Test model config with configs as dict instead of list."""
@@ -509,38 +427,22 @@ class TestAppGenerator:
             )
 
             # Mock settings.get_model_config using patch
-            with patch(
-                "pipeline_generator.generator.app_generator.Settings.get_model_config"
-            ) as mock_get_config:
+            with patch("pipeline_generator.generator.app_generator.Settings.get_model_config") as mock_get_config:
                 mock_get_config.return_value = model_config
 
-                with patch.object(
-                    generator.downloader, "download_bundle"
-                ) as mock_download:
+                with patch.object(generator.downloader, "download_bundle") as mock_download:
                     mock_download.return_value = bundle_path
 
-                    with patch.object(
-                        generator.downloader, "get_bundle_metadata"
-                    ) as mock_meta:
-                        with patch.object(
-                            generator.downloader, "get_inference_config"
-                        ) as mock_inf:
-                            with patch.object(
-                                generator.downloader, "detect_model_file"
-                            ) as mock_detect:
+                    with patch.object(generator.downloader, "get_bundle_metadata") as mock_meta:
+                        with patch.object(generator.downloader, "get_inference_config") as mock_inf:
+                            with patch.object(generator.downloader, "detect_model_file") as mock_detect:
                                 mock_meta.return_value = {"name": "Test"}
                                 mock_inf.return_value = {}
                                 mock_detect.return_value = None
 
-                                with patch.object(
-                                    generator, "_generate_app_py"
-                                ) as mock_app_py:
-                                    with patch.object(
-                                        generator, "_generate_app_yaml"
-                                    ) as mock_yaml:
-                                        with patch.object(
-                                            generator, "_copy_additional_files"
-                                        ) as mock_copy:
+                                with patch.object(generator, "_generate_app_py") as mock_app_py:
+                                    with patch.object(generator, "_generate_app_yaml") as mock_yaml:
+                                        with patch.object(generator, "_copy_additional_files") as mock_copy:
                                             generator.generate_app(
                                                 "MONAI/test_model",
                                                 output_dir,
@@ -548,10 +450,7 @@ class TestAppGenerator:
                                             )
 
                                             call_args = mock_app_py.call_args[0][1]
-                                            assert (
-                                                call_args["channel_first_override"]
-                                                is True
-                                            )
+                                            assert call_args["channel_first_override"] is True
 
     def test_get_default_metadata(self):
         """Test _get_default_metadata method directly."""
@@ -570,9 +469,7 @@ class TestAppGenerator:
     @patch.object(BundleDownloader, "get_bundle_metadata")
     @patch.object(BundleDownloader, "get_inference_config")
     @patch.object(BundleDownloader, "detect_model_file")
-    def test_nifti_segmentation_imports(
-        self, mock_detect_model, mock_get_inference, mock_get_metadata, mock_download
-    ):
+    def test_nifti_segmentation_imports(self, mock_detect_model, mock_get_inference, mock_get_metadata, mock_download):
         """Test that NIfTI segmentation apps have required imports."""
         generator = AppGenerator()
 
@@ -617,23 +514,14 @@ class TestAppGenerator:
             assert (
                 "from monai.deploy.core.io_type import IOType" in app_content
             ), "IOType import missing - required for MonaiBundleInferenceOperator"
-            assert (
-                "IOMapping" in app_content
-            ), "IOMapping import missing - required for MonaiBundleInferenceOperator"
+            assert "IOMapping" in app_content, "IOMapping import missing - required for MonaiBundleInferenceOperator"
 
             # Check operator imports
             assert (
-                "from monai.deploy.operators.nifti_directory_loader_operator import NiftiDirectoryLoader"
-                in app_content
+                "from monai.deploy.operators.nifti_directory_loader_operator import NiftiDirectoryLoader" in app_content
             )
-            assert (
-                "from monai.deploy.operators.nifti_writer_operator import NiftiWriter"
-                in app_content
-            )
-            assert (
-                "from monai.deploy.operators.monai_bundle_inference_operator import"
-                in app_content
-            )
+            assert "from monai.deploy.operators.nifti_writer_operator import NiftiWriter" in app_content
+            assert "from monai.deploy.operators.monai_bundle_inference_operator import" in app_content
 
     @patch.object(BundleDownloader, "download_bundle")
     @patch.object(BundleDownloader, "get_bundle_metadata")
@@ -681,22 +569,14 @@ class TestAppGenerator:
             app_content = app_file.read_text()
 
             # Check critical imports
-            assert (
-                "from monai.deploy.core.domain import Image" in app_content
-            ), "Image import missing"
-            assert (
-                "from monai.deploy.core.io_type import IOType" in app_content
-            ), "IOType import missing"
+            assert "from monai.deploy.core.domain import Image" in app_content, "Image import missing"
+            assert "from monai.deploy.core.io_type import IOType" in app_content, "IOType import missing"
 
             # Check operator imports
             assert (
-                "from monai.deploy.operators.image_directory_loader_operator import ImageDirectoryLoader"
-                in app_content
+                "from monai.deploy.operators.image_directory_loader_operator import ImageDirectoryLoader" in app_content
             )
-            assert (
-                "from monai.deploy.operators.json_results_writer_operator import JSONResultsWriter"
-                in app_content
-            )
+            assert "from monai.deploy.operators.json_results_writer_operator import JSONResultsWriter" in app_content
             assert (
                 "from monai.deploy.operators.monai_classification_operator import MonaiClassificationOperator"
                 in app_content
@@ -706,9 +586,7 @@ class TestAppGenerator:
     @patch.object(BundleDownloader, "get_bundle_metadata")
     @patch.object(BundleDownloader, "get_inference_config")
     @patch.object(BundleDownloader, "detect_model_file")
-    def test_dicom_segmentation_imports(
-        self, mock_detect_model, mock_get_inference, mock_get_metadata, mock_download
-    ):
+    def test_dicom_segmentation_imports(self, mock_detect_model, mock_get_inference, mock_get_metadata, mock_download):
         """Test that DICOM segmentation apps have required imports."""
         generator = AppGenerator()
 
@@ -739,9 +617,7 @@ class TestAppGenerator:
             mock_detect_model.return_value = model_file
 
             # Generate app with DICOM format
-            generator.generate_app(
-                "MONAI/spleen_ct_segmentation", output_dir, data_format="dicom"
-            )
+            generator.generate_app("MONAI/spleen_ct_segmentation", output_dir, data_format="dicom")
 
             # Read generated app.py
             app_file = output_dir / "app.py"
@@ -760,17 +636,13 @@ class TestAppGenerator:
             assert "from pydicom.sr.codedict import codes" in app_content
             assert "from monai.deploy.conditions import CountCondition" in app_content
             assert (
-                "from monai.deploy.operators.dicom_data_loader_operator import DICOMDataLoaderOperator"
-                in app_content
+                "from monai.deploy.operators.dicom_data_loader_operator import DICOMDataLoaderOperator" in app_content
             )
             assert (
                 "from monai.deploy.operators.dicom_seg_writer_operator import DICOMSegmentationWriterOperator"
                 in app_content
             )
-            assert (
-                "from monai.deploy.operators.stl_conversion_operator import STLConversionOperator"
-                in app_content
-            )
+            assert "from monai.deploy.operators.stl_conversion_operator import STLConversionOperator" in app_content
 
     def test_imports_syntax_validation(self):
         """Test that generated apps have valid Python syntax."""
@@ -843,12 +715,8 @@ class TestAppGenerator:
             for test_case in test_cases:
                 with (
                     patch.object(BundleDownloader, "download_bundle") as mock_download,
-                    patch.object(
-                        BundleDownloader, "get_bundle_metadata"
-                    ) as mock_metadata,
-                    patch.object(
-                        BundleDownloader, "get_inference_config"
-                    ) as mock_config,
+                    patch.object(BundleDownloader, "get_bundle_metadata") as mock_metadata,
+                    patch.object(BundleDownloader, "get_inference_config") as mock_config,
                     patch.object(BundleDownloader, "detect_model_file") as mock_detect,
                 ):
                     bundle_path = temp_path / f"bundle_{test_case['format']}"
@@ -863,9 +731,7 @@ class TestAppGenerator:
                     mock_detect.return_value = model_file
 
                     output_subdir = output_dir / f"test_{test_case['format']}"
-                    generator.generate_app(
-                        "MONAI/test", output_subdir, data_format=test_case["format"]
-                    )
+                    generator.generate_app("MONAI/test", output_subdir, data_format=test_case["format"])
 
                     # Read and check generated app
                     app_file = output_subdir / "app.py"
@@ -877,8 +743,7 @@ class TestAppGenerator:
                             "from monai.deploy.core.domain import Image" in app_content
                         ), f"Image import missing for {test_case['format']} format"
                         assert (
-                            "from monai.deploy.core.io_type import IOType"
-                            in app_content
+                            "from monai.deploy.core.io_type import IOType" in app_content
                         ), f"IOType import missing for {test_case['format']} format"
                         assert (
                             "IOMapping" in app_content

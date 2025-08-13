@@ -15,7 +15,6 @@ from datetime import datetime
 from unittest.mock import Mock, patch
 
 from huggingface_hub.utils import HfHubHTTPError
-
 from pipeline_generator.core.hub_client import HuggingFaceClient
 
 
@@ -121,9 +120,7 @@ class TestHuggingFaceClient:
     @patch("pipeline_generator.core.hub_client.model_info")
     def test_get_model_info_not_found(self, mock_model_info):
         """Test getting model info for non-existent model."""
-        mock_model_info.side_effect = HfHubHTTPError(
-            "Model not found", response=Mock(status_code=404)
-        )
+        mock_model_info.side_effect = HfHubHTTPError("Model not found", response=Mock(status_code=404))
 
         model = self.client.get_model_info("MONAI/nonexistent")
 

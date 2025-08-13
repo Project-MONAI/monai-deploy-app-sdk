@@ -35,9 +35,7 @@ torch, _ = optional_import("torch", "1.10.2")
 
 NdarrayOrTensor, _ = optional_import("monai.config", name="NdarrayOrTensor")
 MetaTensor, _ = optional_import("monai.data.meta_tensor", name="MetaTensor")
-PostFix, _ = optional_import(
-    "monai.utils.enums", name="PostFix"
-)  # For the default meta_key_postfix
+PostFix, _ = optional_import("monai.utils.enums", name="PostFix")  # For the default meta_key_postfix
 first, _ = optional_import("monai.utils.misc", name="first")
 ensure_tuple, _ = optional_import(MONAI_UTILS, name="ensure_tuple")
 convert_to_dst_type, _ = optional_import(MONAI_UTILS, name="convert_to_dst_type")
@@ -80,9 +78,7 @@ def get_bundle_config(bundle_path, config_names):
         for suffix in bundle_suffixes:
             path = Path(root_name, config_folder, config_name).with_suffix(suffix)
             try:
-                logging.debug(
-                    f"Trying to read config {config_name!r} content from {path!r}."
-                )
+                logging.debug(f"Trying to read config {config_name!r} content from {path!r}.")
                 content_text = archive.read(str(path))
                 break
             except Exception:
@@ -91,23 +87,17 @@ def get_bundle_config(bundle_path, config_names):
 
         # Try search for the name in the name list of the archive
         if not content_text and do_search:
-            logging.debug(
-                f"Trying to find the file in the archive for config {config_name!r}."
-            )
+            logging.debug(f"Trying to find the file in the archive for config {config_name!r}.")
             name_list = archive.namelist()
             for suffix in bundle_suffixes:
                 for n in name_list:
                     if (f"{config_name}{suffix}").casefold in n.casefold():
-                        logging.debug(
-                            f"Trying to read content of config {config_name!r} from {n!r}."
-                        )
+                        logging.debug(f"Trying to read content of config {config_name!r} from {n!r}.")
                         content_text = archive.read(n)
                         break
 
         if not content_text:
-            raise IOError(
-                f"Cannot read config {config_name}{bundle_suffixes} or its content in the archive."
-            )
+            raise IOError(f"Cannot read config {config_name}{bundle_suffixes} or its content in the archive.")
 
         return content_text
 
@@ -124,33 +114,24 @@ def get_bundle_config(bundle_path, config_names):
         and read from the file(s) if do_search is true.
         """
 
-        config_names = [
-            cn.split(".")[0] for cn in config_names
-        ]  # In case the extension is present
+        config_names = [cn.split(".")[0] for cn in config_names]  # In case the extension is present
         file_list = []
 
         # Try directly read first with path into the archive
         for suffix in bundle_suffixes:
             try:
                 logging.debug(f"Trying to extract {config_names} with ext {suffix}.")
-                file_list = [
-                    str(Path(root_name, config_folder, cn).with_suffix(suffix))
-                    for cn in config_names
-                ]
+                file_list = [str(Path(root_name, config_folder, cn).with_suffix(suffix)) for cn in config_names]
                 archive.extractall(members=file_list, path=dest_folder)
                 break
             except Exception as ex:
                 file_list = []
-                logging.debug(
-                    f"Will try file search after error on extracting {config_names} with {file_list}: {ex}"
-                )
+                logging.debug(f"Will try file search after error on extracting {config_names} with {file_list}: {ex}")
                 continue
 
         # If files not extracted, try search for expected files in the name list of the archive
         if (len(file_list) < 1) and do_search:
-            logging.debug(
-                f"Trying to find the config files in the archive for {config_names}."
-            )
+            logging.debug(f"Trying to find the config files in the archive for {config_names}.")
             name_list = archive.namelist()
             leftovers = deepcopy(config_names)  # to track any that are not found.
             for cn in config_names:
@@ -166,9 +147,7 @@ def get_bundle_config(bundle_path, config_names):
                         break
 
             if len(leftovers) > 0:
-                raise IOError(
-                    f"Failed to extract content for these config(s): {leftovers}."
-                )
+                raise IOError(f"Failed to extract content for these config(s): {leftovers}.")
 
         return file_list
 
@@ -197,26 +176,18 @@ def get_bundle_config(bundle_path, config_names):
         for config_name in config_names:
             config_name_base = config_name.split(".")[0]  # Remove extension if present
             # Validate config name to prevent path traversal
-            if (
-                ".." in config_name_base
-                or "/" in config_name_base
-                or "\\" in config_name_base
-            ):
+            if ".." in config_name_base or "/" in config_name_base or "\\" in config_name_base:
                 raise ValueError(f"Invalid config name: {config_name_base}")
             found = False
             for suffix in bundle_suffixes:
-                config_path = (
-                    bundle_path_obj / "configs" / f"{config_name_base}{suffix}"
-                )
+                config_path = bundle_path_obj / "configs" / f"{config_name_base}{suffix}"
                 if config_path.exists():
                     ...
                     config_files.append(config_path)
                     found = True
                     break
             if not found:
-                raise IOError(
-                    f"Cannot find config file for {config_name} in {bundle_path_obj / 'configs'}"
-                )
+                raise IOError(f"Cannot find config file for {config_name} in {bundle_path_obj / 'configs'}")
 
         parser.read_config(config_files)
         parser.parse()
@@ -224,9 +195,7 @@ def get_bundle_config(bundle_path, config_names):
         return parser
 
     # Original ZIP file handling code
-    name, _ = os.path.splitext(
-        os.path.basename(bundle_path)
-    )  # bundle file name same archive folder name
+    name, _ = os.path.splitext(os.path.basename(bundle_path))  # bundle file name same archive folder name
     parser = ConfigParser()
 
     # Parser to read the required metadata and extra config contents from the archive
@@ -376,17 +345,13 @@ class MonaiBundleInferenceOperator(InferenceOperator):
         "image": Image,  # Image object
         "series": np.ndarray,
         "tuples": np.ndarray,
-        "probabilities": Dict[
-            str, Any
-        ],  # dictionary containing probabilities and predicted labels
+        "probabilities": Dict[str, Any],  # dictionary containing probabilities and predicted labels
     }
 
     kw_preprocessed_inputs = "preprocessed_inputs"
 
     # For testing the app directly, the model should be at the following path.
-    MODEL_LOCAL_PATH = Path(
-        os.environ.get("HOLOSCAN_MODEL_PATH", Path.cwd() / "model/model.ts")
-    )
+    MODEL_LOCAL_PATH = Path(os.environ.get("HOLOSCAN_MODEL_PATH", Path.cwd() / "model/model.ts"))
 
     def __init__(
         self,
@@ -418,9 +383,7 @@ class MonaiBundleInferenceOperator(InferenceOperator):
         self._lock = Lock()
 
         self._model_name = model_name.strip() if isinstance(model_name, str) else ""
-        self._bundle_config_names = (
-            bundle_config_names if bundle_config_names else BundleConfigNames()
-        )
+        self._bundle_config_names = bundle_config_names if bundle_config_names else BundleConfigNames()
         self._input_mapping = input_mapping
         self._output_mapping = output_mapping
 
@@ -439,20 +402,14 @@ class MonaiBundleInferenceOperator(InferenceOperator):
         # Complete the init if the bundle path is known, otherwise delay till the compute function is called
         # and try to get the model/bundle path from the execution context.
         try:
-            self._bundle_path = (
-                Path(bundle_path)
-                if bundle_path and len(str(bundle_path).strip()) > 0
-                else None
-            )
+            self._bundle_path = Path(bundle_path) if bundle_path and len(str(bundle_path).strip()) > 0 else None
 
             if self._bundle_path and self._bundle_path.is_file():
                 self._init_config(self._bundle_config_names.config_names)
                 self._init_completed = True
             elif self._bundle_path and self._bundle_path.is_dir():
                 # For directory-based bundles, delay initialization to compute method
-                logging.debug(
-                    f"Bundle path {self._bundle_path} is a directory. Will initialize during execution."
-                )
+                logging.debug(f"Bundle path {self._bundle_path} is a directory. Will initialize during execution.")
                 # Keep the bundle_path for directory-based bundles
             else:
                 logging.debug(
@@ -460,9 +417,7 @@ class MonaiBundleInferenceOperator(InferenceOperator):
                 )
                 self._bundle_path = None
         except Exception:
-            logging.warn(
-                "Bundle parsing is not completed on init, delayed till this operator is called to execute."
-            )
+            logging.warn("Bundle parsing is not completed on init, delayed till this operator is called to execute.")
             self._bundle_path = None
 
         self._fragment = fragment  # In case it is needed.
@@ -534,9 +489,7 @@ class MonaiBundleInferenceOperator(InferenceOperator):
             self._device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
         if parser.get(self._bundle_config_names.inferer_name) is not None:
-            self._inferer = parser.get_parsed_content(
-                self._bundle_config_names.inferer_name
-            )
+            self._inferer = parser.get_parsed_content(self._bundle_config_names.inferer_name)
         else:
             self._inferer = SimpleInferer()
 
@@ -545,21 +498,15 @@ class MonaiBundleInferenceOperator(InferenceOperator):
 
         # Given the restriction on operator I/O storage type, and known use cases, the I/O storage type of
         # this operator is limited to IN_MEMRORY objects, so we will remove the LoadImage and SaveImage
-        self._preproc = self._get_compose(
-            self._bundle_config_names.preproc_name, DISALLOW_LOAD_SAVE
-        )
-        self._postproc = self._get_compose(
-            self._bundle_config_names.postproc_name, DISALLOW_LOAD_SAVE
-        )
+        self._preproc = self._get_compose(self._bundle_config_names.preproc_name, DISALLOW_LOAD_SAVE)
+        self._postproc = self._get_compose(self._bundle_config_names.postproc_name, DISALLOW_LOAD_SAVE)
 
         # Need to find out the meta_key_postfix. The key name of the input concatenated with this postfix
         # will be the key name for the metadata for the input.
         # Customized metadata key names are not supported as of now.
         self._meta_key_postfix = self._get_meta_key_postfix(self._preproc)
 
-        logging.debug(
-            f"Effective transforms in pre-processing: {[type(t).__name__ for t in self._preproc.transforms]}"
-        )
+        logging.debug(f"Effective transforms in pre-processing: {[type(t).__name__ for t in self._preproc.transforms]}")
         logging.debug(
             f"Effective Transforms in post-processing: {[type(t).__name__ for t in self._preproc.transforms]}"
         )
@@ -573,9 +520,7 @@ class MonaiBundleInferenceOperator(InferenceOperator):
 
         return Compose([])
 
-    def _get_meta_key_postfix(
-        self, compose: Compose, key_name: str = "meta_key_postfix"
-    ) -> str:
+    def _get_meta_key_postfix(self, compose: Compose, key_name: str = "meta_key_postfix") -> str:
         post_fix = PostFix.meta()
         if compose and key_name:
             for t in compose.transforms:
@@ -614,9 +559,7 @@ class MonaiBundleInferenceOperator(InferenceOperator):
         elif isinstance(ctype, type):  # type object
             return ctype
         else:  # don't know, something that hasn't been figured out
-            logging.warn(
-                f"I/O data type, {ctype}, is not a known/supported type. Return as Type object."
-            )
+            logging.warn(f"I/O data type, {ctype}, is not a known/supported type. Return as Type object.")
             return object
 
     def _add_inputs(self, input_mapping: List[IOMapping]):
@@ -632,9 +575,7 @@ class MonaiBundleInferenceOperator(InferenceOperator):
     def setup(self, spec: OperatorSpec):
         [spec.input(v.label) for v in self._input_mapping]
         for v in self._output_mapping:
-            if (
-                v.storage_type == IOType.IN_MEMORY
-            ):  # As of now the output port type can only be in_memory object.
+            if v.storage_type == IOType.IN_MEMORY:  # As of now the output port type can only be in_memory object.
                 spec.output(v.label)
 
     def compute(self, op_input, op_output, context):
@@ -654,11 +595,7 @@ class MonaiBundleInferenceOperator(InferenceOperator):
         # If model_name is not specified and only one model exists, it returns that model.
 
         # The models are loaded on construction via the AppContext object in turn the model factory.
-        self._model_network = (
-            self.app_context.models.get(self._model_name)
-            if self.app_context.models
-            else None
-        )
+        self._model_network = self.app_context.models.get(self._model_name) if self.app_context.models else None
 
         if self._model_network:
             if not self._init_completed:
@@ -672,9 +609,7 @@ class MonaiBundleInferenceOperator(InferenceOperator):
             # For the case of local dev/testing when the bundle path is not passed in as an exec cmd arg.
             # When run as a MAP docker, the bundle file is expected to be in the context, even if the model
             # network is loaded on a remote inference server (when the feature is introduced).
-            logging.debug(
-                f"Model network not loaded. Trying to load from model path: {self._bundle_path}"
-            )
+            logging.debug(f"Model network not loaded. Trying to load from model path: {self._bundle_path}")
 
             # Check if bundle_path is a directory
             if self._bundle_path.is_dir():
@@ -684,37 +619,27 @@ class MonaiBundleInferenceOperator(InferenceOperator):
                     # Try model.pt as fallback
                     model_path = self._bundle_path / "models" / "model.pt"
                 if not model_path.exists():
-                    raise IOError(
-                        f"Cannot find model.ts or model.pt in {self._bundle_path / 'models'}"
-                    )
+                    raise IOError(f"Cannot find model.ts or model.pt in {self._bundle_path / 'models'}")
 
                 # Ensure device is set
                 if not hasattr(self, "_device"):
-                    self._device = torch.device(
-                        "cuda" if torch.cuda.is_available() else "cpu"
-                    )
+                    self._device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
                 # Initialize config for directory bundles if not already done
                 if not self._init_completed:
-                    logging.info(
-                        f"Initializing config from directory bundle: {self._bundle_path}"
-                    )
+                    logging.info(f"Initializing config from directory bundle: {self._bundle_path}")
                     self._init_config(self._bundle_config_names.config_names)
                     self._init_completed = True
 
                 # Load model based on file type
                 if model_path.suffix == ".ts":
                     # TorchScript bundle
-                    self._model_network = torch.jit.load(
-                        str(model_path), map_location=self._device
-                    ).eval()
+                    self._model_network = torch.jit.load(str(model_path), map_location=self._device).eval()
                 else:
                     # .pt checkpoint: instantiate network from config and load state dict
                     try:
                         # Some .pt files may still be TorchScript; try jit first
-                        self._model_network = torch.jit.load(
-                            str(model_path), map_location=self._device
-                        ).eval()
+                        self._model_network = torch.jit.load(str(model_path), map_location=self._device).eval()
                     except Exception:
                         # Fallback to eager model with loaded weights
                         if self._parser is None:
@@ -740,23 +665,15 @@ class MonaiBundleInferenceOperator(InferenceOperator):
                             if network is not None:
                                 network = network.to(self._device)
                         if network is None:
-                            raise RuntimeError(
-                                "Unable to instantiate network from bundle configs."
-                            )
+                            raise RuntimeError("Unable to instantiate network from bundle configs.") from None
 
-                        checkpoint = torch.load(
-                            str(model_path), map_location=self._device
-                        )
+                        checkpoint = torch.load(str(model_path), map_location=self._device)
                         # Determine the state dict layout
                         state_dict = None
                         if isinstance(checkpoint, dict):
-                            if "state_dict" in checkpoint and isinstance(
-                                checkpoint["state_dict"], dict
-                            ):
+                            if "state_dict" in checkpoint and isinstance(checkpoint["state_dict"], dict):
                                 state_dict = checkpoint["state_dict"]
-                            elif "model" in checkpoint and isinstance(
-                                checkpoint["model"], dict
-                            ):
+                            elif "model" in checkpoint and isinstance(checkpoint["model"], dict):
                                 state_dict = checkpoint["model"]
                         if state_dict is None:
                             # Assume raw state dict
@@ -765,9 +682,7 @@ class MonaiBundleInferenceOperator(InferenceOperator):
                         self._model_network = network.eval()
             else:
                 # Original ZIP bundle handling
-                self._model_network = torch.jit.load(
-                    self._bundle_path, map_location=self._device
-                ).eval()
+                self._model_network = torch.jit.load(self._bundle_path, map_location=self._device).eval()
         else:
             raise IOError("Model network is not load and model file not found.")
 
@@ -789,33 +704,17 @@ class MonaiBundleInferenceOperator(InferenceOperator):
                 # Named metadata dict not needed any more, as it is in the MetaTensor
 
             inputs = self.pre_process(inputs)
-            first_input_v = inputs[
-                first_input_name
-            ]  # keep a copy of value for later use
+            first_input_v = inputs[first_input_name]  # keep a copy of value for later use
             first_input = inputs.pop(first_input_name)[None].to(self._device)
 
             # select other tensor inputs
-            other_inputs = {
-                k: v[None].to(self._device)
-                for k, v in inputs.items()
-                if isinstance(v, torch.Tensor)
-            }
+            other_inputs = {k: v[None].to(self._device) for k, v in inputs.items() if isinstance(v, torch.Tensor)}
             # select other non-tensor inputs
-            other_inputs.update(
-                {
-                    k: inputs[k]
-                    for k in other_names
-                    if not isinstance(inputs[k], torch.Tensor)
-                }
-            )
-            logging.debug(
-                f"Ingest and Pre-processing elapsed time (seconds): {time.time() - start}"
-            )
+            other_inputs.update({k: inputs[k] for k in other_names if not isinstance(inputs[k], torch.Tensor)})
+            logging.debug(f"Ingest and Pre-processing elapsed time (seconds): {time.time() - start}")
 
             start = time.time()
-            outputs: Any = self.predict(
-                data=first_input, **other_inputs
-            )  # Use type Any to quiet MyPy complaints.
+            outputs: Any = self.predict(data=first_input, **other_inputs)  # Use type Any to quiet MyPy complaints.
             logging.debug(f"Inference elapsed time (seconds): {time.time() - start}")
 
             # Note that the `inputs` are needed because the `invert` transform requires it. With metadata being
@@ -824,9 +723,7 @@ class MonaiBundleInferenceOperator(InferenceOperator):
             inputs[first_input_name] = first_input_v
             kw_args = {self.kw_preprocessed_inputs: inputs}
             outputs = self.post_process(ensure_tuple(outputs)[0], **kw_args)
-            logging.debug(
-                f"Post-processing elapsed time (seconds): {time.time() - start}"
-            )
+            logging.debug(f"Post-processing elapsed time (seconds): {time.time() - start}")
         if isinstance(outputs, (tuple, list)):
             output_dict = dict(zip(self._outputs.keys(), outputs))
         elif not isinstance(outputs, dict):
@@ -837,29 +734,21 @@ class MonaiBundleInferenceOperator(InferenceOperator):
         for name in self._outputs.keys():
             # Note that the input metadata needs to be passed.
             # Please see the comments in the called function for the reasons.
-            self._send_output(
-                output_dict[name], name, first_input_v.meta, op_output, context
-            )
+            self._send_output(output_dict[name], name, first_input_v.meta, op_output, context)
 
-    def predict(
-        self, data: Any, *args, **kwargs
-    ) -> Union[Image, Any, Tuple[Any, ...], Dict[Any, Any]]:
+    def predict(self, data: Any, *args, **kwargs) -> Union[Image, Any, Tuple[Any, ...], Dict[Any, Any]]:
         """Predicts output using the inferer."""
 
         return self._inferer(inputs=data, network=self._model_network, *args, **kwargs)
 
-    def pre_process(
-        self, data: Any, *args, **kwargs
-    ) -> Union[Image, Any, Tuple[Any, ...], Dict[Any, Any]]:
+    def pre_process(self, data: Any, *args, **kwargs) -> Union[Image, Any, Tuple[Any, ...], Dict[Any, Any]]:
         """Processes the input dictionary with the stored transform sequence `self._preproc`."""
 
         if is_map_compose(self._preproc):
             return self._preproc(data)
         return {k: self._preproc(v) for k, v in data.items()}
 
-    def post_process(
-        self, data: Any, *args, **kwargs
-    ) -> Union[Image, Any, Tuple[Any, ...], Dict[Any, Any]]:
+    def post_process(self, data: Any, *args, **kwargs) -> Union[Image, Any, Tuple[Any, ...], Dict[Any, Any]]:
         """Processes the output list/dictionary with the stored transform sequence `self._postproc`.
 
         The "processed_inputs", in fact the metadata in it, need to be passed in so that the
@@ -914,9 +803,7 @@ class MonaiBundleInferenceOperator(InferenceOperator):
                 # Expect one and only one file exists for use.
                 files = [f for f in value.glob("*") if f.is_file()]
                 if len(files) != 1:
-                    raise ValueError(
-                        f"Input path, {value}, should have one and only one file."
-                    )
+                    raise ValueError(f"Input path, {value}, should have one and only one file.")
 
                 file_path = files[0]
 
@@ -949,17 +836,14 @@ class MonaiBundleInferenceOperator(InferenceOperator):
                 # No channel present (W, H, D)
                 if expected_channels is not None and expected_channels > 1:
                     raise ValueError(
-                        f"Input for '{name}' has no channel dimension but bundle expects {expected_channels} channels. "
+                        f"Input for '{name!r}' has no channel dimension but bundle expects {expected_channels} channels. "
                         "Provide multi-channel input or add a transform to stack channels before inference."
                     )
                 # else expected 1 or unknown -> proceed without channel
             elif ndims == 4:
                 # Channel-last assumed (W, H, D, C)
                 actual_channels = value.shape[-1]
-                if (
-                    expected_channels is not None
-                    and expected_channels != actual_channels
-                ):
+                if expected_channels is not None and expected_channels != actual_channels:
                     if expected_channels == 1 and actual_channels > 1:
                         logging.warning(
                             "Input for '%s' has %d channels but bundle expects 1; selecting channel 0.",
@@ -970,14 +854,12 @@ class MonaiBundleInferenceOperator(InferenceOperator):
                         ndims = 3
                     else:
                         raise ValueError(
-                            f"Input for '{name}' has {actual_channels} channels but bundle expects {expected_channels}."
+                            f"Input for '{name!r}' has {actual_channels} channels but bundle expects {expected_channels}."
                         )
                 # else exact match or unknown -> keep as-is
             else:
                 # Unsupported rank for medical image input
-                raise ValueError(
-                    f"Unsupported input rank {ndims} for '{name}'. Expected 3D (W,H,D) or 4D (W,H,D,C)."
-                )
+                raise ValueError(f"Unsupported input rank {ndims} for '{name!r}'. Expected 3D (W,H,D) or 4D (W,H,D,C).")
             value = torch.from_numpy(value).to(self._device)
             if metadata is None:
                 metadata = {}
@@ -1113,13 +995,9 @@ class MonaiBundleInferenceOperator(InferenceOperator):
             ]
         )
         # Use defines MetaKeys directly
-        meta_dict[MetaKeys.ORIGINAL_AFFINE] = np.asarray(
-            img_meta_dict.get("nifti_affine_transform", None)
-        )
+        meta_dict[MetaKeys.ORIGINAL_AFFINE] = np.asarray(img_meta_dict.get("nifti_affine_transform", None))
         meta_dict[MetaKeys.AFFINE] = meta_dict[MetaKeys.ORIGINAL_AFFINE].copy()
-        meta_dict[MetaKeys.SPACE] = (
-            SpaceKeys.LPS
-        )  # not using SpaceKeys.RAS or affine_lps_to_ras
+        meta_dict[MetaKeys.SPACE] = SpaceKeys.LPS  # not using SpaceKeys.RAS or affine_lps_to_ras
 
         # Similarly the Image ndarray has dim order DHW, to be rearranged to WHD.
         # TODO: Need to revisit this once multi-channel image is supported and the Image class itself

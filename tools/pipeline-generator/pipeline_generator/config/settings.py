@@ -21,12 +21,8 @@ from pydantic import BaseModel, Field
 class ModelConfig(BaseModel):
     """Configuration for a specific model."""
 
-    model_id: str = Field(
-        ..., description="Model ID (e.g., 'MONAI/spleen_ct_segmentation')"
-    )
-    input_type: str = Field(
-        "nifti", description="Input data type: 'nifti', 'dicom', 'image'"
-    )
+    model_id: str = Field(..., description="Model ID (e.g., 'MONAI/spleen_ct_segmentation')")
+    input_type: str = Field("nifti", description="Input data type: 'nifti', 'dicom', 'image'")
     output_type: str = Field(
         "nifti",
         description="Output data type: 'nifti', 'dicom', 'json', 'image_overlay'",
@@ -44,21 +40,15 @@ class ModelConfig(BaseModel):
 class Endpoint(BaseModel):
     """Model endpoint configuration."""
 
-    organization: Optional[str] = Field(
-        None, description="HuggingFace organization name"
-    )
+    organization: Optional[str] = Field(None, description="HuggingFace organization name")
     model_id: Optional[str] = Field(None, description="Specific model ID")
-    base_url: str = Field(
-        "https://huggingface.co", description="Base URL for the endpoint"
-    )
+    base_url: str = Field("https://huggingface.co", description="Base URL for the endpoint")
     description: str = Field("", description="Endpoint description")
     model_type: Optional[str] = Field(
         None,
         description="Model type: segmentation, pathology, multimodal, multimodal_llm",
     )
-    models: List[ModelConfig] = Field(
-        default_factory=list, description="Tested models with known data types"
-    )
+    models: List[ModelConfig] = Field(default_factory=list, description="Tested models with known data types")
 
 
 class Settings(BaseModel):

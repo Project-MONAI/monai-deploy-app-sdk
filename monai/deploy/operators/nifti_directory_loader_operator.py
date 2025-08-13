@@ -87,9 +87,7 @@ class NiftiDirectoryLoader(Operator):
         # Check if we have more files to process
         if self._current_index < len(self.nifti_files):
             file_path = self.nifti_files[self._current_index]
-            self._logger.info(
-                f"Processing file {self._current_index + 1}/{len(self.nifti_files)}: {file_path.name}"
-            )
+            self._logger.info(f"Processing file {self._current_index + 1}/{len(self.nifti_files)}: {file_path.name}")
 
             try:
                 # Load the NIfTI file
@@ -104,9 +102,7 @@ class NiftiDirectoryLoader(Operator):
             op_output.emit(image_np, self.output_name_image)
             # Use pathlib's stem method for cleaner extension removal
             filename = file_path.stem
-            if filename.endswith(
-                ".nii"
-            ):  # Handle .nii.gz case where stem is 'filename.nii'
+            if filename.endswith(".nii"):  # Handle .nii.gz case where stem is 'filename.nii'
                 filename = filename[:-4]
             op_output.emit(filename, self.output_name_filename)
 

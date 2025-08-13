@@ -13,7 +13,8 @@
 
 import tempfile
 from pathlib import Path
-from pipeline_generator.config.settings import Settings, Endpoint, load_config
+
+from pipeline_generator.config.settings import Endpoint, Settings, load_config
 
 
 class TestEndpoint:

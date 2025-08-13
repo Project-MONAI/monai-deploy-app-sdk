@@ -173,9 +173,7 @@ class TestLlama3VILAInferenceOperator(unittest.TestCase):
         fragment = Mock(spec=Fragment)
         app_context = Mock(spec=AppContext)
 
-        operator = Llama3VILAInferenceOperator(
-            fragment, app_context=app_context, model_path=self.model_path
-        )
+        operator = Llama3VILAInferenceOperator(fragment, app_context=app_context, model_path=self.model_path)
 
         self.assertEqual(operator.model_path, Path(self.model_path))
         self.assertIsNotNone(operator.device)
@@ -193,9 +191,7 @@ class TestLlama3VILAInferenceOperator(unittest.TestCase):
         fragment = Mock(spec=Fragment)
         app_context = Mock(spec=AppContext)
 
-        operator = Llama3VILAInferenceOperator(
-            fragment, app_context=app_context, model_path=self.model_path
-        )
+        operator = Llama3VILAInferenceOperator(fragment, app_context=app_context, model_path=self.model_path)
 
         spec = Mock(spec=OperatorSpec)
         operator.setup(spec)
@@ -243,9 +239,7 @@ class TestLlama3VILAInferenceOperator(unittest.TestCase):
         fragment = Mock(spec=Fragment)
         app_context = Mock(spec=AppContext)
 
-        operator = Llama3VILAInferenceOperator(
-            fragment, app_context=app_context, model_path=self.model_path
-        )
+        operator = Llama3VILAInferenceOperator(fragment, app_context=app_context, model_path=self.model_path)
 
         # Test with all parameters
         result = operator._create_json_result(
@@ -277,9 +271,7 @@ class TestLlama3VILAInferenceOperator(unittest.TestCase):
         fragment = Mock(spec=Fragment)
         app_context = Mock(spec=AppContext)
 
-        operator = Llama3VILAInferenceOperator(
-            fragment, app_context=app_context, model_path=self.model_path
-        )
+        operator = Llama3VILAInferenceOperator(fragment, app_context=app_context, model_path=self.model_path)
 
         # Create mock image
         mock_image = Mock(spec=Image)
@@ -430,9 +422,7 @@ class TestIntegration(unittest.TestCase):
         # Create test prompts
         self.prompts = {
             "defaults": {"max_new_tokens": 256},
-            "prompts": [
-                {"prompt": "Integration test", "image": "test.jpg", "output": "json"}
-            ],
+            "prompts": [{"prompt": "Integration test", "image": "test.jpg", "output": "json"}],
         }
 
         with open(Path(self.test_dir) / "prompts.yaml", "w") as f:
@@ -452,10 +442,10 @@ class TestIntegration(unittest.TestCase):
     @patch("monai.deploy.operators.llama3_vila_inference_operator.AutoConfig")
     def test_end_to_end_flow(self, mock_autoconfig, mock_pil):
         """Test end-to-end flow of VLM operators."""
-        from monai.deploy.operators.prompts_loader_operator import PromptsLoaderOperator
         from monai.deploy.operators.llama3_vila_inference_operator import (
             Llama3VILAInferenceOperator,
         )
+        from monai.deploy.operators.prompts_loader_operator import PromptsLoaderOperator
         from monai.deploy.operators.vlm_results_writer_operator import (
             VLMResultsWriterOperator,
         )
@@ -466,17 +456,13 @@ class TestIntegration(unittest.TestCase):
         mock_image.convert.return_value = mock_image
         mock_pil.open.return_value = mock_image
 
-        with patch(
-            "numpy.array", return_value=np.ones((100, 100, 3), dtype=np.float32)
-        ):
+        with patch("numpy.array", return_value=np.ones((100, 100, 3), dtype=np.float32)):
             # Create operators
             fragment = Mock(spec=Fragment)
             app_context = Mock(spec=AppContext)
 
             loader = PromptsLoaderOperator(fragment, input_folder=self.test_dir)
-            inference = Llama3VILAInferenceOperator(
-                fragment, app_context=app_context, model_path=self.test_dir
-            )
+            inference = Llama3VILAInferenceOperator(fragment, app_context=app_context, model_path=self.test_dir)
             writer = VLMResultsWriterOperator(fragment, output_folder=self.output_dir)
 
             # Setup all operators

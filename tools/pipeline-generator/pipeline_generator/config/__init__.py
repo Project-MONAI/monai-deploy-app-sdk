@@ -11,6 +11,6 @@
 
 """Configuration module for Pipeline Generator."""
 
-from .settings import Settings, Endpoint, load_config
+from .settings import Endpoint, Settings, load_config
 
 __all__ = ["Settings", "Endpoint", "load_config"]
