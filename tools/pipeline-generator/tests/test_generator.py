@@ -306,9 +306,9 @@ class TestAppGenerator:
                                                 data_format="auto",
                                             )
 
-                                            # This covers lines 201-210
+                                            # Verify channel_first logic is computed correctly
                                             call_args = mock_app_py.call_args[0][1]
-                                            assert call_args["channel_first_override"] is False
+                                            assert call_args["channel_first"] is False
 
     def test_metadata_with_numpy_pytorch_versions(self):
         """Test metadata with numpy_version and pytorch_version."""
@@ -450,7 +450,59 @@ class TestAppGenerator:
                                             )
 
                                             call_args = mock_app_py.call_args[0][1]
-                                            assert call_args["channel_first_override"] is True
+                                            assert call_args["channel_first"] is True
+
+    def test_channel_first_logic_refactoring(self):
+        """Test the refactored channel_first logic works correctly."""
+        generator = AppGenerator()
+
+        # Test case 1: image input, non-classification task -> should be False
+        context1 = generator._prepare_context(
+            model_id="test/model",
+            metadata={"task": "segmentation", "name": "Test Model"},
+            inference_config={},
+            model_file=None,
+            app_name="TestApp",
+            input_type="image",
+            output_type="nifti"
+        )
+        assert context1["channel_first"] is False
+
+        # Test case 2: image input, classification task -> should be True
+        context2 = generator._prepare_context(
+            model_id="test/model", 
+            metadata={"task": "classification", "name": "Test Model"},
+            inference_config={},
+            model_file=None,
+            app_name="TestApp",
+            input_type="image",
+            output_type="json"
+        )
+        assert context2["channel_first"] is True
+
+        # Test case 3: dicom input -> should be True
+        context3 = generator._prepare_context(
+            model_id="test/model",
+            metadata={"task": "segmentation", "name": "Test Model"},
+            inference_config={},
+            model_file=None,
+            app_name="TestApp",
+            input_type="dicom",
+            output_type="nifti"
+        )
+        assert context3["channel_first"] is True
+
+        # Test case 4: nifti input -> should be True
+        context4 = generator._prepare_context(
+            model_id="test/model",
+            metadata={"task": "segmentation", "name": "Test Model"},
+            inference_config={},
+            model_file=None,
+            app_name="TestApp",
+            input_type="nifti",
+            output_type="nifti"
+        )
+        assert context4["channel_first"] is True
 
     def test_get_default_metadata(self):
         """Test _get_default_metadata method directly."""

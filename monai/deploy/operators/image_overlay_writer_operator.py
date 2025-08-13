@@ -9,18 +9,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""
-Image Overlay Writer
-
-Blends a segmentation mask onto an RGB image and saves the result as a PNG.
-
-Named inputs:
-- image: original RGB frame as Image or ndarray (HWC, uint8/float)
-- pred: predicted mask as Image or ndarray (H x W or 1 x H x W). If multi-channel
-        probability tensor is provided, you may pre-argmax before this operator.
-- filename: base name (stem) for output file
-"""
-
 import logging
 from pathlib import Path
 from typing import Optional, Tuple
@@ -34,6 +22,17 @@ PILImage, _ = optional_import("PIL", name="Image")
 
 
 class ImageOverlayWriter(Operator):
+    """
+    Image Overlay Writer
+
+    Blends a segmentation mask onto an RGB image and saves the result as a PNG.
+
+    Named inputs:
+    - image: original RGB frame as Image or ndarray (HWC, uint8/float)
+    - pred: predicted mask as Image or ndarray (H x W or 1 x H x W). If multi-channel
+            probability tensor is provided, you may pre-argmax before this operator.
+    - filename: base name (stem) for output file
+    """
     def __init__(
         self,
         fragment: Fragment,

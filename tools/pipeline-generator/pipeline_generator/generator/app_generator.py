@@ -20,6 +20,8 @@ from jinja2 import Environment, FileSystemLoader
 from ..config.settings import Settings, load_config
 from .bundle_downloader import BundleDownloader
 
+import re
+
 logger = logging.getLogger(__name__)
 
 
@@ -92,9 +94,14 @@ class AppGenerator:
         Returns:
             Path to the generated application directory
         """
-        # Validate model_id to prevent code injection
-        if not model_id or not all(c.isalnum() or c in "/-_" for c in model_id):
-            raise ValueError(f"Invalid model_id: {model_id}. Only alphanumeric characters, /, -, and _ are allowed.")
+        # Validate model_id to prevent code injection and path traversal
+        # Only allow model IDs like "owner/model-name" or "model_name", no leading/trailing slash, no "..", no empty segments
+        model_id_pattern = r"^(?!.*\.\.)(?!/)(?!.*//)(?!.*\/$)[A-Za-z0-9_-]+(\/[A-Za-z0-9_-]+)*$"
+
+        if not model_id or not re.match(model_id_pattern, model_id):
+            raise ValueError(
+                f"Invalid model_id: {model_id}. Only alphanumeric characters, hyphens, underscores, and single slashes between segments are allowed. No leading/trailing slashes, consecutive slashes, or '..' allowed."
+            )
 
         # Create output directory
         output_dir.mkdir(parents=True, exist_ok=True)
@@ -250,6 +257,18 @@ class AppGenerator:
             elif isinstance(cfgs, dict):
                 resolved_channel_first = cfgs.get("channel_first", None)
 
+        # Determine final channel_first value
+        if resolved_channel_first is not None:
+            # Use explicit override from configuration
+            channel_first = resolved_channel_first
+        else:
+            # Apply default logic: False for image input classification, True otherwise
+            input_type_resolved = input_type or ("dicom" if use_dicom else ("image" if use_image else "nifti"))
+            if input_type_resolved == "image" and "classification" not in task.lower():
+                channel_first = False
+            else:
+                channel_first = True
+
         # Collect dependency hints from metadata.json
         required_packages_version = metadata.get("required_packages_version", {}) if metadata else {}
         extra_dependencies = getattr(model_config, "dependencies", []) if model_config else []
@@ -280,7 +299,7 @@ class AppGenerator:
             "authors": metadata.get("authors", "MONAI"),
             "output_postfix": output_postfix,
             "model_type": model_type,
-            "channel_first_override": resolved_channel_first,
+            "channel_first": channel_first,
             "required_packages_version": required_packages_version,
             "extra_dependencies": extra_dependencies,
         }

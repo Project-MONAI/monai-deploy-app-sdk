@@ -146,7 +146,7 @@ class {{ app_name }}(Application):
         loader_op = ImageDirectoryLoader(
             self,
             input_folder=app_input_path,
-            channel_first={% if channel_first_override is not none %}{{ 'True' if channel_first_override else 'False' }}{% else %}{{ 'False' if input_type == 'image' and 'classification' not in task.lower() else 'True' }}{% endif %},
+            channel_first={{ channel_first }},
             name="image_loader"
         )
         {% elif input_type == "custom" %}
