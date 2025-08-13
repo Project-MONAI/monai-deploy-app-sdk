@@ -90,7 +90,7 @@ Each operator is configured automatically from the MONAI Bundle metadata, minimi
 
 ## **Tooling**
 
-This tool will use Python 3.12:
+This tool will use Python 3.10:
 
 * A requirements.txt to include all dependencies 
 * Use poetry for module and dependency management

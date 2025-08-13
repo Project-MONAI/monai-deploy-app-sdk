@@ -1,6 +1,6 @@
 # Pipeline Generator
 
-A CLI tool for generating MONAI Deploy and Holoscan pipelines from MONAI Bundles.
+A CLI tool for generating [MONAI Deploy](https://github.com/Project-MONAI/monai-deploy-app-sdk) application pipelines from [MONAI Bundles](https://docs.monai.io/en/stable/bundle_intro.html).
 
 ## Features
 
@@ -9,7 +9,7 @@ A CLI tool for generating MONAI Deploy and Holoscan pipelines from MONAI Bundles
 - Support for multiple model sources through configuration
 - Automatic bundle download and analysis
 - Template-based code generation with Jinja2
-- Beautiful output formatting with Rich
+- Beautiful output formatting with Rich (Python library for rich text and beautiful formatting)
 
 ## Installation
 
@@ -17,18 +17,18 @@ A CLI tool for generating MONAI Deploy and Holoscan pipelines from MONAI Bundles
 # Clone the repository
 cd tools/pipeline-generator/
 
-# Install with uv (no virtualenv needed; uv manages it per command)
-uv pip install -e .[dev]
+# Install with uv (no virtualenv needed - uv manages it per command)
+uv pip install -e ".[dev]"
 ```
 
 ### Running Commands
 
-With uv, you can run commands directly without a prior "install":
+With uv, you can run commands directly without a prior "install" (pg is the Pipeline Generator command):
 
 ```bash
 uv run pg --help
 uv run pg list
-uv run pg gen MONAI/model_name --output ./app
+uv run pg gen MONAI/spleen_ct_segmentation --output ./app
 ```
 
 ## Usage
@@ -88,7 +88,7 @@ uv run pg --config /path/to/config.yaml list
 
 ### Generate MONAI Deploy Application
 
-Generate an application from a HuggingFace model:
+Generate an application from a HuggingFace model. Models are specified using the format `organization/model_name` (e.g., `MONAI/spleen_ct_segmentation`):
 
 ```bash
 uv run pg gen MONAI/spleen_ct_segmentation --output my_app
@@ -96,8 +96,8 @@ uv run pg gen MONAI/spleen_ct_segmentation --output my_app
 
 Options:
 - `--output, -o`: Output directory for generated app (default: ./output)
-- `--app-name, -n`: Custom application class name (default: derived from model)
-- `--format`: Input/output format (optional): auto, dicom, or nifti (default: auto)
+- `--app-name, -n`: Custom application class name (default: derived from model name)
+- `--format`: Input/output data format (optional): auto, dicom, or nifti (default: auto)
   - For tested models, format is automatically detected from configuration
   - For untested models, attempts detection from model metadata
 - `--force, -f`: Overwrite existing output directory
@@ -111,7 +111,7 @@ uv run pg gen MONAI/lung_nodule_ct_detection --output lung_app --app-name LungDe
 Force overwrite existing directory:
 
 ```bash
-uv run pg gen MONAI/example_spleen_segmentation --output test_app --force
+uv run pg gen MONAI/spleen_ct_segmentation --output test_app --force
 ```
 
 Override data format (optional - auto-detected for tested models):
@@ -168,11 +168,11 @@ endpoints:
     base_url: "https://huggingface.co"
     description: "Official MONAI organization models"
 
-# Additional specific models
+# Additional specific models not under the main organization
 additional_models:
   - model_id: "Project-MONAI/exaonepath"
     base_url: "https://huggingface.co"
-    description: "ExaOnePath model"
+    description: "ExaOnePath model for digital pathology"
 ```
 
 ## Generated Application Structure
@@ -182,12 +182,12 @@ When you run `pg gen`, it creates:
 ```
 output/
 ├── app.py                  # Main application code
-├── app.yaml               # Configuration for packaging
+├── app.yaml               # Configuration for MONAI Deploy packaging
 ├── requirements.txt       # Python dependencies
 ├── README.md             # Documentation
 ├── operators/            # Custom operators (if needed)
 │   └── nifti_operators.py
-└── model/                # Downloaded MONAI Bundle
+└── model/                 # Downloaded MONAI Bundle
     ├── configs/
     ├── models/
     └── docs/
@@ -225,8 +225,8 @@ uv run mypy pipeline_generator
 
 The CLI is designed to be extensible. Planned commands include:
 
-- `pg package <app>` - Package an application using holoscan-cli
+- `pg package <app>` - Package an application using the Holoscan CLI packaging tool
 
 ## License
 
-This project is part of the MONAI Deploy App SDK. 
+This project is part of the MONAI Deploy App SDK and is licensed under the Apache License 2.0. See the main repository's LICENSE file for details. 
