@@ -93,8 +93,10 @@ class {{ app_name }}(Application):
     This application processes common image formats (JPEG, PNG, etc.) and outputs
     classification results as JSON files.
     {% elif input_type == "custom" and output_type == "custom" %}
-    This application processes prompts and images using a vision-language model.
-    It reads prompts from prompts.yaml and generates text or image outputs based on the specified output type.
+    This application processes prompts and images using a vision-language model (VLM).
+    Prompts are specified in a prompts.yaml file and can include tasks such as visual question answering, image captioning, or visual reasoning.
+    Each prompt entry may contain a textual question or instruction and an associated image path.
+    The application generates outputs such as text answers, captions, or image overlays, depending on the prompt and the configured output type.
     {% else %}
     This application follows the pipeline structure:
     [Source/{{ 'ImageDirectoryLoader' if input_type == 'image' else 'NiftiDirectoryLoader' }}] → [Preprocessing Op] → [Inference Op] → [Postprocessing Op] → [Sink/{{ 'JSONResultsWriter' if output_type == 'json' else 'NiftiWriter' }}]
