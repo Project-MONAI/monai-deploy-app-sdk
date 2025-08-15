@@ -43,7 +43,8 @@ from monai.deploy.operators.stl_conversion_operator import STLConversionOperator
 
 {% endif %}
 {% elif input_type == "image" %}
-from monai.deploy.operators.image_directory_loader_operator import ImageDirectoryLoader
+from monai.deploy.operators.generic_directory_scanner_operator import GenericDirectoryScanner
+from monai.deploy.operators.image_file_loader_operator import ImageFileLoader
 
 {% elif input_type == "custom" %}
 from monai.deploy.operators.llama3_vila_inference_operator import Llama3VILAInferenceOperator
@@ -53,7 +54,8 @@ from monai.deploy.operators.prompts_loader_operator import PromptsLoaderOperator
 from monai.deploy.operators.vlm_results_writer_operator import VLMResultsWriterOperator
 
 {% else %}
-from monai.deploy.operators.nifti_directory_loader_operator import NiftiDirectoryLoader
+from monai.deploy.operators.generic_directory_scanner_operator import GenericDirectoryScanner
+from monai.deploy.operators.nii_data_loader_operator import NiftiDataLoader
 
 {% endif %}
 {% if output_type == "json" %}
@@ -99,10 +101,12 @@ class {{ app_name }}(Application):
     The application generates outputs such as text answers, captions, or image overlays, depending on the prompt and the configured output type.
     {% else %}
     This application follows the pipeline structure:
-    [Source/{{ 'ImageDirectoryLoader' if input_type == 'image' else 'NiftiDirectoryLoader' }}] → [Preprocessing Op] → [Inference Op] → [Postprocessing Op] → [Sink/{{ 'JSONResultsWriter' if output_type == 'json' else 'NiftiWriter' }}]
+    [GenericDirectoryScanner] → [{{ 'ImageFileLoader' if input_type == 'image' else 'NiftiDataLoader' }}] → [Preprocessing Op] → [Inference Op] → [Postprocessing Op] → [Sink/{{ 'JSONResultsWriter' if output_type == 'json' else 'NiftiWriter' }}]
 
-    The MonaiBundleInferenceOperator handles preprocessing, inference, and postprocessing
-    based on configurations loaded dynamically from inference.json.
+    The GenericDirectoryScanner finds files with appropriate extensions, 
+    the file loader processes individual files, and the MonaiBundleInferenceOperator 
+    handles preprocessing, inference, and postprocessing based on configurations 
+    loaded dynamically from inference.json.
     {% endif %}
     """
 
@@ -142,12 +146,21 @@ class {{ app_name }}(Application):
         series_selector_op = DICOMSeriesSelectorOperator(self, rules=Sample_Rules_Text, name="series_selector_op")
         series_to_vol_op = DICOMSeriesToVolumeOperator(self, name="series_to_vol_op")
         {% elif input_type == "image" %}
-        # Image directory loader that processes common image files
-        # For 2D RGB bundles that include EnsureChannelFirstd(channel_dim=-1) in preprocessing,
-        # emit HWC arrays to let the bundle handle channel movement.
-        loader_op = ImageDirectoryLoader(
+        # Image processing using chained operators
+        # Scanner finds all image files in the directory
+        scanner_op = GenericDirectoryScanner(
             self,
             input_folder=app_input_path,
+            file_extensions=['.jpg', '.jpeg', '.png', '.bmp', '.tiff', '.tif'],
+            recursive=True,
+            name="image_scanner"
+        )
+        
+        # Loader processes individual image files
+        # For 2D RGB bundles that include EnsureChannelFirstd(channel_dim=-1) in preprocessing,
+        # emit HWC arrays to let the bundle handle channel movement.
+        loader_op = ImageFileLoader(
+            self,
             channel_first={{ channel_first }},
             name="image_loader"
         )
@@ -159,10 +172,20 @@ class {{ app_name }}(Application):
             name="prompts_loader"
         )
         {% else %}
-        # NIfTI directory loader that processes all files in input directory
-        loader_op = NiftiDirectoryLoader(
+        # NIfTI processing using chained operators
+        # Scanner finds all NIfTI files in the directory
+        scanner_op = GenericDirectoryScanner(
             self,
             input_folder=app_input_path,
+            file_extensions=['.nii', '.nii.gz'],
+            recursive=True,
+            name="nifti_scanner"
+        )
+        
+        # Loader processes individual NIfTI files
+        loader_op = NiftiDataLoader(
+            self,
+            input_path=None,  # Will be provided by scanner
             name="nifti_loader"
         )
         {% endif %}
@@ -293,17 +316,24 @@ class {{ app_name }}(Application):
             ("request_id", "request_id")
         })
 {% else %}
+        # Connect scanner to loader for both image and nifti cases
+        {% if input_type == "image" %}
+        self.add_flow(scanner_op, loader_op, {("file_path", "file_path")})
+        {% else %}
+        self.add_flow(scanner_op, loader_op, {("file_path", "image_path")})
+        {% endif %}
         self.add_flow(loader_op, inference_op, {("image", "image")})
         {% if output_type == 'json' %}
         self.add_flow(inference_op, writer_op, {("pred", "pred")})
-        self.add_flow(loader_op, writer_op, {("filename", "filename")})
+        self.add_flow(scanner_op, writer_op, {("filename", "filename")})
         {% elif output_type == 'image_overlay' %}
         # Connect both original image and prediction to overlay writer
-        self.add_flow(loader_op, writer_op, {("image", "image"), ("filename", "filename")})
+        self.add_flow(loader_op, writer_op, {("image", "image")})
+        self.add_flow(scanner_op, writer_op, {("filename", "filename")})
         self.add_flow(inference_op, writer_op, {("pred", "pred")})
         {% else %}
         self.add_flow(inference_op, writer_op, {("pred", "image")})
-        self.add_flow(loader_op, writer_op, {("filename", "filename")})
+        self.add_flow(scanner_op, writer_op, {("filename", "filename")})
         {% endif %}
 {% endif %}
 

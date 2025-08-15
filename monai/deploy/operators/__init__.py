@@ -21,7 +21,8 @@
     DICOMSeriesToVolumeOperator
     DICOMTextSRWriterOperator
     EquipmentInfo
-    ImageDirectoryLoader
+    GenericDirectoryScanner
+    ImageFileLoader
     ImageOverlayWriter
     InferenceOperator
     InfererType
@@ -33,7 +34,6 @@
     MonaiClassificationOperator
     MonaiSegInferenceOperator
     NiftiDataLoader
-    NiftiDirectoryLoader
     NiftiWriter
     PNGConverterOperator
     PromptsLoaderOperator
@@ -67,7 +67,8 @@ from .dicom_text_sr_writer_operator import (
     EquipmentInfo,
     ModelInfo,
 )
-from .image_directory_loader_operator import ImageDirectoryLoader
+from .generic_directory_scanner_operator import GenericDirectoryScanner
+from .image_file_loader_operator import ImageFileLoader
 from .image_overlay_writer_operator import ImageOverlayWriter
 from .inference_operator import InferenceOperator
 from .json_results_writer_operator import JSONResultsWriter
@@ -79,7 +80,7 @@ from .monai_bundle_inference_operator import (
 )
 from .monai_classification_operator import MonaiClassificationOperator
 from .monai_seg_inference_operator import InfererType, MonaiSegInferenceOperator
-from .nifti_directory_loader_operator import NiftiDirectoryLoader
+
 from .nifti_writer_operator import NiftiWriter
 from .nii_data_loader_operator import NiftiDataLoader
 from .png_converter_operator import PNGConverterOperator

@@ -26,6 +26,45 @@ logger = logging.getLogger(__name__)
 console = Console()
 
 
+def _validate_results(output_dir: Path) -> tuple[bool, str]:
+    """Validate that the application actually generated results.
+    
+    Args:
+        output_dir: Path to the output directory
+        
+    Returns:
+        Tuple of (success, message) where success is True if validation passed
+    """
+    if not output_dir.exists():
+        return False, f"Output directory does not exist: {output_dir}"
+    
+    # Check if any files were generated in the output directory
+    output_files = list(output_dir.rglob("*"))
+    result_files = [f for f in output_files if f.is_file()]
+    
+    if not result_files:
+        return False, f"No result files generated in {output_dir}"
+    
+    # Count different types of output files
+    json_files = [f for f in result_files if f.suffix.lower() == '.json']
+    nifti_files = [f for f in result_files if f.suffix.lower() in ['.nii', '.gz']]
+    image_files = [f for f in result_files if f.suffix.lower() in ['.png', '.jpg', '.jpeg', '.tiff']]
+    other_files = [f for f in result_files if f not in json_files + nifti_files + image_files]
+    
+    file_summary = []
+    if json_files:
+        file_summary.append(f"{len(json_files)} JSON files")
+    if nifti_files:
+        file_summary.append(f"{len(nifti_files)} NIfTI files") 
+    if image_files:
+        file_summary.append(f"{len(image_files)} image files")
+    if other_files:
+        file_summary.append(f"{len(other_files)} other files")
+    
+    summary = ", ".join(file_summary) if file_summary else f"{len(result_files)} files"
+    return True, f"Generated {summary}"
+
+
 @click.command()
 @click.argument(
     "app_path",
@@ -70,6 +109,9 @@ def run(
 
     This command automates the process of setting up and running a MONAI Deploy
     application by managing virtual environments, dependencies, and execution.
+
+    Platform Requirements:
+        Linux/Unix operating systems only (consistent with MONAI Deploy App SDK)
 
     Steps performed:
     1. Create a virtual environment if it doesn't exist
@@ -138,13 +180,9 @@ def run(
     else:
         console.print(f"[dim]Using existing virtual environment: {venv_name}[/dim]")
 
-    # Determine python executable in venv
-    if os.name == "nt":  # Windows
-        python_exe = venv_path / "Scripts" / "python.exe"
-        pip_exe = venv_path / "Scripts" / "pip.exe"
-    else:  # Unix/Linux/Mac
-        python_exe = venv_path / "bin" / "python"
-        pip_exe = venv_path / "bin" / "pip"
+    # Determine python executable in venv (Linux/Unix only)
+    python_exe = venv_path / "bin" / "python"
+    pip_exe = venv_path / "bin" / "pip"
 
     # Step 2: Install dependencies
     if not skip_install:
@@ -299,8 +337,16 @@ def run(
         return_code = process.wait()
 
         if return_code == 0:
-            console.print("\n[green]✓ Application completed successfully![/green]")
-            console.print(f"[green]Results saved to: {output_dir_obj}[/green]")
+            # Validate that results were actually generated
+            success, message = _validate_results(output_dir_obj)
+            if success:
+                console.print("\n[green]✓ Application completed successfully![/green]")
+                console.print(f"[green]Results saved to: {output_dir_obj}[/green]")
+                console.print(f"[dim]{message}[/dim]")
+            else:
+                console.print(f"\n[red]✗ Application completed but failed validation: {message}[/red]")
+                console.print("[red]This usually indicates operator connection issues or processing failures.[/red]")
+                raise click.Abort() from None
         else:
             console.print(f"\n[red]✗ Application failed with exit code: {return_code}[/red]")
             raise click.Abort() from None

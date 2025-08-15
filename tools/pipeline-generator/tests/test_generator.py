@@ -570,7 +570,10 @@ class TestAppGenerator:
 
             # Check operator imports
             assert (
-                "from monai.deploy.operators.nifti_directory_loader_operator import NiftiDirectoryLoader" in app_content
+                "from monai.deploy.operators.generic_directory_scanner_operator import GenericDirectoryScanner" in app_content
+            )
+            assert (
+                "from monai.deploy.operators.nii_data_loader_operator import NiftiDataLoader" in app_content
             )
             assert "from monai.deploy.operators.nifti_writer_operator import NiftiWriter" in app_content
             assert "from monai.deploy.operators.monai_bundle_inference_operator import" in app_content
@@ -626,7 +629,10 @@ class TestAppGenerator:
 
             # Check operator imports
             assert (
-                "from monai.deploy.operators.image_directory_loader_operator import ImageDirectoryLoader" in app_content
+                "from monai.deploy.operators.generic_directory_scanner_operator import GenericDirectoryScanner" in app_content
+            )
+            assert (
+                "from monai.deploy.operators.image_file_loader_operator import ImageFileLoader" in app_content
             )
             assert "from monai.deploy.operators.json_results_writer_operator import JSONResultsWriter" in app_content
             assert (

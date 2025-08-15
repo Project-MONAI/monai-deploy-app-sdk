@@ -200,7 +200,7 @@ class MonaiClassificationOperator(Operator):
 
             # Convert Image to tensor format expected by MONAI
             if isinstance(input_image, Image):
-                # Image data is already in CHW format from ImageDirectoryLoader
+                # Image data is already in CHW format from ImageFileLoader
                 image_tensor = torch.from_numpy(input_image.asnumpy()).float()
             else:
                 image_tensor = input_image

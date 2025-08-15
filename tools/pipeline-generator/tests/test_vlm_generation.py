@@ -84,7 +84,9 @@ class TestVLMGeneration:
         assert "VLMResultsWriterOperator" in rendered
 
         # Verify standard operators are NOT used
-        assert "NiftiDirectoryLoader" not in rendered
+        assert "GenericDirectoryScanner" not in rendered
+        assert "NiftiDataLoader" not in rendered
+        assert "ImageFileLoader" not in rendered
         assert "MonaiBundleInferenceOperator" not in rendered
 
         # Verify operator connections

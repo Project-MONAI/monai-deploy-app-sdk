@@ -11,6 +11,12 @@ A CLI tool for generating [MONAI Deploy](https://github.com/Project-MONAI/monai-
 - Template-based code generation with Jinja2
 - Beautiful output formatting with Rich (Python library for rich text and beautiful formatting)
 
+## Platform Requirements
+
+- **Linux/Unix operating systems only**
+- Compatible with MONAI Deploy App SDK platform support
+- Ubuntu 22.04+ recommended (aligned with main SDK requirements)
+
 ## Installation
 
 ```bash
