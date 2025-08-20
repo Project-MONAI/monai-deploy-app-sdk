@@ -15,7 +15,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 import numpy as np
-import yaml
+import yaml  # type: ignore
 
 from monai.deploy.core import Fragment, Image, Operator, OperatorSpec
 from monai.deploy.utils.importutil import optional_import

@@ -74,7 +74,7 @@ class ImageOverlayWriter(Operator):
 
     def _to_hwc_uint8(self, image) -> np.ndarray:
         if isinstance(image, Image):
-            arr = image.asnumpy()
+            arr: np.ndarray = image.asnumpy()
         else:
             arr = np.asarray(image)
         if arr.ndim != 3 or arr.shape[2] not in (3, 4):
@@ -89,7 +89,7 @@ class ImageOverlayWriter(Operator):
 
     def _to_mask_uint8(self, pred) -> np.ndarray:
         if isinstance(pred, Image):
-            arr = pred.asnumpy()
+            arr: np.ndarray = pred.asnumpy()
         else:
             arr = np.asarray(pred)
         arr = np.squeeze(arr)

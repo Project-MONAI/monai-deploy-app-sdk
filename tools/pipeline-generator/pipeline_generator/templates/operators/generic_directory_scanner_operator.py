@@ -56,7 +56,7 @@ class GenericDirectoryScanner(Operator):
         self._case_sensitive = bool(case_sensitive)
 
         # State tracking
-        self._files = []
+        self._files: list[Path] = []
         self._current_index = 0
 
         super().__init__(fragment, *args, **kwargs)

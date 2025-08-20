@@ -224,7 +224,7 @@ class Llama3VILAInferenceOperator(Operator):
         # Break text into lines for better display
         words = text.split()
         lines = []
-        current_line = []
+        current_line: list[str] = []
         max_width = pil_image.width - 20  # Leave margin
 
         # Simple text wrapping (in production, use proper text metrics)

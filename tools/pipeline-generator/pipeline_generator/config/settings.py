@@ -14,7 +14,7 @@
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 
-import yaml
+import yaml  # type: ignore
 from pydantic import BaseModel, Field
 
 
@@ -130,6 +130,7 @@ def load_config(config_path: Optional[Path] = None) -> Settings:
                 model_id=None,
                 base_url="https://huggingface.co",
                 description="Official MONAI organization models",
+                model_type=None,
             )
         ]
     )

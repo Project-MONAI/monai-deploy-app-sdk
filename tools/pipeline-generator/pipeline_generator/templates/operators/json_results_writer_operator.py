@@ -97,7 +97,7 @@ class JSONResultsWriter(Operator):
 
     def _process_prediction(self, pred: Any, filename: str) -> Dict[str, Any]:
         """Process various prediction formats into a JSON-serializable dictionary."""
-        result = {"filename": filename}
+        result: Dict[str, Any] = {"filename": filename}
 
         # Handle dictionary predictions (e.g., from MonaiBundleInferenceOperator)
         if isinstance(pred, dict):
