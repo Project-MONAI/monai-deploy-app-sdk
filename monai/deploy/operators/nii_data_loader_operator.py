@@ -81,7 +81,7 @@ class NiftiDataLoader(Operator):
         image_reader.SetFileName(str(nii_path))
         image = image_reader.Execute()
         image_np = SimpleITK.GetArrayFromImage(image)
-        
+
         # Handle different dimensionalities properly
         if image_np.ndim == 3:
             # Standard 3D volume: transpose from (z, y, x) to (x, y, z)
@@ -94,8 +94,10 @@ class NiftiDataLoader(Operator):
             image_np = np.transpose(image_np, [1, 0])
         else:
             # For other dimensions, log a warning and return as-is
-            self._logger.warning(f"Unexpected {image_np.ndim}D NIfTI file shape {image_np.shape} from {nii_path}, returning without transpose")
-        
+            self._logger.warning(
+                f"Unexpected {image_np.ndim}D NIfTI file shape {image_np.shape} from {nii_path}, returning without transpose"
+            )
+
         return image_np
 
 

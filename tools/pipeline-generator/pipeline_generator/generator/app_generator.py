@@ -12,6 +12,7 @@
 """Generate MONAI Deploy applications from MONAI Bundles."""
 
 import logging
+import re
 from pathlib import Path
 from typing import Any, Dict, Optional
 
@@ -19,8 +20,6 @@ from jinja2 import Environment, FileSystemLoader
 
 from ..config.settings import Settings, load_config
 from .bundle_downloader import BundleDownloader
-
-import re
 
 logger = logging.getLogger(__name__)
 
@@ -463,48 +462,43 @@ class AppGenerator:
             context: Template context
         """
         import shutil
-        
+
         # Map operator usage based on context
         needed_operators = []
-        
-        input_type = context.get('input_type', '')
-        output_type = context.get('output_type', '')
-        task = context.get('task', '').lower()
-        
+
+        input_type = context.get("input_type", "")
+        output_type = context.get("output_type", "")
+        task = context.get("task", "").lower()
+
         # Determine which operators are needed based on the application type
         if input_type == "image":
-            needed_operators.extend([
-                'generic_directory_scanner_operator.py',
-                'image_file_loader_operator.py'
-            ])
+            needed_operators.extend(["generic_directory_scanner_operator.py", "image_file_loader_operator.py"])
         elif input_type == "custom":
-            needed_operators.extend([
-                'llama3_vila_inference_operator.py',
-                'prompts_loader_operator.py',
-                'vlm_results_writer_operator.py'
-            ])
+            needed_operators.extend(
+                ["llama3_vila_inference_operator.py", "prompts_loader_operator.py", "vlm_results_writer_operator.py"]
+            )
         elif input_type == "nifti":
-            needed_operators.append('generic_directory_scanner_operator.py')
-            
+            needed_operators.append("generic_directory_scanner_operator.py")
+
         if output_type == "json":
-            needed_operators.append('json_results_writer_operator.py')
+            needed_operators.append("json_results_writer_operator.py")
         elif output_type == "image_overlay":
-            needed_operators.append('image_overlay_writer_operator.py')
+            needed_operators.append("image_overlay_writer_operator.py")
         elif output_type == "nifti":
-            needed_operators.append('nifti_writer_operator.py')
-            
+            needed_operators.append("nifti_writer_operator.py")
+
         if "classification" in task and input_type == "image":
-            needed_operators.append('monai_classification_operator.py')
-            
+            needed_operators.append("monai_classification_operator.py")
+
         # Remove duplicates
         needed_operators = list(set(needed_operators))
-        
+
         if needed_operators:
             # Get the operators directory in templates
             operators_dir = Path(__file__).parent.parent / "templates" / "operators"
-            
+
             logger.info(f"Copying {len(needed_operators)} operators to generated application")
-            
+
             for operator_file in needed_operators:
                 src_path = operators_dir / operator_file
                 if src_path.exists():

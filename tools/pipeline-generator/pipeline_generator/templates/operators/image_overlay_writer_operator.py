@@ -33,6 +33,7 @@ class ImageOverlayWriter(Operator):
             probability tensor is provided, you may pre-argmax before this operator.
     - filename: base name (stem) for output file
     """
+
     def __init__(
         self,
         fragment: Fragment,

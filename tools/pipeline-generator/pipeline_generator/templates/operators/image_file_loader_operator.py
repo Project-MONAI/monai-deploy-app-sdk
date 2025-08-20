@@ -154,7 +154,7 @@ def test():
     # Create a temporary directory with a test image
     with tempfile.TemporaryDirectory() as temp_dir:
         temp_path = Path(temp_dir)
-        
+
         # Create test image
         test_image_path = temp_path / "test_image.jpg"
         img = PILImageCreate.new("RGB", (100, 100), color=(128, 64, 192))
@@ -166,6 +166,7 @@ def test():
 
         # Simulate setup
         from monai.deploy.core import OperatorSpec
+
         spec = OperatorSpec()
         loader.setup(spec)
 

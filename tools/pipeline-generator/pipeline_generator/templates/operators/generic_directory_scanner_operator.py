@@ -18,11 +18,11 @@ from monai.deploy.core import ConditionType, Fragment, Operator, OperatorSpec
 
 class GenericDirectoryScanner(Operator):
     """Scan a directory for files matching specified extensions and emit file paths one by one.
-    
+
     This operator provides a generic way to iterate through files in a directory,
     emitting one file path at a time. It can be chained with file-specific loaders
     to create flexible data loading pipelines.
-    
+
     Named Outputs:
         file_path: Path to the current file being processed
         filename: Name of the current file (without extension)
@@ -51,10 +51,10 @@ class GenericDirectoryScanner(Operator):
         """
         self._logger = logging.getLogger("{}.{}".format(__name__, type(self).__name__))
         self._input_folder = Path(input_folder)
-        self._file_extensions = [ext if ext.startswith('.') else f'.{ext}' for ext in file_extensions]
+        self._file_extensions = [ext if ext.startswith(".") else f".{ext}" for ext in file_extensions]
         self._recursive = bool(recursive)
         self._case_sensitive = bool(case_sensitive)
-        
+
         # State tracking
         self._files = []
         self._current_index = 0
@@ -64,13 +64,13 @@ class GenericDirectoryScanner(Operator):
     def _find_files(self) -> List[Path]:
         """Find all files matching the specified extensions."""
         files = []
-        
+
         # Normalize extensions for comparison
         if not self._case_sensitive:
             extensions = [ext.lower() for ext in self._file_extensions]
         else:
             extensions = self._file_extensions
-        
+
         # Choose search method based on recursive flag
         if self._recursive:
             search_pattern = "**/*"
@@ -78,25 +78,25 @@ class GenericDirectoryScanner(Operator):
         else:
             search_pattern = "*"
             search_method = self._input_folder.glob
-        
+
         # Find all files and filter by extension
         for file_path in search_method(search_pattern):
             if file_path.is_file():
                 # Skip hidden files (starting with .) to avoid macOS metadata files like ._file.nii.gz
-                if file_path.name.startswith('.'):
+                if file_path.name.startswith("."):
                     continue
-                
+
                 # Handle compound extensions like .nii.gz by checking if filename ends with any extension
                 filename = file_path.name
                 if not self._case_sensitive:
                     filename = filename.lower()
-                
+
                 # Check if filename ends with any of the specified extensions
                 for ext in extensions:
                     if filename.endswith(ext):
                         files.append(file_path)
                         break  # Only add once even if multiple extensions match
-        
+
         # Sort files for consistent ordering
         files.sort()
         return files
@@ -104,29 +104,25 @@ class GenericDirectoryScanner(Operator):
     def setup(self, spec: OperatorSpec):
         """Define the operator outputs."""
         spec.output("file_path")
-        spec.output("filename") 
+        spec.output("filename")
         spec.output("file_index").condition(ConditionType.NONE)
         spec.output("total_files").condition(ConditionType.NONE)
 
         # Pre-initialize the files list
         if not self._input_folder.is_dir():
             raise ValueError(f"Input folder {self._input_folder} is not a directory")
-        
+
         self._files = self._find_files()
         self._current_index = 0
 
         if not self._files:
-            self._logger.warning(
-                f"No files found in {self._input_folder} with extensions {self._file_extensions}"
-            )
+            self._logger.warning(f"No files found in {self._input_folder} with extensions {self._file_extensions}")
         else:
-            self._logger.info(
-                f"Found {len(self._files)} files to process with extensions {self._file_extensions}"
-            )
+            self._logger.info(f"Found {len(self._files)} files to process with extensions {self._file_extensions}")
 
     def compute(self, op_input, op_output, context):
         """Emit the next file path."""
-        
+
         # Check if we have more files to process
         if self._current_index >= len(self._files):
             # No more files to process
@@ -144,9 +140,7 @@ class GenericDirectoryScanner(Operator):
             op_output.emit(self._current_index, "file_index")
             op_output.emit(len(self._files), "total_files")
 
-            self._logger.info(
-                f"Emitted file: {file_path.name} ({self._current_index + 1}/{len(self._files)})"
-            )
+            self._logger.info(f"Emitted file: {file_path.name} ({self._current_index + 1}/{len(self._files)})")
 
         except Exception as e:
             self._logger.error(f"Failed to process file {file_path}: {e}")
@@ -162,16 +156,13 @@ def test():
     # Create a temporary directory with test files
     with tempfile.TemporaryDirectory() as temp_dir:
         temp_path = Path(temp_dir)
-        
+
         # Create test files with different extensions
-        test_files = [
-            "test1.jpg", "test2.png", "test3.nii", "test4.nii.gz", 
-            "test5.txt", "test6.jpeg"
-        ]
-        
+        test_files = ["test1.jpg", "test2.png", "test3.nii", "test4.nii.gz", "test5.txt", "test6.jpeg"]
+
         for filename in test_files:
             (temp_path / filename).touch()
-        
+
         # Create a subdirectory with more files
         sub_dir = temp_path / "subdir"
         sub_dir.mkdir()
@@ -181,14 +172,12 @@ def test():
         # Test the operator with image extensions
         fragment = Fragment()
         scanner = GenericDirectoryScanner(
-            fragment, 
-            input_folder=temp_path,
-            file_extensions=['.jpg', '.jpeg', '.png'],
-            recursive=True
+            fragment, input_folder=temp_path, file_extensions=[".jpg", ".jpeg", ".png"], recursive=True
         )
 
         # Simulate setup
         from monai.deploy.core import OperatorSpec
+
         spec = OperatorSpec()
         scanner.setup(spec)
 

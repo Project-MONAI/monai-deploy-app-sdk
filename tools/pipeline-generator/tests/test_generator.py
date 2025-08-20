@@ -464,19 +464,19 @@ class TestAppGenerator:
             model_file=None,
             app_name="TestApp",
             input_type="image",
-            output_type="nifti"
+            output_type="nifti",
         )
         assert context1["channel_first"] is False
 
         # Test case 2: image input, classification task -> should be True
         context2 = generator._prepare_context(
-            model_id="test/model", 
+            model_id="test/model",
             metadata={"task": "classification", "name": "Test Model"},
             inference_config={},
             model_file=None,
             app_name="TestApp",
             input_type="image",
-            output_type="json"
+            output_type="json",
         )
         assert context2["channel_first"] is True
 
@@ -488,7 +488,7 @@ class TestAppGenerator:
             model_file=None,
             app_name="TestApp",
             input_type="dicom",
-            output_type="nifti"
+            output_type="nifti",
         )
         assert context3["channel_first"] is True
 
@@ -500,7 +500,7 @@ class TestAppGenerator:
             model_file=None,
             app_name="TestApp",
             input_type="nifti",
-            output_type="nifti"
+            output_type="nifti",
         )
         assert context4["channel_first"] is True
 
@@ -569,14 +569,16 @@ class TestAppGenerator:
             assert "IOMapping" in app_content, "IOMapping import missing - required for MonaiBundleInferenceOperator"
 
             # Check operator imports
-            assert (
-                "from generic_directory_scanner_operator import GenericDirectoryScanner" in app_content
-            )
-            assert (
-                "from monai.deploy.operators.nii_data_loader_operator import NiftiDataLoader" in app_content
-            )
+            assert "from generic_directory_scanner_operator import GenericDirectoryScanner" in app_content
+            assert "from monai.deploy.operators.nii_data_loader_operator import NiftiDataLoader" in app_content
             assert "from nifti_writer_operator import NiftiWriter" in app_content
             assert "from monai.deploy.operators.monai_bundle_inference_operator import" in app_content
+
+            # Check that the required operator files are physically copied (Phase 7 verification)
+            assert (
+                output_dir / "generic_directory_scanner_operator.py"
+            ).exists(), "GenericDirectoryScanner operator file not copied"
+            assert (output_dir / "nifti_writer_operator.py").exists(), "NiftiWriter operator file not copied"
 
     @patch.object(BundleDownloader, "download_bundle")
     @patch.object(BundleDownloader, "get_bundle_metadata")
@@ -628,17 +630,87 @@ class TestAppGenerator:
             assert "from monai.deploy.core.io_type import IOType" in app_content, "IOType import missing"
 
             # Check operator imports
-            assert (
-                "from generic_directory_scanner_operator import GenericDirectoryScanner" in app_content
-            )
-            assert (
-                "from image_file_loader_operator import ImageFileLoader" in app_content
-            )
+            assert "from generic_directory_scanner_operator import GenericDirectoryScanner" in app_content
+            assert "from image_file_loader_operator import ImageFileLoader" in app_content
             assert "from json_results_writer_operator import JSONResultsWriter" in app_content
+            assert "from monai_classification_operator import MonaiClassificationOperator" in app_content
+
+            # Check that the required operator files are physically copied (Phase 7 verification)
             assert (
-                "from monai_classification_operator import MonaiClassificationOperator"
-                in app_content
-            )
+                output_dir / "generic_directory_scanner_operator.py"
+            ).exists(), "GenericDirectoryScanner operator file not copied"
+            assert (output_dir / "image_file_loader_operator.py").exists(), "ImageFileLoader operator file not copied"
+            assert (
+                output_dir / "json_results_writer_operator.py"
+            ).exists(), "JSONResultsWriter operator file not copied"
+            assert (
+                output_dir / "monai_classification_operator.py"
+            ).exists(), "MonaiClassificationOperator operator file not copied"
+
+    @patch.object(BundleDownloader, "download_bundle")
+    @patch.object(BundleDownloader, "get_bundle_metadata")
+    @patch.object(BundleDownloader, "get_inference_config")
+    @patch.object(BundleDownloader, "detect_model_file")
+    def test_vlm_model_imports_and_operators(
+        self, mock_detect_model, mock_get_inference, mock_get_metadata, mock_download
+    ):
+        """Test that VLM apps have required imports and operators copied (Phase 7 verification)."""
+        generator = AppGenerator()
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_path = Path(temp_dir)
+            output_dir = temp_path / "output"
+
+            # Mock bundle download
+            bundle_path = temp_path / "bundle"
+            bundle_path.mkdir()
+            mock_download.return_value = bundle_path
+
+            # Mock metadata for VLM model
+            mock_get_metadata.return_value = {
+                "name": "Llama3-VILA-M3-3B",
+                "version": "1.0",
+                "task": "vlm",
+                "modality": "multimodal",
+            }
+
+            # Mock inference config (VLM doesn't have traditional inference config)
+            mock_get_inference.return_value = {}
+
+            # Mock: No traditional model file for VLM
+            mock_detect_model.return_value = None
+
+            # Generate app
+            generator.generate_app("MONAI/Llama3-VILA-M3-3B", output_dir)
+
+            # Read generated app.py
+            app_file = output_dir / "app.py"
+            assert app_file.exists()
+            app_content = app_file.read_text()
+
+            # Check VLM-specific imports
+            assert "from prompts_loader_operator import PromptsLoaderOperator" in app_content
+            assert "from llama3_vila_inference_operator import Llama3VILAInferenceOperator" in app_content
+            assert "from vlm_results_writer_operator import VLMResultsWriterOperator" in app_content
+
+            # Check that the VLM operator files are physically copied (Phase 7 verification)
+            assert (
+                output_dir / "prompts_loader_operator.py"
+            ).exists(), "PromptsLoaderOperator operator file not copied"
+            assert (
+                output_dir / "llama3_vila_inference_operator.py"
+            ).exists(), "Llama3VILAInferenceOperator operator file not copied"
+            assert (
+                output_dir / "vlm_results_writer_operator.py"
+            ).exists(), "VLMResultsWriterOperator operator file not copied"
+
+            # Verify that non-VLM operators are NOT copied for VLM models
+            assert not (
+                output_dir / "nifti_writer_operator.py"
+            ).exists(), "NiftiWriter should not be copied for VLM models"
+            assert not (
+                output_dir / "monai_classification_operator.py"
+            ).exists(), "MonaiClassificationOperator should not be copied for VLM models"
 
     @patch.object(BundleDownloader, "download_bundle")
     @patch.object(BundleDownloader, "get_bundle_metadata")

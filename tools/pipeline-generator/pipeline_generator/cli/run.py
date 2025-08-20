@@ -28,39 +28,39 @@ console = Console()
 
 def _validate_results(output_dir: Path) -> tuple[bool, str]:
     """Validate that the application actually generated results.
-    
+
     Args:
         output_dir: Path to the output directory
-        
+
     Returns:
         Tuple of (success, message) where success is True if validation passed
     """
     if not output_dir.exists():
         return False, f"Output directory does not exist: {output_dir}"
-    
+
     # Check if any files were generated in the output directory
     output_files = list(output_dir.rglob("*"))
     result_files = [f for f in output_files if f.is_file()]
-    
+
     if not result_files:
         return False, f"No result files generated in {output_dir}"
-    
+
     # Count different types of output files
-    json_files = [f for f in result_files if f.suffix.lower() == '.json']
-    nifti_files = [f for f in result_files if f.suffix.lower() in ['.nii', '.gz']]
-    image_files = [f for f in result_files if f.suffix.lower() in ['.png', '.jpg', '.jpeg', '.tiff']]
+    json_files = [f for f in result_files if f.suffix.lower() == ".json"]
+    nifti_files = [f for f in result_files if f.suffix.lower() in [".nii", ".gz"]]
+    image_files = [f for f in result_files if f.suffix.lower() in [".png", ".jpg", ".jpeg", ".tiff"]]
     other_files = [f for f in result_files if f not in json_files + nifti_files + image_files]
-    
+
     file_summary = []
     if json_files:
         file_summary.append(f"{len(json_files)} JSON files")
     if nifti_files:
-        file_summary.append(f"{len(nifti_files)} NIfTI files") 
+        file_summary.append(f"{len(nifti_files)} NIfTI files")
     if image_files:
         file_summary.append(f"{len(image_files)} image files")
     if other_files:
         file_summary.append(f"{len(other_files)} other files")
-    
+
     summary = ", ".join(file_summary) if file_summary else f"{len(result_files)} files"
     return True, f"Generated {summary}"
 

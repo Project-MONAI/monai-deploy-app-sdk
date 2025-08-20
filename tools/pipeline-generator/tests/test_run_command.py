@@ -16,7 +16,7 @@ from pathlib import Path
 from unittest.mock import Mock, patch
 
 from click.testing import CliRunner
-from pipeline_generator.cli.run import run, _validate_results
+from pipeline_generator.cli.run import _validate_results, run
 
 
 class TestRunCommand:
@@ -82,7 +82,7 @@ class TestRunCommand:
         mock_process.wait.return_value = 0
         mock_process.stdout = iter(["Processing...\n", "Complete!\n"])
         mock_popen.return_value = mock_process
-        
+
         # Mock validation to return success
         mock_validate.return_value = (True, "Generated 2 JSON files")
 
@@ -117,7 +117,7 @@ class TestRunCommand:
         mock_process.wait.return_value = 0
         mock_process.stdout = iter(["Processing...\n", "Complete!\n"])
         mock_popen.return_value = mock_process
-        
+
         # Mock validation to return success
         mock_validate.return_value = (True, "Generated 1 JSON file")
 
@@ -162,7 +162,7 @@ class TestRunCommand:
         mock_process.wait.return_value = 0
         mock_process.stdout = iter(["Processing...\n", "Complete!\n"])
         mock_popen.return_value = mock_process
-        
+
         # Mock validation to return success
         mock_validate.return_value = (True, "Generated 3 NIfTI files")
 
@@ -172,7 +172,7 @@ class TestRunCommand:
                 str(app_path),
                 "--input",
                 str(input_dir),
-                "--output", 
+                "--output",
                 str(output_dir),
                 "--model",
                 str(model_path),
@@ -251,7 +251,7 @@ class TestRunCommand:
         input_dir = tmp_path / "input"
         input_dir.mkdir()
         output_dir = tmp_path / "output"
-        
+
         # Create existing venv
         venv_path = app_path / ".venv"
         venv_path.mkdir()
@@ -271,7 +271,7 @@ class TestRunCommand:
         mock_process.wait.return_value = 0
         mock_process.stdout = iter(["Processing...\n", "Complete!\n"])
         mock_popen.return_value = mock_process
-        
+
         # Mock validation to return success
         mock_validate.return_value = (True, "Generated 1 image file")
 
@@ -336,7 +336,7 @@ class TestRunCommand:
         mock_process.wait.return_value = 0
         mock_process.stdout = iter(["Processing...\n", "Complete!\n"])
         mock_popen.return_value = mock_process
-        
+
         # Mock validation to return success
         mock_validate.return_value = (True, "Generated 4 JSON files")
 
@@ -380,7 +380,7 @@ class TestRunCommand:
         mock_process.wait.return_value = 0
         mock_process.stdout = iter(["Processing...\n", "Complete!\n"])
         mock_popen.return_value = mock_process
-        
+
         # Mock validation to return success
         mock_validate.return_value = (True, "Generated 2 other files")
 
@@ -405,14 +405,14 @@ class TestRunCommand:
         """Test validation function with successful results."""
         output_dir = tmp_path / "output"
         output_dir.mkdir()
-        
+
         # Create test result files
         (output_dir / "result1.json").write_text('{"test": "data"}')
         (output_dir / "result2.json").write_text('{"test": "data2"}')
         (output_dir / "image.png").write_text("fake image data")
-        
+
         success, message = _validate_results(output_dir)
-        
+
         assert success is True
         assert "Generated 2 JSON files, 1 image file" in message
 
@@ -420,18 +420,18 @@ class TestRunCommand:
         """Test validation function with no result files."""
         output_dir = tmp_path / "output"
         output_dir.mkdir()
-        
+
         success, message = _validate_results(output_dir)
-        
+
         assert success is False
         assert "No result files generated" in message
 
     def test_validate_results_missing_directory(self, tmp_path):
         """Test validation function with missing output directory."""
         output_dir = tmp_path / "nonexistent"
-        
+
         success, message = _validate_results(output_dir)
-        
+
         assert success is False
         assert "Output directory does not exist" in message
 
@@ -458,7 +458,7 @@ class TestRunCommand:
         mock_process.wait.return_value = 0
         mock_process.stdout = iter(["Processing...\n", "Complete!\n"])
         mock_popen.return_value = mock_process
-        
+
         # Mock validation to return failure
         mock_validate.return_value = (False, "No result files generated")
 
@@ -482,13 +482,13 @@ class TestRunCommand:
         """Test validation function with NIfTI files."""
         output_dir = tmp_path / "output"
         output_dir.mkdir()
-        
+
         # Create test NIfTI files
         (output_dir / "result1.nii").write_text("fake nifti data")
         (output_dir / "result2.nii.gz").write_text("fake nifti data")
-        
+
         success, message = _validate_results(output_dir)
-        
+
         assert success is True
         assert "Generated 2 NIfTI files" in message
 
@@ -496,13 +496,13 @@ class TestRunCommand:
         """Test validation function with other file types."""
         output_dir = tmp_path / "output"
         output_dir.mkdir()
-        
+
         # Create test files of various types
         (output_dir / "result.txt").write_text("text data")
         (output_dir / "data.csv").write_text("csv data")
-        
+
         success, message = _validate_results(output_dir)
-        
+
         assert success is True
         assert "Generated 2 other files" in message
 
@@ -510,15 +510,15 @@ class TestRunCommand:
         """Test validation function with mixed file types."""
         output_dir = tmp_path / "output"
         output_dir.mkdir()
-        
+
         # Create test files of various types
         (output_dir / "result.json").write_text('{"test": "data"}')
         (output_dir / "image.png").write_text("fake png data")
         (output_dir / "volume.nii").write_text("fake nifti data")
         (output_dir / "report.txt").write_text("text report")
-        
+
         success, message = _validate_results(output_dir)
-        
+
         assert success is True
         assert "1 JSON file" in message
         assert "1 image file" in message
@@ -547,10 +547,11 @@ class TestRunCommand:
         mock_process = Mock()
         mock_process.stdout = iter(["Processing...\n"])
         mock_popen.return_value = mock_process
-        
+
         # Simulate KeyboardInterrupt during execution
         def mock_wait():
             raise KeyboardInterrupt("User interrupted")
+
         mock_process.wait = mock_wait
 
         result = self.runner.invoke(
@@ -572,12 +573,12 @@ class TestRunCommand:
         """Test the main execution path."""
         # Test the main section logic
         import pipeline_generator.cli.run as run_module
-        
+
         # Mock the run function
-        with patch.object(run_module, 'run') as mock_run:
+        with patch.object(run_module, "run") as mock_run:
             # Simulate the __main__ execution by calling the main section directly
             # This covers the: if __name__ == "__main__": run() line
             if True:  # Simulating __name__ == "__main__"
                 run_module.run()
-            
+
             mock_run.assert_called_once()
