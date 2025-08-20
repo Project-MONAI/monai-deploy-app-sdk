@@ -147,7 +147,7 @@ class BundleDownloader:
 
     def organize_bundle_structure(self, bundle_path: Path) -> None:
         """Organize bundle files into the expected MONAI Bundle structure.
-        
+
         Creates the standard structure if files are in the root directory:
         bundle_root/
           configs/
@@ -156,33 +156,27 @@ class BundleDownloader:
           models/
             model.pt
             model.ts
-            
+
         Args:
             bundle_path: Path to the downloaded bundle
         """
         configs_dir = bundle_path / "configs"
         models_dir = bundle_path / "models"
-        
+
         # Check if structure already exists
-        has_configs_structure = (
-            configs_dir.exists() and 
-            (configs_dir / "metadata.json").exists()
-        )
-        has_models_structure = (
-            models_dir.exists() and 
-            any(models_dir.glob("model.*"))
-        )
-        
+        has_configs_structure = configs_dir.exists() and (configs_dir / "metadata.json").exists()
+        has_models_structure = models_dir.exists() and any(models_dir.glob("model.*"))
+
         if has_configs_structure and has_models_structure:
             logger.debug("Bundle already has proper structure")
             return
-            
+
         logger.info("Organizing bundle into standard structure")
-        
+
         # Create directories
         configs_dir.mkdir(exist_ok=True)
         models_dir.mkdir(exist_ok=True)
-        
+
         # Move config files to configs/
         config_files = ["metadata.json", "inference.json"]
         for config_file in config_files:
@@ -190,18 +184,18 @@ class BundleDownloader:
             if src_path.exists() and not (configs_dir / config_file).exists():
                 src_path.rename(configs_dir / config_file)
                 logger.debug(f"Moved {config_file} to configs/")
-        
+
         # Move model files to models/
         # Prefer PyTorch (.pt) > ONNX (.onnx) > TorchScript (.ts) for better compatibility
         model_extensions = [".pt", ".onnx", ".ts"]
-        
+
         # First move model files from root directory
         for ext in model_extensions:
             for model_file in bundle_path.glob(f"*{ext}"):
                 if model_file.is_file() and not (models_dir / model_file.name).exists():
                     model_file.rename(models_dir / model_file.name)
                     logger.debug(f"Moved {model_file.name} to models/")
-        
+
         # Check if we already have a suitable model in the main directory
         # Prefer .pt files, then .onnx, then .ts
         has_suitable_model = False
@@ -209,7 +203,7 @@ class BundleDownloader:
             if any(models_dir.glob(f"*{ext}")):
                 has_suitable_model = True
                 break
-        
+
         # If no suitable model in main directory, move from subdirectories
         if not has_suitable_model:
             # Also move model files from subdirectories to the main models/ directory
@@ -219,17 +213,17 @@ class BundleDownloader:
                 model_files = list(models_dir.glob(f"**/*{ext}"))
                 if not model_files:
                     continue
-                    
+
                 # Filter files that are not in the main models directory
                 subdirectory_files = [f for f in model_files if f.parent != models_dir]
                 if not subdirectory_files:
                     continue
-                    
+
                 target_name = f"model{ext}"
                 target_path = models_dir / target_name
                 if target_path.exists():
                     continue  # Target already exists
-                
+
                 # Prefer non-TensorRT models for better compatibility
                 # TensorRT models often have "_trt" in their name
                 preferred_file = None
@@ -237,15 +231,15 @@ class BundleDownloader:
                     if "_trt" not in model_file.name.lower():
                         preferred_file = model_file
                         break
-                
+
                 # If no non-TensorRT model found, use the first available
                 if preferred_file is None:
                     preferred_file = subdirectory_files[0]
-                
+
                 # Move the preferred model file
                 preferred_file.rename(target_path)
                 logger.debug(f"Moved {preferred_file.name} from {preferred_file.parent.name}/ to models/{target_name}")
-                
+
                 # Clean up empty subdirectory if it exists
                 try:
                     if preferred_file.parent.exists() and not any(preferred_file.parent.iterdir()):
@@ -254,7 +248,7 @@ class BundleDownloader:
                 except OSError:
                     pass  # Directory not empty or other issue
                 break  # Only move one model file total
-        
+
         # Ensure we have model.pt or model.ts in the main directory for MONAI Deploy
         # Create symlinks with standard names if needed
         standard_model_path = models_dir / "model.pt"

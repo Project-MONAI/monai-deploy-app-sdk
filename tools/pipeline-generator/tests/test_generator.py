@@ -355,23 +355,20 @@ class TestAppGenerator:
 
     def test_config_based_dependency_overrides(self):
         """Test config-based dependency overrides prevent metadata conflicts."""
-        from pipeline_generator.config.settings import Settings, ModelConfig, Endpoint
-        
+        from pipeline_generator.config.settings import Endpoint, ModelConfig, Settings
+
         # Mock settings with config override for a model
         model_config = ModelConfig(
             model_id="MONAI/test_model",
             input_type="nifti",
             output_type="nifti",
-            dependencies=["torch>=1.11.0", "numpy>=1.21.0", "monai>=1.3.0"]
+            dependencies=["torch>=1.11.0", "numpy>=1.21.0", "monai>=1.3.0"],
         )
-        
+
         endpoint = Endpoint(
-            organization="MONAI",
-            base_url="https://huggingface.co",
-            description="Test",
-            models=[model_config]
+            organization="MONAI", base_url="https://huggingface.co", description="Test", models=[model_config]
         )
-        
+
         settings = Settings(endpoints=[endpoint])
         generator = AppGenerator(settings)
 
@@ -410,19 +407,19 @@ class TestAppGenerator:
                                             )
 
                                             call_args = mock_copy.call_args[0][1]
-                                            
+
                                             # Config dependencies should be used instead of metadata
                                             assert "torch>=1.11.0" in call_args["extra_dependencies"]
-                                            assert "numpy>=1.21.0" in call_args["extra_dependencies"] 
+                                            assert "numpy>=1.21.0" in call_args["extra_dependencies"]
                                             assert "monai>=1.3.0" in call_args["extra_dependencies"]
-                                            
+
                                             # Old metadata versions should NOT be included
                                             assert "torch==1.10.0" not in call_args["extra_dependencies"]
                                             assert "numpy==1.20.0" not in call_args["extra_dependencies"]
-                                            
+
                                             # MONAI version should be removed from metadata to prevent template conflict
                                             assert "monai_version" not in call_args["metadata"]
-                                            
+
                                             # Verify bundle structure was organized
                                             mock_organize.assert_called_once()
 
@@ -464,11 +461,11 @@ class TestAppGenerator:
                                             )
 
                                             call_args = mock_copy.call_args[0][1]
-                                            
+
                                             # Should use metadata versions when no config
                                             assert "numpy==1.21.0" in call_args["extra_dependencies"]
                                             assert "torch==1.12.0" in call_args["extra_dependencies"]
-                                            
+
                                             # MONAI version should be moved from metadata to extra_dependencies
                                             assert "monai==1.0.0" in call_args["extra_dependencies"]
                                             assert "monai_version" not in call_args["metadata"]
@@ -492,24 +489,29 @@ class TestAppGenerator:
                         with patch.object(generator.downloader, "detect_model_file") as mock_detect:
                             with patch.object(generator.downloader, "organize_bundle_structure") as mock_organize:
                                 # Mock model config with MONAI dependency
-                                from pipeline_generator.config.settings import Settings, ModelConfig, Endpoint
+                                from pipeline_generator.config.settings import Endpoint, ModelConfig, Settings
+
                                 model_config = ModelConfig(
                                     model_id="MONAI/test_model",
-                                    input_type="nifti", 
+                                    input_type="nifti",
                                     output_type="nifti",
-                                    dependencies=["monai>=1.3.0"]
+                                    dependencies=["monai>=1.3.0"],
                                 )
-                                endpoint = Endpoint(organization="MONAI", base_url="https://huggingface.co", 
-                                                  description="Test", models=[model_config])
+                                endpoint = Endpoint(
+                                    organization="MONAI",
+                                    base_url="https://huggingface.co",
+                                    description="Test",
+                                    models=[model_config],
+                                )
                                 settings = Settings(endpoints=[endpoint])
                                 generator_with_config = AppGenerator(settings)
-                                
+
                                 mock_meta.return_value = {"monai_version": "0.8.0"}
                                 mock_inf.return_value = {}
                                 mock_detect.return_value = None
 
                                 context = generator_with_config._prepare_context(
-                                    "MONAI/test_model", 
+                                    "MONAI/test_model",
                                     {"monai_version": "0.8.0"},
                                     {},
                                     None,
@@ -518,9 +520,9 @@ class TestAppGenerator:
                                     "segmentation",
                                     None,
                                     None,
-                                    model_config  # Pass the model config
+                                    model_config,  # Pass the model config
                                 )
-                                
+
                                 # Should have config MONAI but not metadata MONAI
                                 assert "monai>=1.3.0" in context["extra_dependencies"]
                                 assert "monai==0.8.0" not in context["extra_dependencies"]
@@ -533,32 +535,23 @@ class TestAppGenerator:
                 {"monai_version": "1.0.0"},
                 {},
                 None,
-                None, 
+                None,
                 "auto",
                 "segmentation",
                 None,
                 None,
-                None  # No model config
+                None,  # No model config
             )
-            
+
             # Should add metadata MONAI version to extra_dependencies
             assert "monai==1.0.0" in context2["extra_dependencies"]
             assert "monai_version" not in context2["metadata"]
-            
+
             # Test case 3: No config and no metadata - should add fallback
             context3 = generator_no_config._prepare_context(
-                "MONAI/test_model",
-                {},
-                {},
-                None,
-                None,
-                "auto",
-                "segmentation",
-                None,
-                None,
-                None  # No model config
+                "MONAI/test_model", {}, {}, None, None, "auto", "segmentation", None, None, None  # No model config
             )
-            
+
             # Should add fallback MONAI version
             assert "monai>=1.5.0" in context3["extra_dependencies"]
 
@@ -588,12 +581,12 @@ class TestAppGenerator:
         inference_config = {
             "preprocessing": {
                 "_target_": "Compose",
-                "transforms": "$@preprocessing_transforms + @deepedit_transforms + @extra_transforms"
+                "transforms": "$@preprocessing_transforms + @deepedit_transforms + @extra_transforms",
             },
             "preprocessing_transforms": [
                 {"_target_": "LoadImaged", "keys": "image"},
-                {"_target_": "EnsureChannelFirstd", "keys": "image"}
-            ]
+                {"_target_": "EnsureChannelFirstd", "keys": "image"},
+            ],
         }
 
         # This should return False (NIfTI format) because LoadImaged is found in config string
@@ -606,14 +599,11 @@ class TestAppGenerator:
 
         # Create inference config with string transforms but no LoadImaged
         inference_config = {
-            "preprocessing": {
-                "_target_": "Compose", 
-                "transforms": "$@preprocessing_transforms + @other_transforms"
-            },
+            "preprocessing": {"_target_": "Compose", "transforms": "$@preprocessing_transforms + @other_transforms"},
             "preprocessing_transforms": [
                 {"_target_": "SomeOtherTransform", "keys": "image"},
-                {"_target_": "EnsureChannelFirstd", "keys": "image"}
-            ]
+                {"_target_": "EnsureChannelFirstd", "keys": "image"},
+            ],
         }
 
         # This should return True (DICOM format) for CT modality when no LoadImaged found

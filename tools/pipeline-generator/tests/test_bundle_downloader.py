@@ -230,7 +230,7 @@ class TestBundleDownloader:
         inference_file = bundle_path / "inference.json"
         model_pt_file = bundle_path / "model.pt"
         model_ts_file = bundle_path / "model.ts"
-        
+
         metadata_file.write_text('{"name": "Test"}')
         inference_file.write_text('{"config": "test"}')
         model_pt_file.touch()
@@ -244,7 +244,7 @@ class TestBundleDownloader:
         assert (bundle_path / "configs" / "inference.json").exists()
         assert (bundle_path / "models" / "model.pt").exists()
         assert (bundle_path / "models" / "model.ts").exists()
-        
+
         # Check that original files were moved (not copied)
         assert not metadata_file.exists()
         assert not inference_file.exists()
@@ -437,7 +437,7 @@ class TestBundleDownloader:
         # Main model should be renamed to standard name
         assert (models_dir / "model.pt").exists()
         assert not main_model.exists()
-        
+
         # Subdirectory model should remain untouched
         assert subdir_model.exists()
         assert subdir.exists()
@@ -453,9 +453,9 @@ class TestBundleDownloader:
         pt_model = subdir / "model.pt"
         onnx_model = subdir / "model.onnx"
         ts_model = subdir / "model.ts"
-        
+
         pt_model.write_bytes(b"pytorch model")
-        onnx_model.write_bytes(b"onnx model") 
+        onnx_model.write_bytes(b"onnx model")
         ts_model.write_text("torchscript model")
 
         # Organize structure
@@ -466,7 +466,7 @@ class TestBundleDownloader:
         assert not (models_dir / "model.onnx").exists()
         assert not (models_dir / "model.ts").exists()
         assert not pt_model.exists()
-        
+
         # Other models should remain in subdirectory
         assert onnx_model.exists()
         assert ts_model.exists()

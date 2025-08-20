@@ -112,7 +112,7 @@ class AppGenerator:
         # Download the bundle
         logger.info(f"Downloading bundle: {model_id}")
         bundle_path = self.downloader.download_bundle(model_id, output_dir)
-        
+
         # Organize bundle into proper structure if needed
         self.downloader.organize_bundle_structure(bundle_path)
 
@@ -278,19 +278,19 @@ class AppGenerator:
         # Collect dependency hints from metadata.json
         required_packages_version = metadata.get("required_packages_version", {}) if metadata else {}
         extra_dependencies = getattr(model_config, "dependencies", []) if model_config else []
-        
+
         # Handle dependency conflicts between config and metadata
         config_deps = []
         if extra_dependencies:
             # Extract dependency names from config overrides
             config_deps = [dep.split(">=")[0].split("==")[0].split("<")[0] for dep in extra_dependencies]
-            
+
         # Add metadata dependencies only if not overridden by config
         if metadata and "numpy_version" in metadata and "numpy" not in config_deps:
             extra_dependencies.append(f"numpy=={metadata['numpy_version']}")
         if metadata and "pytorch_version" in metadata and "torch" not in config_deps:
             extra_dependencies.append(f"torch=={metadata['pytorch_version']}")
-            
+
         # Handle MONAI version - move logic from template to Python for better maintainability
         has_monai_config = any(dep.startswith("monai") for dep in extra_dependencies)
         if has_monai_config and metadata:
