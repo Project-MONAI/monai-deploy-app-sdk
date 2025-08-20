@@ -339,3 +339,134 @@ class TestBundleDownloader:
 
         assert result is None
         mock_logger.error.assert_called()
+
+    def test_organize_bundle_structure_subdirectory_models(self, tmp_path):
+        """Test organizing models from subdirectories to main models/ directory."""
+        bundle_path = tmp_path / "bundle"
+        models_dir = bundle_path / "models"
+        subdir = models_dir / "A100"
+        subdir.mkdir(parents=True)
+
+        # Create model file in subdirectory
+        subdir_model = subdir / "dynunet_FT_trt_16.ts"
+        subdir_model.write_text("tensorrt model")
+
+        # Organize structure
+        self.downloader.organize_bundle_structure(bundle_path)
+
+        # Model should be moved to main models/ directory with standard name
+        assert (models_dir / "model.ts").exists()
+        assert not subdir_model.exists()
+        assert not subdir.exists()  # Empty subdirectory should be removed
+
+    def test_organize_bundle_structure_prefers_pytorch_over_tensorrt(self, tmp_path):
+        """Test that PyTorch models are preferred over TensorRT models."""
+        bundle_path = tmp_path / "bundle"
+        models_dir = bundle_path / "models"
+        subdir = models_dir / "A100"
+        subdir.mkdir(parents=True)
+
+        # Create both PyTorch and TensorRT models in subdirectory
+        pytorch_model = subdir / "dynunet_FT.pt"
+        tensorrt_model = subdir / "dynunet_FT_trt_16.ts"
+        pytorch_model.write_bytes(b"pytorch model")
+        tensorrt_model.write_text("tensorrt model")
+
+        # Organize structure
+        self.downloader.organize_bundle_structure(bundle_path)
+
+        # PyTorch model should be preferred and moved
+        assert (models_dir / "model.pt").exists()
+        assert not (models_dir / "model.ts").exists()
+        assert not pytorch_model.exists()
+        # TensorRT model should remain in subdirectory
+        assert tensorrt_model.exists()
+
+    def test_organize_bundle_structure_standard_naming_pytorch(self, tmp_path):
+        """Test renaming PyTorch models to standard names."""
+        bundle_path = tmp_path / "bundle"
+        models_dir = bundle_path / "models"
+        models_dir.mkdir(parents=True)
+
+        # Create PyTorch model with custom name
+        custom_model = models_dir / "dynunet_FT.pt"
+        custom_model.write_bytes(b"pytorch model")
+
+        # Organize structure
+        self.downloader.organize_bundle_structure(bundle_path)
+
+        # Model should be renamed to standard name
+        assert (models_dir / "model.pt").exists()
+        assert not custom_model.exists()
+
+    def test_organize_bundle_structure_standard_naming_torchscript(self, tmp_path):
+        """Test renaming TorchScript models to standard names when no PyTorch model exists."""
+        bundle_path = tmp_path / "bundle"
+        models_dir = bundle_path / "models"
+        models_dir.mkdir(parents=True)
+
+        # Create only TorchScript model with custom name
+        custom_model = models_dir / "custom_model.ts"
+        custom_model.write_text("torchscript model")
+
+        # Organize structure
+        self.downloader.organize_bundle_structure(bundle_path)
+
+        # Model should be renamed to standard name
+        assert (models_dir / "model.ts").exists()
+        assert not custom_model.exists()
+
+    def test_organize_bundle_structure_skips_when_suitable_model_exists(self, tmp_path):
+        """Test that subdirectory organization is skipped when suitable model already exists."""
+        bundle_path = tmp_path / "bundle"
+        models_dir = bundle_path / "models"
+        subdir = models_dir / "A100"
+        subdir.mkdir(parents=True)
+
+        # Create model in main directory
+        main_model = models_dir / "existing_model.pt"
+        main_model.write_bytes(b"existing pytorch model")
+
+        # Create model in subdirectory
+        subdir_model = subdir / "dynunet_FT_trt_16.ts"
+        subdir_model.write_text("tensorrt model")
+
+        # Organize structure
+        self.downloader.organize_bundle_structure(bundle_path)
+
+        # Main model should be renamed to standard name
+        assert (models_dir / "model.pt").exists()
+        assert not main_model.exists()
+        
+        # Subdirectory model should remain untouched
+        assert subdir_model.exists()
+        assert subdir.exists()
+
+    def test_organize_bundle_structure_multiple_extensions_preference(self, tmp_path):
+        """Test extension preference order: .pt > .onnx > .ts."""
+        bundle_path = tmp_path / "bundle"
+        models_dir = bundle_path / "models"
+        subdir = models_dir / "A100"
+        subdir.mkdir(parents=True)
+
+        # Create models with different extensions in subdirectory
+        pt_model = subdir / "model.pt"
+        onnx_model = subdir / "model.onnx"
+        ts_model = subdir / "model.ts"
+        
+        pt_model.write_bytes(b"pytorch model")
+        onnx_model.write_bytes(b"onnx model") 
+        ts_model.write_text("torchscript model")
+
+        # Organize structure
+        self.downloader.organize_bundle_structure(bundle_path)
+
+        # Should prefer .pt model
+        assert (models_dir / "model.pt").exists()
+        assert not (models_dir / "model.onnx").exists()
+        assert not (models_dir / "model.ts").exists()
+        assert not pt_model.exists()
+        
+        # Other models should remain in subdirectory
+        assert onnx_model.exists()
+        assert ts_model.exists()

@@ -348,11 +348,21 @@ class AppGenerator:
         # Check preprocessing transforms for hints
         if "preprocessing" in inference_config:
             transforms = inference_config["preprocessing"].get("transforms", [])
-            for transform in transforms:
-                target = transform.get("_target_", "")
-                if "LoadImaged" in target or "LoadImage" in target:
-                    # This suggests NIfTI format
+            # Handle case where transforms might be a string expression (e.g., "$@preprocessing_transforms + @deepedit_transforms")
+            if isinstance(transforms, str):
+                # If transforms is a string expression, we can't analyze it directly
+                # Look for LoadImaged in the inference config keys instead
+                config_str = str(inference_config)
+                if "LoadImaged" in config_str or "LoadImage" in config_str:
                     return False
+            elif isinstance(transforms, list):
+                for transform in transforms:
+                    # Ensure transform is a dictionary before calling .get()
+                    if isinstance(transform, dict):
+                        target = transform.get("_target_", "")
+                        if "LoadImaged" in target or "LoadImage" in target:
+                            # This suggests NIfTI format
+                            return False
 
         # Default based on modality
         return modality in ["CT", "MR", "MRI"]

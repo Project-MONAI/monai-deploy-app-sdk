@@ -43,6 +43,12 @@ endpoints:
       - model_id: "MONAI/pancreas_ct_dints_segmentation"
         input_type: "nifti"
         output_type: "nifti"
+      - model_id: "MONAI/pediatric_abdominal_ct_segmentation"
+        input_type: "nifti"
+        output_type: "nifti"
+        dependencies:
+        - nibabel>=3.2.0  # Required for NIfTI file I/O support
+        - itk>=5.3.0      # Required for ITK-based image readers/writers
       - model_id: "MONAI/Llama3-VILA-M3-3B"
         input_type: "custom"
         output_type: "custom"

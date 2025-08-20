@@ -580,6 +580,46 @@ class TestAppGenerator:
         result = generator._detect_data_format(inference_config, "CT")
         assert result is False
 
+    def test_inference_config_with_string_transforms(self):
+        """Test _detect_data_format with string transforms expression."""
+        generator = AppGenerator()
+
+        # Create inference config with string transforms (like spleen_deepedit_annotation)
+        inference_config = {
+            "preprocessing": {
+                "_target_": "Compose",
+                "transforms": "$@preprocessing_transforms + @deepedit_transforms + @extra_transforms"
+            },
+            "preprocessing_transforms": [
+                {"_target_": "LoadImaged", "keys": "image"},
+                {"_target_": "EnsureChannelFirstd", "keys": "image"}
+            ]
+        }
+
+        # This should return False (NIfTI format) because LoadImaged is found in config string
+        result = generator._detect_data_format(inference_config, "CT")
+        assert result is False
+
+    def test_inference_config_with_string_transforms_no_loadimage(self):
+        """Test _detect_data_format with string transforms expression without LoadImaged."""
+        generator = AppGenerator()
+
+        # Create inference config with string transforms but no LoadImaged
+        inference_config = {
+            "preprocessing": {
+                "_target_": "Compose", 
+                "transforms": "$@preprocessing_transforms + @other_transforms"
+            },
+            "preprocessing_transforms": [
+                {"_target_": "SomeOtherTransform", "keys": "image"},
+                {"_target_": "EnsureChannelFirstd", "keys": "image"}
+            ]
+        }
+
+        # This should return True (DICOM format) for CT modality when no LoadImaged found
+        result = generator._detect_data_format(inference_config, "CT")
+        assert result is True
+
     def test_detect_model_type_pathology(self):
         """Test _detect_model_type for pathology models."""
         generator = AppGenerator()

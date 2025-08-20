@@ -468,6 +468,11 @@ class MonaiBundleInferenceOperator(InferenceOperator):
             config_names ([str]): Names of the config (files) in the bundle
         """
 
+        # Ensure bundle root is on sys.path so 'scripts.*' can be imported
+        bundle_root = str(self._bundle_path)
+        if bundle_root not in sys.path:
+            sys.path.insert(0, bundle_root)
+
         parser = get_bundle_config(str(self._bundle_path), config_names)
         self._parser = parser
 
