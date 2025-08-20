@@ -43,12 +43,27 @@ endpoints:
       - model_id: "MONAI/Llama3-VILA-M3-3B"
         input_type: "custom"
         output_type: "custom"
+        dependencies:
+        - transformers>=4.44.0
+        - torch>=2.0.0
+        - Pillow>=8.0.0
+        - PyYAML>=6.0
       - model_id: "MONAI/Llama3-VILA-M3-8B"
         input_type: "custom"
         output_type: "custom"
+        dependencies:
+        - transformers>=4.44.0
+        - torch>=2.0.0
+        - Pillow>=8.0.0
+        - PyYAML>=6.0
       - model_id: "MONAI/Llama3-VILA-M3-13B"
         input_type: "custom"
         output_type: "custom"
+        dependencies:
+        - transformers>=4.44.0
+        - torch>=2.0.0
+        - Pillow>=8.0.0
+        - PyYAML>=6.0
 
 additional_models:
   - model_id: "LGAI-EXAONE/EXAONEPath"

@@ -446,13 +446,73 @@ class AppGenerator:
             output_dir: Output directory
             context: Template context
         """
-        # No need for custom operators anymore - using SDK operators
+        # Copy needed operators to generated application
+        self._copy_operators(output_dir, context)
 
         # Generate requirements.txt
         self._generate_requirements(output_dir, context)
 
         # Generate README.md
         self._generate_readme(output_dir, context)
+
+    def _copy_operators(self, output_dir: Path, context: Dict[str, Any]) -> None:
+        """Copy needed operators to the generated application.
+
+        Args:
+            output_dir: Output directory
+            context: Template context
+        """
+        import shutil
+        
+        # Map operator usage based on context
+        needed_operators = []
+        
+        input_type = context.get('input_type', '')
+        output_type = context.get('output_type', '')
+        task = context.get('task', '').lower()
+        
+        # Determine which operators are needed based on the application type
+        if input_type == "image":
+            needed_operators.extend([
+                'generic_directory_scanner_operator.py',
+                'image_file_loader_operator.py'
+            ])
+        elif input_type == "custom":
+            needed_operators.extend([
+                'llama3_vila_inference_operator.py',
+                'prompts_loader_operator.py',
+                'vlm_results_writer_operator.py'
+            ])
+        elif input_type == "nifti":
+            needed_operators.append('generic_directory_scanner_operator.py')
+            
+        if output_type == "json":
+            needed_operators.append('json_results_writer_operator.py')
+        elif output_type == "image_overlay":
+            needed_operators.append('image_overlay_writer_operator.py')
+        elif output_type == "nifti":
+            needed_operators.append('nifti_writer_operator.py')
+            
+        if "classification" in task and input_type == "image":
+            needed_operators.append('monai_classification_operator.py')
+            
+        # Remove duplicates
+        needed_operators = list(set(needed_operators))
+        
+        if needed_operators:
+            # Get the operators directory in templates
+            operators_dir = Path(__file__).parent.parent / "templates" / "operators"
+            
+            logger.info(f"Copying {len(needed_operators)} operators to generated application")
+            
+            for operator_file in needed_operators:
+                src_path = operators_dir / operator_file
+                if src_path.exists():
+                    dst_path = output_dir / operator_file
+                    shutil.copy2(src_path, dst_path)
+                    logger.debug(f"Copied operator: {operator_file}")
+                else:
+                    logger.warning(f"Operator file not found: {src_path}")
 
     def _generate_requirements(self, output_dir: Path, context: Dict[str, Any]) -> None:
         """Generate requirements.txt file.

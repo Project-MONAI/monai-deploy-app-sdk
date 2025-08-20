@@ -43,33 +43,33 @@ from monai.deploy.operators.stl_conversion_operator import STLConversionOperator
 
 {% endif %}
 {% elif input_type == "image" %}
-from monai.deploy.operators.generic_directory_scanner_operator import GenericDirectoryScanner
-from monai.deploy.operators.image_file_loader_operator import ImageFileLoader
+from generic_directory_scanner_operator import GenericDirectoryScanner
+from image_file_loader_operator import ImageFileLoader
 
 {% elif input_type == "custom" %}
-from monai.deploy.operators.llama3_vila_inference_operator import Llama3VILAInferenceOperator
+from llama3_vila_inference_operator import Llama3VILAInferenceOperator
 
 # Custom operators for vision-language models
-from monai.deploy.operators.prompts_loader_operator import PromptsLoaderOperator
-from monai.deploy.operators.vlm_results_writer_operator import VLMResultsWriterOperator
+from prompts_loader_operator import PromptsLoaderOperator
+from vlm_results_writer_operator import VLMResultsWriterOperator
 
 {% else %}
-from monai.deploy.operators.generic_directory_scanner_operator import GenericDirectoryScanner
+from generic_directory_scanner_operator import GenericDirectoryScanner
 from monai.deploy.operators.nii_data_loader_operator import NiftiDataLoader
 
 {% endif %}
 {% if output_type == "json" %}
-from monai.deploy.operators.json_results_writer_operator import JSONResultsWriter
+from json_results_writer_operator import JSONResultsWriter
 
 {% elif output_type == "image_overlay" %}
-from monai.deploy.operators.image_overlay_writer_operator import ImageOverlayWriter
+from image_overlay_writer_operator import ImageOverlayWriter
 
-{% elif not use_dicom %}
-from monai.deploy.operators.nifti_writer_operator import NiftiWriter
+{% elif not use_dicom and input_type != "custom" %}
+from nifti_writer_operator import NiftiWriter
 
 {% endif %}
 {% if "classification" in task.lower() and input_type == "image" %}
-from monai.deploy.operators.monai_classification_operator import MonaiClassificationOperator
+from monai_classification_operator import MonaiClassificationOperator
 
 {% elif not (input_type == "custom" and output_type == "custom") %}
 from monai.deploy.operators.monai_bundle_inference_operator import (

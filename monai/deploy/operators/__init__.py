@@ -21,27 +21,18 @@
     DICOMSeriesToVolumeOperator
     DICOMTextSRWriterOperator
     EquipmentInfo
-    GenericDirectoryScanner
-    ImageFileLoader
-    ImageOverlayWriter
     InferenceOperator
     InfererType
     IOMapping
-    JSONResultsWriter
-    Llama3VILAInferenceOperator
     ModelInfo
     MonaiBundleInferenceOperator
-    MonaiClassificationOperator
     MonaiSegInferenceOperator
     NiftiDataLoader
-    NiftiWriter
     PNGConverterOperator
-    PromptsLoaderOperator
     PublisherOperator
     SegmentDescription
     STLConversionOperator
     STLConverter
-    VLMResultsWriterOperator
 """
 
 # If needed, can choose to expose some or all of Holoscan SDK built-in operators.
@@ -67,24 +58,21 @@ from .dicom_text_sr_writer_operator import (
     EquipmentInfo,
     ModelInfo,
 )
-from .generic_directory_scanner_operator import GenericDirectoryScanner
-from .image_file_loader_operator import ImageFileLoader
-from .image_overlay_writer_operator import ImageOverlayWriter
+
 from .inference_operator import InferenceOperator
-from .json_results_writer_operator import JSONResultsWriter
-from .llama3_vila_inference_operator import Llama3VILAInferenceOperator
+
 from .monai_bundle_inference_operator import (
     BundleConfigNames,
     IOMapping,
     MonaiBundleInferenceOperator,
 )
-from .monai_classification_operator import MonaiClassificationOperator
+
 from .monai_seg_inference_operator import InfererType, MonaiSegInferenceOperator
 
-from .nifti_writer_operator import NiftiWriter
+
 from .nii_data_loader_operator import NiftiDataLoader
 from .png_converter_operator import PNGConverterOperator
-from .prompts_loader_operator import PromptsLoaderOperator
+
 from .publisher_operator import PublisherOperator
 from .stl_conversion_operator import STLConversionOperator, STLConverter
-from .vlm_results_writer_operator import VLMResultsWriterOperator
+

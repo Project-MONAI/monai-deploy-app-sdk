@@ -25,8 +25,8 @@ AutoModelForCausalLM, _ = optional_import("transformers", name="AutoModelForCaus
 AutoTokenizer, _ = optional_import("transformers", name="AutoTokenizer")
 
 PILImage, _ = optional_import("PIL", name="Image")
-ImageDraw, _ = optional_import("PIL", name="ImageDraw")
-ImageFont, _ = optional_import("PIL", name="ImageFont")
+ImageDraw, _ = optional_import("PIL.ImageDraw")
+ImageFont, _ = optional_import("PIL.ImageFont")
 
 
 class Llama3VILAInferenceOperator(Operator):
