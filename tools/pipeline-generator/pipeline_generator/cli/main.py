@@ -118,7 +118,7 @@ def list(ctx: click.Context, format: str, bundles_only: bool, tested_only: bool)
     bundle_count = sum(1 for m in models if m.is_monai_bundle)
     tested_count = sum(1 for m in models if m.model_id in tested_models)
     console.print(
-        f"\n[green]Total models: {len(models)} (MONAI Bundles: {bundle_count}, Tested: {tested_count})[/green]"
+        f"\n[green]Total models: {len(models)} (MONAI Bundles: {bundle_count}, Verified: {tested_count})[/green]"
     )
 
 

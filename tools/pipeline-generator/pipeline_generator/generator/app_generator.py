@@ -112,6 +112,9 @@ class AppGenerator:
         # Download the bundle
         logger.info(f"Downloading bundle: {model_id}")
         bundle_path = self.downloader.download_bundle(model_id, output_dir)
+        
+        # Organize bundle into proper structure if needed
+        self.downloader.organize_bundle_structure(bundle_path)
 
         # Read bundle metadata and config
         metadata = self.downloader.get_bundle_metadata(bundle_path)
@@ -275,10 +278,35 @@ class AppGenerator:
         # Collect dependency hints from metadata.json
         required_packages_version = metadata.get("required_packages_version", {}) if metadata else {}
         extra_dependencies = getattr(model_config, "dependencies", []) if model_config else []
-        if metadata and "numpy_version" in metadata:
+        
+        # Handle dependency conflicts between config and metadata
+        config_deps = []
+        if extra_dependencies:
+            # Extract dependency names from config overrides
+            config_deps = [dep.split(">=")[0].split("==")[0].split("<")[0] for dep in extra_dependencies]
+            
+        # Add metadata dependencies only if not overridden by config
+        if metadata and "numpy_version" in metadata and "numpy" not in config_deps:
             extra_dependencies.append(f"numpy=={metadata['numpy_version']}")
-        if metadata and "pytorch_version" in metadata:
+        if metadata and "pytorch_version" in metadata and "torch" not in config_deps:
             extra_dependencies.append(f"torch=={metadata['pytorch_version']}")
+            
+        # Handle MONAI version - move logic from template to Python for better maintainability
+        has_monai_config = any(dep.startswith("monai") for dep in extra_dependencies)
+        if has_monai_config and metadata:
+            # Remove monai_version from metadata since we have config override
+            metadata = dict(metadata)  # Make a copy
+            metadata.pop("monai_version", None)
+        elif not has_monai_config:
+            # No config MONAI dependency - add one based on metadata or fallback
+            if metadata and "monai_version" in metadata:
+                extra_dependencies.append(f"monai=={metadata['monai_version']}")
+                # Remove from metadata since it's now in extra_dependencies
+                metadata = dict(metadata) if metadata else {}
+                metadata.pop("monai_version", None)
+            else:
+                # No metadata version, use fallback
+                extra_dependencies.append("monai>=1.5.0")
 
         return {
             "model_id": model_id,

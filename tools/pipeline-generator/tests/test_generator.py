@@ -334,23 +334,233 @@ class TestAppGenerator:
                 with patch.object(generator.downloader, "get_bundle_metadata") as mock_meta:
                     with patch.object(generator.downloader, "get_inference_config") as mock_inf:
                         with patch.object(generator.downloader, "detect_model_file") as mock_detect:
-                            mock_meta.return_value = metadata  # This triggers lines 216, 218
-                            mock_inf.return_value = {}
-                            mock_detect.return_value = None
+                            with patch.object(generator.downloader, "organize_bundle_structure") as mock_organize:
+                                mock_meta.return_value = metadata  # This triggers lines 216, 218
+                                mock_inf.return_value = {}
+                                mock_detect.return_value = None
 
-                            with patch.object(generator, "_generate_app_py") as mock_app_py:
-                                with patch.object(generator, "_generate_app_yaml") as mock_yaml:
-                                    with patch.object(generator, "_copy_additional_files") as mock_copy:
-                                        generator.generate_app(
-                                            "MONAI/test_model",
-                                            output_dir,
-                                            data_format="auto",
-                                        )
+                                with patch.object(generator, "_generate_app_py") as mock_app_py:
+                                    with patch.object(generator, "_generate_app_yaml") as mock_yaml:
+                                        with patch.object(generator, "_copy_additional_files") as mock_copy:
+                                            generator.generate_app(
+                                                "MONAI/test_model",
+                                                output_dir,
+                                                data_format="auto",
+                                            )
 
                                         # Verify dependencies were added
                                         call_args = mock_copy.call_args[0][1]
                                         assert "numpy==1.21.0" in call_args["extra_dependencies"]
                                         assert "torch==2.0.0" in call_args["extra_dependencies"]
+
+    def test_config_based_dependency_overrides(self):
+        """Test config-based dependency overrides prevent metadata conflicts."""
+        from pipeline_generator.config.settings import Settings, ModelConfig, Endpoint
+        
+        # Mock settings with config override for a model
+        model_config = ModelConfig(
+            model_id="MONAI/test_model",
+            input_type="nifti",
+            output_type="nifti",
+            dependencies=["torch>=1.11.0", "numpy>=1.21.0", "monai>=1.3.0"]
+        )
+        
+        endpoint = Endpoint(
+            organization="MONAI",
+            base_url="https://huggingface.co",
+            description="Test",
+            models=[model_config]
+        )
+        
+        settings = Settings(endpoints=[endpoint])
+        generator = AppGenerator(settings)
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_path = Path(temp_dir)
+            output_dir = temp_path / "output"
+            bundle_path = temp_path / "model"
+            bundle_path.mkdir()
+
+            # Mock metadata with conflicting versions
+            metadata = {
+                "name": "Test Model",
+                "numpy_version": "1.20.0",  # Older version
+                "pytorch_version": "1.10.0",  # Incompatible version
+                "monai_version": "0.8.0",  # Old MONAI version
+            }
+
+            with patch.object(generator.downloader, "download_bundle") as mock_download:
+                mock_download.return_value = bundle_path
+
+                with patch.object(generator.downloader, "get_bundle_metadata") as mock_meta:
+                    with patch.object(generator.downloader, "get_inference_config") as mock_inf:
+                        with patch.object(generator.downloader, "detect_model_file") as mock_detect:
+                            with patch.object(generator.downloader, "organize_bundle_structure") as mock_organize:
+                                mock_meta.return_value = metadata
+                                mock_inf.return_value = {}
+                                mock_detect.return_value = None
+
+                                with patch.object(generator, "_generate_app_py") as mock_app_py:
+                                    with patch.object(generator, "_generate_app_yaml") as mock_yaml:
+                                        with patch.object(generator, "_copy_additional_files") as mock_copy:
+                                            generator.generate_app(
+                                                "MONAI/test_model",
+                                                output_dir,
+                                                data_format="auto",
+                                            )
+
+                                            call_args = mock_copy.call_args[0][1]
+                                            
+                                            # Config dependencies should be used instead of metadata
+                                            assert "torch>=1.11.0" in call_args["extra_dependencies"]
+                                            assert "numpy>=1.21.0" in call_args["extra_dependencies"] 
+                                            assert "monai>=1.3.0" in call_args["extra_dependencies"]
+                                            
+                                            # Old metadata versions should NOT be included
+                                            assert "torch==1.10.0" not in call_args["extra_dependencies"]
+                                            assert "numpy==1.20.0" not in call_args["extra_dependencies"]
+                                            
+                                            # MONAI version should be removed from metadata to prevent template conflict
+                                            assert "monai_version" not in call_args["metadata"]
+                                            
+                                            # Verify bundle structure was organized
+                                            mock_organize.assert_called_once()
+
+    def test_dependency_conflict_resolution_no_config(self):
+        """Test that without config overrides, metadata versions are used."""
+        generator = AppGenerator()  # No settings, no config overrides
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_path = Path(temp_dir)
+            output_dir = temp_path / "output"
+            bundle_path = temp_path / "model"
+            bundle_path.mkdir()
+
+            metadata = {
+                "name": "Test Model",
+                "numpy_version": "1.21.0",
+                "pytorch_version": "1.12.0",
+                "monai_version": "1.0.0",
+            }
+
+            with patch.object(generator.downloader, "download_bundle") as mock_download:
+                mock_download.return_value = bundle_path
+
+                with patch.object(generator.downloader, "get_bundle_metadata") as mock_meta:
+                    with patch.object(generator.downloader, "get_inference_config") as mock_inf:
+                        with patch.object(generator.downloader, "detect_model_file") as mock_detect:
+                            with patch.object(generator.downloader, "organize_bundle_structure") as mock_organize:
+                                mock_meta.return_value = metadata
+                                mock_inf.return_value = {}
+                                mock_detect.return_value = None
+
+                                with patch.object(generator, "_generate_app_py") as mock_app_py:
+                                    with patch.object(generator, "_generate_app_yaml") as mock_yaml:
+                                        with patch.object(generator, "_copy_additional_files") as mock_copy:
+                                            generator.generate_app(
+                                                "MONAI/test_model",
+                                                output_dir,
+                                                data_format="auto",
+                                            )
+
+                                            call_args = mock_copy.call_args[0][1]
+                                            
+                                            # Should use metadata versions when no config
+                                            assert "numpy==1.21.0" in call_args["extra_dependencies"]
+                                            assert "torch==1.12.0" in call_args["extra_dependencies"]
+                                            
+                                            # MONAI version should be moved from metadata to extra_dependencies
+                                            assert "monai==1.0.0" in call_args["extra_dependencies"]
+                                            assert "monai_version" not in call_args["metadata"]
+
+    def test_monai_version_handling_in_app_generator(self):
+        """Test that MONAI version logic is correctly handled in app generator (moved from template)."""
+        generator = AppGenerator()
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_path = Path(temp_dir)
+            output_dir = temp_path / "output"
+            bundle_path = temp_path / "model"
+            bundle_path.mkdir()
+
+            # Test case 1: Config has MONAI - should not add metadata version
+            with patch.object(generator.downloader, "download_bundle") as mock_download:
+                mock_download.return_value = bundle_path
+
+                with patch.object(generator.downloader, "get_bundle_metadata") as mock_meta:
+                    with patch.object(generator.downloader, "get_inference_config") as mock_inf:
+                        with patch.object(generator.downloader, "detect_model_file") as mock_detect:
+                            with patch.object(generator.downloader, "organize_bundle_structure") as mock_organize:
+                                # Mock model config with MONAI dependency
+                                from pipeline_generator.config.settings import Settings, ModelConfig, Endpoint
+                                model_config = ModelConfig(
+                                    model_id="MONAI/test_model",
+                                    input_type="nifti", 
+                                    output_type="nifti",
+                                    dependencies=["monai>=1.3.0"]
+                                )
+                                endpoint = Endpoint(organization="MONAI", base_url="https://huggingface.co", 
+                                                  description="Test", models=[model_config])
+                                settings = Settings(endpoints=[endpoint])
+                                generator_with_config = AppGenerator(settings)
+                                
+                                mock_meta.return_value = {"monai_version": "0.8.0"}
+                                mock_inf.return_value = {}
+                                mock_detect.return_value = None
+
+                                context = generator_with_config._prepare_context(
+                                    "MONAI/test_model", 
+                                    {"monai_version": "0.8.0"},
+                                    {},
+                                    None,
+                                    None,
+                                    "auto",
+                                    "segmentation",
+                                    None,
+                                    None,
+                                    model_config  # Pass the model config
+                                )
+                                
+                                # Should have config MONAI but not metadata MONAI
+                                assert "monai>=1.3.0" in context["extra_dependencies"]
+                                assert "monai==0.8.0" not in context["extra_dependencies"]
+                                assert "monai_version" not in context["metadata"]
+
+            # Test case 2: No config MONAI - should add metadata version
+            generator_no_config = AppGenerator()  # No settings
+            context2 = generator_no_config._prepare_context(
+                "MONAI/test_model",
+                {"monai_version": "1.0.0"},
+                {},
+                None,
+                None, 
+                "auto",
+                "segmentation",
+                None,
+                None,
+                None  # No model config
+            )
+            
+            # Should add metadata MONAI version to extra_dependencies
+            assert "monai==1.0.0" in context2["extra_dependencies"]
+            assert "monai_version" not in context2["metadata"]
+            
+            # Test case 3: No config and no metadata - should add fallback
+            context3 = generator_no_config._prepare_context(
+                "MONAI/test_model",
+                {},
+                {},
+                None,
+                None,
+                "auto",
+                "segmentation",
+                None,
+                None,
+                None  # No model config
+            )
+            
+            # Should add fallback MONAI version
+            assert "monai>=1.5.0" in context3["extra_dependencies"]
 
     def test_inference_config_with_loadimage_transform(self):
         """Test _detect_data_format with LoadImaged transform."""

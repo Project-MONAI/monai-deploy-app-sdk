@@ -3,11 +3,6 @@
 
 # MONAI Deploy App SDK and dependencies
 monai-deploy-app-sdk>=3.0.0
-{% if metadata.monai_version is defined %}
-monai=={{ metadata.monai_version }}
-{% else %}
-monai>=1.5.0
-{% endif %}
 
 
 # Required by MONAI Deploy SDK (always needed)

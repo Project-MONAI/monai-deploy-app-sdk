@@ -220,6 +220,78 @@ class TestBundleDownloader:
 
         assert result is None
 
+    def test_organize_bundle_structure_flat_to_structured(self, tmp_path):
+        """Test organizing flat bundle structure into standard format."""
+        bundle_path = tmp_path / "bundle"
+        bundle_path.mkdir()
+
+        # Create files in flat structure
+        metadata_file = bundle_path / "metadata.json"
+        inference_file = bundle_path / "inference.json"
+        model_pt_file = bundle_path / "model.pt"
+        model_ts_file = bundle_path / "model.ts"
+        
+        metadata_file.write_text('{"name": "Test"}')
+        inference_file.write_text('{"config": "test"}')
+        model_pt_file.touch()
+        model_ts_file.touch()
+
+        # Organize structure
+        self.downloader.organize_bundle_structure(bundle_path)
+
+        # Check that files were moved to proper locations
+        assert (bundle_path / "configs" / "metadata.json").exists()
+        assert (bundle_path / "configs" / "inference.json").exists()
+        assert (bundle_path / "models" / "model.pt").exists()
+        assert (bundle_path / "models" / "model.ts").exists()
+        
+        # Check that original files were moved (not copied)
+        assert not metadata_file.exists()
+        assert not inference_file.exists()
+        assert not model_pt_file.exists()
+        assert not model_ts_file.exists()
+
+    def test_organize_bundle_structure_already_structured(self, tmp_path):
+        """Test organizing bundle that already has proper structure."""
+        bundle_path = tmp_path / "bundle"
+        configs_dir = bundle_path / "configs"
+        models_dir = bundle_path / "models"
+        configs_dir.mkdir(parents=True)
+        models_dir.mkdir(parents=True)
+
+        # Create files in proper structure
+        metadata_file = configs_dir / "metadata.json"
+        model_file = models_dir / "model.pt"
+        metadata_file.write_text('{"name": "Test"}')
+        model_file.touch()
+
+        # Should not change anything
+        self.downloader.organize_bundle_structure(bundle_path)
+
+        # Files should remain in place
+        assert metadata_file.exists()
+        assert model_file.exists()
+
+    def test_organize_bundle_structure_partial_structure(self, tmp_path):
+        """Test organizing bundle with partial structure."""
+        bundle_path = tmp_path / "bundle"
+        configs_dir = bundle_path / "configs"
+        configs_dir.mkdir(parents=True)
+
+        # Create metadata in configs but model in root
+        metadata_file = configs_dir / "metadata.json"
+        model_file = bundle_path / "model.pt"
+        metadata_file.write_text('{"name": "Test"}')
+        model_file.touch()
+
+        # Organize structure
+        self.downloader.organize_bundle_structure(bundle_path)
+
+        # Metadata should stay, model should move
+        assert metadata_file.exists()
+        assert (bundle_path / "models" / "model.pt").exists()
+        assert not model_file.exists()
+
     def test_detect_model_file_multiple_models(self, tmp_path):
         """Test detecting model file with multiple model files (returns first found)."""
         bundle_path = tmp_path / "bundle"

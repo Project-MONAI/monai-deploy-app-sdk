@@ -144,3 +144,57 @@ class BundleDownloader:
 
         logger.warning(f"No model file found in bundle: {bundle_path}")
         return None
+
+    def organize_bundle_structure(self, bundle_path: Path) -> None:
+        """Organize bundle files into the expected MONAI Bundle structure.
+        
+        Creates the standard structure if files are in the root directory:
+        bundle_root/
+          configs/
+            metadata.json
+            inference.json
+          models/
+            model.pt
+            model.ts
+            
+        Args:
+            bundle_path: Path to the downloaded bundle
+        """
+        configs_dir = bundle_path / "configs"
+        models_dir = bundle_path / "models"
+        
+        # Check if structure already exists
+        has_configs_structure = (
+            configs_dir.exists() and 
+            (configs_dir / "metadata.json").exists()
+        )
+        has_models_structure = (
+            models_dir.exists() and 
+            any(models_dir.glob("model.*"))
+        )
+        
+        if has_configs_structure and has_models_structure:
+            logger.debug("Bundle already has proper structure")
+            return
+            
+        logger.info("Organizing bundle into standard structure")
+        
+        # Create directories
+        configs_dir.mkdir(exist_ok=True)
+        models_dir.mkdir(exist_ok=True)
+        
+        # Move config files to configs/
+        config_files = ["metadata.json", "inference.json"]
+        for config_file in config_files:
+            src_path = bundle_path / config_file
+            if src_path.exists() and not (configs_dir / config_file).exists():
+                src_path.rename(configs_dir / config_file)
+                logger.debug(f"Moved {config_file} to configs/")
+        
+        # Move model files to models/
+        model_extensions = [".pt", ".ts", ".onnx"]
+        for ext in model_extensions:
+            for model_file in bundle_path.glob(f"*{ext}"):
+                if model_file.is_file() and not (models_dir / model_file.name).exists():
+                    model_file.rename(models_dir / model_file.name)
+                    logger.debug(f"Moved {model_file.name} to models/")
