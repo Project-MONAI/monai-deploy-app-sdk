@@ -12,7 +12,6 @@
 """Tests for the run command with validation fixes."""
 
 import subprocess
-from pathlib import Path
 from unittest.mock import Mock, patch
 
 from click.testing import CliRunner

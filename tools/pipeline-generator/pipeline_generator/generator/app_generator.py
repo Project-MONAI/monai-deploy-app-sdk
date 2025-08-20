@@ -99,7 +99,11 @@ class AppGenerator:
 
         if not model_id or not re.match(model_id_pattern, model_id):
             raise ValueError(
-                f"Invalid model_id: {model_id}. Only alphanumeric characters, hyphens, underscores, and single slashes between segments are allowed. No leading/trailing slashes, consecutive slashes, or '..' allowed."
+                (
+                    f"Invalid model_id: {model_id}. Only alphanumeric characters, hyphens, "
+                    "underscores, and single slashes between segments are allowed. "
+                    "No leading/trailing slashes, consecutive slashes, or '..' allowed."
+                )
             )
 
         # Create output directory

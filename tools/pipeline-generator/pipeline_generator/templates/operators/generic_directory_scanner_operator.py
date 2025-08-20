@@ -192,7 +192,7 @@ def test():
 
         # Process a few files
         for i in range(min(3, len(scanner._files))):
-            print(f"\n--- Processing file {i+1} ---")
+            print(f"\n--- Processing file {i + 1} ---")
             scanner.compute(None, mock_output, None)
 
 
