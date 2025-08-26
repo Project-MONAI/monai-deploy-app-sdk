@@ -134,23 +134,23 @@ class DICOMSeriesToVolumeOperator(Operator):
 
             # The following tests are expecting the array is already of the Numpy type.
             if rescaled_pixel_data.dtype == np.uint8 or rescaled_pixel_data.dtype == np.uint16:
-                logging.info("Rescaled pixel array is already of type uint8 or uint16.")
+                logging.debug("Rescaled pixel array is already of type uint8 or uint16.")
             # Check if casting to uint16 and back to float results in the same values.
             elif np.all(rescaled_pixel_data > 0) and np.array_equal(
                 rescaled_pixel_data, rescaled_pixel_data.astype(np.uint16)
             ):
-                logging.info("Rescaled pixel array can be safely cast to uint16 with equivalence test.")
+                logging.debug("Rescaled pixel array can be safely casted to uint16 with equivalence test.")
                 rescaled_pixel_data = rescaled_pixel_data.astype(dtype=np.uint16)
             # Check if casting to int16 and back to float results in the same values.
             elif np.array_equal(rescaled_pixel_data, rescaled_pixel_data.astype(np.int16)):
-                logging.info("Rescaled pixel array can be safely cast to int16 with equivalence test.")
+                logging.debug("Rescaled pixel array can be safely casted to int16 with equivalence test.")
                 rescaled_pixel_data = rescaled_pixel_data.astype(dtype=np.int16)
             # Check casting to float32 with equivalence test
             elif np.array_equal(rescaled_pixel_data, rescaled_pixel_data.astype(np.float32)):
-                logging.info("Rescaled pixel array can be cast to float32 with equivalence test.")
+                logging.debug("Rescaled pixel array can be safely casted to float32 with equivalence test.")
                 rescaled_pixel_data = rescaled_pixel_data.astype(np.float32)
             else:
-                logging.info("Rescaled pixel data remains as of type float64.")
+                logging.debug("Rescaled pixel data remains as of type float64.")
 
             return rescaled_pixel_data
 
