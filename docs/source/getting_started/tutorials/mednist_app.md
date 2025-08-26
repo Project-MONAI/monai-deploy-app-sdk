@@ -5,9 +5,9 @@ This tutorial demos the process of packaging up a trained model using MONAI Depl
 ## Setup
 
 ```bash
-# Create a virtual environment with Python 3.9.
+# Create a virtual environment with Python 3.10.
 # Skip if you are already in a virtual environment.
-conda create -n mednist python=3.9 pytorch jupyterlab cudatoolkit=12.2 -c pytorch -c conda-forge
+conda create -n mednist python=3.10 pytorch jupyterlab cudatoolkit=12.2 -c pytorch -c conda-forge
 conda activate mednist
 
 # Launch JupyterLab if you want to work on Jupyter Notebook

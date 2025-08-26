@@ -7,9 +7,9 @@ Please note that the following steps are for demonstration purpose. The code pul
 ## Setup
 
 ```bash
-# Create a virtual environment with Python 3.9.
+# Create a virtual environment with Python 3.10.
 # Skip if you are already in a virtual environment.
-conda create -n monai python=3.9 pytorch torchvision jupyterlab cudatoolkit=12.2 -c pytorch -c conda-forge
+conda create -n monai python=3.10 pytorch torchvision jupyterlab cudatoolkit=12.2 -c pytorch -c conda-forge
 conda activate monai
 
 # Launch JupyterLab if you want to work on Jupyter Notebook
