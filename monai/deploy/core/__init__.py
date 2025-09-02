@@ -30,7 +30,7 @@
 
 # Need to import explicit ones to quiet mypy complaints
 from holoscan.core import *
-from holoscan.core import Application, Condition, ConditionType, Fragment, Operator, OperatorSpec
+from holoscan.core import Application, Condition, ConditionType, Fragment, Operator, OperatorSpec, Resource
 
 from .app_context import AppContext, init_app_context
 from .arg_parser import parse_args

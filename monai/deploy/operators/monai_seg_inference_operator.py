@@ -14,16 +14,15 @@ import logging
 import os
 from pathlib import Path
 from threading import Lock
-from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
+import torch
 
 from monai.deploy.utils.importutil import optional_import
 from monai.utils import StrEnum  # Will use the built-in StrEnum when SDK requires Python 3.11.
-from monai.utils import BlendMode, PytorchPadMode
 
 MONAI_UTILS = "monai.utils"
-torch, _ = optional_import("torch", "1.5")
 np_str_obj_array_pattern, _ = optional_import("torch.utils.data._utils.collate", name="np_str_obj_array_pattern")
 Dataset, _ = optional_import("monai.data", name="Dataset")
 DataLoader, _ = optional_import("monai.data", name="DataLoader")
@@ -42,7 +41,7 @@ Compose_, _ = optional_import("monai.transforms", name="Compose")
 # Dynamic class is not handled so make it Any for now: https://github.com/python/mypy/issues/2477
 Compose: Any = Compose_
 
-from monai.deploy.core import AppContext, ConditionType, Fragment, Image, OperatorSpec
+from monai.deploy.core import AppContext, Condition, ConditionType, Fragment, Image, OperatorSpec, Resource
 
 from .inference_operator import InferenceOperator
 
@@ -54,11 +53,6 @@ class InfererType(StrEnum):
 
     SIMPLE = "simple"
     SLIDING_WINDOW = "sliding_window"
-
-
-# define other StrEnum types
-BlendModeType = BlendMode
-PytorchPadModeType = PytorchPadMode
 
 
 # @md.env(pip_packages=["monai>=1.0.0", "torch>=1.10.2", "numpy>=1.21"])
@@ -90,9 +84,10 @@ class MonaiSegInferenceOperator(InferenceOperator):
     @staticmethod
     def filter_sw_kwargs(**kwargs) -> Dict[str, Any]:
         """
-        Returns a dictionary of named parameters of the sliding_window_inference function that are:
-            - Not explicitly defined in the __init__ of this class
-            - Not explicitly used when calling sliding_window_inference
+        Returns a dictionary of named parameters of the sliding_window_inference function that:
+            - Are not explicitly defined in the __init__ of this class
+            - Are not explicitly used when calling sliding_window_inference
+            - Can be successfully converted from Python --> Holoscan's C++ layer
 
         Args:
             **kwargs: extra arguments passed into __init__ beyond the explicitly defined args.
@@ -101,19 +96,30 @@ class MonaiSegInferenceOperator(InferenceOperator):
             filtered_params: A filtered dictionary of arguments to be passed to sliding_window_inference.
         """
 
+        logger = logging.getLogger(f"{__name__}.{MonaiSegInferenceOperator.__name__}")
+
         init_params = inspect.signature(MonaiSegInferenceOperator).parameters
 
         # inputs + predictor explicitly used when calling sliding_window_inference
-        explicit_used = ["inputs", "predictor"]
+        explicit_used = {"inputs", "predictor"}
+
+        # Holoscan convertible types (not exhaustive)
+        # This will be revisited when there is a better way to handle this.
+        allowed_types = (str, int, float, bool, bytes, list, tuple, torch.Tensor, Condition, Resource)
 
         filtered_params = {}
         for name, val in kwargs.items():
+            # Drop explicitly defined kwargs
             if name in init_params or name in explicit_used:
-                # match log formatting
-                logger = logging.getLogger(f"{__name__}.{MonaiSegInferenceOperator.__name__}")
-                logger.warning(f"{name!r} is already explicity defined or used; ignoring input arg")
-            else:
-                filtered_params[name] = val
+                logger.warning(f"{name!r} is already explicitly defined or used; dropping kwarg.")
+                continue
+            # Drop kwargs that can't be converted by Holoscan
+            if not isinstance(val, allowed_types):
+                logger.warning(
+                    f"{name!r} type of {type(val).__name__!r} is a non-convertible kwarg for Holoscan; dropping kwarg."
+                )
+                continue
+            filtered_params[name] = val
         return filtered_params
 
     def __init__(
@@ -125,10 +131,11 @@ class MonaiSegInferenceOperator(InferenceOperator):
         post_transforms: Compose,
         app_context: AppContext,
         model_name: Optional[str] = "",
-        overlap: float = 0.25,
         sw_batch_size: int = 4,
-        mode: Union[BlendModeType, str] = BlendModeType.CONSTANT,
-        padding_mode: Union[PytorchPadModeType, str] = PytorchPadModeType.CONSTANT,
+        overlap: Union[Sequence[float], float] = 0.25,
+        sw_device: Optional[Union[torch.device, str]] = None,
+        device: Optional[Union[torch.device, str]] = None,
+        process_fn: Optional[Callable] = None,
         inferer: Union[InfererType, str] = InfererType.SLIDING_WINDOW,
         model_path: Path = MODEL_LOCAL_PATH,
         **kwargs,
@@ -137,25 +144,25 @@ class MonaiSegInferenceOperator(InferenceOperator):
 
         Args:
             fragment (Fragment): An instance of the Application class which is derived from Fragment.
-            roi_size (Union[Sequence[int], int]): The window size to execute "SLIDING_WINDOW" evaluation.
-                                                  An optional input only to be passed for "SLIDING_WINDOW".
-                                                  If using a "SIMPLE" Inferer, this input is ignored.
+            roi_size (Sequence[int], int, optional): The window size to execute "SLIDING_WINDOW" evaluation.
+                             Applicable for "SLIDING_WINDOW" only.
             pre_transforms (Compose): MONAI Compose object used for pre-transforms.
             post_transforms (Compose): MONAI Compose object used for post-transforms.
             app_context (AppContext): Object holding the I/O and model paths, and potentially loaded models.
             model_name (str, optional): Name of the model. Default to "" for single model app.
-            overlap (float): The amount of overlap between scans along each spatial dimension. Defaults to 0.25.
+            sw_batch_size (int): The batch size to run window slices. Defaults to 4.
                              Applicable for "SLIDING_WINDOW" only.
-            sw_batch_size(int): The batch size to run window slices. Defaults to 4.
+            overlap (Sequence[float], float): The amount of overlap between scans along each spatial dimension. Defaults to 0.25.
                              Applicable for "SLIDING_WINDOW" only.
-            mode (BlendModeType): How to blend output of overlapping windows, "CONSTANT" or "GAUSSIAN". Defaults to "CONSTANT".
+            sw_device (torch.device, str, optional): Device for the window data. Defaults to None.
                              Applicable for "SLIDING_WINDOW" only.
-            padding_mode (PytorchPadModeType): Padding mode for ``inputs``, when ``roi_size`` is larger than inputs,
-                             "CONSTANT", "REFLECT", "REPLICATE", or "CIRCULAR". Defaults to "CONSTANT".
+            device: (torch.device, str, optional): Device for the stitched output prediction. Defaults to None.
                              Applicable for "SLIDING_WINDOW" only.
-            inferer (InfererType): The type of inferer to use, "SIMPLE" or "SLIDING_WINDOW". Defaults to "SLIDING_WINDOW".
+            process_fn: (Callable, optional): process inference output and adjust the importance map per window. Defaults to None.
+                             Applicable for "SLIDING_WINDOW" only.
+            inferer (InfererType, str): The type of inferer to use, "SIMPLE" or "SLIDING_WINDOW". Defaults to "SLIDING_WINDOW".
             model_path (Path): Path to the model file. Defaults to model/models.ts of current working dir.
-            **kwargs: any other sliding window parameters to forward (e.g. `sigma_scale`, `cval`, etc.).
+            **kwargs: any other sliding window parameters to forward (e.g. `mode`, `cval`, etc.).
         """
 
         self._logger = logging.getLogger("{}.{}".format(__name__, type(self).__name__))
@@ -165,29 +172,33 @@ class MonaiSegInferenceOperator(InferenceOperator):
         self._pred_dataset_key = "pred"
         self._input_image = None  # Image will come in when compute is called.
         self._reader: Any = None
-        self._roi_size = ensure_tuple(roi_size)
-        self._pre_transform = pre_transforms
-        self._post_transforms = post_transforms
+        self.roi_size = ensure_tuple(roi_size)
+        self.pre_transforms = pre_transforms
+        self.post_transforms = post_transforms
         self._model_name = model_name.strip() if isinstance(model_name, str) else ""
-        self._overlap = overlap
-        self._sw_batch_size = sw_batch_size
-        self._mode = mode
-        self._padding_mode = padding_mode
-        self._inferer = inferer
+        self.overlap = overlap
+        self.sw_batch_size = sw_batch_size
+        self.inferer = inferer
         self._implicit_params = self.filter_sw_kwargs(**kwargs)  # Filter keyword args
+
+        # Sliding window inference args whose type Holoscan can't convert - define explicitly
+        self.sw_device = sw_device
+        self.device = device
+        self.process_fn = process_fn
 
         # Add this so that the local model path can be set from the calling app
         self.model_path = model_path
-        self.input_name_image = "image"
-        self.output_name_seg = "seg_image"
+        self._input_name_image = "image"
+        self._output_name_seg = "seg_image"
 
         # The execution context passed in on compute does not have the required model info, so need to
         # get and keep the model via the AppContext obj on construction.
         self.app_context = app_context
 
-        self.model = self._get_model(self.app_context, self.model_path, self._model_name)
+        self._model = self._get_model(self.app_context, self.model_path, self._model_name)
 
-        super().__init__(fragment, *args, **kwargs)
+        # Pass filtered kwargs
+        super().__init__(fragment, *args, **self._implicit_params)
 
     def _get_model(self, app_context: AppContext, model_path: Path, model_name: str):
         """Load the model with the given name from context or model path
@@ -212,8 +223,8 @@ class MonaiSegInferenceOperator(InferenceOperator):
         return model
 
     def setup(self, spec: OperatorSpec):
-        spec.input(self.input_name_image)
-        spec.output(self.output_name_seg).condition(ConditionType.NONE)  # Downstream receiver optional.
+        spec.input(self._input_name_image)
+        spec.output(self._output_name_seg).condition(ConditionType.NONE)  # Downstream receiver optional.
 
     @property
     def roi_size(self):
@@ -252,9 +263,13 @@ class MonaiSegInferenceOperator(InferenceOperator):
         return self._overlap
 
     @overlap.setter
-    def overlap(self, val: float):
-        if val < 0 or val > 1:
-            raise ValueError("Overlap must be between 0 and 1.")
+    def overlap(self, val: Union[Sequence[float], float]):
+        if not isinstance(val, (Sequence, int, float)) or isinstance(val, str):
+            raise TypeError(f"Overlap must be type Sequence[float] | float, got {type(val).__name__}.")
+        elif isinstance(val, Sequence) and not all(isinstance(x, (int, float)) and 0 <= x < 1 for x in val):
+            raise ValueError("Each overlap value must be >= 0 and < 1.")
+        elif isinstance(val, (int, float)) and not (0 <= float(val) < 1):
+            raise ValueError(f"Overlap must be >= 0 and < 1, got {val}.")
         self._overlap = val
 
     @property
@@ -269,26 +284,37 @@ class MonaiSegInferenceOperator(InferenceOperator):
         self._sw_batch_size = val
 
     @property
-    def mode(self) -> Union[BlendModeType, str]:
-        """The blend mode used during sliding window inference"""
-        return self._mode
+    def sw_device(self):
+        """Device for the window data."""
+        return self._sw_device
 
-    @mode.setter
-    def mode(self, val: BlendModeType):
-        if not isinstance(val, BlendModeType):
-            raise ValueError(f"Value must be of the correct type {BlendModeType}.")
-        self._mode = val
+    @sw_device.setter
+    def sw_device(self, val: Optional[Union[torch.device, str]]):
+        if val is not None and not isinstance(val, (torch.device, str)):
+            raise TypeError(f"sw_device must be type torch.device | str | None, got {type(val).__name__}.")
+        self._sw_device = val
 
     @property
-    def padding_mode(self) -> Union[PytorchPadModeType, str]:
-        """The padding mode to use when padding input images for inference"""
-        return self._padding_mode
+    def device(self):
+        """Device for the stitched output prediction."""
+        return self._device
 
-    @padding_mode.setter
-    def padding_mode(self, val: PytorchPadModeType):
-        if not isinstance(val, PytorchPadModeType):
-            raise ValueError(f"Value must be of the correct type {PytorchPadModeType}.")
-        self._padding_mode = val
+    @device.setter
+    def device(self, val: Optional[Union[torch.device, str]]):
+        if val is not None and not isinstance(val, (torch.device, str)):
+            raise TypeError(f"device must be type torch.device | str | None, got {type(val).__name__}.")
+        self._device = val
+
+    @property
+    def process_fn(self):
+        """Process inference output and adjust the importance map per window."""
+        return self._process_fn
+
+    @process_fn.setter
+    def process_fn(self, val: Optional[Callable]):
+        if val is not None and not callable(val):
+            raise TypeError(f"process_fn must be type Callable | None, got {type(val).__name__}.")
+        self._process_fn = val
 
     @property
     def inferer(self) -> Union[InfererType, str]:
@@ -296,10 +322,20 @@ class MonaiSegInferenceOperator(InferenceOperator):
         return self._inferer
 
     @inferer.setter
-    def inferer(self, val: InfererType):
-        if not isinstance(val, InfererType):
-            raise ValueError(f"Value must be of the correct type {InfererType}.")
-        self._inferer = val
+    def inferer(self, val: Union[InfererType, str]):
+        if isinstance(val, InfererType):
+            self._inferer = val
+            return
+
+        if isinstance(val, str):
+            s = val.strip().lower()
+            valid = (InfererType.SIMPLE.value, InfererType.SLIDING_WINDOW.value)
+            if s in valid:
+                self._inferer = InfererType(s)
+                return
+            raise ValueError(f"inferer must be one of {valid}, got {val!r}.")
+
+        raise TypeError(f"inferer must be InfererType or str, got {type(val).__name__}.")
 
     def _convert_dicom_metadata_datatype(self, metadata: Dict):
         """Converts metadata in pydicom types to the corresponding native types.
@@ -354,10 +390,10 @@ class MonaiSegInferenceOperator(InferenceOperator):
             else:
                 self._executing = True
         try:
-            input_image = op_input.receive(self.input_name_image)
+            input_image = op_input.receive(self._input_name_image)
             if not input_image:
                 raise ValueError("Input is None.")
-            op_output.emit(self.compute_impl(input_image, context), self.output_name_seg)
+            op_output.emit(self.compute_impl(input_image, context), self._output_name_seg)
         finally:
             # Reset state on completing this method execution.
             with self._lock:
@@ -372,12 +408,12 @@ class MonaiSegInferenceOperator(InferenceOperator):
         # Need to give a name to the image as in-mem Image obj has no name.
         img_name = str(input_img_metadata.get("SeriesInstanceUID", "Img_in_context"))
 
-        pre_transforms: Compose = self._pre_transform
-        post_transforms: Compose = self._post_transforms
+        pre_transforms: Compose = self.pre_transforms
+        post_transforms: Compose = self.post_transforms
         self._reader = InMemImageReader(input_image)
 
-        pre_transforms = self._pre_transform if self._pre_transform else self.pre_process(self._reader)
-        post_transforms = self._post_transforms if self._post_transforms else self.post_process(pre_transforms)
+        pre_transforms = self.pre_transforms if self.pre_transforms else self.pre_process(self._reader)
+        post_transforms = self.post_transforms if self.post_transforms else self.post_process(pre_transforms)
 
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         dataset = Dataset(data=[{self._input_dataset_key: img_name}], transform=pre_transforms)
@@ -389,23 +425,24 @@ class MonaiSegInferenceOperator(InferenceOperator):
             for d in dataloader:
                 images = d[self._input_dataset_key].to(device)
                 self._logger.info(f"Input of {type(images)} shape: {images.shape}")
-                if self._inferer == InfererType.SLIDING_WINDOW:
+                if self.inferer == InfererType.SLIDING_WINDOW:
                     d[self._pred_dataset_key] = sliding_window_inference(
                         inputs=images,
-                        roi_size=self._roi_size,
-                        sw_batch_size=self.sw_batch_size,
+                        roi_size=self.roi_size,
                         overlap=self.overlap,
-                        mode=self._mode,
-                        padding_mode=self._padding_mode,
-                        predictor=self.model,
-                        **self._implicit_params,  # additional sliding window arguments
+                        sw_batch_size=self.sw_batch_size,
+                        sw_device=self.sw_device,
+                        device=self.device,
+                        process_fn=self.process_fn,
+                        predictor=self._model,
+                        **self._implicit_params,  # Additional sliding window arguments
                     )
-                elif self._inferer == InfererType.SIMPLE:
+                elif self.inferer == InfererType.SIMPLE:
                     # Instantiates the SimpleInferer and directly uses its __call__ function
-                    d[self._pred_dataset_key] = simple_inference()(inputs=images, network=self.model)
+                    d[self._pred_dataset_key] = simple_inference()(inputs=images, network=self._model)
                 else:
                     raise ValueError(
-                        f"Unknown inferer: {self._inferer!r}. Available options are "
+                        f"Unknown inferer: {self.inferer!r}. Available options are "
                         f"{InfererType.SLIDING_WINDOW!r} and {InfererType.SIMPLE!r}."
                     )
 
