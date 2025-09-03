@@ -121,25 +121,21 @@ class MonaiSegInferenceOperator(InferenceOperator):
             # Drop explicitly defined kwargs
             if name in init_params or name in explicit_used:
                 logger.warning(f"{name!r} is already explicitly defined or used; dropping kwarg.")
-                continue
             # SWI params
             elif name in swi_params:
                 filtered_swi_params[name] = val
                 logger.debug(f"{name!r} used in sliding_window_inference; keeping kwarg for inference call.")
-                continue
             # Drop kwargs that can't be converted by Holoscan
             elif not isinstance(val, allowed_types):
                 logger.warning(
                     f"{name!r} type of {type(val).__name__!r} is a non-convertible kwarg for Holoscan; dropping kwarg."
                 )
-                continue
             # Base __init__ params
             else:
                 filtered_base_init_params[name] = val
                 logger.debug(
                     f"{name!r} type of {type(val).__name__!r} can be converted by Holoscan; keeping kwarg for base init."
                 )
-                continue
         return filtered_swi_params, filtered_base_init_params
 
     def __init__(
