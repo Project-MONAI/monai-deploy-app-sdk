@@ -1,4 +1,4 @@
-# Copyright 2021 MONAI Consortium
+# Copyright 2021-2025 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -30,7 +30,7 @@
 
 # Need to import explicit ones to quiet mypy complaints
 from holoscan.core import *
-from holoscan.core import Application, Condition, ConditionType, Fragment, Operator, OperatorSpec
+from holoscan.core import Application, Condition, ConditionType, Fragment, Operator, OperatorSpec, Resource
 
 from .app_context import AppContext, init_app_context
 from .arg_parser import parse_args
