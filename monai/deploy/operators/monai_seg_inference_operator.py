@@ -14,15 +14,15 @@ import logging
 import os
 from pathlib import Path
 from threading import Lock
-from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
+from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
-import torch
 
 from monai.deploy.utils.importutil import optional_import
 from monai.utils import StrEnum  # Will use the built-in StrEnum when SDK requires Python 3.11.
 
 MONAI_UTILS = "monai.utils"
+torch, _ = optional_import("torch", "1.5")
 np_str_obj_array_pattern, _ = optional_import("torch.utils.data._utils.collate", name="np_str_obj_array_pattern")
 Dataset, _ = optional_import("monai.data", name="Dataset")
 DataLoader, _ = optional_import("monai.data", name="DataLoader")
@@ -82,23 +82,30 @@ class MonaiSegInferenceOperator(InferenceOperator):
     MODEL_LOCAL_PATH = Path(os.environ.get("HOLOSCAN_MODEL_PATH", Path.cwd() / "model/model.ts"))
 
     @staticmethod
-    def filter_sw_kwargs(**kwargs) -> Dict[str, Any]:
+    def filter_sw_kwargs(**kwargs) -> Tuple[Dict[str, Any], Dict[str, Any]]:
         """
-        Returns a dictionary of named parameters of the sliding_window_inference function that:
+        Filters the keyword arguments into a tuple of two dictionaries:
+
+        1. A dictionary of named parameters to pass to the sliding_window_inference function that:
             - Are not explicitly defined in the __init__ of this class
             - Are not explicitly used when calling sliding_window_inference
+
+        2. A dicionary of named parameters to pass to the base class __init__ of this class that:
+            - Are not used when calling sliding_window_inference
             - Can be successfully converted from Python --> Holoscan's C++ layer
 
         Args:
             **kwargs: extra arguments passed into __init__ beyond the explicitly defined args.
 
         Returns:
-            filtered_params: A filtered dictionary of arguments to be passed to sliding_window_inference.
+            filtered_swi_params: A filtered dictionary of arguments to be passed to sliding_window_inference.
+            filtered_base_init_params: A filtered dictionary of arguments to be passed to the base class __init__.
         """
 
         logger = logging.getLogger(f"{__name__}.{MonaiSegInferenceOperator.__name__}")
 
         init_params = inspect.signature(MonaiSegInferenceOperator).parameters
+        swi_params = inspect.signature(sliding_window_inference).parameters
 
         # inputs + predictor explicitly used when calling sliding_window_inference
         explicit_used = {"inputs", "predictor"}
@@ -107,20 +114,33 @@ class MonaiSegInferenceOperator(InferenceOperator):
         # This will be revisited when there is a better way to handle this.
         allowed_types = (str, int, float, bool, bytes, list, tuple, torch.Tensor, Condition, Resource)
 
-        filtered_params = {}
+        filtered_swi_params = {}
+        filtered_base_init_params = {}
+
         for name, val in kwargs.items():
             # Drop explicitly defined kwargs
             if name in init_params or name in explicit_used:
                 logger.warning(f"{name!r} is already explicitly defined or used; dropping kwarg.")
                 continue
+            # SWI params
+            elif name in swi_params:
+                filtered_swi_params[name] = val
+                logger.debug(f"{name!r} used in sliding_window_inference; keeping kwarg for inference call.")
+                continue
             # Drop kwargs that can't be converted by Holoscan
-            if not isinstance(val, allowed_types):
+            elif not isinstance(val, allowed_types):
                 logger.warning(
                     f"{name!r} type of {type(val).__name__!r} is a non-convertible kwarg for Holoscan; dropping kwarg."
                 )
                 continue
-            filtered_params[name] = val
-        return filtered_params
+            # Base __init__ params
+            else:
+                filtered_base_init_params[name] = val
+                logger.debug(
+                    f"{name!r} type of {type(val).__name__!r} can be converted by Holoscan; keeping kwarg for base init."
+                )
+                continue
+        return filtered_swi_params, filtered_base_init_params
 
     def __init__(
         self,
@@ -131,11 +151,8 @@ class MonaiSegInferenceOperator(InferenceOperator):
         post_transforms: Compose,
         app_context: AppContext,
         model_name: Optional[str] = "",
-        sw_batch_size: int = 4,
         overlap: Union[Sequence[float], float] = 0.25,
-        sw_device: Optional[Union[torch.device, str]] = None,
-        device: Optional[Union[torch.device, str]] = None,
-        process_fn: Optional[Callable] = None,
+        sw_batch_size: int = 4,
         inferer: Union[InfererType, str] = InfererType.SLIDING_WINDOW,
         model_path: Path = MODEL_LOCAL_PATH,
         **kwargs,
@@ -150,15 +167,9 @@ class MonaiSegInferenceOperator(InferenceOperator):
             post_transforms (Compose): MONAI Compose object used for post-transforms.
             app_context (AppContext): Object holding the I/O and model paths, and potentially loaded models.
             model_name (str, optional): Name of the model. Default to "" for single model app.
-            sw_batch_size (int): The batch size to run window slices. Defaults to 4.
-                             Applicable for "SLIDING_WINDOW" only.
             overlap (Sequence[float], float): The amount of overlap between scans along each spatial dimension. Defaults to 0.25.
                              Applicable for "SLIDING_WINDOW" only.
-            sw_device (torch.device, str, optional): Device for the window data. Defaults to None.
-                             Applicable for "SLIDING_WINDOW" only.
-            device: (torch.device, str, optional): Device for the stitched output prediction. Defaults to None.
-                             Applicable for "SLIDING_WINDOW" only.
-            process_fn: (Callable, optional): process inference output and adjust the importance map per window. Defaults to None.
+            sw_batch_size (int): The batch size to run window slices. Defaults to 4.
                              Applicable for "SLIDING_WINDOW" only.
             inferer (InfererType, str): The type of inferer to use, "SIMPLE" or "SLIDING_WINDOW". Defaults to "SLIDING_WINDOW".
             model_path (Path): Path to the model file. Defaults to model/models.ts of current working dir.
@@ -179,12 +190,9 @@ class MonaiSegInferenceOperator(InferenceOperator):
         self.overlap = overlap
         self.sw_batch_size = sw_batch_size
         self.inferer = inferer
-        self._implicit_params = self.filter_sw_kwargs(**kwargs)  # Filter keyword args
-
-        # Sliding window inference args whose type Holoscan can't convert - define explicitly
-        self.sw_device = sw_device
-        self.device = device
-        self.process_fn = process_fn
+        self._filtered_swi_params, self._filtered_base_init_params = self.filter_sw_kwargs(
+            **kwargs
+        )  # Filter keyword args
 
         # Add this so that the local model path can be set from the calling app
         self.model_path = model_path
@@ -197,8 +205,8 @@ class MonaiSegInferenceOperator(InferenceOperator):
 
         self._model = self._get_model(self.app_context, self.model_path, self._model_name)
 
-        # Pass filtered kwargs
-        super().__init__(fragment, *args, **self._implicit_params)
+        # Pass filtered base init params
+        super().__init__(fragment, *args, **self._filtered_base_init_params)
 
     def _get_model(self, app_context: AppContext, model_path: Path, model_name: str):
         """Load the model with the given name from context or model path
@@ -282,39 +290,6 @@ class MonaiSegInferenceOperator(InferenceOperator):
         if not isinstance(val, int) or val < 0:
             raise ValueError("sw_batch_size must be a positive integer.")
         self._sw_batch_size = val
-
-    @property
-    def sw_device(self):
-        """Device for the window data."""
-        return self._sw_device
-
-    @sw_device.setter
-    def sw_device(self, val: Optional[Union[torch.device, str]]):
-        if val is not None and not isinstance(val, (torch.device, str)):
-            raise TypeError(f"sw_device must be type torch.device | str | None, got {type(val).__name__}.")
-        self._sw_device = val
-
-    @property
-    def device(self):
-        """Device for the stitched output prediction."""
-        return self._device
-
-    @device.setter
-    def device(self, val: Optional[Union[torch.device, str]]):
-        if val is not None and not isinstance(val, (torch.device, str)):
-            raise TypeError(f"device must be type torch.device | str | None, got {type(val).__name__}.")
-        self._device = val
-
-    @property
-    def process_fn(self):
-        """Process inference output and adjust the importance map per window."""
-        return self._process_fn
-
-    @process_fn.setter
-    def process_fn(self, val: Optional[Callable]):
-        if val is not None and not callable(val):
-            raise TypeError(f"process_fn must be type Callable | None, got {type(val).__name__}.")
-        self._process_fn = val
 
     @property
     def inferer(self) -> Union[InfererType, str]:
@@ -431,11 +406,8 @@ class MonaiSegInferenceOperator(InferenceOperator):
                         roi_size=self.roi_size,
                         overlap=self.overlap,
                         sw_batch_size=self.sw_batch_size,
-                        sw_device=self.sw_device,
-                        device=self.device,
-                        process_fn=self.process_fn,
                         predictor=self._model,
-                        **self._implicit_params,  # Additional sliding window arguments
+                        **self._filtered_swi_params,  # Additional sliding window arguments
                     )
                 elif self.inferer == InfererType.SIMPLE:
                     # Instantiates the SimpleInferer and directly uses its __call__ function
