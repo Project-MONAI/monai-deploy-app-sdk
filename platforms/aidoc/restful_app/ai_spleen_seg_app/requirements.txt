@@ -1,4 +1,4 @@
-monai-deploy-app-sdk>=3.0.0
+monai-deploy-app-sdk>=3.1.0
 scikit-image>=0.17.2
 pydicom>=2.3.0
 highdicom>=0.18.2

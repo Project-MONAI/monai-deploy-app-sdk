@@ -12,8 +12,6 @@
 import logging
 from pathlib import Path
 
-from dicom_series_to_volume_operator_local import DICOMSeriesToVolumeOperator
-
 # Required for setting SegmentDescription attributes. Direct import as this is not part of App SDK package.
 from pydicom.sr.codedict import codes
 
@@ -24,6 +22,7 @@ from monai.deploy.core.io_type import IOType
 from monai.deploy.operators.dicom_data_loader_operator import DICOMDataLoaderOperator
 from monai.deploy.operators.dicom_seg_writer_operator import DICOMSegmentationWriterOperator, SegmentDescription
 from monai.deploy.operators.dicom_series_selector_operator import DICOMSeriesSelectorOperator
+from monai.deploy.operators.dicom_series_to_volume_operator import DICOMSeriesToVolumeOperator
 
 # Use a local fixed version. from monai.deploy.operators.dicom_series_to_volume_operator import DICOMSeriesToVolumeOperator
 from monai.deploy.operators.monai_bundle_inference_operator import (
