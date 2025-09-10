@@ -30,6 +30,7 @@ As of MONAI Core, bundles can also be exported in a **Hugging Face-compatible fo
 
 - The tool does not convert input formats given that each model may expect a different type of input
 - The tool does not convert output formats given that each model may output a different type of result
+- The tool supports only torchscript (ts) models
 
 ## **Scope**
 

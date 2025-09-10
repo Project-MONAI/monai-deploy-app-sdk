@@ -64,61 +64,74 @@ def cli(ctx: click.Context, config: Optional[str]) -> None:
 )
 @click.option("--bundles-only", "-b", is_flag=True, help="Show only MONAI Bundles")
 @click.option("--tested-only", "-t", is_flag=True, help="Show only tested models")
+@click.option("--all", is_flag=True, help="Show all models regardless of file extension")
 @click.pass_context
-def list(ctx: click.Context, format: str, bundles_only: bool, tested_only: bool) -> None:
+def list(ctx: click.Context, format: str, bundles_only: bool, tested_only: bool, all: bool) -> None:
     """List available models from configured endpoints.
+
+    By default, only shows models with TorchScript (.ts) files.
+    Use --all to show models with any supported extension.
 
     Args:
         ctx: Click context containing configuration
         format: Output format (table, simple, or json)
         bundles_only: If True, show only MONAI Bundles
         tested_only: If True, show only tested models
+        all: If True, show all models regardless of file extension
 
     Example:
         pg list --format table --bundles-only
+        pg list --all  # Show all models
     """
 
     # Load configuration
     config_path = ctx.obj.get("config_path")
     settings = load_config(config_path)
 
-    # Get set of tested model IDs from configuration
-    tested_models = set()
+    # Get set of verified model IDs from configuration
+    verified_models = set()
     for endpoint in settings.endpoints:
         for model in endpoint.models:
-            tested_models.add(model.model_id)
+            verified_models.add(model.model_id)
 
-    # Create HuggingFace client
-    client = HuggingFaceClient()
+    # Create HuggingFace client with settings
+    client = HuggingFaceClient(settings=settings)
 
     # Fetch models from all endpoints
     console.print("[blue]Fetching models from HuggingFace...[/blue]")
-    models = client.list_models_from_endpoints(settings.get_all_endpoints())
+    
+    if all:
+        # Show all models, but fetch detailed info for MONAI Bundles to get accurate extension data
+        console.print("[yellow]Note: Fetching detailed info for MONAI Bundles to show accurate extension data[/yellow]")
+        models = client.list_models_from_endpoints(settings.get_all_endpoints(), fetch_details_for_bundles=True)
+    else:
+        # Show only models with TorchScript (.ts) files by default
+        models = client.list_torchscript_models(settings.get_all_endpoints())
 
     # Filter for bundles if requested
     if bundles_only:
         models = [m for m in models if m.is_monai_bundle]
 
-    # Filter for tested models if requested
+    # Filter for verified models if requested
     if tested_only:
-        models = [m for m in models if m.model_id in tested_models]
+        models = [m for m in models if m.model_id in verified_models]
 
     # Sort models by name
     models.sort(key=lambda m: m.display_name)
 
     # Display results based on format
     if format == "table":
-        _display_table(models, tested_models)
+        _display_table(models, verified_models)
     elif format == "simple":
-        _display_simple(models, tested_models)
+        _display_simple(models, verified_models)
     elif format == "json":
-        _display_json(models, tested_models)
+        _display_json(models, verified_models)
 
     # Summary
     bundle_count = sum(1 for m in models if m.is_monai_bundle)
-    tested_count = sum(1 for m in models if m.model_id in tested_models)
+    verified_count = sum(1 for m in models if m.model_id in verified_models)
     console.print(
-        f"\n[green]Total models: {len(models)} (MONAI Bundles: {bundle_count}, Verified: {tested_count})[/green]"
+        f"\n[green]Total models: {len(models)} (MONAI Bundles: {bundle_count}, Verified: {verified_count})[/green]"
     )
 
 
@@ -225,28 +238,37 @@ def gen(
         raise click.Abort() from e
 
 
-def _display_table(models: List[ModelInfo], tested_models: Set[str]) -> None:
+def _display_table(models: List[ModelInfo], verified_models: Set[str]) -> None:
     """Display models in a rich table format.
 
     Args:
         models: List of ModelInfo objects to display
-        tested_models: Set of tested model IDs
+        verified_models: Set of verified model IDs
     """
     table = Table(title="Available Models", show_header=True, header_style="bold magenta")
     table.add_column("Model ID", style="cyan", width=40)
     table.add_column("Name", style="white")
-    table.add_column("Type", style="green")
+    table.add_column("MONAI Bundle", style="green")
     table.add_column("Status", style="blue", width=10)
     table.add_column("Downloads", justify="right", style="yellow")
     table.add_column("Likes", justify="right", style="red")
 
     for model in models:
-        model_type = "[green]MONAI Bundle[/green]" if model.is_monai_bundle else "Model"
-        status = "[bold green]✓ Verified[/bold green]" if model.model_id in tested_models else ""
+        # MONAI Bundle column logic: "Yes" if is_monai_bundle (has .ts), "No (extension)" otherwise
+        if model.is_monai_bundle:
+            bundle_status = "[green]✓ Yes[/green]"
+        else:
+            primary_ext = model.primary_extension
+            if primary_ext:
+                bundle_status = f"[dim]✗ No ({primary_ext})[/dim]"
+            else:
+                bundle_status = "[dim]✗ No[/dim]"
+        
+        status = "[bold green]✓ Verified[/bold green]" if model.model_id in verified_models else ""
         table.add_row(
             model.model_id,
             model.display_name,
-            model_type,
+            bundle_status,
             status,
             str(model.downloads or "N/A"),
             str(model.likes or "N/A"),
@@ -255,31 +277,31 @@ def _display_table(models: List[ModelInfo], tested_models: Set[str]) -> None:
     console.print(table)
 
 
-def _display_simple(models: List[ModelInfo], tested_models: Set[str]) -> None:
+def _display_simple(models: List[ModelInfo], verified_models: Set[str]) -> None:
     """Display models in a simple list format.
 
     Shows each model with emoji indicators:
     - 📦 for MONAI Bundle, 📄 for regular model
-    - ✓ for tested models
+    - ✓ for verified models
 
     Args:
         models: List of ModelInfo objects to display
-        tested_models: Set of tested model IDs
+        verified_models: Set of verified model IDs
     """
     for model in models:
         bundle_marker = "📦" if model.is_monai_bundle else "📄"
-        tested_marker = " ✓" if model.model_id in tested_models else ""
-        console.print(f"{bundle_marker} {model.model_id} - {model.display_name}{tested_marker}")
+        verified_marker = " ✓" if model.model_id in verified_models else ""
+        console.print(f"{bundle_marker} {model.model_id} - {model.display_name}{verified_marker}")
 
 
-def _display_json(models: List[ModelInfo], tested_models: Set[str]) -> None:
+def _display_json(models: List[ModelInfo], verified_models: Set[str]) -> None:
     """Display models in JSON format.
 
     Outputs a JSON array of model information suitable for programmatic consumption.
 
     Args:
         models: List of ModelInfo objects to display
-        tested_models: Set of tested model IDs
+        verified_models: Set of verified model IDs
     """
     import json
 
@@ -288,7 +310,10 @@ def _display_json(models: List[ModelInfo], tested_models: Set[str]) -> None:
             "model_id": m.model_id,
             "name": m.display_name,
             "is_monai_bundle": m.is_monai_bundle,
-            "is_tested": m.model_id in tested_models,
+            "has_torchscript": m.has_torchscript,
+            "model_extensions": m.model_extensions,
+            "primary_extension": m.primary_extension,
+            "is_verified": m.model_id in verified_models,
             "downloads": m.downloads,
             "likes": m.likes,
             "tags": m.tags,

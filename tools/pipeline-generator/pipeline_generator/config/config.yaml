@@ -11,6 +11,13 @@
 
 # Pipeline Generator Configuration
 
+# Supported model file extensions
+supported_models:
+  - ".ts"      # TorchScript (MONAI Bundle)
+  - ".pt"      # PyTorch state dict
+  - ".pth"     # PyTorch model
+  - ".safetensors"  # SafeTensor format
+
 # HuggingFace endpoints to scan for MONAI models
 endpoints:
   - organization: "MONAI"

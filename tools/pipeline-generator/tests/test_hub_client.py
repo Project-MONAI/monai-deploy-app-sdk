@@ -45,7 +45,10 @@ class TestHuggingFaceClient:
             created_at=datetime(2023, 1, 1),
             lastModified=datetime(2023, 12, 1),
             tags=["medical", "segmentation"],
-            siblings=[Mock(rfilename="configs/metadata.json")],
+            siblings=[
+                Mock(rfilename="configs/metadata.json"),
+                Mock(rfilename="models/model.ts")
+            ],
         )
 
         mock_model2 = SimpleModelData(
@@ -67,9 +70,9 @@ class TestHuggingFaceClient:
         # Verify results
         assert len(models) == 2
         assert models[0].model_id == "MONAI/spleen_ct_segmentation"
-        assert models[0].is_monai_bundle is True  # Has metadata.json
+        assert models[0].is_monai_bundle is True  # Has .ts file
         assert models[1].model_id == "MONAI/liver_segmentation"
-        assert models[1].is_monai_bundle is False  # No metadata.json
+        assert models[1].is_monai_bundle is False  # No .ts file
 
     @patch("pipeline_generator.core.hub_client.list_models")
     def test_list_models_from_organization_empty(self, mock_list_models):
@@ -101,7 +104,10 @@ class TestHuggingFaceClient:
             created_at=datetime(2023, 1, 1),
             lastModified=datetime(2023, 12, 1),
             tags=["medical", "segmentation"],
-            siblings=[Mock(rfilename="configs/metadata.json")],
+            siblings=[
+                Mock(rfilename="configs/metadata.json"),
+                Mock(rfilename="models/model.ts")
+            ],
             cardData={"description": "Spleen segmentation model"},
         )
 
@@ -176,7 +182,7 @@ class TestHuggingFaceClient:
 
     def test_extract_model_info_bundle_detection(self):
         """Test MONAI bundle detection during parsing."""
-        # Test with metadata.json in siblings
+        # Test with TorchScript (.ts) file in siblings
         mock_model = SimpleModelData(
             modelId="MONAI/test_bundle",
             author="MONAI",
@@ -188,13 +194,17 @@ class TestHuggingFaceClient:
             siblings=[
                 Mock(rfilename="configs/metadata.json"),
                 Mock(rfilename="models/model.pt"),
+                Mock(rfilename="models/model.ts"),
             ],
         )
         model = self.client._extract_model_info(mock_model)
         assert model.is_monai_bundle is True
 
-        # Test without metadata.json
-        mock_model.siblings = [Mock(rfilename="models/model.pt")]
+        # Test without TorchScript (.ts) file - only .pt file
+        mock_model.siblings = [
+            Mock(rfilename="configs/metadata.json"),
+            Mock(rfilename="models/model.pt")
+        ]
         model = self.client._extract_model_info(mock_model)
         assert model.is_monai_bundle is False
 
@@ -364,3 +374,136 @@ class TestHuggingFaceClient:
 
         # Should prefer cardData description
         assert result.description == "Card description"
+
+    def test_detect_model_extensions_with_torchscript(self):
+        """Test detecting TorchScript model extensions."""
+        # Mock model with .ts file
+        mock_model = SimpleModelData(
+            modelId="MONAI/test_model",
+            siblings=[
+                Mock(rfilename="model.ts"),
+                Mock(rfilename="config.yaml"),
+                Mock(rfilename="README.md"),
+            ]
+        )
+
+        extensions = self.client._detect_model_extensions(mock_model)
+        
+        assert ".ts" in extensions
+        assert len(extensions) == 1
+
+    def test_detect_model_extensions_multiple_formats(self):
+        """Test detecting multiple model file extensions."""
+        # Mock model with multiple extensions
+        mock_model = SimpleModelData(
+            modelId="MONAI/test_model",
+            siblings=[
+                Mock(rfilename="model.ts"),
+                Mock(rfilename="model.pt"),
+                Mock(rfilename="model.safetensors"),
+                Mock(rfilename="config.yaml"),
+            ]
+        )
+
+        extensions = self.client._detect_model_extensions(mock_model)
+        
+        assert ".ts" in extensions
+        assert ".pt" in extensions
+        assert ".safetensors" in extensions
+        assert len(extensions) == 3
+
+    def test_detect_model_extensions_no_model_files(self):
+        """Test detecting extensions when no model files present."""
+        # Mock model with no model files
+        mock_model = SimpleModelData(
+            modelId="MONAI/test_model",
+            siblings=[
+                Mock(rfilename="README.md"),
+                Mock(rfilename="config.yaml"),
+            ]
+        )
+
+        extensions = self.client._detect_model_extensions(mock_model)
+        
+        assert len(extensions) == 0
+
+    def test_detect_model_extensions_no_siblings(self):
+        """Test detecting extensions when model has no siblings attribute."""
+        # Mock model without siblings
+        mock_model = SimpleModelData(modelId="MONAI/test_model")
+
+        extensions = self.client._detect_model_extensions(mock_model)
+        
+        assert len(extensions) == 0
+
+    @patch("pipeline_generator.core.hub_client.list_models")
+    def test_list_torchscript_models_filters_correctly(self, mock_list_models):
+        """Test that list_torchscript_models only returns models with .ts files."""
+        # Mock model data - one with .ts, one without
+        mock_model_with_ts = SimpleModelData(
+            modelId="MONAI/model_with_ts",
+            author="MONAI",
+            downloads=100,
+            likes=10,
+            created_at=datetime(2023, 1, 1),
+            lastModified=datetime(2023, 12, 1),
+            tags=["medical"],
+            siblings=[Mock(rfilename="model.ts")],
+        )
+
+        mock_model_without_ts = SimpleModelData(
+            modelId="MONAI/model_without_ts", 
+            author="MONAI",
+            downloads=50,
+            likes=5,
+            created_at=datetime(2023, 2, 1),
+            lastModified=datetime(2023, 11, 1),
+            tags=["medical"],
+            siblings=[Mock(rfilename="model.pt")],
+        )
+
+        mock_list_models.return_value = [mock_model_with_ts, mock_model_without_ts]
+
+        # Mock get_model_info to return processed ModelInfo objects
+        def mock_get_model_info(model_id):
+            if model_id == "MONAI/model_with_ts":
+                return self.client._extract_model_info(mock_model_with_ts)
+            elif model_id == "MONAI/model_without_ts":
+                return self.client._extract_model_info(mock_model_without_ts)
+            return None
+
+        with patch.object(self.client, 'get_model_info', side_effect=mock_get_model_info):
+            from pipeline_generator.config.settings import Endpoint
+            endpoints = [Endpoint(organization="MONAI")]
+
+            # Test the torchscript filtering
+            torchscript_models = self.client.list_torchscript_models(endpoints)
+            
+            # Should only return the model with .ts file
+            assert len(torchscript_models) == 1
+            assert torchscript_models[0].model_id == "MONAI/model_with_ts"
+            assert torchscript_models[0].has_torchscript is True
+
+    def test_extract_model_info_includes_extensions(self):
+        """Test that _extract_model_info includes model extensions."""
+        mock_model = SimpleModelData(
+            modelId="MONAI/test_model",
+            author="MONAI",
+            downloads=100,
+            likes=10,
+            created_at=datetime(2023, 1, 1),
+            lastModified=datetime(2023, 12, 1),
+            tags=["medical"],
+            siblings=[
+                Mock(rfilename="model.ts"),
+                Mock(rfilename="model.pt"),
+                Mock(rfilename="config.yaml"),
+            ],
+        )
+
+        result = self.client._extract_model_info(mock_model)
+        
+        assert ".ts" in result.model_extensions
+        assert ".pt" in result.model_extensions
+        assert result.has_torchscript is True
+        assert result.primary_extension == ".ts"  # Should prioritize .ts

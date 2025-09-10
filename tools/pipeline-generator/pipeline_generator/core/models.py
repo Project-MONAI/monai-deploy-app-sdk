@@ -31,6 +31,7 @@ class ModelInfo(BaseModel):
     tags: List[str] = Field(default_factory=list, description="Model tags")
     is_monai_bundle: bool = Field(False, description="Whether this is a MONAI Bundle")
     bundle_metadata: Optional[Dict[str, Any]] = Field(None, description="MONAI Bundle metadata if available")
+    model_extensions: List[str] = Field(default_factory=list, description="Detected model file extensions")
 
     @property
     def display_name(self) -> str:
@@ -58,3 +59,30 @@ class ModelInfo(BaseModel):
             str: Model ID without organization prefix
         """
         return self.model_id.split("/")[-1]
+
+    @property
+    def has_torchscript(self) -> bool:
+        """Check if model has TorchScript (.ts) files.
+
+        Returns:
+            bool: True if model has .ts files, False otherwise
+        """
+        return ".ts" in self.model_extensions
+
+    @property
+    def primary_extension(self) -> Optional[str]:
+        """Get the primary model extension for display.
+
+        Returns the first extension found, prioritizing .ts files.
+
+        Returns:
+            str: Primary model extension or None if no extensions found
+        """
+        if not self.model_extensions:
+            return None
+        
+        # Prioritize .ts extension
+        if ".ts" in self.model_extensions:
+            return ".ts"
+        
+        return self.model_extensions[0]

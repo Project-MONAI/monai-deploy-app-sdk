@@ -60,6 +60,7 @@ class TestCLI:
                 downloads=100,
                 likes=10,
                 is_monai_bundle=True,
+                model_extensions=[".ts"],
             ),
             ModelInfo(
                 model_id="MONAI/test_model2",
@@ -67,9 +68,10 @@ class TestCLI:
                 downloads=200,
                 likes=20,
                 is_monai_bundle=False,
+                model_extensions=[".pt"],
             ),
         ]
-        mock_client.list_models_from_endpoints.return_value = test_models
+        mock_client.list_torchscript_models.return_value = test_models
 
         # Run command
         result = self.runner.invoke(cli, ["list"])
@@ -80,6 +82,7 @@ class TestCLI:
         assert "MONAI/test_model2" in result.output
         assert "Total models: 2" in result.output
         assert "MONAI Bundles: 1" in result.output
+        assert "Verified: 0" in result.output
 
     @patch("pipeline_generator.cli.main.HuggingFaceClient")
     @patch("pipeline_generator.cli.main.load_config")
@@ -96,11 +99,11 @@ class TestCLI:
 
         # Mock model data with mixed bundle status
         test_models = [
-            ModelInfo(model_id="MONAI/bundle1", name="Bundle 1", is_monai_bundle=True),
-            ModelInfo(model_id="MONAI/model1", name="Model 1", is_monai_bundle=False),
-            ModelInfo(model_id="MONAI/bundle2", name="Bundle 2", is_monai_bundle=True),
+            ModelInfo(model_id="MONAI/bundle1", name="Bundle 1", is_monai_bundle=True, model_extensions=[".ts"]),
+            ModelInfo(model_id="MONAI/model1", name="Model 1", is_monai_bundle=False, model_extensions=[".pt"]),
+            ModelInfo(model_id="MONAI/bundle2", name="Bundle 2", is_monai_bundle=True, model_extensions=[".ts"]),
         ]
-        mock_client.list_models_from_endpoints.return_value = test_models
+        mock_client.list_torchscript_models.return_value = test_models
 
         # Run command with bundles-only filter
         result = self.runner.invoke(cli, ["list", "--bundles-only"])
@@ -110,6 +113,7 @@ class TestCLI:
         assert "MONAI/bundle2" in result.output
         assert "MONAI/model1" not in result.output
         assert "Total models: 2" in result.output  # Only bundles shown
+        assert "Verified: 0" in result.output
 
     @patch("pipeline_generator.cli.main.HuggingFaceClient")
     @patch("pipeline_generator.cli.main.load_config")
@@ -124,8 +128,8 @@ class TestCLI:
         mock_client = Mock()
         mock_client_class.return_value = mock_client
 
-        test_models = [ModelInfo(model_id="MONAI/test", name="Test", is_monai_bundle=True)]
-        mock_client.list_models_from_endpoints.return_value = test_models
+        test_models = [ModelInfo(model_id="MONAI/test", name="Test", is_monai_bundle=True, model_extensions=[".ts"])]
+        mock_client.list_torchscript_models.return_value = test_models
 
         # Run command with simple format
         result = self.runner.invoke(cli, ["list", "--format", "simple"])
@@ -150,7 +154,7 @@ endpoints:
             with patch("pipeline_generator.cli.main.HuggingFaceClient") as mock_client_class:
                 mock_client = Mock()
                 mock_client_class.return_value = mock_client
-                mock_client.list_models_from_endpoints.return_value = []
+                mock_client.list_torchscript_models.return_value = []
 
                 result = self.runner.invoke(cli, ["--config", "test_config.yaml", "list"])
 
@@ -175,12 +179,13 @@ endpoints:
                 model_id="MONAI/test",
                 name="Test Model",
                 is_monai_bundle=True,
+                model_extensions=[".ts"],
                 downloads=100,
                 likes=10,
                 tags=["medical", "segmentation"],
             )
         ]
-        mock_client.list_models_from_endpoints.return_value = test_models
+        mock_client.list_torchscript_models.return_value = test_models
 
         # Run command with JSON format
         result = self.runner.invoke(cli, ["list", "--format", "json"])
@@ -216,7 +221,7 @@ endpoints:
 
         mock_client = Mock()
         mock_client_class.return_value = mock_client
-        mock_client.list_models_from_endpoints.return_value = []
+        mock_client.list_torchscript_models.return_value = []
 
         result = self.runner.invoke(cli, ["list"])
 
@@ -245,14 +250,15 @@ endpoints:
 
         # Mock the list response
         test_models = [
-            ModelInfo(model_id="MONAI/tested_model", name="Tested Model", is_monai_bundle=True),
+            ModelInfo(model_id="MONAI/tested_model", name="Tested Model", is_monai_bundle=True, model_extensions=[".ts"]),
             ModelInfo(
                 model_id="MONAI/untested_model",
                 name="Untested Model",
                 is_monai_bundle=True,
+                model_extensions=[".ts"],
             ),
         ]
-        mock_client.list_models_from_endpoints.return_value = test_models
+        mock_client.list_torchscript_models.return_value = test_models
 
         # Test with tested-only filter
         result = self.runner.invoke(cli, ["list", "--tested-only"])
@@ -280,3 +286,246 @@ endpoints:
             # Should log the exception
             assert mock_logger.exception.called
             assert result.exit_code != 0
+
+    @patch("pipeline_generator.cli.main.HuggingFaceClient")
+    @patch("pipeline_generator.cli.main.load_config")
+    def test_list_command_all_flag(self, mock_load_config, mock_client_class):
+        """Test list command with --all flag shows all models."""
+        # Mock setup
+        mock_settings = Mock()
+        mock_settings.get_all_endpoints.return_value = [Mock(organization="MONAI")]
+        mock_settings.endpoints = []
+        mock_load_config.return_value = mock_settings
+
+        mock_client = Mock()
+        mock_client_class.return_value = mock_client
+
+        # Mock model data with mixed extensions
+        test_models = [
+            ModelInfo(
+                model_id="MONAI/ts_model",
+                name="TorchScript Model",
+                model_extensions=[".ts"],
+                is_monai_bundle=True,
+            ),
+            ModelInfo(
+                model_id="MONAI/pt_model", 
+                name="PyTorch Model",
+                model_extensions=[".pt"],
+                is_monai_bundle=False,
+            ),
+        ]
+        mock_client.list_models_from_endpoints.return_value = test_models
+
+        # Run command with --all flag
+        result = self.runner.invoke(cli, ["list", "--all"])
+
+        assert result.exit_code == 0
+        # Should call list_models_from_endpoints with fetch_details_for_bundles=True
+        mock_client.list_models_from_endpoints.assert_called_once_with(
+            mock_settings.get_all_endpoints.return_value, fetch_details_for_bundles=True
+        )
+        mock_client.list_torchscript_models.assert_not_called()
+        assert "MONAI/ts_model" in result.output
+        assert "MONAI/pt_model" in result.output
+        assert "Verified: 0" in result.output
+
+    @patch("pipeline_generator.cli.main.HuggingFaceClient")
+    @patch("pipeline_generator.cli.main.load_config") 
+    def test_list_command_default_torchscript_only(self, mock_load_config, mock_client_class):
+        """Test list command defaults to torchscript models only."""
+        # Mock setup
+        mock_settings = Mock()
+        mock_settings.get_all_endpoints.return_value = [Mock(organization="MONAI")]
+        mock_settings.endpoints = []
+        mock_load_config.return_value = mock_settings
+
+        mock_client = Mock()
+        mock_client_class.return_value = mock_client
+
+        # Mock model data with only torchscript models
+        test_models = [
+            ModelInfo(
+                model_id="MONAI/ts_model",
+                name="TorchScript Model", 
+                model_extensions=[".ts"],
+                is_monai_bundle=True,
+            ),
+        ]
+        mock_client.list_torchscript_models.return_value = test_models
+
+        # Run command without --all flag (default behavior)
+        result = self.runner.invoke(cli, ["list"])
+
+        assert result.exit_code == 0
+        # Should call list_torchscript_models (default behavior) 
+        mock_client.list_torchscript_models.assert_called_once_with(
+            mock_settings.get_all_endpoints.return_value
+        )
+        mock_client.list_models_from_endpoints.assert_not_called()
+        assert "MONAI/ts_model" in result.output
+        assert "Verified: 0" in result.output
+
+    @patch("pipeline_generator.cli.main.HuggingFaceClient")
+    @patch("pipeline_generator.cli.main.load_config")
+    def test_list_command_monai_bundle_column_logic(self, mock_load_config, mock_client_class):
+        """Test MONAI Bundle column shows correct values based on extensions."""
+        # Mock setup
+        mock_settings = Mock()
+        mock_settings.get_all_endpoints.return_value = [Mock(organization="MONAI")]
+        mock_settings.endpoints = []
+        mock_load_config.return_value = mock_settings
+
+        mock_client = Mock()
+        mock_client_class.return_value = mock_client
+
+        # Mock model data with different extensions
+        test_models = [
+            ModelInfo(
+                model_id="MONAI/ts_model",
+                name="TorchScript Model",
+                model_extensions=[".ts"],
+                is_monai_bundle=True,  # Should be True for .ts files
+            ),
+            ModelInfo(
+                model_id="MONAI/pt_model",
+                name="PyTorch Model", 
+                model_extensions=[".pt"],
+                is_monai_bundle=False,  # Should be False for .pt files
+            ),
+            ModelInfo(
+                model_id="MONAI/no_ext_model",
+                name="No Extension Model",
+                model_extensions=[],
+                is_monai_bundle=False,  # Should be False for no extensions
+            ),
+        ]
+        mock_client.list_models_from_endpoints.return_value = test_models
+
+        # Run command with --all to see all models
+        result = self.runner.invoke(cli, ["list", "--all"])
+
+        assert result.exit_code == 0
+        # Check MONAI Bundle column contents with new display format
+        output = result.output
+        
+        # Should show "✓" and "Yes" for .ts model (MONAI Bundle) - may be on separate lines due to table wrapping
+        assert "MONAI/ts_model" in output
+        assert "✓" in output  # Checkmark emoji
+        assert "Yes" in output  # Text
+        
+        # Should show "✗" and "No" for .pt model  
+        assert "MONAI/pt_model" in output
+        assert "✗" in output  # X emoji
+        assert "No" in output  # The "No" text should appear
+        
+        # Should show "✗ No" for model with no extensions
+        assert "MONAI/no_ext_model" in output
+        # The Verified count may have color codes, so check for the text parts
+        assert "Verified:" in output and "0" in output
+
+    @patch("pipeline_generator.cli.main.HuggingFaceClient")
+    @patch("pipeline_generator.cli.main.load_config")
+    def test_list_command_with_verified_models(self, mock_load_config, mock_client_class):
+        """Test list command shows verified models correctly."""
+        # Mock setup with verified models
+        mock_settings = Mock()
+        mock_settings.get_all_endpoints.return_value = [Mock(organization="MONAI")]
+        mock_settings.endpoints = [
+            Mock(models=[
+                Mock(model_id="MONAI/verified_model1"),
+                Mock(model_id="MONAI/verified_model2"),
+            ])
+        ]
+        mock_load_config.return_value = mock_settings
+
+        mock_client = Mock()
+        mock_client_class.return_value = mock_client
+
+        # Mock model data - some verified, some not
+        test_models = [
+            ModelInfo(
+                model_id="MONAI/verified_model1",
+                name="Verified Model 1",
+                model_extensions=[".ts"],
+                is_monai_bundle=True,
+            ),
+            ModelInfo(
+                model_id="MONAI/unverified_model",
+                name="Unverified Model",
+                model_extensions=[".ts"],
+                is_monai_bundle=True,
+            ),
+        ]
+        mock_client.list_torchscript_models.return_value = test_models
+
+        # Run command
+        result = self.runner.invoke(cli, ["list"])
+
+        assert result.exit_code == 0
+        assert "MONAI/verified_model1" in result.output
+        assert "MONAI/unverified_model" in result.output
+        assert "Verified: 1" in result.output
+        
+        # Check that verified model shows verification checkmark
+        output_lines = result.output.split('\n')
+        verified_line = [line for line in output_lines if "MONAI/verified_model1" in line]
+        assert any("✓ Verified" in line for line in verified_line)
+        
+        unverified_line = [line for line in output_lines if "MONAI/unverified_model" in line] 
+        assert not any("✓ Verified" in line for line in unverified_line)
+
+    @patch("pipeline_generator.cli.main.HuggingFaceClient")
+    @patch("pipeline_generator.cli.main.load_config")
+    def test_list_command_json_output(self, mock_load_config, mock_client_class):
+        """Test JSON output format includes new fields."""
+        # Mock setup
+        mock_settings = Mock()
+        mock_settings.get_all_endpoints.return_value = [Mock(organization="MONAI")]
+        mock_settings.endpoints = [
+            Mock(models=[Mock(model_id="MONAI/test_model")])
+        ]
+        mock_load_config.return_value = mock_settings
+
+        mock_client = Mock()
+        mock_client_class.return_value = mock_client
+
+        # Mock model with all new properties
+        test_models = [
+            ModelInfo(
+                model_id="MONAI/test_model",
+                name="Test Model",
+                model_extensions=[".ts", ".pt"],
+                is_monai_bundle=True,
+                downloads=100,
+                likes=10,
+                tags=["medical", "segmentation"],
+            ),
+        ]
+        mock_client.list_torchscript_models.return_value = test_models
+
+        # Run command with JSON output
+        result = self.runner.invoke(cli, ["list", "--format", "json"])
+
+        assert result.exit_code == 0
+        
+        # Parse JSON output to verify new fields
+        import json
+        json_start = result.output.find('[')
+        json_end = result.output.rfind(']') + 1  # Find the last ] and include it
+        json_text = result.output[json_start:json_end]
+        json_data = json.loads(json_text)
+        
+        assert len(json_data) == 1
+        model_data = json_data[0]
+        
+        # Check all new fields are present
+        assert model_data["model_id"] == "MONAI/test_model"
+        assert model_data["is_monai_bundle"] is True
+        assert model_data["has_torchscript"] is True
+        assert model_data["model_extensions"] == [".ts", ".pt"]
+        assert model_data["primary_extension"] == ".ts"
+        assert model_data["is_verified"] is True  # Should be verified
+        assert model_data["downloads"] == 100
+        assert model_data["likes"] == 10
+        assert model_data["tags"] == ["medical", "segmentation"]
