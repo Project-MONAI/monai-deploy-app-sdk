@@ -124,9 +124,9 @@ class HuggingFaceClient:
             elif endpoint.model_id:
                 # Get specific model
                 logger.info(f"Fetching model: {endpoint.model_id}")
-                model = self.get_model_info(endpoint.model_id)
-                if model:
-                    all_models.append(model)
+                model_info = self.get_model_info(endpoint.model_id)
+                if model_info:
+                    all_models.append(model_info)
 
         return all_models
 
