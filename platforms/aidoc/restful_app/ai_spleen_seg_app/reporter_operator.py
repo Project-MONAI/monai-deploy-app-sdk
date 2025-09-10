@@ -10,6 +10,7 @@
 # limitations under the License.
 
 import logging
+
 from monai.deploy.core import (
     Application,
     ConditionType,
@@ -18,8 +19,8 @@ from monai.deploy.core import (
     InputContext,
     IOType,
     Operator,
-    OutputContext,
     OperatorSpec,
+    OutputContext,
 )
 
 

@@ -1,10 +1,21 @@
+# Copyright 2025 MONAI Consortium
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#     http://www.apache.org/licenses/LICENSE-2.0
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+import argparse
 import importlib
 import logging
 import os
 import sys
 import threading
 from http import HTTPStatus
-import argparse
 
 import requests
 from flask import Flask, jsonify, request
@@ -65,8 +76,7 @@ def run_processing(input_folder, output_folder, callback_url):
         os.environ["MONAI_INPUTPATH"] = input_folder
         os.environ["MONAI_OUTPUTPATH"] = output_folder
         os.environ["HOLOSCAN_INPUT_PATH"] = input_folder  # For Holoscan-based apps
-        os.environ["HOLOSCAN_OUTPUT_PATH"] = output_folder # For Holoscan-based apps
-
+        os.environ["HOLOSCAN_OUTPUT_PATH"] = output_folder  # For Holoscan-based apps
 
         # Dynamically import the application class from the specified module.
         logging.info(f"Loading application: {APP_MODULE_NAME}.{APP_CLASS_NAME}")
@@ -110,9 +120,7 @@ def process():
     callback_url = data.get("callback_url")  # Callback URL is optional
 
     # Start the processing in a background thread.
-    thread = threading.Thread(
-        target=run_processing, args=(input_folder, output_folder, callback_url)
-    )
+    thread = threading.Thread(target=run_processing, args=(input_folder, output_folder, callback_url))
     thread.start()
 
     return jsonify({"message": "Processing started."}), HTTPStatus.ACCEPTED
