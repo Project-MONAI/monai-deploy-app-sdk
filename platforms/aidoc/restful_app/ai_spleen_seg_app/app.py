@@ -1,4 +1,4 @@
-# Copyright 2021-2023 MONAI Consortium
+# Copyright 2021-2025 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -14,6 +14,7 @@ from pathlib import Path
 
 # Required for setting SegmentDescription attributes. Direct import as this is not part of App SDK package.
 from pydicom.sr.codedict import codes
+from reporter_operator import ExecutionStatusReporterOperator
 
 from monai.deploy.conditions import CountCondition
 from monai.deploy.core import AppContext, Application
@@ -31,7 +32,6 @@ from monai.deploy.operators.monai_bundle_inference_operator import (
     MonaiBundleInferenceOperator,
 )
 from monai.deploy.operators.stl_conversion_operator import STLConversionOperator
-from reporter_operator import ExecutionStatusReporterOperator
 
 
 # @resource(cpu=1, gpu=1, memory="7Gi")
