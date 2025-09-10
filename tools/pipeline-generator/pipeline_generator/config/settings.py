@@ -55,8 +55,7 @@ class Settings(BaseModel):
     """Application settings."""
 
     supported_models: List[str] = Field(
-        default_factory=lambda: [".ts", ".pt", ".pth", ".safetensors"],
-        description="Supported model file extensions"
+        default_factory=lambda: [".ts", ".pt", ".pth", ".safetensors"], description="Supported model file extensions"
     )
     endpoints: List[Endpoint] = Field(default_factory=list)
     additional_models: List[Endpoint] = Field(default_factory=list)

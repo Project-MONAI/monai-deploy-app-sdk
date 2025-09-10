@@ -80,9 +80,9 @@ class ModelInfo(BaseModel):
         """
         if not self.model_extensions:
             return None
-        
+
         # Prioritize .ts extension
         if ".ts" in self.model_extensions:
             return ".ts"
-        
+
         return self.model_extensions[0]

@@ -28,15 +28,13 @@ class HuggingFaceClient:
 
     def __init__(self, settings: Optional[Settings] = None) -> None:
         """Initialize the HuggingFace Hub client.
-        
+
         Args:
             settings: Pipeline generator settings containing supported extensions
         """
         self.api = HfApi()
         self.settings = settings
-        self.supported_extensions = (
-            settings.supported_models if settings else [".ts", ".pt", ".pth", ".safetensors"]
-        )
+        self.supported_extensions = settings.supported_models if settings else [".ts", ".pt", ".pth", ".safetensors"]
 
     def list_models_from_organization(self, organization: str) -> List[ModelInfo]:
         """List all models from a HuggingFace organization.
@@ -79,7 +77,9 @@ class HuggingFaceClient:
             logger.error(f"Error fetching model {model_id}: {e}")
             return None
 
-    def list_models_from_endpoints(self, endpoints: List[Endpoint], fetch_details_for_bundles: bool = False) -> List[ModelInfo]:
+    def list_models_from_endpoints(
+        self, endpoints: List[Endpoint], fetch_details_for_bundles: bool = False
+    ) -> List[ModelInfo]:
         """List models from all configured endpoints.
 
         Args:
@@ -96,7 +96,7 @@ class HuggingFaceClient:
                 # List all models from organization
                 logger.info(f"Fetching models from organization: {endpoint.organization}")
                 models = self.list_models_from_organization(endpoint.organization)
-                
+
                 if fetch_details_for_bundles:
                     # For MONAI organization, fetch detailed info for all models to get accurate extension data
                     # This is needed because bulk API doesn't provide file information (siblings=None)
@@ -118,7 +118,7 @@ class HuggingFaceClient:
                             else:
                                 enhanced_models.append(model)
                         models = enhanced_models
-                
+
                 all_models.extend(models)
 
             elif endpoint.model_id:
@@ -140,7 +140,7 @@ class HuggingFaceClient:
             List of detected model file extensions
         """
         extensions = []
-        
+
         try:
             if hasattr(model_data, "siblings") and model_data.siblings is not None:
                 file_names = [f.rfilename for f in model_data.siblings]
@@ -151,13 +151,13 @@ class HuggingFaceClient:
                                 extensions.append(ext)
         except Exception as e:
             logger.debug(f"Could not detect extensions for {getattr(model_data, 'modelId', 'unknown')}: {e}")
-        
+
         return extensions
 
     def list_torchscript_models(self, endpoints: List[Endpoint]) -> List[ModelInfo]:
         """List models that have TorchScript (.ts) files.
 
-        This method fetches detailed information for each model individually to 
+        This method fetches detailed information for each model individually to
         check for TorchScript files, which is slower than bulk listing but accurate.
 
         Args:
@@ -167,7 +167,7 @@ class HuggingFaceClient:
             List of ModelInfo objects that contain .ts files
         """
         torchscript_models = []
-        
+
         for endpoint in endpoints:
             if endpoint.organization:
                 # List all models from organization first (bulk)

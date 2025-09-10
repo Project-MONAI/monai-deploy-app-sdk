@@ -250,7 +250,9 @@ endpoints:
 
         # Mock the list response
         test_models = [
-            ModelInfo(model_id="MONAI/tested_model", name="Tested Model", is_monai_bundle=True, model_extensions=[".ts"]),
+            ModelInfo(
+                model_id="MONAI/tested_model", name="Tested Model", is_monai_bundle=True, model_extensions=[".ts"]
+            ),
             ModelInfo(
                 model_id="MONAI/untested_model",
                 name="Untested Model",
@@ -309,7 +311,7 @@ endpoints:
                 is_monai_bundle=True,
             ),
             ModelInfo(
-                model_id="MONAI/pt_model", 
+                model_id="MONAI/pt_model",
                 name="PyTorch Model",
                 model_extensions=[".pt"],
                 is_monai_bundle=False,
@@ -331,7 +333,7 @@ endpoints:
         assert "Verified: 0" in result.output
 
     @patch("pipeline_generator.cli.main.HuggingFaceClient")
-    @patch("pipeline_generator.cli.main.load_config") 
+    @patch("pipeline_generator.cli.main.load_config")
     def test_list_command_default_torchscript_only(self, mock_load_config, mock_client_class):
         """Test list command defaults to torchscript models only."""
         # Mock setup
@@ -347,7 +349,7 @@ endpoints:
         test_models = [
             ModelInfo(
                 model_id="MONAI/ts_model",
-                name="TorchScript Model", 
+                name="TorchScript Model",
                 model_extensions=[".ts"],
                 is_monai_bundle=True,
             ),
@@ -358,10 +360,8 @@ endpoints:
         result = self.runner.invoke(cli, ["list"])
 
         assert result.exit_code == 0
-        # Should call list_torchscript_models (default behavior) 
-        mock_client.list_torchscript_models.assert_called_once_with(
-            mock_settings.get_all_endpoints.return_value
-        )
+        # Should call list_torchscript_models (default behavior)
+        mock_client.list_torchscript_models.assert_called_once_with(mock_settings.get_all_endpoints.return_value)
         mock_client.list_models_from_endpoints.assert_not_called()
         assert "MONAI/ts_model" in result.output
         assert "Verified: 0" in result.output
@@ -389,7 +389,7 @@ endpoints:
             ),
             ModelInfo(
                 model_id="MONAI/pt_model",
-                name="PyTorch Model", 
+                name="PyTorch Model",
                 model_extensions=[".pt"],
                 is_monai_bundle=False,  # Should be False for .pt files
             ),
@@ -408,17 +408,17 @@ endpoints:
         assert result.exit_code == 0
         # Check MONAI Bundle column contents with new display format
         output = result.output
-        
+
         # Should show "✓" and "Yes" for .ts model (MONAI Bundle) - may be on separate lines due to table wrapping
         assert "MONAI/ts_model" in output
         assert "✓" in output  # Checkmark emoji
         assert "Yes" in output  # Text
-        
-        # Should show "✗" and "No" for .pt model  
+
+        # Should show "✗" and "No" for .pt model
         assert "MONAI/pt_model" in output
         assert "✗" in output  # X emoji
         assert "No" in output  # The "No" text should appear
-        
+
         # Should show "✗ No" for model with no extensions
         assert "MONAI/no_ext_model" in output
         # The Verified count may have color codes, so check for the text parts
@@ -432,10 +432,12 @@ endpoints:
         mock_settings = Mock()
         mock_settings.get_all_endpoints.return_value = [Mock(organization="MONAI")]
         mock_settings.endpoints = [
-            Mock(models=[
-                Mock(model_id="MONAI/verified_model1"),
-                Mock(model_id="MONAI/verified_model2"),
-            ])
+            Mock(
+                models=[
+                    Mock(model_id="MONAI/verified_model1"),
+                    Mock(model_id="MONAI/verified_model2"),
+                ]
+            )
         ]
         mock_load_config.return_value = mock_settings
 
@@ -466,13 +468,13 @@ endpoints:
         assert "MONAI/verified_model1" in result.output
         assert "MONAI/unverified_model" in result.output
         assert "Verified: 1" in result.output
-        
+
         # Check that verified model shows verification checkmark
-        output_lines = result.output.split('\n')
+        output_lines = result.output.split("\n")
         verified_line = [line for line in output_lines if "MONAI/verified_model1" in line]
         assert any("✓ Verified" in line for line in verified_line)
-        
-        unverified_line = [line for line in output_lines if "MONAI/unverified_model" in line] 
+
+        unverified_line = [line for line in output_lines if "MONAI/unverified_model" in line]
         assert not any("✓ Verified" in line for line in unverified_line)
 
     @patch("pipeline_generator.cli.main.HuggingFaceClient")
@@ -482,9 +484,7 @@ endpoints:
         # Mock setup
         mock_settings = Mock()
         mock_settings.get_all_endpoints.return_value = [Mock(organization="MONAI")]
-        mock_settings.endpoints = [
-            Mock(models=[Mock(model_id="MONAI/test_model")])
-        ]
+        mock_settings.endpoints = [Mock(models=[Mock(model_id="MONAI/test_model")])]
         mock_load_config.return_value = mock_settings
 
         mock_client = Mock()
@@ -508,17 +508,18 @@ endpoints:
         result = self.runner.invoke(cli, ["list", "--format", "json"])
 
         assert result.exit_code == 0
-        
+
         # Parse JSON output to verify new fields
         import json
-        json_start = result.output.find('[')
-        json_end = result.output.rfind(']') + 1  # Find the last ] and include it
+
+        json_start = result.output.find("[")
+        json_end = result.output.rfind("]") + 1  # Find the last ] and include it
         json_text = result.output[json_start:json_end]
         json_data = json.loads(json_text)
-        
+
         assert len(json_data) == 1
         model_data = json_data[0]
-        
+
         # Check all new fields are present
         assert model_data["model_id"] == "MONAI/test_model"
         assert model_data["is_monai_bundle"] is True

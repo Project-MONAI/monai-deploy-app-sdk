@@ -99,7 +99,7 @@ def list(ctx: click.Context, format: str, bundles_only: bool, tested_only: bool,
 
     # Fetch models from all endpoints
     console.print("[blue]Fetching models from HuggingFace...[/blue]")
-    
+
     if all:
         # Show all models, but fetch detailed info for MONAI Bundles to get accurate extension data
         console.print("[yellow]Note: Fetching detailed info for MONAI Bundles to show accurate extension data[/yellow]")
@@ -263,7 +263,7 @@ def _display_table(models: List[ModelInfo], verified_models: Set[str]) -> None:
                 bundle_status = f"[dim]✗ No ({primary_ext})[/dim]"
             else:
                 bundle_status = "[dim]✗ No[/dim]"
-        
+
         status = "[bold green]✓ Verified[/bold green]" if model.model_id in verified_models else ""
         table.add_row(
             model.model_id,
