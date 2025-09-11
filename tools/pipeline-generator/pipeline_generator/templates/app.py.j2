@@ -1,0 +1,378 @@
+#!/usr/bin/env python3
+# Copyright 2025 MONAI Consortium
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#     http://www.apache.org/licenses/LICENSE-2.0
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+"""
+{{ app_title }}
+
+Generated from HuggingFace model: {{ model_id }}
+{{ app_description }}
+"""
+
+import logging
+import os
+from pathlib import Path
+
+{% if use_dicom %}
+# Required for setting SegmentDescription attributes. Direct import as this is not part of App SDK package.
+from pydicom.sr.codedict import codes
+
+from monai.deploy.conditions import CountCondition
+
+{% endif %}
+from monai.deploy.core import AppContext, Application
+from monai.deploy.core.domain import Image
+from monai.deploy.core.io_type import IOType
+
+{% if use_dicom %}
+from monai.deploy.operators.dicom_data_loader_operator import DICOMDataLoaderOperator
+from monai.deploy.operators.dicom_seg_writer_operator import DICOMSegmentationWriterOperator, SegmentDescription
+from monai.deploy.operators.dicom_series_selector_operator import DICOMSeriesSelectorOperator
+from monai.deploy.operators.dicom_series_to_volume_operator import DICOMSeriesToVolumeOperator
+
+{% if 'segmentation' in task.lower() %}
+from monai.deploy.operators.stl_conversion_operator import STLConversionOperator
+
+{% endif %}
+{% elif input_type == "image" %}
+from generic_directory_scanner_operator import GenericDirectoryScanner
+from image_file_loader_operator import ImageFileLoader
+
+{% elif input_type == "custom" %}
+from llama3_vila_inference_operator import Llama3VILAInferenceOperator
+
+# Custom operators for vision-language models
+from prompts_loader_operator import PromptsLoaderOperator
+from vlm_results_writer_operator import VLMResultsWriterOperator
+
+{% else %}
+from generic_directory_scanner_operator import GenericDirectoryScanner
+
+from monai.deploy.operators.nii_data_loader_operator import NiftiDataLoader
+
+{% endif %}
+{% if output_type == "json" %}
+from json_results_writer_operator import JSONResultsWriter
+
+{% elif output_type == "image_overlay" %}
+from image_overlay_writer_operator import ImageOverlayWriter
+
+{% elif not use_dicom and input_type != "custom" %}
+from nifti_writer_operator import NiftiWriter
+
+{% endif %}
+{% if "classification" in task.lower() and input_type == "image" %}
+from monai_classification_operator import MonaiClassificationOperator
+
+{% elif not (input_type == "custom" and output_type == "custom") %}
+from monai.deploy.operators.monai_bundle_inference_operator import (
+    BundleConfigNames,
+    IOMapping,
+    MonaiBundleInferenceOperator,
+)
+
+{% endif %}
+
+
+class {{ app_name }}(Application):
+    """MONAI Deploy application for {{ app_title }} using a MONAI Bundle.
+
+    {% if use_dicom %}
+    This application loads a set of DICOM instances, selects the appropriate series, converts the series to
+    3D volume image, performs inference with the built-in MONAI Bundle inference operator, including pre-processing
+    and post-processing, saves the segmentation image in a DICOM Seg OID in an instance file{% if 'segmentation' in task.lower() %}, and optionally the
+    surface mesh in STL format{% endif %}.
+
+    Pertinent MONAI Bundle: {{ model_id }}
+    {% elif input_type == "image" and output_type == "json" %}
+    This application processes common image formats (JPEG, PNG, etc.) and outputs
+    classification results as JSON files.
+    {% elif input_type == "custom" and output_type == "custom" %}
+    This application processes prompts and images using a vision-language model (VLM).
+    Prompts are specified in a prompts.yaml file and can include tasks such as visual question answering, image captioning, or visual reasoning.
+    Each prompt entry may contain a textual question or instruction and an associated image path.
+    The application generates outputs such as text answers, captions, or image overlays, depending on the prompt and the configured output type.
+    {% else %}
+    This application follows the pipeline structure:
+    [GenericDirectoryScanner] → [{{ 'ImageFileLoader' if input_type == 'image' else 'NiftiDataLoader' }}] → [Preprocessing Op] → [Inference Op] → [Postprocessing Op] → [Sink/{{ 'JSONResultsWriter' if output_type == 'json' else 'NiftiWriter' }}]
+
+    The GenericDirectoryScanner finds files with appropriate extensions, 
+    the file loader processes individual files, and the MonaiBundleInferenceOperator 
+    handles preprocessing, inference, and postprocessing based on configurations 
+    loaded dynamically from inference.json.
+    {% endif %}
+    """
+
+    def __init__(self, *args, **kwargs):
+        """Creates an application instance."""
+        self._logger = logging.getLogger("{}.{}".format(__name__, type(self).__name__))
+        super().__init__(*args, **kwargs)
+
+    def run(self, *args, **kwargs):
+        # This method calls the base class to run
+        self._logger.info(f"Begin {self.run.__name__}")
+        super().run(*args, **kwargs)
+        self._logger.info(f"End {self.run.__name__}")
+
+    def compose(self):
+        """Creates the app specific operators and chain them up in the processing DAG."""
+
+        self._logger.info(f"Begin {self.compose.__name__}")
+
+        # Use Commandline options over environment variables to init context
+        app_context: AppContext = Application.init_app_context(self.argv)
+        app_input_path = Path(app_context.input_path)
+        app_output_path = Path(app_context.output_path)
+
+        # Set the bundle path from environment variable or use default
+        bundle_path = os.environ.get("BUNDLE_PATH", str(Path(__file__).parent / "model"))
+        bundle_path = Path(bundle_path)
+        if not bundle_path.exists():
+            self._logger.warning(f"Bundle path does not exist: {bundle_path}")
+
+        # Create operators
+        {% if use_dicom %}
+        # Create the custom operator(s) as well as SDK built-in operator(s)
+        study_loader_op = DICOMDataLoaderOperator(
+            self, CountCondition(self, 1), input_folder=app_input_path, name="study_loader_op"
+        )
+        series_selector_op = DICOMSeriesSelectorOperator(self, rules=Sample_Rules_Text, name="series_selector_op")
+        series_to_vol_op = DICOMSeriesToVolumeOperator(self, name="series_to_vol_op")
+        {% elif input_type == "image" %}
+        # Image processing using chained operators
+        # Scanner finds all image files in the directory
+        scanner_op = GenericDirectoryScanner(
+            self,
+            input_folder=app_input_path,
+            file_extensions=['.jpg', '.jpeg', '.png', '.bmp', '.tiff', '.tif'],
+            recursive=True,
+            name="image_scanner"
+        )
+        
+        # Loader processes individual image files
+        # For 2D RGB bundles that include EnsureChannelFirstd(channel_dim=-1) in preprocessing,
+        # emit HWC arrays to let the bundle handle channel movement.
+        loader_op = ImageFileLoader(
+            self,
+            channel_first={{ channel_first }},
+            name="image_loader"
+        )
+        {% elif input_type == "custom" %}
+        # Prompts loader for vision-language models
+        loader_op = PromptsLoaderOperator(
+            self,
+            input_folder=app_input_path,
+            name="prompts_loader"
+        )
+        {% else %}
+        # NIfTI processing using chained operators
+        # Scanner finds all NIfTI files in the directory
+        scanner_op = GenericDirectoryScanner(
+            self,
+            input_folder=app_input_path,
+            file_extensions=['.nii', '.nii.gz'],
+            recursive=True,
+            name="nifti_scanner"
+        )
+        
+        # Loader processes individual NIfTI files
+        loader_op = NiftiDataLoader(
+            self,
+            input_path=None,  # Will be provided by scanner
+            name="nifti_loader"
+        )
+        {% endif %}
+
+        {% if input_type == "custom" and output_type == "custom" %}
+        # Vision-language model inference operator
+        inference_op = Llama3VILAInferenceOperator(
+            self,
+            app_context=app_context,
+            model_path=bundle_path,
+            name="vlm_inference"
+        )
+        {% elif "classification" in task.lower() and input_type == "image" %}
+        # MonaiClassificationOperator for classification models
+        # The bundle path can be overridden with -m argument at runtime
+        inference_op = MonaiClassificationOperator(
+            self,
+            app_context=app_context,
+            bundle_path=Path(bundle_path),
+            name="classification"
+        )
+        {% else %}
+        # MonaiBundleInferenceOperator with dynamic config loading
+        # The bundle path can be overridden with -m argument at runtime
+        {% if use_dicom %}
+        config_names = BundleConfigNames(config_names=["inference"])  # Same as the default
+        {% endif %}
+        inference_op = MonaiBundleInferenceOperator(
+            self,
+            input_mapping=[IOMapping("image", Image, IOType.IN_MEMORY)],
+            output_mapping=[IOMapping("pred", Image, IOType.IN_MEMORY)],
+            app_context=app_context,
+            bundle_path=Path(bundle_path),
+            {% if use_dicom %}bundle_config_names=config_names,{% endif %}
+            name="bundle_inference{% if use_dicom %}_op{% endif %}"
+        )
+        {% endif %}
+
+        {% if use_dicom and 'segmentation' in task.lower() %}
+        # Create DICOM Seg writer providing the required segment description for each segment
+        segment_descriptions = [
+            SegmentDescription(
+                segment_label="{{ organ }}",
+                segmented_property_category=codes.SCT.Organ,
+                segmented_property_type=codes.SCT.{{ organ }},
+                algorithm_name="volumetric (3D) segmentation of the {{ organ|lower }} from {{ modality }} image",
+                algorithm_family=codes.DCM.ArtificialIntelligence,
+                algorithm_version="{{ version }}",
+            )
+        ]
+
+        custom_tags = {"SeriesDescription": "AI generated Seg, not for clinical use."}
+
+        dicom_seg_writer = DICOMSegmentationWriterOperator(
+            self,
+            segment_descriptions=segment_descriptions,
+            custom_tags=custom_tags,
+            output_folder=app_output_path,
+            name="dicom_seg_writer",
+        )
+{% elif output_type == "json" %}
+        # JSON results writer that saves classification results
+        writer_op = JSONResultsWriter(
+            self,
+            output_folder=app_output_path,
+            name="json_writer"
+        )
+{% elif output_type == "image_overlay" %}
+        # Overlay writer to blend segmentation predictions on original images
+        writer_op = ImageOverlayWriter(
+            self,
+            output_folder=app_output_path,
+            name="overlay_writer"
+        )
+{% elif output_type == "custom" %}
+        # VLM results writer for custom outputs
+        writer_op = VLMResultsWriterOperator(
+            self,
+            output_folder=app_output_path,
+            name="vlm_writer"
+        )
+{% elif not use_dicom %}
+        # NIfTI writer that saves results with proper naming from bundle config
+        writer_op = NiftiWriter(
+            self,
+            output_folder=app_output_path,
+            output_postfix="{{ output_postfix }}",  # Postfix from bundle config
+            name="nifti_writer"
+        )
+        {% endif %}
+
+        # Connect operators in the pipeline
+        {% if use_dicom %}
+        # Create the processing pipeline, by specifying the source and destination operators, and
+        # ensuring the output from the former matches the input of the latter, in both name and type
+        self.add_flow(study_loader_op, series_selector_op, {("dicom_study_list", "dicom_study_list")})
+        self.add_flow(
+            series_selector_op, series_to_vol_op, {("study_selected_series_list", "study_selected_series_list")}
+        )
+        self.add_flow(series_to_vol_op, inference_op, {("image", "image")})
+
+        {% if 'segmentation' in task.lower() %}
+        # Note below the dicom_seg_writer requires two inputs, each coming from a source operator
+        self.add_flow(
+            series_selector_op, dicom_seg_writer, {("study_selected_series_list", "study_selected_series_list")}
+        )
+        self.add_flow(inference_op, dicom_seg_writer, {("pred", "seg_image")})
+
+        # Create the surface mesh STL conversion operator and add it to the app execution flow
+        stl_conversion_op = STLConversionOperator(
+            self, output_file=app_output_path.joinpath("stl/{{ organ|lower }}.stl"), name="stl_conversion_op"
+        )
+        self.add_flow(inference_op, stl_conversion_op, {("pred", "image")})
+        {% endif %}
+{% elif input_type == "custom" and output_type == "custom" %}
+        # Connect prompts loader to inference operator
+        self.add_flow(loader_op, inference_op, {
+            ("image", "image"),
+            ("prompt", "prompt"),
+            ("output_type", "output_type"),
+            ("request_id", "request_id"),
+            ("generation_params", "generation_params")
+        })
+        # Connect inference operator to results writer
+        self.add_flow(inference_op, writer_op, {
+            ("result", "result"),
+            ("output_type", "output_type"),
+            ("request_id", "request_id")
+        })
+{% else %}
+        # Connect scanner to loader for both image and nifti cases
+        {% if input_type == "image" %}
+        self.add_flow(scanner_op, loader_op, {("file_path", "file_path")})
+        {% else %}
+        self.add_flow(scanner_op, loader_op, {("file_path", "image_path")})
+        {% endif %}
+        self.add_flow(loader_op, inference_op, {("image", "image")})
+        {% if output_type == 'json' %}
+        self.add_flow(inference_op, writer_op, {("pred", "pred")})
+        self.add_flow(scanner_op, writer_op, {("filename", "filename")})
+        {% elif output_type == 'image_overlay' %}
+        # Connect both original image and prediction to overlay writer
+        self.add_flow(loader_op, writer_op, {("image", "image")})
+        self.add_flow(scanner_op, writer_op, {("filename", "filename")})
+        self.add_flow(inference_op, writer_op, {("pred", "pred")})
+        {% else %}
+        self.add_flow(inference_op, writer_op, {("pred", "image")})
+        self.add_flow(scanner_op, writer_op, {("filename", "filename")})
+        {% endif %}
+{% endif %}
+
+        self._logger.info(f"End {self.compose.__name__}")
+
+
+{% if use_dicom %}
+# This is a sample series selection rule in JSON, simply selecting {{ modality }} series
+# If the study has more than 1 {{ modality }} series, then all of them will be selected
+Sample_Rules_Text = """
+{
+    "selections": [
+        {
+            "name": "{{ modality }} Series",
+            "conditions": {
+                "StudyDescription": "(.*?)",
+                "Modality": "(?i){{ modality }}",
+                "SeriesDescription": "(.*?)"
+            }
+        }
+    ]
+}
+"""
+{% endif %}
+
+if __name__ == "__main__":
+    # Creates the app and test it standalone. When running is this mode, please note the following:
+    #     -m <model file>, for model file path
+    {% if use_dicom %}
+    #     -i <DICOM folder>, for input DICOM {{ modality }} series folder
+    {% else %}
+    #     -i <input folder>, for input folder path
+    {% endif %}
+    #     -o <output folder>, for output folder path, default $PWD/output
+    # e.g.
+    #     python app.py -i /path/to/input -o /path/to/output -m /path/to/bundle
+    #
+    logging.basicConfig(level=logging.INFO)
+    logging.info(f"Begin {__name__}")
+    {{ app_name }}().run()
+    logging.info(f"End {__name__}")
