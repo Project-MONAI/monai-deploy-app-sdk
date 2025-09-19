@@ -11,7 +11,7 @@
 
 import logging
 
-from app import AISpleenSegApp
+from .app import AISpleenSegApp
 
 if __name__ == "__main__":
     logging.info(f"Begin {__name__}")

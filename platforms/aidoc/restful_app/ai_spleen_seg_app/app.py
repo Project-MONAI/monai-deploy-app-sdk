@@ -9,12 +9,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import json
 import logging
+import os
 from pathlib import Path
+from typing import List, Union
 
 # Required for setting SegmentDescription attributes. Direct import as this is not part of App SDK package.
 from pydicom.sr.codedict import codes
-from reporter_operator import ExecutionStatusReporterOperator
 
 from monai.deploy.conditions import CountCondition
 from monai.deploy.core import AppContext, Application
@@ -33,10 +35,15 @@ from monai.deploy.operators.monai_bundle_inference_operator import (
 )
 from monai.deploy.operators.stl_conversion_operator import STLConversionOperator
 
+from .results_message import (
+    AggregatedResults,
+    AlgorithmClass,
+    DetailedResult,
+    MeasurementResult,
+    Results,
+)
 
-# @resource(cpu=1, gpu=1, memory="7Gi")
-# pip_packages can be a string that is a path(str) to requirements.txt file or a list of packages.
-# The monai pkg is not required by this class, instead by the included operators.
+
 class AISpleenSegApp(Application):
     """Demonstrates inference with built-in MONAI Bundle inference operator with DICOM files as input/output
 
@@ -57,13 +64,68 @@ class AISpleenSegApp(Application):
         """Creates an application instance."""
         self._logger = logging.getLogger("{}.{}".format(__name__, type(self).__name__))
         self._status_callback = status_callback
+        self._app_input_path = None  # to be set in compose
+        self._app_output_path = None  # to be set in compose
         super().__init__(*args, **kwargs)
+
+    def _get_files_in_folder(self, folder_path: Union[str, Path]) -> List[str]:
+        """Traverses a folder and returns a list of full paths of all files.
+
+        Args:
+            folder_path (Union[str, Path]): The path to the folder to traverse.
+
+        Returns:
+            List[str]: A list of absolute paths to the files in the folder.
+        """
+        if not os.path.isdir(folder_path):
+            self._logger.warning(f"Output folder '{folder_path}' not found, returning empty file list.")
+            return []
+
+        file_paths = []
+        for root, _, files in os.walk(folder_path):
+            for file in files:
+                full_path = os.path.abspath(os.path.join(root, file))
+                file_paths.append(full_path)
+        return file_paths
 
     def run(self, *args, **kwargs):
         # This method calls the base class to run. Can be omitted if simply calling through.
         self._logger.info(f"Begin {self.run.__name__}")
-        # The try...except block is removed as the reporter operator will handle status reporting.
-        super().run(*args, **kwargs)
+        try:
+            super().run(*args, **kwargs)
+
+            if self._status_callback:
+                # Create the results object using the Pydantic models
+                ai_results = Results(
+                    aggregated_results=AggregatedResults(
+                        name="Spleen Segmentation",
+                        algorithm_class={AlgorithmClass.MEASUREMENT},
+                    ),
+                    detailed_results={
+                        "Spleen Segmentation": DetailedResult(
+                            measurement=MeasurementResult(
+                                measurements_text="Spleen segmentation completed successfully.",
+                            )
+                        )
+                    },
+                )
+
+                output_files = self._get_files_in_folder(self._app_output_path)
+
+                callback_msg_dict = {
+                    "run_success": True,
+                    "output_files": output_files,
+                    "error_message": None,
+                    "error_code": None,
+                    "result": ai_results.model_dump_json(),
+                }
+                self._status_callback(json.dumps(callback_msg_dict))
+
+        except Exception as e:
+            self._logger.error(f"Error in {self.run.__name__}: {e}")
+            # Let the caller to handle and report the error
+            raise e
+
         self._logger.info(f"End {self.run.__name__}")
 
     def compose(self):
@@ -73,12 +135,12 @@ class AISpleenSegApp(Application):
 
         # Use Commandline options over environment variables to init context.
         app_context: AppContext = Application.init_app_context(self.argv)
-        app_input_path = Path(app_context.input_path)
-        app_output_path = Path(app_context.output_path)
+        self._app_input_path = Path(app_context.input_path)
+        self._app_output_path = Path(app_context.output_path)
 
         # Create the custom operator(s) as well as SDK built-in operator(s).
         study_loader_op = DICOMDataLoaderOperator(
-            self, CountCondition(self, 1), input_folder=app_input_path, name="study_loader_op"
+            self, CountCondition(self, 1), input_folder=self._app_input_path, name="study_loader_op"
         )
         series_selector_op = DICOMSeriesSelectorOperator(self, rules=Sample_Rules_Text, name="series_selector_op")
         series_to_vol_op = DICOMSeriesToVolumeOperator(self, name="series_to_vol_op")
@@ -122,11 +184,11 @@ class AISpleenSegApp(Application):
             self,
             segment_descriptions=segment_descriptions,
             custom_tags=custom_tags,
-            output_folder=app_output_path,
+            output_folder=self._app_output_path,
             name="dicom_seg_writer",
         )
 
-        reporter_op = ExecutionStatusReporterOperator(self, status_callback=self._status_callback)
+        # reporter_op = ExecutionStatusReporterOperator(self, status_callback=self._status_callback)
 
         # Create the processing pipeline, by specifying the source and destination operators, and
         # ensuring the output from the former matches the input of the latter, in both name and type.
@@ -143,13 +205,13 @@ class AISpleenSegApp(Application):
         # Create the surface mesh STL conversion operator and add it to the app execution flow, if needed, by
         # uncommenting the following couple lines.
         stl_conversion_op = STLConversionOperator(
-            self, output_file=app_output_path.joinpath("stl/spleen.stl"), name="stl_conversion_op"
+            self, output_file=self._app_output_path.joinpath("stl/spleen.stl"), name="stl_conversion_op"
         )
         self.add_flow(bundle_spleen_seg_op, stl_conversion_op, {("pred", "image")})
 
         # Connect the reporter operator to the end of the pipeline.
         # It will be triggered after the DICOM SEG file is written.
-        self.add_flow(stl_conversion_op, reporter_op, {("stl_bytes", "data")})
+        # self.add_flow(stl_conversion_op, reporter_op, {("stl_bytes", "data")})
 
         logging.info(f"End {self.compose.__name__}")
 
