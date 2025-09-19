@@ -20,6 +20,7 @@ from http import HTTPStatus
 
 import requests
 from flask import Flask, jsonify, request
+from flask_wtf.csrf import CSRFProtect
 
 # The MONAI Deploy application to be wrapped.
 # This can be changed to any other application in the repository.
@@ -29,7 +30,13 @@ APP_MODULE_NAME = "ai_spleen_seg_app"
 APP_CLASS_NAME = "AISpleenSegApp"
 
 # Flask application setup
-restful_app = Flask(__name__)
+app = Flask(__name__)
+# It is recommended to use a securely generated random string for the secret key,
+# and store it in an environment variable or a secure configuration file.
+app.config["SECRET_KEY"] = os.environ.get("FLASK_SECRET_KEY", "a-secure-default-secret-key-for-dev")
+csrf = CSRFProtect(app)
+
+
 logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 
 # Global state to track processing status. A lock is used for thread safety.
@@ -64,8 +71,16 @@ def run_processing(input_folder, output_folder, callback_url):
                 logging.info(f"Sending final status callback to {callback_url}")
                 # Here you could map the summary to the expected format of the callback.
                 # For now, we'll just forward the summary.
-                requests.post(callback_url, data=summary, timeout=5)
+                response = requests.post(callback_url, data=summary, timeout=5)
+                response.raise_for_status()  # for bad status codes (4xx or 5xx)
                 logging.info("Sent final status callback.")
+
+            except requests.exceptions.Timeout:
+                logging.error("The request timed out.")
+            except requests.exceptions.ConnectionError:
+                logging.error("A connection error occurred.")
+            except requests.exceptions.RequestException as e:
+                logging.error(f"An unexpected error occurred: {e}")
             except Exception as e:
                 logging.error(f"Failed to send callback to {callback_url}: {e}")
 
@@ -106,13 +121,14 @@ def run_processing(input_folder, output_folder, callback_url):
         logging.info("Processor is now IDLE.")
 
 
-@restful_app.route("/status", methods=["GET"])
+@app.route("/status", methods=["GET"])
 def status():
     """Endpoint to check the current processing status."""
     return jsonify({"status": get_processing_status()})
 
 
-@restful_app.route("/process", methods=["POST"])
+@app.route("/process", methods=["POST"])
+@csrf.exempt
 def process():
     """Endpoint to start a new processing job."""
     if get_processing_status() == "BUSY":
@@ -151,4 +167,4 @@ if __name__ == "__main__":
     args = parser.parse_args()
     host = args.host or os.environ.get("FLASK_HOST", "0.0.0.0")
     port = args.port or int(os.environ.get("FLASK_PORT", 5000))
-    restful_app.run(host=host, port=port)
+    app.run(host=host, port=port)

@@ -117,8 +117,11 @@ class AISpleenSegApp(Application):
                     "output_files": output_files,
                     "error_message": None,
                     "error_code": None,
-                    "result": ai_results.model_dump_json(),
                 }
+
+                # Need to use pydantic function to dump to string and then reload to dict
+                # because for some reason direct dumping to dict did not work well
+                callback_msg_dict["result"] = json.loads(ai_results.model_dump_json())
                 self._status_callback(json.dumps(callback_msg_dict))
 
         except Exception as e:
