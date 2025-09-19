@@ -30,7 +30,7 @@ from monai.deploy.utils.importutil import optional_import
 from .inference_operator import InferenceOperator
 
 if TYPE_CHECKING:
-    import torch
+    import torch as torch_typing
 
 MONAI_UTILS = "monai.utils"
 nibabel, _ = optional_import("nibabel", "3.2.1")
@@ -70,7 +70,9 @@ def _ensure_bundle_in_sys_path(bundle_path: Union[str, Path]) -> None:
         sys.path.insert(0, bundle_root)
 
 
-def _load_model_from_directory_bundle(bundle_path: Path, device: torch.device, parser: Any = None) -> torch.nn.Module:
+def _load_model_from_directory_bundle(
+    bundle_path: Path, device: "torch_typing.device", parser: Any = None
+) -> "torch_typing.nn.Module":
     """Helper function to load model from a directory-based bundle.
 
     Args:
@@ -79,7 +81,7 @@ def _load_model_from_directory_bundle(bundle_path: Path, device: torch.device, p
         parser: Optional ConfigParser for eager model loading
 
     Returns:
-        torch.nn.Module: Loaded model network
+        torch_typing.nn.Module: Loaded model network
 
     Raises:
         IOError: If model files are not found
@@ -96,12 +98,12 @@ def _load_model_from_directory_bundle(bundle_path: Path, device: torch.device, p
     # Load model based on file type
     if model_path.suffix == ".ts":
         # TorchScript bundle
-        return cast("torch.nn.Module", torch.jit.load(str(model_path), map_location=device).eval())
+        return cast("torch_typing.nn.Module", torch.jit.load(str(model_path), map_location=device).eval())
     else:
         # .pt checkpoint: instantiate network from config and load state dict
         try:
             # Some .pt files may still be TorchScript; try jit first
-            return cast("torch.nn.Module", torch.jit.load(str(model_path), map_location=device).eval())
+            return cast("torch_typing.nn.Module", torch.jit.load(str(model_path), map_location=device).eval())
         except Exception as ex:
             # Fallback to eager model with loaded weights
             if parser is None:
@@ -131,7 +133,7 @@ def _load_model_from_directory_bundle(bundle_path: Path, device: torch.device, p
                 # Assume raw state dict
                 state_dict = checkpoint
             network.load_state_dict(state_dict, strict=True)
-            return cast("torch.nn.Module", network.eval())
+            return cast("torch_typing.nn.Module", network.eval())
 
 
 def _read_directory_bundle_config(bundle_path_obj: Path, config_names: List[str]) -> ConfigParser:
