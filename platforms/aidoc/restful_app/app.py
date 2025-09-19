@@ -165,6 +165,6 @@ if __name__ == "__main__":
         help="Port to listen on. Defaults to env var FLASK_PORT or 5000.",
     )
     args = parser.parse_args()
-    host = args.host or os.environ.get("FLASK_HOST", "0.0.0.0")
-    port = args.port or int(os.environ.get("FLASK_PORT", 5000))
+    host = args.host
+    port = args.port
     app.run(host=host, port=port)
