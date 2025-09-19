@@ -78,7 +78,7 @@ class AISpleenSegApp(Application):
             List[str]: A list of absolute paths to the files in the folder.
         """
         if not os.path.isdir(folder_path):
-            self._logger.warning(f"Output folder '{folder_path}' not found, returning empty file list.")
+            self._logger.warning(f"Output folder {folder_path!r} not found, returning empty file list.")
             return []
 
         file_paths = []
