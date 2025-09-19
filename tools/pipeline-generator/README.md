@@ -52,6 +52,12 @@ uv run pg gen MONAI/spleen_ct_segmentation --output my_app
 uv run pg run my_app --input /path/to/test/data --output ./results
 ```
 
+> [!NOTE]  
+> Input can be NIfTI files (.nii, .nii.gz) or DICOM series directories Refer to [config.yaml](tools/pipeline-generator/pipeline_generator/config/config.yaml) for details.
+
+> [!NOTE]
+> For DICOM input types, refer to the model documentation for DICOM series processing limitations.
+
 ### List Available Models
 
 List all models from configured endpoints:
@@ -107,6 +113,7 @@ Options:
 - `--format`: Input/output data format (optional): auto, dicom, or nifti (default: auto)
   - For tested models, format is automatically detected from configuration
   - For untested models, attempts detection from model metadata
+  - **DICOM Limitation**: Refer to the model documentation for multi-series support.
 - `--force, -f`: Overwrite existing output directory
 
 Generate with custom application class name:
@@ -196,7 +203,7 @@ output/
 ├── README.md             # Documentation
 ├── operators/            # Custom operators (if needed)
 │   └── nifti_operators.py
-└── model/                 # Downloaded MONAI Bundle
+└── model/                 # Downloaded model files
     ├── configs/
     ├── models/
     └── docs/

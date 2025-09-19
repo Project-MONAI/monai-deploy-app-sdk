@@ -82,20 +82,34 @@ class NiftiDataLoader(Operator):
         image = image_reader.Execute()
         image_np = SimpleITK.GetArrayFromImage(image)
 
-        # Handle different dimensionalities properly
-        if image_np.ndim == 3:
-            # Standard 3D volume: transpose from (z, y, x) to (x, y, z)
-            image_np = np.transpose(image_np, [2, 1, 0])
-        elif image_np.ndim == 4:
-            # 4D volume with channels: (c, z, y, x) to (c, x, y, z)
-            image_np = np.transpose(image_np, [0, 3, 2, 1])
-        elif image_np.ndim == 2:
-            # 2D slice: transpose from (y, x) to (x, y)
-            image_np = np.transpose(image_np, [1, 0])
+        # Get image metadata to properly distinguish between different image types
+        spatial_dims = image.GetDimension()  # Actual spatial dimensions (2D, 3D, etc.)
+        num_components = image.GetNumberOfComponentsPerPixel()  # Components/channels per pixel
+        
+        self._logger.debug(f"Image spatial dimensions: {spatial_dims}, components per pixel: {num_components}, array shape: {image_np.shape}")
+
+        # Handle different dimensionalities properly using SimpleITK metadata
+        if spatial_dims == 2:
+            if num_components == 1:
+                # 2D grayscale: transpose from (y, x) to (x, y)
+                image_np = np.transpose(image_np, [1, 0])
+            else:
+                # 2D with multiple components/channels: transpose from (y, x, c) to (x, y, c)
+                # SimpleITK stores multi-component 2D images as (y, x, c)
+                image_np = np.transpose(image_np, [1, 0, 2])
+        elif spatial_dims == 3:
+            if num_components == 1:
+                # 3D grayscale volume: transpose from (z, y, x) to (x, y, z)
+                image_np = np.transpose(image_np, [2, 1, 0])
+            else:
+                # 3D volume with multiple components: transpose from (z, y, x, c) to (x, y, z, c)
+                # SimpleITK stores multi-component 3D images as (z, y, x, c)
+                image_np = np.transpose(image_np, [2, 1, 0, 3])
         else:
-            # For other dimensions, log a warning and return as-is
+            # For other spatial dimensions, log a warning and return as-is
             self._logger.warning(
-                f"Unexpected {image_np.ndim}D NIfTI file shape {image_np.shape} from {nii_path}, returning without transpose"
+                f"Unexpected {spatial_dims}D spatial image with {num_components} components per pixel, "
+                f"array shape {image_np.shape} from {nii_path}, returning without transpose"
             )
 
         return image_np

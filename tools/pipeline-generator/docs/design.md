@@ -13,9 +13,9 @@ By bridging the gap between model packaging and application deployment, this pro
 
 ## **Background**
 
-The **MONAI Bundle** is a standardized format designed to package deep learning models for medical imaging. It includes the model weights, metadata, transforms, and documentation needed to make the model self-contained and portable.
+The **[MONAI Bundle](https://docs.monai.io/en/latest/mb_specification.html#archive-format)** is a standardized format designed to package deep learning models for medical imaging. It includes the model weights, metadata, transforms, and documentation needed to make the model self-contained and portable.
 
-The **Holoscan SDK** is NVIDIA’s real-time streaming application SDK for AI workloads in healthcare and edge devices. The **MONAI Deploy App SDK** is designed for building composable inference applications, often used in radiology and imaging pipelines.
+The **Holoscan SDK** is NVIDIA’s real-time streaming application SDK for AI workloads in healthcare and edge devices. The **MONAI Deploy App SDK** builds on top of the Holoscan SDK, adding medical imaging domain-specific operators and functionalities to enable the creation of composable inference applications, particularly for radiology and imaging pipelines.
 
 As of MONAI Core, bundles can also be exported in a **Hugging Face-compatible format**, which allows sharing through the Hugging Face Model Hub. Supporting this format increases reach and adoption.
 
@@ -28,9 +28,8 @@ As of MONAI Core, bundles can also be exported in a **Hugging Face-compatible fo
 
 ## **Assumptions/Limitations**
 
-- The tool does not convert input formats given that each model may expect a different type of input
 - The tool does not convert output formats given that each model may output a different type of result
-- The tool supports only torchscript (ts) models
+- The generated application does not convert input formats given that each model may expect a different type of input
 
 ## **Scope**
 
@@ -55,7 +54,7 @@ This project includes:
   - PyTorch state dict (.pt): Loaded with model definition code/config
   - Hugging Face-compatible: Recognized and unpacked with reference to Hugging Face conventions
 - **AI Inference Operator Integration**
-  - Python and C++ support for TorchScript/ONNX-based inference
+  - Python support for TorchScript/ONNX-based inference
   - Auto-configures model inputs/outputs based on network_data_format
   - Embeds optional postprocessing like argmax, thresholding, etc.
 - **Preprocessing/Postprocessing Pipeline**
@@ -70,7 +69,6 @@ This project includes:
 - **Tooling**
   - Command-line tool to:
     - Validate MONAI Bundles
-    - Convert .pt → .ts/.onnx
     - Generate MONAI Deploy and Holoscan-ready configs
     - Extract and display metadata (task, inputs, author, etc.)
 

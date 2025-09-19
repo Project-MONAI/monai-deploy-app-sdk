@@ -168,21 +168,21 @@ Run directly using Python as shown above.
 
 ### Container Deployment
 
-Package the application as a container using Holoscan CLI:
+Package the application as a container using MONAI Deploy CLI:
 
 ```bash
 # Package for x64 workstations
-holoscan package app -c app.yaml --platform linux/amd64 -t {{ model_short_name|lower }}:latest
+monai-deploy package app -c app.yaml --platform linux/amd64 -t {{ model_short_name|lower }}:latest
 
 # Package for IGX Orin devkits
-holoscan package app -c app.yaml --platform linux/arm64 -t {{ model_short_name|lower }}:latest
+monai-deploy package app -c app.yaml --platform linux/arm64 -t {{ model_short_name|lower }}:latest
 ```
 
 Run the containerized application:
 
 ```bash
-# Using Holoscan CLI
-holoscan run -i /path/to/input -o /path/to/output {{ model_short_name|lower }}:latest
+# Using MONAI Deploy CLI
+monai-deploy run -i /path/to/input -o /path/to/output {{ model_short_name|lower }}:latest
 
 # Or using Docker directly
 docker run -v /path/to/input:/input -v /path/to/output:/output {{ model_short_name|lower }}:latest
