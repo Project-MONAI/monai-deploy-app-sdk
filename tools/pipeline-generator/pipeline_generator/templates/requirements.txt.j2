@@ -1,0 +1,33 @@
+# Requirements for {{ app_title }}
+# Generated from model: {{ model_id }}
+
+# MONAI Deploy App SDK and dependencies
+monai-deploy-app-sdk>=3.0.0
+
+# Required by MONAI Deploy SDK (always needed)
+pydicom>=2.3.0 # Required by MONAI Deploy SDK even for NIfTI apps
+highdicom>=0.18.2     # Required for DICOM segmentation support
+
+{% if input_type == "image" %}
+# Image loading dependencies
+Pillow>=8.0.0  # For loading JPEG/PNG images
+{% elif input_type == "nifti" or output_type == "nifti" %}
+SimpleITK>=2.0.2
+
+{% endif %}
+
+
+# Any additional requirements specified in bundle metadata
+{% if required_packages_version %}
+{% for pkg, ver in required_packages_version.items() %}
+{{ pkg }}=={{ ver }}
+{% endfor %}
+
+{% endif %}
+
+# Additional dependencies specified in generator config
+{% if extra_dependencies %}
+{% for dep in extra_dependencies %}
+{{ dep }}
+{% endfor %}
+{% endif %}
