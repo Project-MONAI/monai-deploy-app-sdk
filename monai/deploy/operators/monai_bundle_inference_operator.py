@@ -99,10 +99,10 @@ def _load_model_from_directory_bundle(bundle_path: Path, device: torch.device, p
         try:
             # Some .pt files may still be TorchScript; try jit first
             return torch.jit.load(str(model_path), map_location=device).eval()
-        except Exception:
+        except Exception as ex:
             # Fallback to eager model with loaded weights
             if parser is None:
-                raise RuntimeError("Parser required for loading .pt checkpoint but not provided")
+                raise RuntimeError("Parser required for loading .pt checkpoint but not provided") from ex
 
             # Ensure bundle root is on sys.path so 'scripts.*' can be imported
             _ensure_bundle_in_sys_path(bundle_path)
@@ -114,7 +114,7 @@ def _load_model_from_directory_bundle(bundle_path: Path, device: torch.device, p
                 if network is not None:
                     network = network.to(device)
             if network is None:
-                raise RuntimeError("Unable to instantiate network from bundle configs.") from None
+                raise RuntimeError("Unable to instantiate network from bundle configs.") from ex
 
             checkpoint = torch.load(str(model_path), map_location=device)
             # Determine the state dict layout
@@ -1112,7 +1112,7 @@ class MonaiBundleInferenceOperator(InferenceOperator):
                     return 3
 
         # Check for keys ending with dimension indicators
-        for key, value in metadata.items():
+        for key, _ in metadata.items():
             key_lower = str(key).lower()
             if key_lower.endswith("_2d") or "2d" in key_lower:
                 return 2
