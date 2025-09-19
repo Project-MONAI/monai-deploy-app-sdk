@@ -85,8 +85,10 @@ class NiftiDataLoader(Operator):
         # Get image metadata to properly distinguish between different image types
         spatial_dims = image.GetDimension()  # Actual spatial dimensions (2D, 3D, etc.)
         num_components = image.GetNumberOfComponentsPerPixel()  # Components/channels per pixel
-        
-        self._logger.debug(f"Image spatial dimensions: {spatial_dims}, components per pixel: {num_components}, array shape: {image_np.shape}")
+
+        self._logger.debug(
+            f"Image spatial dimensions: {spatial_dims}, components per pixel: {num_components}, array shape: {image_np.shape}"
+        )
 
         # Handle different dimensionalities properly using SimpleITK metadata
         if spatial_dims == 2:

@@ -58,7 +58,7 @@ __all__ = ["MonaiBundleInferenceOperator", "IOMapping", "BundleConfigNames"]
 
 def _ensure_bundle_in_sys_path(bundle_path: Union[str, Path]) -> None:
     """Helper function to ensure bundle root is on sys.path for script imports.
-    
+
     Args:
         bundle_path: Path to the bundle directory
     """
@@ -67,19 +67,17 @@ def _ensure_bundle_in_sys_path(bundle_path: Union[str, Path]) -> None:
         sys.path.insert(0, bundle_root)
 
 
-def _load_model_from_directory_bundle(
-    bundle_path: Path, device: torch.device, parser: Any = None
-) -> torch.nn.Module:
+def _load_model_from_directory_bundle(bundle_path: Path, device: torch.device, parser: Any = None) -> torch.nn.Module:
     """Helper function to load model from a directory-based bundle.
-    
+
     Args:
         bundle_path: Path to the bundle directory
         device: PyTorch device to load the model on
         parser: Optional ConfigParser for eager model loading
-        
+
     Returns:
         torch.nn.Module: Loaded model network
-        
+
     Raises:
         IOError: If model files are not found
         RuntimeError: If network cannot be instantiated from configs
@@ -105,22 +103,14 @@ def _load_model_from_directory_bundle(
             # Fallback to eager model with loaded weights
             if parser is None:
                 raise RuntimeError("Parser required for loading .pt checkpoint but not provided")
-            
+
             # Ensure bundle root is on sys.path so 'scripts.*' can be imported
             _ensure_bundle_in_sys_path(bundle_path)
-            
-            network = (
-                parser.get_parsed_content("network")
-                if parser.get("network") is not None
-                else None
-            )
+
+            network = parser.get_parsed_content("network") if parser.get("network") is not None else None
             if network is None:
                 # Backward compatibility: some bundles use "network_def" then to(device)
-                network = (
-                    parser.get_parsed_content("network_def")
-                    if parser.get("network_def") is not None
-                    else None
-                )
+                network = parser.get_parsed_content("network_def") if parser.get("network_def") is not None else None
                 if network is not None:
                     network = network.to(device)
             if network is None:
@@ -143,11 +133,11 @@ def _load_model_from_directory_bundle(
 
 def _read_directory_bundle_config(bundle_path_obj: Path, config_names: List[str]) -> ConfigParser:
     """Helper function to read bundle configuration from a directory-based bundle.
-    
+
     Args:
         bundle_path_obj: Path object pointing to the bundle directory
         config_names: List of config names to read
-        
+
     Returns:
         ConfigParser: Parsed configuration object
     """
@@ -182,7 +172,7 @@ def _read_directory_bundle_config(bundle_path_obj: Path, config_names: List[str]
 
     parser.read_config(config_files)
     parser.parse()
-    
+
     return parser
 
 
@@ -725,9 +715,7 @@ class MonaiBundleInferenceOperator(InferenceOperator):
                     self._init_completed = True
 
                 # Load model using helper function
-                self._model_network = _load_model_from_directory_bundle(
-                    self._bundle_path, self._device, self._parser
-                )
+                self._model_network = _load_model_from_directory_bundle(self._bundle_path, self._device, self._parser)
             else:
                 # Original ZIP bundle handling
                 self._model_network = torch.jit.load(self._bundle_path, map_location=self._device).eval()
@@ -893,7 +881,7 @@ class MonaiBundleInferenceOperator(InferenceOperator):
                 # Could be (W, H, D) for 3D models or (W, H, C) for 2D models
                 if expected_spatial_dims == 2:
                     # This is a 2D model expecting (W, H, C) input
-                    actual_channels = value.shape[-1] 
+                    actual_channels = value.shape[-1]
                     if expected_channels is not None and expected_channels != actual_channels:
                         if expected_channels == 1 and actual_channels > 1:
                             logging.warning(
