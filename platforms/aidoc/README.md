@@ -9,9 +9,9 @@ This example uses a subset of the callback message attributes, covering only the
 The high-level design of this REST service involves a few key components:
 
 1.  **MONAI Deploy Application**: The core AI logic is encapsulated in a standard MONAI Deploy application (e.g., `AISpleenSegApp`), which is built and tested as a regular containerized workload.
-2.  **RESTful Service**: A lightweight RESTful application, built using Flask, acts as the front-end. It exposes endpoints to start and check the status of a processing job.
+2.  **REST Service**: A lightweight REST application, built using Flask, acts as the front-end. It exposes endpoints to start and check the status of a processing job.
 3.  **Request Handling**:
-    -   When the RESTful service receives a request to process data, it handles only one request at a time, as per the API specification.
+    -   When the REST service receives a request to process data, it handles only one request at a time, as per the API specification.
     -   It creates an instance of the MONAI Deploy application.
     -   It sets the necessary environment variables for the input and output folders.
     -   Crucially, it delegates the execution of the MONAI Deploy application to a separate background thread to avoid blocking the web server.
@@ -34,7 +34,7 @@ C4Component
 
     Person(client, "External Client", "e.g., Aidoc Platform")
 
-    Container_Boundary(rest_service_container, "RESTful Service") {
+    Container_Boundary(rest_service_container, "REST Service") {
         Component(flask, "Flask App", "Python, Flask", "Handles HTTP requests, manages processing threads, and sends callbacks.")
     }
 
@@ -61,20 +61,20 @@ This diagram illustrates the sequence of interactions for a processing job, incl
 ```mermaid
 sequenceDiagram
     actor Client
-    participant RESTful Service
+    participant REST Service
     participant "MONAI Deploy App Thread" as AppThread
     participant AISpleenSegApp
 
-    Client->>+RESTful Service: POST /process (payload)
-    RESTful Service-->>-Client: HTTP 202 Accepted
-    RESTful Service->>+AppThread: Spawn thread(run_processing)
+    Client->>+REST Service: POST /process (payload)
+    REST Service-->>-Client: HTTP 202 Accepted
+    REST Service->>+AppThread: Spawn thread(run_processing)
 
     opt While processing is busy
-        Client->>+RESTful Service: POST /process (payload)
-        RESTful Service-->>-Client: HTTP 409 Conflict
+        Client->>+REST Service: POST /process (payload)
+        REST Service-->>-Client: HTTP 409 Conflict
 
-        Client->>+RESTful Service: GET /status
-        RESTful Service-->>-Client: HTTP 200 OK ("status": "BUSY")
+        Client->>+REST Service: GET /status
+        REST Service-->>-Client: HTTP 200 OK ("status": "BUSY")
     end
 
     AppThread->>+AISpleenSegApp: Create instance(status_callback)
@@ -89,11 +89,11 @@ sequenceDiagram
     AppThread->>+Client: POST callback_url (Final Results)
     Client-->>-AppThread: HTTP 200 OK
 
-    Note over RESTful Service: Processing status set to IDLE.
+    Note over REST Service: Processing status set to IDLE.
     deactivate AppThread
 
-    Client->>+RESTful Service: GET /status
-    RESTful Service-->>-Client: HTTP 200 OK ("status": "IDLE")
+    Client->>+REST Service: GET /status
+    REST Service-->>-Client: HTTP 200 OK ("status": "IDLE")
 ```
 
 ## How to Run
@@ -149,7 +149,7 @@ a callback endpoint to receives message content at the specified port.
 Open another console window and change directory to the same as this file.
 
 Set the environment vars so that the test script can get the input DCM and write the callback contents.
-Also, once the Restful app completes each processing, the Spleen Seg app's output will also be saved in
+Also, once the REST app completes each processing, the Spleen Seg app's output will also be saved in
 the output folder specified below (the script passes the output folder via the Rest API).
 
 ```
