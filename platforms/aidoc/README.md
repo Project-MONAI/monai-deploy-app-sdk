@@ -119,7 +119,7 @@ Change working directory to the same level as this README.
     gdown https://drive.google.com/uc?id=1IwWMpbo2fd38fKIqeIdL8SKTGvkn31tK
     ```
 
-    Unzip the file to local folders. If deviating from the path noted below, please adjuest the env var values
+    Unzip the file to local folders. If deviating from the path noted below, please adjust the env var values
 
     ```
     unzip -o "ai_spleen_seg_bundle_data.zip"
@@ -144,7 +144,7 @@ Change working directory to the same level as this README.
 ## Test API Endpoints
 
 A simplest test client is provided, which makes call to the endpoint, as well as providing
-a callback endpoint to receives message content at the specidied port.
+a callback endpoint to receives message content at the specified port.
 
 Open another console window and change directory to the same as this file.
 
@@ -241,7 +241,7 @@ Or in case of an error:
 
 ```json
 {
-    "run_success": False,
+    "run_success": false,
     "error_message": "E.g., Model network is not load and model file not found.",
     "error_code": 500
 }
