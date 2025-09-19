@@ -71,7 +71,8 @@ def run_processing(input_folder, output_folder, callback_url):
                 logging.info(f"Sending final status callback to {callback_url}")
                 # Here you could map the summary to the expected format of the callback.
                 # For now, we'll just forward the summary.
-                response = requests.post(callback_url, data=summary, timeout=5)
+                headers = {"Content-Type": "application/json"}
+                response = requests.post(callback_url, data=summary, headers=headers, timeout=5)
                 response.raise_for_status()  # for bad status codes (4xx or 5xx)
                 logging.info("Sent final status callback.")
 
