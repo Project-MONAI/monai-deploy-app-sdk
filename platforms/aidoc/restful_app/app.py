@@ -11,6 +11,7 @@
 
 import argparse
 import importlib
+import json
 import logging
 import os
 import sys
@@ -23,11 +24,12 @@ from flask import Flask, jsonify, request
 # The MONAI Deploy application to be wrapped.
 # This can be changed to any other application in the repository.
 # Provide the module path and the class name of the application.
-APP_MODULE_NAME = "ai_spleen_seg_app.app"
+
+APP_MODULE_NAME = "ai_spleen_seg_app"
 APP_CLASS_NAME = "AISpleenSegApp"
 
 # Flask application setup
-app = Flask(__name__)
+restful_app = Flask(__name__)
 logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 
 # Global state to track processing status. A lock is used for thread safety.
@@ -54,7 +56,7 @@ def run_processing(input_folder, output_folder, callback_url):
     """
 
     # Define the callback function that the MONAI Deploy app will call.
-    def app_status_callback(summary):
+    def app_status_callback(summary: str):
         """Callback function to handle the final status from the application."""
         logging.info(f"Received status from application: {summary}")
         if callback_url:
@@ -62,7 +64,7 @@ def run_processing(input_folder, output_folder, callback_url):
                 logging.info(f"Sending final status callback to {callback_url}")
                 # Here you could map the summary to the expected format of the callback.
                 # For now, we'll just forward the summary.
-                requests.post(callback_url, json=summary, timeout=5)
+                requests.post(callback_url, data=summary, timeout=5)
                 logging.info("Sent final status callback.")
             except Exception as e:
                 logging.error(f"Failed to send callback to {callback_url}: {e}")
@@ -84,28 +86,33 @@ def run_processing(input_folder, output_folder, callback_url):
         app_class = getattr(module, APP_CLASS_NAME)
         monai_app = app_class(status_callback=app_status_callback)
 
-        # Run the MONAI Deploy application.
+        # Run the MONAI Deploy application which calls the callback if successful.
         logging.info("Running the MONAI Deploy application.")
         monai_app.run()
         logging.info("Processing completed successfully.")
 
     except Exception as e:
         logging.error(f"An error occurred during processing: {e}")
-        # If the app fails to even start, we need to report a failure.
-        app_status_callback({"status": "Failure", "message": f"Application failed to run: {e}"})
+        # If the app fails, we need to handle it here and report a failure.
+        callback_msg = {
+            "run_success": False,
+            "error_message": f"Error during processing: {e}",
+            "error_code": 500,
+        }
+        app_status_callback(json.dumps(callback_msg))
 
     finally:
         set_processing_status("IDLE")
         logging.info("Processor is now IDLE.")
 
 
-@app.route("/status", methods=["GET"])
+@restful_app.route("/status", methods=["GET"])
 def status():
     """Endpoint to check the current processing status."""
     return jsonify({"status": get_processing_status()})
 
 
-@app.route("/process", methods=["POST"])
+@restful_app.route("/process", methods=["POST"])
 def process():
     """Endpoint to start a new processing job."""
     if get_processing_status() == "BUSY":
@@ -144,4 +151,4 @@ if __name__ == "__main__":
     args = parser.parse_args()
     host = args.host or os.environ.get("FLASK_HOST", "0.0.0.0")
     port = args.port or int(os.environ.get("FLASK_PORT", 5000))
-    app.run(host=host, port=port)
+    restful_app.run(host=host, port=port)

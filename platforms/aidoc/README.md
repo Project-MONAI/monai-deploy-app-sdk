@@ -66,7 +66,7 @@ Open another console window and change directory to the same as this file.
 
 Set the environment vars so that the test script can get the input DCM and write the callback contents.
 Also, once the Restful app completes each processing, the Spleen Seg app's output will also be saved in
-the output folder speficied below (the script passes the output folder via the Rest API).
+the output folder specified below (the script passes the output folder via the Rest API).
 
 ```
 export HOLOSCAN_INPUT_PATH=dcm
@@ -79,7 +79,7 @@ Run the test script, and examine its console output.
 source test_endpoints.sh
 ```
 
-Once the script completes, examine the `output` folder, which should conatain the following (dcm file
+Once the script completes, examine the `output` folder, which should contain the following (dcm file
 name will be different)
 
 ```
