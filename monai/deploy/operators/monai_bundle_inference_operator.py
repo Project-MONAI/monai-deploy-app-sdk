@@ -966,7 +966,18 @@ class MonaiBundleInferenceOperator(InferenceOperator):
 
             logging.debug(f"Output {name} numpy image shape: {value.shape}")
 
-            result: Any = Image(np.swapaxes(np.squeeze(value, 0), 0, 2).astype(np.uint8), metadata=metadata)
+            # Handle different dimensional outputs while maintaining DICOM pixel data arrangement
+            squeezed_value = np.squeeze(value, 0)
+            if squeezed_value.ndim == 2:
+                # 2D case: Keep as (H, W) - no axis swapping needed for 2D images
+                out_img = squeezed_value.astype(np.uint8)
+            elif squeezed_value.ndim == 3:
+                # 3D case: (W, H, D) -> (D, H, W) for DICOM volumetric data
+                out_img = np.swapaxes(squeezed_value, 0, 2).astype(np.uint8)
+            else:
+                # Higher dimensions: apply standard DICOM conversion
+                out_img = np.swapaxes(squeezed_value, 0, 2).astype(np.uint8)
+            result: Any = Image(out_img, metadata=metadata)
             logging.debug(f"Converted Image shape: {result.asnumpy().shape}")
         elif otype == np.ndarray:
             result = np.asarray(value)
