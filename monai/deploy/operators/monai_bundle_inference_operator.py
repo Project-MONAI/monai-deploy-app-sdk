@@ -561,8 +561,10 @@ class MonaiBundleInferenceOperator(InferenceOperator):
         """
 
         # Ensure bundle root is on sys.path for directory-based bundles
-        if self._bundle_path and self._bundle_path.is_dir():
-            _ensure_bundle_in_sys_path(self._bundle_path)
+        if self._bundle_path:
+            bundle_path_obj = Path(self._bundle_path)
+            if bundle_path_obj.is_dir():
+                _ensure_bundle_in_sys_path(bundle_path_obj)
 
         parser = get_bundle_config(str(self._bundle_path), config_names)
         self._parser = parser
@@ -697,7 +699,7 @@ class MonaiBundleInferenceOperator(InferenceOperator):
             if not self._init_completed:
                 with self._lock:
                     if not self._init_completed:
-                        self._bundle_path = self._model_network.path
+                        self._bundle_path = Path(self._model_network.path)
                         logging.info(f"Parsing from bundle_path: {self._bundle_path}")
                         self._init_config(self._bundle_config_names.config_names)
                         self._init_completed = True
@@ -708,7 +710,8 @@ class MonaiBundleInferenceOperator(InferenceOperator):
             logging.debug(f"Model network not loaded. Trying to load from model path: {self._bundle_path}")
 
             # Check if bundle_path is a directory
-            if self._bundle_path.is_dir():
+            bundle_path_obj = Path(self._bundle_path)
+            if bundle_path_obj.is_dir():
                 # Ensure device is set
                 if not hasattr(self, "_device"):
                     self._device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -720,10 +723,10 @@ class MonaiBundleInferenceOperator(InferenceOperator):
                     self._init_completed = True
 
                 # Load model using helper function
-                self._model_network = _load_model_from_directory_bundle(self._bundle_path, self._device, self._parser)
+                self._model_network = _load_model_from_directory_bundle(bundle_path_obj, self._device, self._parser)
             else:
                 # Original ZIP bundle handling
-                self._model_network = torch.jit.load(self._bundle_path, map_location=self._device).eval()
+                self._model_network = torch.jit.load(bundle_path_obj, map_location=self._device).eval()
         else:
             raise IOError("Model network is not load and model file not found.")
 
@@ -963,27 +966,7 @@ class MonaiBundleInferenceOperator(InferenceOperator):
 
             logging.debug(f"Output {name} numpy image shape: {value.shape}")
 
-            # Handle 2D masks and generic 2D tensors gracefully
-            if value.ndim == 2:
-                # Already HxW image; binarize/scale left to downstream operators
-                out_img = value.astype(np.uint8)
-                result: Any = Image(out_img, metadata=metadata)
-            elif value.ndim == 3:
-                # Could be (C, H, W) with C==1 or (H, W, C)
-                if value.shape[0] == 1:  # (1, H, W) -> (H, W)
-                    out_img = value[0].astype(np.uint8)
-                    result = Image(out_img, metadata=metadata)
-                elif value.shape[-1] == 1:  # (H, W, 1) -> (H, W)
-                    out_img = value[..., 0].astype(np.uint8)
-                    result = Image(out_img, metadata=metadata)
-                else:
-                    # Fallback to original behavior for 3D volumetric layout assumptions
-                    out_img = np.swapaxes(np.squeeze(value, 0), 0, 2).astype(np.uint8)
-                    result = Image(out_img, metadata=metadata)
-            else:
-                # Keep existing behavior for higher-dimensional data (e.g., 3D volumes)
-                out_img = np.swapaxes(np.squeeze(value, 0), 0, 2).astype(np.uint8)
-                result = Image(out_img, metadata=metadata)
+            result: Any = Image(np.swapaxes(np.squeeze(value, 0), 0, 2).astype(np.uint8), metadata=metadata)
             logging.debug(f"Converted Image shape: {result.asnumpy().shape}")
         elif otype == np.ndarray:
             result = np.asarray(value)
