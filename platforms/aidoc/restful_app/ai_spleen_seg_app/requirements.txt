@@ -8,4 +8,4 @@ numpy-stl>=2.12.0
 trimesh>=3.8.11
 nibabel>=3.2.1
 torch>=2.4.1
-monai>=1.5.0
+monai>=1.4.0,<=1.5.0
