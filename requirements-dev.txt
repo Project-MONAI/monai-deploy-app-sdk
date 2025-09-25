@@ -22,7 +22,7 @@ pytest==7.4.0
 pytest-cov==4.1.0
 pytest-lazy-fixture==0.6.3
 cucim~=21.06; platform_system == "Linux"
-monai>=1.0.0
+monai<=1.5.0
 docker>=5.0.0
 pydicom>=2.3.0
 PyPDF2>=2.11.1
