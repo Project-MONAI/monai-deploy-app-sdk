@@ -553,7 +553,7 @@ class TestAppGenerator:
             )
 
             # Should add fallback MONAI version
-            assert "monai>=1.5.0" in context3["extra_dependencies"]
+            assert "monai<=1.5.0" in context3["extra_dependencies"]
 
     def test_inference_config_with_loadimage_transform(self):
         """Test _detect_data_format with LoadImaged transform."""
