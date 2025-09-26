@@ -1,0 +1,100 @@
+# Copyright 2025 MONAI Consortium
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#     http://www.apache.org/licenses/LICENSE-2.0
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Pipeline Generator Configuration
+
+# Supported model file extensions
+supported_models:
+  - ".ts"      # TorchScript (MONAI Bundle)
+  - ".pt"      # PyTorch state dict
+  - ".pth"     # PyTorch model
+  - ".safetensors"  # SafeTensor format
+
+# HuggingFace endpoints to scan for MONAI models
+endpoints:
+  - organization: "MONAI"
+    base_url: "https://huggingface.co"
+    description: "Official MONAI organization models"
+    models:            # tested models
+      - model_id: "MONAI/spleen_ct_segmentation"
+        input_type: "nifti"
+        output_type: "nifti"
+      - model_id: "MONAI/multi_organ_segmentation"
+        input_type: "nifti"
+        output_type: "nifti"
+      - model_id: "MONAI/breast_density_classification"
+        input_type: "image"
+        output_type: "json"
+      - model_id: "MONAI/endoscopic_tool_segmentation"
+        input_type: "image"
+        output_type: "image_overlay"
+        configs:
+          - channel_first: false
+      - model_id: "MONAI/wholeBrainSeg_Large_UNEST_segmentation"
+        input_type: "nifti"
+        output_type: "nifti"
+      - model_id: "MONAI/wholeBody_ct_segmentation"
+        input_type: "nifti"
+        output_type: "nifti"
+      - model_id: "MONAI/swin_unetr_btcv_segmentation"
+        input_type: "nifti"
+        output_type: "nifti"
+      - model_id: "MONAI/pancreas_ct_dints_segmentation"
+        input_type: "nifti"
+        output_type: "nifti"
+      - model_id: "MONAI/pediatric_abdominal_ct_segmentation"
+        input_type: "nifti"
+        output_type: "nifti"
+        dependencies:
+        - nibabel>=3.2.0  # Required for NIfTI file I/O support
+        - itk>=5.3.0      # Required for ITK-based image readers/writers
+      - model_id: "MONAI/Llama3-VILA-M3-3B"
+        input_type: "custom"
+        output_type: "custom"
+        dependencies:
+        - transformers>=4.44.0
+        - torch>=2.0.0
+        - Pillow>=8.0.0
+        - PyYAML>=6.0
+      - model_id: "MONAI/Llama3-VILA-M3-8B"
+        input_type: "custom"
+        output_type: "custom"
+        dependencies:
+        - transformers>=4.44.0
+        - torch>=2.0.0
+        - Pillow>=8.0.0
+        - PyYAML>=6.0
+      - model_id: "MONAI/Llama3-VILA-M3-13B"
+        input_type: "custom"
+        output_type: "custom"
+        dependencies:
+        - transformers>=4.44.0
+        - torch>=2.0.0
+        - Pillow>=8.0.0
+        - PyYAML>=6.0
+      - model_id: "MONAI/example_spleen_segmentation"
+        input_type: "nifti"
+        output_type: "nifti"
+        dependencies:
+        - torch>=1.11.0,<3.0.0
+        - numpy>=1.21.2,<2.0.0
+        - monai>=1.3.0,<=1.5.0
+        - nibabel>=3.0.0
+
+additional_models:
+  - model_id: "LGAI-EXAONE/EXAONEPath"
+    base_url: "https://huggingface.co"
+    description: "ExaOnePath - Pathology foundation model with stain normalization"
+    model_type: "pathology"
+  - model_id: "LGAI-EXAONE/EXAONEPath-CRC-MSI-Predictor"
+    base_url: "https://huggingface.co"
+    description: "ExaOnePath CRC MSI Predictor - Colorectal cancer microsatellite instability prediction"
+    model_type: "pathology"
