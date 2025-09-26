@@ -494,6 +494,11 @@ class MonaiBundleInferenceOperator(InferenceOperator):
         # Complete the init if the bundle path is known, otherwise delay till the compute function is called
         # and try to get the model/bundle path from the execution context.
         try:
+            # Original design is to rely on the Model Factory to find and load the model bundle file path, hence,
+            # Complete the init if the bundle path is known, otherwise delay till the compute function is called
+            # and try to get the model/bundle path from the execution context.
+            # But supporting directory-based bundle with the app generator CLI may require the bundle path to be set
+
             self._bundle_path = Path(bundle_path) if bundle_path and len(str(bundle_path).strip()) > 0 else None
 
             if self._bundle_path and self._bundle_path.is_file():
@@ -537,9 +542,10 @@ class MonaiBundleInferenceOperator(InferenceOperator):
 
     @bundle_path.setter
     def bundle_path(self, bundle_path: Union[str, Path]):
-        if not bundle_path or not Path(bundle_path).expanduser().is_file():
+        if bundle_path and (Path(bundle_path).expanduser().is_file() or Path(bundle_path).expanduser().is_dir()):
+            self._bundle_path = Path(bundle_path).expanduser().resolve()
+        else:
             raise ValueError(f"Value, {bundle_path}, is not a valid file path.")
-        self._bundle_path = Path(bundle_path).expanduser().resolve()
 
     @property
     def parser(self) -> Union[ConfigParser, None]:
@@ -561,12 +567,10 @@ class MonaiBundleInferenceOperator(InferenceOperator):
         """
 
         # Ensure bundle root is on sys.path for directory-based bundles
-        if self._bundle_path:
-            bundle_path_obj = Path(self._bundle_path)
-            if bundle_path_obj.is_dir():
-                _ensure_bundle_in_sys_path(bundle_path_obj)
+        if self.bundle_path and self.bundle_path.is_dir():
+            _ensure_bundle_in_sys_path(self.bundle_path)
 
-        parser = get_bundle_config(str(self._bundle_path), config_names)
+        parser = get_bundle_config(str(self.bundle_path), config_names)
         self._parser = parser
 
         meta = self.parser["_meta_"]
@@ -699,34 +703,34 @@ class MonaiBundleInferenceOperator(InferenceOperator):
             if not self._init_completed:
                 with self._lock:
                     if not self._init_completed:
-                        self._bundle_path = Path(self._model_network.path)
-                        logging.info(f"Parsing from bundle_path: {self._bundle_path}")
+                        # Use property setter to set the bundle path for consistency
+                        self.bundle_path = Path(self._model_network.path)
+                        logging.info(f"Parsing from bundle_path: {self.bundle_path}")
                         self._init_config(self._bundle_config_names.config_names)
                         self._init_completed = True
-        elif self._bundle_path:
+        elif self.bundle_path:
             # For the case of local dev/testing when the bundle path is not passed in as an exec cmd arg.
             # When run as a MAP docker, the bundle file is expected to be in the context, even if the model
             # network is loaded on a remote inference server (when the feature is introduced).
-            logging.debug(f"Model network not loaded. Trying to load from model path: {self._bundle_path}")
+            logging.debug(f"Model network not loaded. Trying to load from model path: {self.bundle_path}")
 
             # Check if bundle_path is a directory
-            bundle_path_obj = Path(self._bundle_path)
-            if bundle_path_obj.is_dir():
+            if self.bundle_path.is_dir():
                 # Ensure device is set
                 if not hasattr(self, "_device"):
                     self._device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
                 # Initialize config for directory bundles if not already done
                 if not self._init_completed:
-                    logging.info(f"Initializing config from directory bundle: {self._bundle_path}")
+                    logging.info(f"Initializing config from directory bundle: {self.bundle_path}")
                     self._init_config(self._bundle_config_names.config_names)
                     self._init_completed = True
 
                 # Load model using helper function
-                self._model_network = _load_model_from_directory_bundle(bundle_path_obj, self._device, self._parser)
+                self._model_network = _load_model_from_directory_bundle(self.bundle_path, self._device, self._parser)
             else:
                 # Original ZIP bundle handling
-                self._model_network = torch.jit.load(bundle_path_obj, map_location=self._device).eval()
+                self._model_network = torch.jit.load(self.bundle_path, map_location=self._device).eval()
         else:
             raise IOError("Model network is not load and model file not found.")
 

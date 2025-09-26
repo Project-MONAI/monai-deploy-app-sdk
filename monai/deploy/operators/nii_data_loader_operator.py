@@ -23,6 +23,13 @@ SimpleITK, _ = optional_import("SimpleITK")
 
 # @md.env(pip_packages=["SimpleITK>=2.0.2"])
 class NiftiDataLoader(Operator):
+    # NOTE:
+    # This loader has very limited use because it does not capture or embed the metadata of a NIfTI file.
+    # Future improvements are needed to retrieve the metadata and return an Image object with the metadata,
+    # or use monai image transform to load the image and return a meta tensor.
+    # Also SITK GetArrayFromImage() returns an NDArray, and the newly added transpose here is to change the
+    # index ordering to match the index ordering of the DCOM pixel array. Existing client of this operator,
+    # if any, will likely have issues.
     """
     This operator reads a nifti image, extracts the numpy array and forwards it to the next operator
 
