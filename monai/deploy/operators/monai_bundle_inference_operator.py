@@ -186,7 +186,7 @@ def get_bundle_config(bundle_path, config_names):
     Gets the configuration parser from the specified Torchscript bundle file path.
     """
 
-    bundle_suffixes = (".json", ".yaml", "yml")  # The only supported file ext(s)
+    bundle_suffixes = (".json", ".yaml", ".yml")  # The only supported file ext(s)
     config_folder = "extra"
 
     def _read_from_archive(archive, root_name: str, config_name: str, do_search=True):
@@ -216,7 +216,7 @@ def get_bundle_config(bundle_path, config_names):
             name_list = archive.namelist()
             for suffix in bundle_suffixes:
                 for n in name_list:
-                    if (f"{config_name}{suffix}").casefold in n.casefold():
+                    if (f"{config_name}{suffix}").casefold() in n.casefold():
                         logging.debug(f"Trying to read content of config {config_name!r} from {n!r}.")
                         content_text = archive.read(n)
                         break
@@ -745,6 +745,7 @@ class MonaiBundleInferenceOperator(InferenceOperator):
                 # value: NdarrayOrTensor  # MyPy complaints
                 value, meta_data = self._receive_input(name, op_input, context)
                 value = convert_to_dst_type(value, dst=value)[0]
+                meta_data = meta_data or {}
                 if not isinstance(meta_data, dict):
                     raise ValueError("`meta_data` must be a dict.")
                 value = MetaTensor.ensure_torch_and_prune_meta(value, meta_data)
