@@ -306,7 +306,7 @@ class AppGenerator:
                 metadata.pop("monai_version", None)
             else:
                 # No metadata version, use fallback
-                extra_dependencies.append("monai>=1.5.0")
+                extra_dependencies.append("monai<=1.5.0")
 
         return {
             "model_id": model_id,
