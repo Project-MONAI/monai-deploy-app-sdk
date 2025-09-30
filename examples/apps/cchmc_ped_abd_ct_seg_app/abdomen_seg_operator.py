@@ -226,7 +226,7 @@ class AbdomenSegOperator(Operator):
                 # img_reader: specialized InMemImageReader, derived from MONAI ImageReader
                 LoadImaged(keys=my_key, reader=img_reader),
                 EnsureChannelFirstd(keys=my_key),
-                Orientationd(keys=my_key, axcodes="RAS"),
+                Orientationd(keys=my_key, axcodes="LPS"),
                 Spacingd(keys=my_key, pixdim=[1.5, 1.5, 3.0], mode=["bilinear"]),
                 ScaleIntensityRanged(keys=my_key, a_min=-250, a_max=400, b_min=0.0, b_max=1.0, clip=True),
                 CropForegroundd(keys=my_key, source_key=my_key, mode="minimum"),
