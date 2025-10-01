@@ -97,7 +97,7 @@ class DICOMSeriesToVolumeOperator(Operator):
             # PatientPosition is other than HFS.
             # NOTE: This value is properly parsed by MONAI Orientation transform from v1.5.1 onwards.
             #       Some early MONAI model inference configs incorrectly specify orientation to RAS
-            #       due part to previous MONAI versions did not correctly parsing this metadata from
+            #       due part to previous MONAI versions did not correctly parse this metadata from
             #       the input MetaTensor and defaulting to RAS. Now with LPS properly set, the inference
             #       configs then need to be updated to specify LPS, to achieve the same result.
             metadata.update(self.METADATA_SPACE_LPS)
