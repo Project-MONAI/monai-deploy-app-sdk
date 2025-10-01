@@ -41,8 +41,8 @@ class DICOMSeriesToVolumeOperator(Operator):
 
     # Use constants instead of enums in monai to avoid dependency at this level.
     MONAI_UTIL_ENUMS_SPACEKEYS_LPS = "LPS"
-    MONAI_TRANSFORMS_SPACIAL_METADATA_NAME = "space"
-    METADATA_SPACE_LPS = {MONAI_TRANSFORMS_SPACIAL_METADATA_NAME: MONAI_UTIL_ENUMS_SPACEKEYS_LPS}
+    MONAI_TRANSFORMS_SPATIAL_METADATA_NAME = "space"
+    METADATA_SPACE_LPS = {MONAI_TRANSFORMS_SPATIAL_METADATA_NAME: MONAI_UTIL_ENUMS_SPACEKEYS_LPS}
 
     def __init__(self, fragment: Fragment, *args, **kwargs):
         """Create an instance for a containing application object.
