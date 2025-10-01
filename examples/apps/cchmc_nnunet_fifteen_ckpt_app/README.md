@@ -35,8 +35,6 @@ The RESULTS_PATH should have "inference_information.json" file created by nnunet
 |----------|-------------|----------|---------|
 | `--dataset_name_or_id` | Name or ID of the nnUNet dataset to convert | Yes | N/A |
 | `--MAP_root` | Output directory for the converted MONAI bundle | No | Current directory |
-| `--nnUNet_raw` | Path to nnUNet raw data directory | Yes | Uses environment variable if set |
-| `--nnUNet_preprocessed` | Path to nnUNet preprocessed data directory | Yes | Uses environment variable if set |
 | `--nnUNet_results` | Path to nnUNet results directory with trained models | Yes | Uses environment variable if set |
 
 #### Example
@@ -58,7 +56,7 @@ The conversion creates a MONAI bundle with the following structure in the specif
 MAP_root/
 └── models/
     ├── jsonpkls/
-    │   ├──  dataset.json          # Dataset configuration
+    │   ├── dataset.json          # Dataset configuration
     │   ├── plans.json            # Model planning information
     │   ├── postprocessing.pkl    # Optional postprocessing configuration
     ├── 3d_fullres/           # Model configuration (if present)
@@ -194,7 +192,3 @@ Then, the MAP can be executed locally via the MAR command line utility; input an
 ```
 monai-deploy run -i $HOLOSCAN_INPUT_PATH -o $HOLOSCAN_OUTPUT_PATH ${tag_prefix}-x64-workstation-dgpu-linux-amd64:${image_version}
 ```
-
-## Scripts
-Several scripts have been compiled that quickly execute useful actions (such as local model execution, MAP building, etc.) Some scripts require
-the input of command line arguments; review the `scripts` folder for more details.
