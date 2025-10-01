@@ -6,6 +6,12 @@ This README describes the process of converting the [CCHMC Pediatric Airway Segm
 
 The `convert_nnunet_ckpts.py` script simplifies the process of converting nnUNet model checkpoints to MONAI bundle format. This conversion is necessary to use nnUNet models within MONAI applications and the MONAI Deploy ecosystem.
 
+## Example model checkpoints
+
+Sample nnunet model checkpoints for a UTE MRI airway segmentation in NICU patients are available here
+
+https://drive.google.com/drive/folders/1lRs-IoLR47M_WFyZmuCaROJULtyPdkLm?usp=drive_link
+
 ### Prerequisites
 
 Before running the conversion script, ensure that:
@@ -51,9 +57,10 @@ The conversion creates a MONAI bundle with the following structure in the specif
 ```
 MAP_root/
 └── models/
-    ├── dataset.json          # Dataset configuration
-    ├── plans.json            # Model planning information
-    ├── postprocessing.pkl    # Optional postprocessing configuration
+    ├── jsonpkls/
+    │   ├──  dataset.json          # Dataset configuration
+    │   ├── plans.json            # Model planning information
+    │   ├── postprocessing.pkl    # Optional postprocessing configuration
     ├── 3d_fullres/           # Model configuration (if present)
     │   ├── nnunet_checkpoint.pth
     │   └── fold_X/           # Each fold's model weights
