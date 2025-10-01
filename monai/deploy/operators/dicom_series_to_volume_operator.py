@@ -39,6 +39,11 @@ class DICOMSeriesToVolumeOperator(Operator):
         image: Image object.
     """
 
+    # Use constants instead of enums in monai to avoid dependency at this level.
+    MONAI_UTIL_ENUMS_SPACEKEYS_LPS = "LPS"
+    MONAI_TRANSFORMS_SPATIAL_METADATA_NAME = "space"
+    METADATA_SPACE_LPS = {MONAI_TRANSFORMS_SPATIAL_METADATA_NAME: MONAI_UTIL_ENUMS_SPACEKEYS_LPS}
+
     def __init__(self, fragment: Fragment, *args, **kwargs):
         """Create an instance for a containing application object.
 
@@ -84,6 +89,18 @@ class DICOMSeriesToVolumeOperator(Operator):
             metadata.update(self._get_instance_properties(study_selected_series.study))
             selection_metadata = {"selection_name": selection_name}
             metadata.update(selection_metadata)
+            # Add the metadata to specify LPS.
+            # Previously, this was set in ImageReader class, but moving it here allows other loaders
+            # to determine this value on its own, e.g. NIfTI loader but it does not set this
+            # resulting in the MONAI Orientation transform to default the labels to RAS.
+            # It is assumed that the ImageOrientationPatient will be set accordingly if the
+            # PatientPosition is other than HFS.
+            # NOTE: This value is properly parsed by MONAI Orientation transform from v1.5.1 onwards.
+            #       Some early MONAI model inference configs incorrectly specify orientation to RAS
+            #       due part to previous MONAI versions did not correctly parse this metadata from
+            #       the input MetaTensor and defaulting to RAS. Now with LPS properly set, the inference
+            #       configs then need to be updated to specify LPS, to achieve the same result.
+            metadata.update(self.METADATA_SPACE_LPS)
 
             voxel_data = self.generate_voxel_data(dicom_series)
             image = self.create_volumetric_image(voxel_data, metadata)

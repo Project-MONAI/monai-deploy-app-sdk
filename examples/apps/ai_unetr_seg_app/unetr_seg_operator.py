@@ -143,7 +143,7 @@ class UnetrSegOperator(Operator):
                     output_ext=".nii",
                 ),
                 Spacingd(keys=my_key, pixdim=(1.5, 1.5, 2.0), mode=("bilinear")),
-                Orientationd(keys=my_key, axcodes="RAS"),
+                Orientationd(keys=my_key, axcodes="LPS"),
                 ScaleIntensityRanged(my_key, a_min=-175, a_max=250, b_min=0.0, b_max=1.0, clip=True),
                 CropForegroundd(my_key, source_key=my_key),
             ]

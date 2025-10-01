@@ -1,0 +1,214 @@
+# {{ app_title }}
+
+Generated from HuggingFace model: [{{ model_id }}](https://huggingface.co/{{ model_id }})
+
+## Model Information
+
+**Task**: {{ task|title }}
+**Modality**: {{ modality }}
+**Network**: {{ metadata.get('network_data_format', {}).get('network', 'Unknown') }}
+{% if model_type %}**Model Type**: {{ model_type|replace('_', ' ')|title }}{% endif %}
+
+{{ app_description }}
+
+{% if model_type == "pathology" %}
+### Pathology-Specific Features
+
+This application includes:
+- **Stain Normalization**: Applies Macenko stain normalization to input images for consistent processing
+- **Optimized for Pathology**: Designed to handle whole slide images and pathology-specific preprocessing
+
+{% elif model_type == "multimodal" %}
+### Multimodal Features
+
+This application supports:
+- **Image Analysis**: Processes medical images for feature extraction
+- **Text Integration**: Can accept text prompts for guided analysis
+- **Report Generation**: Produces structured reports from the analysis
+
+{% elif model_type == "multimodal_llm" %}
+### Multimodal LLM Features
+
+This application provides:
+- **Vision-Language Integration**: Combines image understanding with language generation
+- **Natural Language Output**: Generates human-readable descriptions and analysis
+- **Interactive Queries**: Supports text prompts for specific questions about the images
+- **Clinical Report Generation**: Can produce detailed medical reports
+
+{% endif %}
+
+## Requirements
+
+### Option 1: Using uv (Recommended)
+
+If you're running from the pipeline generator directory:
+
+```bash
+# Commands should be run with uv
+uv run pg run . --input /path/to/input --output /path/to/output
+```
+
+### Option 2: Using Virtual Environment
+
+Create and activate a virtual environment (optional but recommended):
+
+```bash
+# Create virtual environment
+python -m venv venv
+
+# Activate virtual environment
+# On Linux/Mac:
+source venv/bin/activate
+# On Windows:
+# venv\Scripts\activate
+
+# Install dependencies
+pip install -r requirements.txt
+```
+
+**Note**: For directory-based bundle support, you may need to use a local modified version of MONAI Deploy App SDK:
+```bash
+pip install -e /path/to/monai-deploy-app-sdk
+```
+
+## Usage
+
+### Running the Application
+
+#### Option 1: Using Pipeline Generator with uv
+
+From the pipeline generator directory:
+
+```bash
+uv run pg run . --input /path/to/input --output /path/to/output
+```
+
+This command will automatically:
+- Create a virtual environment
+- Install all dependencies
+- Run the application
+
+#### Option 2: Using Pipeline Generator Directly
+
+If you have the Pipeline Generator installed globally:
+
+```bash
+pg run . --input /path/to/input --output /path/to/output
+```
+
+#### Option 3: Manual Execution
+
+```bash
+# If using virtual environment (recommended)
+# Activate it first:
+# source venv/bin/activate  # Linux/Mac
+# venv\Scripts\activate     # Windows
+
+# Run the application
+python app.py -i /path/to/input -o /path/to/output
+```
+
+**Input**:
+{% if use_dicom %}
+- Directory containing DICOM series
+{% else %}
+- Directory containing NIfTI files (.nii or .nii.gz)
+{% endif %}
+
+**Output**:
+{% if use_dicom %}
+- DICOM Segmentation objects
+- (Optional) STL mesh files
+{% else %}
+- NIfTI segmentation files
+{% endif %}
+
+### Command Line Arguments
+
+- `-i, --input`: Input data directory (required)
+- `-o, --output`: Output directory (default: ./output)
+- `-m, --model`: Path to model/bundle directory (default: ./model)
+
+### Examples
+
+```bash
+# Using pg with uv (from pipeline generator directory)
+uv run pg run . --input ./test_data --output ./results
+
+# Using pg directly (if installed globally)
+pg run . --input ./test_data --output ./results
+
+# Manual execution
+python app.py -i ./test_data -o ./results
+
+# Use a different model location
+python app.py -i ./test_data -o ./results -m /path/to/model
+```
+
+## Application Structure
+
+```
+.
+├── app.py              # Main application file
+├── app.yaml            # Application configuration
+├── requirements.txt    # Python dependencies
+└── model/              # MONAI Bundle
+    ├── configs/        # Bundle configurations
+    │   ├── metadata.json
+    │   └── inference.json
+    └── models/         # Model weights
+        └── model.{{ 'ts' if model_file and model_file.endswith('.ts') else 'pt' }}
+```
+
+## Deployment
+
+### Local Deployment
+
+Run directly using Python as shown above.
+
+### Container Deployment
+
+Package the application as a container using MONAI Deploy CLI:
+
+```bash
+# Package for x64 workstations
+monai-deploy package app -c app.yaml --platform linux/amd64 -t {{ model_short_name|lower }}:latest
+
+# Package for IGX Orin devkits
+monai-deploy package app -c app.yaml --platform linux/arm64 -t {{ model_short_name|lower }}:latest
+```
+
+Run the containerized application:
+
+```bash
+# Using MONAI Deploy CLI
+monai-deploy run -i /path/to/input -o /path/to/output {{ model_short_name|lower }}:latest
+
+# Or using Docker directly
+docker run -v /path/to/input:/input -v /path/to/output:/output {{ model_short_name|lower }}:latest
+```
+
+## Model Details
+
+{% if metadata %}
+### Metadata
+- **Version**: {{ metadata.get('version', 'Unknown') }}
+- **Authors**: {{ metadata.get('authors', 'Unknown') }}
+- **License**: {{ metadata.get('license', 'See model page') }}
+{% if metadata.get('intended_use') %}
+- **Intended Use**: {{ metadata.get('intended_use') }}
+{% endif %}
+{% endif %}
+
+### Network Architecture
+{% if metadata.get('network_data_format') %}
+- **Input Shape**: {{ metadata.get('network_data_format', {}).get('inputs', {}) }}
+- **Output Shape**: {{ metadata.get('network_data_format', {}).get('outputs', {}) }}
+{% endif %}
+
+For more details, visit the model page: [{{ model_id }}](https://huggingface.co/{{ model_id }})
+
+## License
+
+This application is generated using the MONAI Deploy Pipeline Generator.
+Please refer to the model's license for usage restrictions.

@@ -14,10 +14,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
-      - name: Set up Python 3.9
+      - name: Set up Python 3.10
         uses: actions/setup-python@v2
         with:
-          python-version: "3.9"
+          python-version: "3.10"
       - name: Setup Dev Environment
         run: |
           pip install virtualenv
@@ -55,3 +55,22 @@ jobs:
         with:
           fail_ci_if_error: false
           files: ./coverage.xml
+
+  test-pipeline-generator:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Set up Python 3.10
+        uses: actions/setup-python@v2
+        with:
+          python-version: "3.10"
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+      - name: Install dependencies
+        working-directory: tools/pipeline-generator
+        run: |
+          uv sync
+      - name: Run tests
+        working-directory: tools/pipeline-generator
+        run: |
+          uv run pytest

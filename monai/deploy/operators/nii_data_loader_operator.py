@@ -23,6 +23,13 @@ SimpleITK, _ = optional_import("SimpleITK")
 
 # @md.env(pip_packages=["SimpleITK>=2.0.2"])
 class NiftiDataLoader(Operator):
+    # NOTE:
+    # This loader has very limited use because it does not capture or embed the metadata of a NIfTI file.
+    # Future improvements are needed to retrieve the metadata and return an Image object with the metadata,
+    # or use monai image transform to load the image and return a meta tensor.
+    # Also SITK GetArrayFromImage() returns an NDArray, and the newly added transpose here is to change the
+    # index ordering to match the index ordering of the DCOM pixel array. Existing client of this operator,
+    # if any, will likely have issues.
     """
     This operator reads a nifti image, extracts the numpy array and forwards it to the next operator
 
@@ -80,7 +87,40 @@ class NiftiDataLoader(Operator):
         image_reader = SimpleITK.ImageFileReader()
         image_reader.SetFileName(str(nii_path))
         image = image_reader.Execute()
-        image_np = np.transpose(SimpleITK.GetArrayFromImage(image), [2, 1, 0])
+        image_np = SimpleITK.GetArrayFromImage(image)
+
+        # Get image metadata to properly distinguish between different image types
+        spatial_dims = image.GetDimension()  # Actual spatial dimensions (2D, 3D, etc.)
+        num_components = image.GetNumberOfComponentsPerPixel()  # Components/channels per pixel
+
+        self._logger.debug(
+            f"Image spatial dimensions: {spatial_dims}, components per pixel: {num_components}, array shape: {image_np.shape}"
+        )
+
+        # Handle different dimensionalities properly using SimpleITK metadata
+        if spatial_dims == 2:
+            if num_components == 1:
+                # 2D grayscale: transpose from (y, x) to (x, y)
+                image_np = np.transpose(image_np, [1, 0])
+            else:
+                # 2D with multiple components/channels: transpose from (y, x, c) to (x, y, c)
+                # SimpleITK stores multi-component 2D images as (y, x, c)
+                image_np = np.transpose(image_np, [1, 0, 2])
+        elif spatial_dims == 3:
+            if num_components == 1:
+                # 3D grayscale volume: transpose from (z, y, x) to (x, y, z)
+                image_np = np.transpose(image_np, [2, 1, 0])
+            else:
+                # 3D volume with multiple components: transpose from (z, y, x, c) to (x, y, z, c)
+                # SimpleITK stores multi-component 3D images as (z, y, x, c)
+                image_np = np.transpose(image_np, [2, 1, 0, 3])
+        else:
+            # For other spatial dimensions, log a warning and return as-is
+            self._logger.warning(
+                f"Unexpected {spatial_dims}D spatial image with {num_components} components per pixel, "
+                f"array shape {image_np.shape} from {nii_path}, returning without transpose"
+            )
+
         return image_np
 
 

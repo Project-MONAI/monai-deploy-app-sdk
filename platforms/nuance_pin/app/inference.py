@@ -181,7 +181,7 @@ class LungNoduleInferenceOperator(Operator):
                 Spacingd(keys=image_key, pixdim=(0.703125, 0.703125, 1.25)),
                 Orientationd(
                     keys=image_key,
-                    axcodes="RAS",
+                    axcodes="LPS",
                 ),
                 EnsureChannelFirstd(keys=image_key),
                 ScaleIntensityRanged(image_key, a_min=-1024.0, a_max=300.0, b_min=0.0, b_max=1.0, clip=True),

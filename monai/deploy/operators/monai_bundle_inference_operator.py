@@ -1,4 +1,4 @@
-# Copyright 2002 MONAI Consortium
+# Copyright 2022-2025 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -13,13 +13,14 @@ import json
 import logging
 import os
 import pickle
+import sys
 import tempfile
 import time
 import zipfile
 from copy import deepcopy
 from pathlib import Path
 from threading import Lock
-from typing import Any, Dict, List, Optional, Tuple, Type, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Type, Union, cast
 
 import numpy as np
 
@@ -27,6 +28,9 @@ from monai.deploy.core import AppContext, Fragment, Image, IOType, OperatorSpec
 from monai.deploy.utils.importutil import optional_import
 
 from .inference_operator import InferenceOperator
+
+if TYPE_CHECKING:
+    import torch as torch_typing
 
 MONAI_UTILS = "monai.utils"
 nibabel, _ = optional_import("nibabel", "3.2.1")
@@ -53,6 +57,128 @@ ConfigParser: Any = ConfigParser_
 
 
 __all__ = ["MonaiBundleInferenceOperator", "IOMapping", "BundleConfigNames"]
+
+
+def _ensure_bundle_in_sys_path(bundle_path: Union[str, Path]) -> None:
+    """Helper function to ensure bundle root is on sys.path for script imports.
+
+    Args:
+        bundle_path: Path to the bundle directory
+    """
+    bundle_root = str(bundle_path)
+    if bundle_root not in sys.path:
+        sys.path.insert(0, bundle_root)
+
+
+def _load_model_from_directory_bundle(
+    bundle_path: Path, device: "torch_typing.device", parser: Any = None
+) -> "torch_typing.nn.Module":
+    """Helper function to load model from a directory-based bundle.
+
+    Args:
+        bundle_path: Path to the bundle directory
+        device: PyTorch device to load the model on
+        parser: Optional ConfigParser for eager model loading
+
+    Returns:
+        torch_typing.nn.Module: Loaded model network
+
+    Raises:
+        IOError: If model files are not found
+        RuntimeError: If network cannot be instantiated from configs
+    """
+    # Look for model in models/ subdirectory
+    model_path = bundle_path / "models" / "model.ts"
+    if not model_path.exists():
+        # Try model.pt as fallback
+        model_path = bundle_path / "models" / "model.pt"
+    if not model_path.exists():
+        raise IOError(f"Cannot find model.ts or model.pt in {bundle_path / 'models'}")
+
+    # Load model based on file type
+    if model_path.suffix == ".ts":
+        # TorchScript bundle
+        return cast("torch_typing.nn.Module", torch.jit.load(str(model_path), map_location=device).eval())
+    else:
+        # .pt checkpoint: instantiate network from config and load state dict
+        try:
+            # Some .pt files may still be TorchScript; try jit first
+            return cast("torch_typing.nn.Module", torch.jit.load(str(model_path), map_location=device).eval())
+        except Exception as ex:
+            # Fallback to eager model with loaded weights
+            if parser is None:
+                raise RuntimeError("Parser required for loading .pt checkpoint but not provided") from ex
+
+            # Ensure bundle root is on sys.path so 'scripts.*' can be imported
+            _ensure_bundle_in_sys_path(bundle_path)
+
+            network = parser.get_parsed_content("network") if parser.get("network") is not None else None
+            if network is None:
+                # Backward compatibility: some bundles use "network_def" then to(device)
+                network = parser.get_parsed_content("network_def") if parser.get("network_def") is not None else None
+                if network is not None:
+                    network = network.to(device)
+            if network is None:
+                raise RuntimeError("Unable to instantiate network from bundle configs.") from ex
+
+            checkpoint = torch.load(str(model_path), map_location=device)
+            # Determine the state dict layout
+            state_dict = None
+            if isinstance(checkpoint, dict):
+                if "state_dict" in checkpoint and isinstance(checkpoint["state_dict"], dict):
+                    state_dict = checkpoint["state_dict"]
+                elif "model" in checkpoint and isinstance(checkpoint["model"], dict):
+                    state_dict = checkpoint["model"]
+            if state_dict is None:
+                # Assume raw state dict
+                state_dict = checkpoint
+            network.load_state_dict(state_dict, strict=True)
+            return cast("torch_typing.nn.Module", network.eval())
+
+
+def _read_directory_bundle_config(bundle_path_obj: Path, config_names: List[str]) -> ConfigParser:
+    """Helper function to read bundle configuration from a directory-based bundle.
+
+    Args:
+        bundle_path_obj: Path object pointing to the bundle directory
+        config_names: List of config names to read
+
+    Returns:
+        ConfigParser: Parsed configuration object
+    """
+    bundle_suffixes = (".json", ".yaml", "yml")  # The only supported file ext(s)
+    parser = ConfigParser()
+
+    # Read metadata from configs/metadata.json
+    metadata_path = bundle_path_obj / "configs" / "metadata.json"
+    if not metadata_path.exists():
+        raise IOError(f"Cannot find metadata.json at {metadata_path}")
+
+    with open(metadata_path, "r") as f:
+        metadata_content = f.read()
+        parser.read_meta(f=json.loads(metadata_content))
+
+    # Read other config files
+    config_files = []
+    for config_name in config_names:
+        config_name_base = config_name.split(".")[0]  # Remove extension if present
+        # Validate config name to prevent path traversal
+        if ".." in config_name_base or "/" in config_name_base or "\\" in config_name_base:
+            raise ValueError(f"Invalid config name: {config_name_base}")
+        found = False
+        for suffix in bundle_suffixes:
+            config_path = bundle_path_obj / "configs" / f"{config_name_base}{suffix}"
+            if config_path.exists():
+                config_files.append(config_path)
+                found = True
+                break
+        if not found:
+            raise IOError(f"Cannot find config file for {config_name} in {bundle_path_obj / 'configs'}")
+
+    parser.read_config(config_files)
+    parser.parse()
+
+    return parser
 
 
 def get_bundle_config(bundle_path, config_names):
@@ -101,7 +227,11 @@ def get_bundle_config(bundle_path, config_names):
         return content_text
 
     def _extract_from_archive(
-        archive, root_name: str, config_names: List[str], dest_folder: Union[str, Path], do_search=True
+        archive,
+        root_name: str,
+        config_names: List[str],
+        dest_folder: Union[str, Path],
+        do_search=True,
     ):
         """A helper function for extract files of configs from the archive to the destination folder
 
@@ -151,6 +281,12 @@ def get_bundle_config(bundle_path, config_names):
     if isinstance(config_names, str):
         config_names = [config_names]
 
+    # Check if bundle_path is a directory (for directory-based bundles)
+    bundle_path_obj = Path(bundle_path)
+    if bundle_path_obj.is_dir():
+        return _read_directory_bundle_config(bundle_path_obj, config_names)
+
+    # Original ZIP file handling code
     name, _ = os.path.splitext(os.path.basename(bundle_path))  # bundle file name same archive folder name
     parser = ConfigParser()
 
@@ -358,11 +494,20 @@ class MonaiBundleInferenceOperator(InferenceOperator):
         # Complete the init if the bundle path is known, otherwise delay till the compute function is called
         # and try to get the model/bundle path from the execution context.
         try:
+            # Original design is to rely on the Model Factory to find and load the model bundle file path, hence,
+            # Complete the init if the bundle path is known, otherwise delay till the compute function is called
+            # and try to get the model/bundle path from the execution context.
+            # But supporting directory-based bundle with the app generator CLI may require the bundle path to be set
+
             self._bundle_path = Path(bundle_path) if bundle_path and len(str(bundle_path).strip()) > 0 else None
 
             if self._bundle_path and self._bundle_path.is_file():
                 self._init_config(self._bundle_config_names.config_names)
                 self._init_completed = True
+            elif self._bundle_path and self._bundle_path.is_dir():
+                # For directory-based bundles, delay initialization to compute method
+                logging.debug(f"Bundle path {self._bundle_path} is a directory. Will initialize during execution.")
+                # Keep the bundle_path for directory-based bundles
             else:
                 logging.debug(
                     f"Bundle, at path {self._bundle_path}, not available. Will get it in the execution context."
@@ -397,9 +542,10 @@ class MonaiBundleInferenceOperator(InferenceOperator):
 
     @bundle_path.setter
     def bundle_path(self, bundle_path: Union[str, Path]):
-        if not bundle_path or not Path(bundle_path).expanduser().is_file():
+        if bundle_path and (Path(bundle_path).expanduser().is_file() or Path(bundle_path).expanduser().is_dir()):
+            self._bundle_path = Path(bundle_path).expanduser().resolve()
+        else:
             raise ValueError(f"Value, {bundle_path}, is not a valid file path.")
-        self._bundle_path = Path(bundle_path).expanduser().resolve()
 
     @property
     def parser(self) -> Union[ConfigParser, None]:
@@ -420,7 +566,11 @@ class MonaiBundleInferenceOperator(InferenceOperator):
             config_names ([str]): Names of the config (files) in the bundle
         """
 
-        parser = get_bundle_config(str(self._bundle_path), config_names)
+        # Ensure bundle root is on sys.path for directory-based bundles
+        if self.bundle_path and self.bundle_path.is_dir():
+            _ensure_bundle_in_sys_path(self.bundle_path)
+
+        parser = get_bundle_config(str(self.bundle_path), config_names)
         self._parser = parser
 
         meta = self.parser["_meta_"]
@@ -464,7 +614,7 @@ class MonaiBundleInferenceOperator(InferenceOperator):
         )
 
     def _get_compose(self, obj_name, disallowed_prefixes):
-        """Gets a Compose object containing a sequence fo transforms from item `obj_name` in `self._parser`."""
+        """Gets a Compose object containing a sequence of transforms from item `obj_name` in `self._parser`."""
 
         if self._parser.get(obj_name) is not None:
             compose = self._parser.get_parsed_content(obj_name)
@@ -553,16 +703,34 @@ class MonaiBundleInferenceOperator(InferenceOperator):
             if not self._init_completed:
                 with self._lock:
                     if not self._init_completed:
-                        self._bundle_path = self._model_network.path
-                        logging.info(f"Parsing from bundle_path: {self._bundle_path}")
+                        # Use property setter to set the bundle path for consistency
+                        self.bundle_path = Path(self._model_network.path)
+                        logging.info(f"Parsing from bundle_path: {self.bundle_path}")
                         self._init_config(self._bundle_config_names.config_names)
                         self._init_completed = True
-        elif self._bundle_path:
+        elif self.bundle_path:
             # For the case of local dev/testing when the bundle path is not passed in as an exec cmd arg.
             # When run as a MAP docker, the bundle file is expected to be in the context, even if the model
             # network is loaded on a remote inference server (when the feature is introduced).
-            logging.debug(f"Model network not loaded. Trying to load from model path: {self._bundle_path}")
-            self._model_network = torch.jit.load(self.bundle_path, map_location=self._device).eval()
+            logging.debug(f"Model network not loaded. Trying to load from model path: {self.bundle_path}")
+
+            # Check if bundle_path is a directory
+            if self.bundle_path.is_dir():
+                # Ensure device is set
+                if not hasattr(self, "_device"):
+                    self._device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+                # Initialize config for directory bundles if not already done
+                if not self._init_completed:
+                    logging.info(f"Initializing config from directory bundle: {self.bundle_path}")
+                    self._init_config(self._bundle_config_names.config_names)
+                    self._init_completed = True
+
+                # Load model using helper function
+                self._model_network = _load_model_from_directory_bundle(self.bundle_path, self._device, self._parser)
+            else:
+                # Original ZIP bundle handling
+                self._model_network = torch.jit.load(self.bundle_path, map_location=self._device).eval()
         else:
             raise IOError("Model network is not load and model file not found.")
 
@@ -582,6 +750,7 @@ class MonaiBundleInferenceOperator(InferenceOperator):
                     raise ValueError("`meta_data` must be a dict.")
                 value = MetaTensor.ensure_torch_and_prune_meta(value, meta_data)
                 inputs[name] = value
+                logging.debug(f"Input MetaTensor metadata 'space': {value.meta.get('space', None)}")
                 # Named metadata dict not needed any more, as it is in the MetaTensor
 
             inputs = self.pre_process(inputs)
@@ -702,7 +871,76 @@ class MonaiBundleInferenceOperator(InferenceOperator):
             logging.debug(f"Shape of the converted input image: {value.shape}")
             logging.debug(f"Metadata of the converted input image: {metadata}")
         elif isinstance(value, np.ndarray):
+            # Keep numpy array as-is when possible and set metadata so downstream transforms handle channels.
+            # Use bundle metadata to infer expected number of channels and spatial dimensions.
+            ndims = value.ndim
+            expected_channels = None
+            expected_spatial_dims = None
+            try:
+                in_meta = self._inputs.get(name, {})
+                if isinstance(in_meta, dict):
+                    expected_channels = in_meta.get("num_channels")
+                    # Try to infer spatial dimensions from bundle metadata
+                    spatial_shape = in_meta.get("spatial_shape")
+                    if spatial_shape is not None:
+                        expected_spatial_dims = len(spatial_shape)
+                    else:
+                        # Robust fallback using explicit metadata keys
+                        expected_spatial_dims = self._infer_spatial_dimensions_from_metadata(in_meta)
+            except Exception:
+                expected_channels = None
+                expected_spatial_dims = None
+
+            if ndims == 3:
+                # Could be (W, H, D) for 3D models or (W, H, C) for 2D models
+                if expected_spatial_dims == 2:
+                    # This is a 2D model expecting (W, H, C) input
+                    actual_channels = value.shape[-1]
+                    if expected_channels is not None and expected_channels != actual_channels:
+                        if expected_channels == 1 and actual_channels > 1:
+                            logging.warning(
+                                "Input for '%s' has %d channels but 2D bundle expects 1; selecting channel 0.",
+                                name,
+                                actual_channels,
+                            )
+                            value = value[..., 0:1]  # Keep last dim as 1 for (W, H, 1)
+                        else:
+                            raise ValueError(
+                                f"Input for '{name!r}' has {actual_channels} channels but 2D bundle expects {expected_channels}."
+                            )
+                else:
+                    # This is a 3D model expecting (W, H, D) with no channel dimension
+                    if expected_channels is not None and expected_channels > 1:
+                        raise ValueError(
+                            f"Input for '{name!r}' has no channel dimension but bundle expects {expected_channels} channels. "
+                            "Provide multi-channel input or add a transform to stack channels before inference."
+                        )
+                    # else expected 1 or unknown -> proceed without channel
+            elif ndims == 4:
+                # Channel-last assumed (W, H, D, C) for 3D or (W, H, C, extra) which is unusual
+                actual_channels = value.shape[-1]
+                if expected_channels is not None and expected_channels != actual_channels:
+                    if expected_channels == 1 and actual_channels > 1:
+                        logging.warning(
+                            "Input for '%s' has %d channels but bundle expects 1; selecting channel 0.",
+                            name,
+                            actual_channels,
+                        )
+                        value = value[..., 0]
+                        ndims = 3
+                    else:
+                        raise ValueError(
+                            f"Input for '{name!r}' has {actual_channels} channels but bundle expects {expected_channels}."
+                        )
+                # else exact match or unknown -> keep as-is
+            else:
+                # Unsupported rank for medical image input
+                raise ValueError(f"Unsupported input rank {ndims} for '{name!r}'. Expected 3D (W,H,D) or 4D (W,H,D,C).")
             value = torch.from_numpy(value).to(self._device)
+            if metadata is None:
+                metadata = {}
+            # Indicate whether there was a channel for EnsureChannelFirstd
+            metadata["original_channel_dim"] = "no_channel" if ndims == 3 else -1
 
         # else value is some other object from memory
 
@@ -733,7 +971,19 @@ class MonaiBundleInferenceOperator(InferenceOperator):
                 raise TypeError("arg 1 must be of type torch.Tensor or ndarray.")
 
             logging.debug(f"Output {name} numpy image shape: {value.shape}")
-            result: Any = Image(np.swapaxes(np.squeeze(value, 0), 0, 2).astype(np.uint8), metadata=metadata)
+
+            # Handle different dimensional outputs while maintaining DICOM pixel data arrangement
+            squeezed_value = np.squeeze(value, 0)
+            if squeezed_value.ndim == 2:
+                # 2D case: Keep as (H, W) - no axis swapping needed for 2D images
+                out_img = squeezed_value.astype(np.uint8)
+            elif squeezed_value.ndim == 3:
+                # 3D case: (W, H, D) -> (D, H, W) for DICOM volumetric data
+                out_img = np.swapaxes(squeezed_value, 0, 2).astype(np.uint8)
+            else:
+                # Higher dimensions: apply standard DICOM conversion
+                out_img = np.swapaxes(squeezed_value, 0, 2).astype(np.uint8)
+            result: Any = Image(out_img, metadata=metadata)
             logging.debug(f"Converted Image shape: {result.asnumpy().shape}")
         elif otype == np.ndarray:
             result = np.asarray(value)
@@ -814,7 +1064,8 @@ class MonaiBundleInferenceOperator(InferenceOperator):
         # Use defines MetaKeys directly
         meta_dict[MetaKeys.ORIGINAL_AFFINE] = np.asarray(img_meta_dict.get("nifti_affine_transform", None))
         meta_dict[MetaKeys.AFFINE] = meta_dict[MetaKeys.ORIGINAL_AFFINE].copy()
-        meta_dict[MetaKeys.SPACE] = SpaceKeys.LPS  # not using SpaceKeys.RAS or affine_lps_to_ras
+        # Disabled setting the SPACE key below as it has changed to be set in the actual loader implementation.
+        # meta_dict[MetaKeys.SPACE] = SpaceKeys.LPS  # not using SpaceKeys.RAS or affine_lps_to_ras
 
         # Similarly the Image ndarray has dim order DHW, to be rearranged to WHD.
         # TODO: Need to revisit this once multi-channel image is supported and the Image class itself
@@ -828,3 +1079,62 @@ class MonaiBundleInferenceOperator(InferenceOperator):
         meta_dict[MetaKeys.ORIGINAL_CHANNEL_DIM] = "no_channel"
 
         return converted_image, meta_dict
+
+    def _infer_spatial_dimensions_from_metadata(self, metadata: Dict) -> Optional[int]:
+        """
+        Infer spatial dimensions from bundle metadata using robust key lookups.
+
+        Args:
+            metadata: Bundle metadata dictionary for the input
+
+        Returns:
+            Number of spatial dimensions (2 or 3) or None if cannot be determined
+        """
+        if not isinstance(metadata, dict):
+            return None
+
+        # Check for explicit spatial dimension keys
+        for key in ["spatial_dims", "spatial_ndim", "num_spatial_dims", "ndim"]:
+            if key in metadata:
+                dims = metadata[key]
+                if isinstance(dims, int) and dims in [2, 3]:
+                    return dims
+
+        # Check for spatial size/shape related keys
+        for key in ["spatial_size", "input_shape", "size"]:
+            if key in metadata:
+                size = metadata[key]
+                if isinstance(size, (list, tuple)) and len(size) in [2, 3]:
+                    return len(size)
+
+        # Check for format/type indicators
+        format_keys = ["format", "data_format", "input_format", "model_type"]
+        for key in format_keys:
+            if key in metadata:
+                format_val = str(metadata[key]).lower()
+                if "2d" in format_val:
+                    return 2
+                elif "3d" in format_val:
+                    return 3
+
+        # Check for keys ending with dimension indicators
+        for key, _ in metadata.items():
+            key_lower = str(key).lower()
+            if key_lower.endswith("_2d") or "2d" in key_lower:
+                return 2
+            elif key_lower.endswith("_3d") or "3d" in key_lower:
+                return 3
+
+        # Check if any string values contain reliable dimension indicators
+        # Only check explicit keys, not arbitrary string representations
+        dimension_indicator_keys = ["description", "model_name", "architecture", "network"]
+        for key in dimension_indicator_keys:
+            if key in metadata:
+                value_str = str(metadata[key]).lower()
+                # Use more specific patterns to avoid false matches
+                if any(pattern in value_str for pattern in ["_2d", "-2d", " 2d ", "2d_", "2d-"]):
+                    return 2
+                elif any(pattern in value_str for pattern in ["_3d", "-3d", " 3d ", "3d_", "3d-"]):
+                    return 3
+
+        return None

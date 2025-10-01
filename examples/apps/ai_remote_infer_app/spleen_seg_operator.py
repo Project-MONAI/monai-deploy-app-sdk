@@ -127,7 +127,7 @@ class SpleenSegOperator(Operator):
                     resample=False,
                     output_ext=".nii",
                 ),
-                Orientationd(keys=my_key, axcodes="RAS"),
+                Orientationd(keys=my_key, axcodes="LPS"),
                 Spacingd(keys=my_key, pixdim=[1.5, 1.5, 2.9], mode=["bilinear"]),
                 ScaleIntensityRanged(keys=my_key, a_min=-57, a_max=164, b_min=0.0, b_max=1.0, clip=True),
                 EnsureTyped(keys=my_key),
