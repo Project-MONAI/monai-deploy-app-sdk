@@ -614,7 +614,7 @@ class MonaiBundleInferenceOperator(InferenceOperator):
         )
 
     def _get_compose(self, obj_name, disallowed_prefixes):
-        """Gets a Compose object containing a sequence fo transforms from item `obj_name` in `self._parser`."""
+        """Gets a Compose object containing a sequence of transforms from item `obj_name` in `self._parser`."""
 
         if self._parser.get(obj_name) is not None:
             compose = self._parser.get_parsed_content(obj_name)
@@ -749,6 +749,7 @@ class MonaiBundleInferenceOperator(InferenceOperator):
                     raise ValueError("`meta_data` must be a dict.")
                 value = MetaTensor.ensure_torch_and_prune_meta(value, meta_data)
                 inputs[name] = value
+                logging.debug(f"Input MetaTensor metadata 'space': {value.meta.get('space', None)}")
                 # Named metadata dict not needed any more, as it is in the MetaTensor
 
             inputs = self.pre_process(inputs)
@@ -1062,7 +1063,8 @@ class MonaiBundleInferenceOperator(InferenceOperator):
         # Use defines MetaKeys directly
         meta_dict[MetaKeys.ORIGINAL_AFFINE] = np.asarray(img_meta_dict.get("nifti_affine_transform", None))
         meta_dict[MetaKeys.AFFINE] = meta_dict[MetaKeys.ORIGINAL_AFFINE].copy()
-        meta_dict[MetaKeys.SPACE] = SpaceKeys.LPS  # not using SpaceKeys.RAS or affine_lps_to_ras
+        # Disabled setting the SPACE key below as it has changed to be set in the actual loader implementation.
+        # meta_dict[MetaKeys.SPACE] = SpaceKeys.LPS  # not using SpaceKeys.RAS or affine_lps_to_ras
 
         # Similarly the Image ndarray has dim order DHW, to be rearranged to WHD.
         # TODO: Need to revisit this once multi-channel image is supported and the Image class itself

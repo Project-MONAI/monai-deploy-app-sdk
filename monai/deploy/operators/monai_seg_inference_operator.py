@@ -90,7 +90,7 @@ class MonaiSegInferenceOperator(InferenceOperator):
             - Are not explicitly defined in the __init__ of this class
             - Are not explicitly used when calling sliding_window_inference
 
-        2. A dicionary of named parameters to pass to the base class __init__ of this class that:
+        2. A dictionary of named parameters to pass to the base class __init__ of this class that:
             - Are not used when calling sliding_window_inference
             - Can be successfully converted from Python --> Holoscan's C++ layer
 
@@ -582,7 +582,8 @@ class InMemImageReader(ImageReader):
         # Use define metadata kyes directly
         meta_dict[MetaKeys.ORIGINAL_AFFINE] = np.asarray(img_meta_dict.get("nifti_affine_transform", None))
         meta_dict[MetaKeys.AFFINE] = meta_dict[MetaKeys.ORIGINAL_AFFINE].copy()
-        meta_dict[MetaKeys.SPACE] = SpaceKeys.LPS  # not using SpaceKeys.RAS or affine_lps_to_ras
+        # Disabled setting the SPACE key below as it has changed to be set in the actual loader implementation.
+        # meta_dict[MetaKeys.SPACE] = SpaceKeys.LPS  # not using SpaceKeys.RAS or affine_lps_to_ras
         # The spatial shape, again, referring to ITKReader, it is the WHD
         meta_dict[MetaKeys.SPATIAL_SHAPE] = np.asarray(img.asnumpy().T.shape)
         # Well, no channel as the image data shape is forced to the the same as spatial shape
