@@ -15,7 +15,7 @@ from monai.deploy.core import Image
 from monai.deploy.operators.monai_bundle_inference_operator import MonaiBundleInferenceOperator, get_bundle_config
 from monai.deploy.utils.importutil import optional_import
 from monai.transforms import ConcatItemsd, ResampleToMatch
-
+from monai.deploy.core.models.torch_model import TorchScriptModel
 torch, _ = optional_import("torch", "1.10.2")
 MetaTensor, _ = optional_import("monai.data.meta_tensor", name="MetaTensor")
 __all__ = ["MONetBundleInferenceOperator"]
@@ -69,15 +69,15 @@ class MONetBundleInferenceOperator(MonaiBundleInferenceOperator):
         model_network : torch.nn.Module or torch.jit.ScriptModule
             The model network to be used for inference.
         """
-        if not isinstance(model_network, torch.nn.Module) and not torch.jit.isinstance(model_network, torch.jit.ScriptModule):
+        if not isinstance(model_network, torch.nn.Module) and not torch.jit.isinstance(model_network, torch.jit.ScriptModule) and not isinstance(model_network, TorchScriptModel):
             raise TypeError("model_network must be an instance of torch.nn.Module or torch.jit.ScriptModule")
-        self._model_network = model_network
+        self._nnunet_predictor.predictor.network = model_network
     
     def predict(self, data: Any, *args, **kwargs) -> Union[Image, Any, Tuple[Any, ...], Dict[Any, Any]]:
         """Predicts output using the inferer. If multimodal data is provided as keyword arguments,
         it concatenates the data with the main input data."""
 
-        self._set_model_network(self._nnunet_predictor)
+        self._set_model_network(self._model_network)
 
         if len(kwargs) > 0:
             multimodal_data = {"image": data}
