@@ -40,9 +40,9 @@ class DICOMSeriesToVolumeOperator(Operator):
     """
 
     # Use constants instead of enums in monai to avoid dependency at this level.
-    MONAI_UTIL_ENUMS_SPACEKEYS_LPS = "LPS"
+    MONAI_UTIL_ENUMS_SPACEKEYS_RAS = "RAS"
     MONAI_TRANSFORMS_SPATIAL_METADATA_NAME = "space"
-    METADATA_SPACE_LPS = {MONAI_TRANSFORMS_SPATIAL_METADATA_NAME: MONAI_UTIL_ENUMS_SPACEKEYS_LPS}
+    METADATA_SPACE_RAS = {MONAI_TRANSFORMS_SPATIAL_METADATA_NAME: MONAI_UTIL_ENUMS_SPACEKEYS_RAS}
 
     def __init__(self, fragment: Fragment, *args, **kwargs):
         """Create an instance for a containing application object.
@@ -100,7 +100,7 @@ class DICOMSeriesToVolumeOperator(Operator):
             #       due part to previous MONAI versions did not correctly parse this metadata from
             #       the input MetaTensor and defaulting to RAS. Now with LPS properly set, the inference
             #       configs then need to be updated to specify LPS, to achieve the same result.
-            metadata.update(self.METADATA_SPACE_LPS)
+            metadata.update(self.METADATA_SPACE_RAS)
 
             voxel_data = self.generate_voxel_data(dicom_series)
             image = self.create_volumetric_image(voxel_data, metadata)
