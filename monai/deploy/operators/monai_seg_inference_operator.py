@@ -621,7 +621,7 @@ def _copy_compatible_dict(from_dict: Dict, to_dict: Dict):
             )
 
 
-def _stack_images(image_list: list, meta_dict: dict, to_cupy: bool = False):
+def _stack_images(image_list: list, meta_dict: Dict, to_cupy: bool = False):
     if len(image_list) <= 1:
         return image_list[0]
     if not is_no_channel(meta_dict.get(MetaKeys.ORIGINAL_CHANNEL_DIM, None)):
