@@ -606,7 +606,9 @@ def _copy_compatible_dict(from_dict: Dict, to_dict: Dict):
             datum = from_dict[key]
             if isinstance(datum, np.ndarray) and np_str_obj_array_pattern.search(datum.dtype.str) is not None:
                 continue
-            to_dict[key] = str(TraceKeys.NONE) if datum is None else datum  # Convert NoneType to string to prevent issues with PyTorch's default_collate, which cannot handle None values directly
+            to_dict[key] = (
+                str(TraceKeys.NONE) if datum is None else datum
+            )  # PyTorch's default_collate cannot handle None values directly
     else:
         affine_key, shape_key = MetaKeys.AFFINE, MetaKeys.SPATIAL_SHAPE
         if affine_key in from_dict and not np.allclose(from_dict[affine_key], to_dict[affine_key]):
