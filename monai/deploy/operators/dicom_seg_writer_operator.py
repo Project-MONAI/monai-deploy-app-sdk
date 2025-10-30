@@ -27,6 +27,8 @@ generate_uid, _ = optional_import("pydicom.uid", name="generate_uid")
 ImplicitVRLittleEndian, _ = optional_import("pydicom.uid", name="ImplicitVRLittleEndian")
 Dataset, _ = optional_import("pydicom.dataset", name="Dataset")
 FileDataset, _ = optional_import("pydicom.dataset", name="FileDataset")
+DA, _ = optional_import("pydicom.valuerep", name="DA")
+TM, _ = optional_import("pydicom.valuerep", name="TM")
 PyDicomSequence, _ = optional_import("pydicom.sequence", name="Sequence")
 sitk, _ = optional_import("SimpleITK")
 codes, _ = optional_import("pydicom.sr.codedict", name="codes")
@@ -341,8 +343,8 @@ class DICOMSegmentationWriterOperator(Operator):
         # Adding a few tags that are not in the Dataset
         # Also try to set the custom tags that are of string type
         dt_now = datetime.datetime.now()
-        seg.SeriesDate = dt_now.strftime("%Y%m%d")  # type: ignore[assignment]
-        seg.SeriesTime = dt_now.strftime("%H%M%S")  # type: ignore[assignment]
+        seg.SeriesDate = DA(dt_now.strftime("%Y%m%d"))
+        seg.SeriesTime = TM(dt_now.strftime("%H%M%S"))
         seg.TimezoneOffsetFromUTC = (
             dt_now.astimezone().isoformat()[-6:].replace(":", "")
         )  # '2022-09-27T22:36:20.143857-07:00'
