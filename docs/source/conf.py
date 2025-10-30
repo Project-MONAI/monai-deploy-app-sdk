@@ -91,7 +91,7 @@ extensions = [
     "sphinx_autodoc_typehints",
     "sphinxcontrib.mermaid",
 ]
-bibtex_bibfiles = ['refs.bib']
+bibtex_bibfiles = ["refs.bib"]
 
 autoclass_content = "both"
 add_module_names = True
