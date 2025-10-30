@@ -40,19 +40,26 @@ class DICOMSeriesToVolumeOperator(Operator):
     """
 
     # Use constants instead of enums in monai to avoid dependency at this level.
+    MONAI_UTIL_ENUMS_SPACEKEYS_RAS = "RAS"
     MONAI_UTIL_ENUMS_SPACEKEYS_LPS = "LPS"
     MONAI_TRANSFORMS_SPATIAL_METADATA_NAME = "space"
+    METADATA_SPACE_RAS = {MONAI_TRANSFORMS_SPATIAL_METADATA_NAME: MONAI_UTIL_ENUMS_SPACEKEYS_RAS}
     METADATA_SPACE_LPS = {MONAI_TRANSFORMS_SPATIAL_METADATA_NAME: MONAI_UTIL_ENUMS_SPACEKEYS_LPS}
+    ATTRIBUTE_NIFTI_AFFINE = "nifti_affine_transform"
+    ATTRIBUTE_DICOM_AFFINE = "dicom_affine_transform"
 
-    def __init__(self, fragment: Fragment, *args, **kwargs):
+    def __init__(self, fragment: Fragment, *args, affine_lps_to_ras: bool = True, **kwargs):
         """Create an instance for a containing application object.
 
         Args:
             fragment (Fragment): An instance of the Application class which is derived from Fragment.
+            affine_lps_to_ras (bool): If true, the affine transform in the image metadata is RAS oriented,
+                                      otherwise it is LPS oriented. Default is True.
         """
 
         self.input_name_series = "study_selected_series_list"
         self.output_name_image = "image"
+        self.affine_lps_to_ras = affine_lps_to_ras
         # Need to call the base class constructor last
         super().__init__(fragment, *args, **kwargs)
 
@@ -89,18 +96,16 @@ class DICOMSeriesToVolumeOperator(Operator):
             metadata.update(self._get_instance_properties(study_selected_series.study))
             selection_metadata = {"selection_name": selection_name}
             metadata.update(selection_metadata)
-            # Add the metadata to specify LPS.
-            # Previously, this was set in ImageReader class, but moving it here allows other loaders
-            # to determine this value on its own, e.g. NIfTI loader but it does not set this
-            # resulting in the MONAI Orientation transform to default the labels to RAS.
-            # It is assumed that the ImageOrientationPatient will be set accordingly if the
-            # PatientPosition is other than HFS.
-            # NOTE: This value is properly parsed by MONAI Orientation transform from v1.5.1 onwards.
-            #       Some early MONAI model inference configs incorrectly specify orientation to RAS
-            #       due part to previous MONAI versions did not correctly parse this metadata from
-            #       the input MetaTensor and defaulting to RAS. Now with LPS properly set, the inference
-            #       configs then need to be updated to specify LPS, to achieve the same result.
-            metadata.update(self.METADATA_SPACE_LPS)
+            # The affine transform and the coordinate space are set based on the flag affine_lps_to_ras.
+            # If the flag is true, the NIFTI affine (RAS) is used, otherwise the DICOM affine (LPS) is used.
+            if self.affine_lps_to_ras:
+                if hasattr(dicom_series, self.ATTRIBUTE_NIFTI_AFFINE):
+                    metadata["affine"] = getattr(dicom_series, self.ATTRIBUTE_NIFTI_AFFINE)
+                metadata.update(self.METADATA_SPACE_RAS)
+            else:
+                if hasattr(dicom_series, self.ATTRIBUTE_DICOM_AFFINE):
+                    metadata["affine"] = getattr(dicom_series, self.ATTRIBUTE_DICOM_AFFINE)
+                metadata.update(self.METADATA_SPACE_LPS)
 
             voxel_data = self.generate_voxel_data(dicom_series)
             image = self.create_volumetric_image(voxel_data, metadata)
@@ -366,7 +371,7 @@ class DICOMSeriesToVolumeOperator(Operator):
         zn = 0.0
 
         ip1 = None
-        ip2 = None
+        ipn = None
         try:
             ip1_de = s_1[0x0020, 0x0032]
             ipn_de = s_n[0x0020, 0x0032]
@@ -404,7 +409,7 @@ class DICOMSeriesToVolumeOperator(Operator):
         m1[3, 2] = 0
         m1[3, 3] = 1
 
-        series.dicom_affine_transform = m1
+        setattr(series, self.ATTRIBUTE_DICOM_AFFINE, m1)
 
         m2[0, 0] = -rx * vr
         m2[0, 1] = -cx * vc
@@ -426,7 +431,7 @@ class DICOMSeriesToVolumeOperator(Operator):
         m2[3, 2] = 0
         m2[3, 3] = 1
 
-        series.nifti_affine_transform = m2
+        setattr(series, self.ATTRIBUTE_NIFTI_AFFINE, m2)
 
     def create_metadata(self, series) -> Dict:
         """Collects all relevant metadata from the DICOM Series and creates a dictionary.
