@@ -83,7 +83,7 @@ extensions = [
     "myst_nb",
     "sphinx_copybutton",
     "sphinx_togglebutton",
-    "sphinx_panels",  # https://sphinx-panels.readthedocs.io/en/latest/
+    "sphinx_design",  # https://sphinx-design.readthedocs.io/en/latest/
     "ablog",
     "sphinxemoji.sphinxemoji",
     # https://myst-parser.readthedocs.io/en/latest/sphinx/use.html#automatically-create-targets-for-section-headers
@@ -181,10 +181,10 @@ html_static_path = ["../_static"]
 html_css_files = ["custom.css"]
 html_title = f"{project} {version} Documentation"
 
-# -- Options for sphinx-panels -------------------------------------------------
+# -- Options for sphinx-design -------------------------------------------------
 #
-# (reference: https://sphinx-panels.readthedocs.io/en/latest/)
-panels_add_bootstrap_css = False  # pydata-sphinx-theme already loads bootstrap css
+# (reference: https://sphinx-design.readthedocs.io/en/latest/)
+# No additional configuration needed - sphinx-design works with pydata-sphinx-theme
 
 # -- Options for linkcheck builder -------------------------------------------------
 #

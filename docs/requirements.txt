@@ -9,7 +9,7 @@ sphinx-copybutton
 sphinxcontrib-bibtex>=2.4.1  # Version 2.4.1+ supports Python 3.10
 sphinxcontrib-spelling  # https://sphinxcontrib-spelling.readthedocs.io/en/latest/index.html
 sphinx-thebe
-sphinx-panels
+sphinx-design
 ablog
 pydata_sphinx_theme>=0.13.0
 sphinxemoji
