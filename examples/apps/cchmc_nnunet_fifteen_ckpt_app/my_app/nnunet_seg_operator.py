@@ -11,7 +11,7 @@
 
 import logging
 from pathlib import Path
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 import torch
 from numpy import int16, uint8
@@ -35,15 +35,8 @@ current_dir = os.path.dirname(os.path.abspath(__file__))
 if current_dir not in sys.path:
     sys.path.insert(0, current_dir)
 
-try:
-    # Try local version first
-    from nnunet_bundle import EnsembleProbabilitiesToSegmentation, get_nnunet_monai_predictors_for_ensemble
-except ImportError:
-    # Fall back to MONAI version if local version fails
-    from monai.apps.nnunet.nnunet_bundle import (
-        get_nnunet_monai_predictors_for_ensemble,
-        EnsembleProbabilitiesToSegmentation,
-    )
+# Import from local nnunet_bundle module
+from nnunet_bundle import EnsembleProbabilitiesToSegmentation, get_nnunet_monai_predictors_for_ensemble
 
 from monai.deploy.core import AppContext, Fragment, Model, Operator, OperatorSpec
 from monai.deploy.operators.monai_seg_inference_operator import InMemImageReader
@@ -70,8 +63,8 @@ class NNUnetSegOperator(Operator):
         app_context: AppContext,
         model_path: Path,
         output_folder: Path = DEFAULT_OUTPUT_FOLDER,
-        output_labels: List[int] = None,
-        model_list: List[str] = None,
+        output_labels: Optional[List[int]] = None,
+        model_list: Optional[List[str]] = None,
         model_name: str = "best_model.pt",
         save_probabilities: bool = False,
         save_files: bool = False,
@@ -424,5 +417,5 @@ class NNUnetSegOperator(Operator):
         """
         for transform in post_transforms.transforms:
             if isinstance(transform, ExtractVolumeToTextd):
-                return transform.result_text
+                return str(transform.result_text)  # Ensure return type is str
         return ""
