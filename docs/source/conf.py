@@ -83,7 +83,7 @@ extensions = [
     "myst_nb",
     "sphinx_copybutton",
     "sphinx_togglebutton",
-    "sphinx_panels",  # https://sphinx-panels.readthedocs.io/en/latest/
+    "sphinx_design",  # https://sphinx-design.readthedocs.io/en/latest/
     "ablog",
     "sphinxemoji.sphinxemoji",
     # https://myst-parser.readthedocs.io/en/latest/sphinx/use.html#automatically-create-targets-for-section-headers
@@ -91,6 +91,7 @@ extensions = [
     "sphinx_autodoc_typehints",
     "sphinxcontrib.mermaid",
 ]
+bibtex_bibfiles = ["refs.bib"]
 
 autoclass_content = "both"
 add_module_names = True
@@ -180,10 +181,10 @@ html_static_path = ["../_static"]
 html_css_files = ["custom.css"]
 html_title = f"{project} {version} Documentation"
 
-# -- Options for sphinx-panels -------------------------------------------------
+# -- Options for sphinx-design -------------------------------------------------
 #
-# (reference: https://sphinx-panels.readthedocs.io/en/latest/)
-panels_add_bootstrap_css = False  # pydata-sphinx-theme already loads bootstrap css
+# (reference: https://sphinx-design.readthedocs.io/en/latest/)
+# No additional configuration needed - sphinx-design works with pydata-sphinx-theme
 
 # -- Options for linkcheck builder -------------------------------------------------
 #
@@ -222,15 +223,16 @@ myst_heading_anchors = 5
 # -- Options for myst-nb -------------------------------------------------
 #
 # (reference: https://myst-nb.readthedocs.io/en/latest/)
-# Prevent the following error
-#     MyST NB Configuration Error:
-#    `nb_render_priority` not set for builder: doctest
-nb_render_priority = {"doctest": ()}
 # Prevent creating jupyter_execute folder in dist
 #  https://myst-nb.readthedocs.io/en/latest/use/execute.html#executing-in-temporary-folders  # noqa
 execution_in_temp = True
 jupyter_execute_notebooks = "off"
 
+
+# -- Options for sphinxcontrib.bibtex -------------------------------------------------
+#
+# (reference: https://sphinxcontrib-bibtex.readthedocs.io/)
+bibtex_bibfiles = []  # Add bibliography files here if needed
 
 # -- Options for sphinxcontrib.spelling -------------------------------------------------
 #

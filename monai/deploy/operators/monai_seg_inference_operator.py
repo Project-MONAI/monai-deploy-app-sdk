@@ -31,15 +31,19 @@ ImageReader_, image_reader_ok_ = optional_import("monai.data", name="ImageReader
 ImageReader: Any = ImageReader_
 if not image_reader_ok_:
     ImageReader = object  # for 'class InMemImageReader(ImageReader):' to work
+is_no_channel, _ = optional_import("monai.data.utils", name="is_no_channel")
 decollate_batch, _ = optional_import("monai.data", name="decollate_batch")
 sliding_window_inference, _ = optional_import("monai.inferers", name="sliding_window_inference")
 simple_inference, _ = optional_import("monai.inferers", name="SimpleInferer")
 ensure_tuple, _ = optional_import(MONAI_UTILS, name="ensure_tuple")
 MetaKeys, _ = optional_import(MONAI_UTILS, name="MetaKeys")
 SpaceKeys, _ = optional_import(MONAI_UTILS, name="SpaceKeys")
+TraceKeys, _ = optional_import(MONAI_UTILS, name="TraceKeys")
 Compose_, _ = optional_import("monai.transforms", name="Compose")
 # Dynamic class is not handled so make it Any for now: https://github.com/python/mypy/issues/2477
 Compose: Any = Compose_
+
+cp, has_cp = optional_import("cupy")
 
 from monai.deploy.core import AppContext, Condition, ConditionType, Fragment, Image, OperatorSpec, Resource
 
@@ -362,6 +366,7 @@ class MonaiSegInferenceOperator(InferenceOperator):
                 self._executing = True
         try:
             input_image = op_input.receive(self._input_name_image)
+
             if not input_image:
                 raise ValueError("Input is None.")
             op_output.emit(self.compute_impl(input_image, context), self._output_name_seg)
@@ -592,7 +597,7 @@ class InMemImageReader(ImageReader):
         return meta_dict
 
 
-# Reuse MONAI code for the derived ImageReader
+# Reuse MONAI code for the derived ImageReader as it is not exposed
 def _copy_compatible_dict(from_dict: Dict, to_dict: Dict):
     if not isinstance(to_dict, dict):
         raise ValueError(f"to_dict must be a Dict, got {type(to_dict)}.")
@@ -601,7 +606,9 @@ def _copy_compatible_dict(from_dict: Dict, to_dict: Dict):
             datum = from_dict[key]
             if isinstance(datum, np.ndarray) and np_str_obj_array_pattern.search(datum.dtype.str) is not None:
                 continue
-            to_dict[key] = datum
+            to_dict[key] = (
+                str(TraceKeys.NONE) if datum is None else datum
+            )  # PyTorch's default_collate cannot handle None values directly
     else:
         affine_key, shape_key = MetaKeys.AFFINE, MetaKeys.SPATIAL_SHAPE
         if affine_key in from_dict and not np.allclose(from_dict[affine_key], to_dict[affine_key]):
@@ -616,12 +623,16 @@ def _copy_compatible_dict(from_dict: Dict, to_dict: Dict):
             )
 
 
-def _stack_images(image_list: List, meta_dict: Dict):
+def _stack_images(image_list: list, meta_dict: Dict, to_cupy: bool = False):
     if len(image_list) <= 1:
         return image_list[0]
-    if meta_dict.get(MetaKeys.ORIGINAL_CHANNEL_DIM, None) not in ("no_channel", None):
+    if not is_no_channel(meta_dict.get(MetaKeys.ORIGINAL_CHANNEL_DIM, None)):
         channel_dim = int(meta_dict[MetaKeys.ORIGINAL_CHANNEL_DIM])
+        if to_cupy and has_cp:
+            return cp.concatenate(image_list, axis=channel_dim)
         return np.concatenate(image_list, axis=channel_dim)
     # stack at a new first dim as the channel dim, if `'original_channel_dim'` is unspecified
     meta_dict[MetaKeys.ORIGINAL_CHANNEL_DIM] = 0
+    if to_cupy and has_cp:
+        return cp.stack(image_list, axis=0)
     return np.stack(image_list, axis=0)
