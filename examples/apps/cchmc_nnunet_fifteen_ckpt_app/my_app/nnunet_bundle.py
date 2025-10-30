@@ -104,7 +104,10 @@ def convert_nnunet_to_monai_bundle(nnunet_config: dict, bundle_root_folder: str,
     # This might not be needed, comment it out for now
     # monai_last_checkpoint = {}
     # monai_last_checkpoint["network_weights"] = nnunet_checkpoint_final["network_weights"]
-    # torch.save(monai_last_checkpoint, Path(bundle_root_folder).joinpath("models", nnunet_configuration, f"fold_{fold}", "model.pt"))
+    # torch.save(
+    #     monai_last_checkpoint,
+    #     Path(bundle_root_folder).joinpath("models", nnunet_configuration, f"fold_{fold}", "model.pt")
+    # )
 
     monai_best_checkpoint = {}
     monai_best_checkpoint["network_weights"] = nnunet_checkpoint_best["network_weights"]
@@ -152,7 +155,6 @@ def convert_best_nnunet_to_monai_bundle(
     -------
     None
     """
-    from batchgenerators.utilities.file_and_folder_operations import subfiles
     from nnunetv2.utilities.dataset_name_id_conversion import maybe_convert_to_dataset_name
 
     dataset_name = nnunet_config["dataset_name_or_id"]
@@ -286,7 +288,9 @@ def convert_monai_bundle_to_nnunet(nnunet_config: dict, bundle_root_folder: str,
 
     Path(nnunet_model_folder).joinpath(f"fold_{fold}").mkdir(parents=True, exist_ok=True)
 
-    nnunet_checkpoint: dict = torch.load(f"{bundle_root_folder}/models/{NNUNET_CHECKPOINT_FILENAME}", weights_only=False)
+    nnunet_checkpoint: dict = torch.load(
+        f"{bundle_root_folder}/models/{NNUNET_CHECKPOINT_FILENAME}", weights_only=False
+    )
     latest_checkpoints: list[str] = subfiles(
         Path(bundle_root_folder).joinpath("models", f"fold_{fold}"), prefix="checkpoint_epoch", sort=True
     )
@@ -622,16 +626,12 @@ def get_nnunet_monai_predictors_for_ensemble(
     return tuple(network_list)
 
 
-import os
-from typing import Dict, List, Union
+from typing import Dict, List
 
-import numpy as np
 from nnunetv2.ensembling.ensemble import average_probabilities
-from nnunetv2.utilities.label_handling.label_handling import LabelManager
 from nnunetv2.utilities.plans_handling.plans_handler import PlansManager
 
 from monai.config import KeysCollection
-from monai.data.meta_tensor import MetaTensor
 from monai.transforms import MapTransform
 
 

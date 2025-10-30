@@ -51,6 +51,8 @@ from monai.deploy.operators.monai_seg_inference_operator import InMemImageReader
 # Import MONAI transforms
 from monai.transforms import Compose, KeepLargestConnectedComponentd, Lambdad, LoadImaged, SaveImaged, Transposed
 
+DEFAULT_OUTPUT_FOLDER = Path.cwd() / "output"
+
 
 class NNUnetSegOperator(Operator):
     """
@@ -67,7 +69,7 @@ class NNUnetSegOperator(Operator):
         *args,
         app_context: AppContext,
         model_path: Path,
-        output_folder: Path = Path.cwd() / "output",
+        output_folder: Path = DEFAULT_OUTPUT_FOLDER,
         output_labels: List[int] = None,
         model_list: List[str] = None,
         model_name: str = "best_model.pt",
@@ -105,7 +107,7 @@ class NNUnetSegOperator(Operator):
         self.prediction_keys = [f"pred_{model}" for model in self.model_list]
 
         # Output configuration
-        self.output_folder = output_folder
+        self.output_folder = output_folder if output_folder is not None else DEFAULT_OUTPUT_FOLDER
         self.output_folder.mkdir(parents=True, exist_ok=True)
         self.output_labels = output_labels if output_labels is not None else [1]
 
