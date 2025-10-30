@@ -225,8 +225,8 @@ myst_heading_anchors = 5
 # (reference: https://myst-nb.readthedocs.io/en/latest/)
 # Prevent creating jupyter_execute folder in dist
 #  https://myst-nb.readthedocs.io/en/latest/use/execute.html#executing-in-temporary-folders  # noqa
-execution_in_temp = True
-jupyter_execute_notebooks = "off"
+nb_execution_in_temp = True
+nb_execution_mode = "off"
 
 
 # -- Options for sphinxcontrib.bibtex -------------------------------------------------
