@@ -1,6 +1,6 @@
 Sphinx>=4.5.0
 sphinx-autobuild
-myst-nb>=0.17.2  # this version is fine in python 3.9 and avoids pulling in multiple nbformat packages
+myst-nb>=0.17.2
 myst-parser>=0.18.0
 lxml_html_clean  # needed by myst-nb
 linkify-it-py>=1.0.1  # https://myst-parser.readthedocs.io/en/latest/syntax/optional.html?highlight=linkify#linkify
