@@ -13,7 +13,7 @@ from __future__ import annotations
 import os
 import shutil
 from pathlib import Path
-from typing import Any, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 import torch
@@ -24,6 +24,7 @@ from monai.utils import optional_import
 
 join, _ = optional_import("batchgenerators.utilities.file_and_folder_operations", name="join")
 load_json, _ = optional_import("batchgenerators.utilities.file_and_folder_operations", name="load_json")
+nnunet_predictor_cls, _ = optional_import("nnunetv2.inference.predict_from_raw_data", name="nnUNetPredictor")
 
 __all__ = [
     "get_nnunet_trainer",
@@ -43,7 +44,7 @@ DATASET_JSON_FILENAME = "dataset.json"
 
 # Convert a single nnUNet model checkpoint to MONAI bundle format
 # The function saves the converted model checkpoint and configuration files in the specified bundle root folder.
-def convert_nnunet_to_monai_bundle(nnunet_config: dict, bundle_root_folder: str, fold: int = 0) -> None:
+def convert_nnunet_to_monai_bundle(nnunet_config: Dict[str, Any], bundle_root_folder: str, fold: int = 0) -> None:
     """
     Convert nnUNet model checkpoints and configuration to MONAI bundle format.
 
@@ -133,7 +134,7 @@ def convert_nnunet_to_monai_bundle(nnunet_config: dict, bundle_root_folder: str,
 # The function iterates through all folds and configurations, converting each model to the specified bundle format.
 # The number of folds, configurations, plans and dataset.json will be parsed from the nnunet folder
 def convert_best_nnunet_to_monai_bundle(
-    nnunet_config: dict, bundle_root_folder: str, inference_info_file: str = "inference_information.json"
+    nnunet_config: Dict[str, Any], bundle_root_folder: str, inference_info_file: str = "inference_information.json"
 ) -> None:
     """
     Convert all nnUNet models (configs and folds) to MONAI bundle format.
@@ -527,9 +528,9 @@ def get_nnunet_trainer(
 def get_nnunet_monai_predictor(
     model_folder: Union[str, Path],
     model_name: str = "model.pt",
-    dataset_json: dict = None,
-    plans: dict = None,
-    nnunet_config: dict = None,
+    dataset_json: Optional[Dict[Any, Any]] = None,
+    plans: Optional[Dict[Any, Any]] = None,
+    nnunet_config: Optional[Dict[Any, Any]] = None,
     save_probabilities: bool = False,
     save_files: bool = False,
     use_folds: Optional[Union[int, str]] = None,
@@ -606,7 +607,7 @@ def get_nnunet_monai_predictor(
 
 
 def get_nnunet_monai_predictors_for_ensemble(
-    model_list: list,
+    model_list: List[Any],
     model_path: Union[str, Path],
     model_name: str = "model.pt",
     use_folds: Optional[Union[int, str]] = None,
@@ -625,8 +626,6 @@ def get_nnunet_monai_predictors_for_ensemble(
         )
     return tuple(network_list)
 
-
-from typing import Dict, List
 
 from nnunetv2.ensembling.ensemble import average_probabilities
 from nnunetv2.utilities.plans_handling.plans_handler import PlansManager
@@ -658,13 +657,14 @@ class EnsembleProbabilitiesToSegmentation(MapTransform):
         self.label_manager = self.plans_manager.get_label_manager(self.dataset_json)
         self.output_key = output_key
 
-    def _load_json(self, path: str) -> Dict:
+    def _load_json(self, path: str) -> Dict[Any, Any]:
         import json
 
         with open(path, "r") as f:
-            return json.load(f)
+            result = json.load(f)
+            return dict(result)  # Ensure return type matches annotation
 
-    def __call__(self, data: Dict) -> Dict:
+    def __call__(self, data: Dict[Any, Any]) -> Dict[Any, Any]:
         d = dict(data)
         all_files = []
         for key in self.keys:
@@ -733,16 +733,16 @@ class ModelnnUNetWrapper(torch.nn.Module):
 
     def __init__(
         self,
-        predictor: object,
+        predictor: Any,  # nnUNetPredictor type, but using Any to avoid import issues
         model_folder: Union[str, Path],
-        checkpoint_name: str = None,
-        dataset_json: dict = None,
-        plans: dict = None,
-        nnunet_config: dict = None,
+        checkpoint_name: Optional[str] = None,
+        dataset_json: Optional[Dict[Any, Any]] = None,
+        plans: Optional[Dict[Any, Any]] = None,
+        nnunet_config: Optional[Dict[Any, Any]] = None,
         save_probabilities: bool = False,
         save_files: bool = False,
         tmp_dir: str = "tmp",
-        use_folds: Union[int, str, Tuple[Union[int, str], ...], List[Union[int, str]]] = None,
+        use_folds: Optional[Union[int, str, Tuple[Union[int, str], ...], List[Union[int, str]]]] = None,
     ):
 
         super().__init__()
@@ -801,6 +801,10 @@ class ModelnnUNetWrapper(torch.nn.Module):
 
         if use_folds is None:
             use_folds = self.predictor.auto_detect_available_folds(model_training_output_dir, checkpoint_name)
+
+        # Ensure use_folds is always iterable
+        if not isinstance(use_folds, (list, tuple)):
+            use_folds = [use_folds]
 
         # Load model parameters from each fold
         for f in use_folds:
@@ -928,14 +932,14 @@ class ModelnnUNetWrapper(torch.nn.Module):
                     raise ValueError(f"Unexpected affine shape: {x.meta['affine'].shape}")
 
                 # Calculate spacing, origin and direction
-                spacing = tuple(np.linalg.norm(affine[:3, i]) for i in range(3))
+                spacing_tuple = tuple(float(np.linalg.norm(affine[:3, i])) for i in range(3))
                 origin = tuple(float(v) for v in affine[:3, 3])
-                direction_matrix = affine[:3, :3] / spacing
+                direction_matrix = affine[:3, :3] / np.array(spacing_tuple)
                 direction = tuple(direction_matrix.flatten().round(6))
 
                 # Add to properties dict for SimpleITK
                 properties_or_list_of_properties["sitk_stuff"] = {
-                    "spacing": spacing,
+                    "spacing": spacing_tuple,
                     "origin": origin,
                     "direction": direction,
                 }
@@ -980,6 +984,8 @@ class ModelnnUNetWrapper(torch.nn.Module):
             return MetaTensor(out_tensor, meta=x.meta)
         else:
             # Return a placeholder tensor with file path in metadata
+            if outfile is None:
+                raise ValueError("Output file path is None when save_files is True")
             saved_path = outfile + ".npz"
             if not os.path.exists(saved_path):
                 raise FileNotFoundError(f"Expected saved file not found: {saved_path}")
