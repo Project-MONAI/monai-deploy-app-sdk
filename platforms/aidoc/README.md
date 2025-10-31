@@ -72,7 +72,7 @@ sequenceDiagram
         REST Service-->>-Client: HTTP 409 Conflict
 
         Client->>+REST Service: GET /status
-        REST Service-->>-Client: HTTP 200 OK ("status": "BUSY")
+        REST Service-->>-Client: HTTP 200 OK ("status": "PROCESSING")
     end
 
     AppThread->>+AISpleenSegApp: Create instance(status_callback)
@@ -174,7 +174,7 @@ The script can be run multiple times or modified to loop with different output f
 -   **Description**: Checks the current status of the processor.
 -   **Success Response**:
     -   **Code**: 200 OK
-    -   **Content**: `{ "status": "IDLE" }` or `{ "status": "BUSY" }`
+    -   **Content**: `{ "status": "IDLE" }` or `{ "status": "PROCESSING" }`
 
 ### Process Data
 

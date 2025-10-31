@@ -16,11 +16,19 @@ import logging
 import os
 import sys
 import threading
+from enum import Enum
 from http import HTTPStatus
 
 import requests
 from flask import Flask, jsonify, request
 from flask_wtf.csrf import CSRFProtect
+
+# Processing status enum per Aidoc API specification.
+class ProcessingStatus(str, Enum):
+    INITIALIZING = "INITIALIZING"
+    IDLE = "IDLE"
+    PROCESSING = "PROCESSING"
+    ERROR = "ERROR"
 
 # The MONAI Deploy application to be wrapped.
 # This can be changed to any other application in the repository.
@@ -40,7 +48,7 @@ csrf = CSRFProtect(app)
 logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 
 # Global state to track processing status. A lock is used for thread safety.
-PROCESSING_STATUS = "IDLE"
+PROCESSING_STATUS = ProcessingStatus.IDLE
 PROCESSING_LOCK = threading.Lock()
 
 
@@ -87,7 +95,7 @@ def run_processing(input_folder, output_folder, callback_url):
 
     try:
         logging.info("Starting processing in a background thread.")
-        set_processing_status("BUSY")
+        set_processing_status(ProcessingStatus.PROCESSING)
 
         # Set environment variables for the MONAI Deploy application.
         # The application context will pick these up.
@@ -118,7 +126,7 @@ def run_processing(input_folder, output_folder, callback_url):
         app_status_callback(json.dumps(callback_msg))
 
     finally:
-        set_processing_status("IDLE")
+        set_processing_status(ProcessingStatus.IDLE)
         logging.info("Processor is now IDLE.")
 
 
@@ -132,7 +140,7 @@ def status():
 @csrf.exempt
 def process():
     """Endpoint to start a new processing job."""
-    if get_processing_status() == "BUSY":
+    if get_processing_status() == ProcessingStatus.PROCESSING:
         return jsonify({"error": "Processor is busy."}), HTTPStatus.CONFLICT
 
     data = request.get_json()
