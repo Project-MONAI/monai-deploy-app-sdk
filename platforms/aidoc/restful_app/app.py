@@ -23,12 +23,14 @@ import requests
 from flask import Flask, jsonify, request
 from flask_wtf.csrf import CSRFProtect
 
+
 # Processing status enum per Aidoc API specification.
 class ProcessingStatus(str, Enum):
     INITIALIZING = "INITIALIZING"
     IDLE = "IDLE"
     PROCESSING = "PROCESSING"
     ERROR = "ERROR"
+
 
 # The MONAI Deploy application to be wrapped.
 # This can be changed to any other application in the repository.
