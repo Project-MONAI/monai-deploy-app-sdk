@@ -1,20 +1,20 @@
-Sphinx>=4.5.0
+Sphinx>=5.3.0,<8.0.0
 sphinx-autobuild
 myst-nb>=0.17.2
 myst-parser>=0.18.0
-lxml_html_clean  # needed by myst-nb
-linkify-it-py>=1.0.1  # https://myst-parser.readthedocs.io/en/latest/syntax/optional.html?highlight=linkify#linkify
+lxml_html_clean
+linkify-it-py>=1.0.1
 sphinx-togglebutton
 sphinx-copybutton
-sphinxcontrib-bibtex>=2.4.1  # Version 2.4.1+ supports Python 3.10
-sphinxcontrib-spelling  # https://sphinxcontrib-spelling.readthedocs.io/en/latest/index.html
-sphinx-thebe
+sphinxcontrib-bibtex>=2.4.1
+sphinxcontrib-spelling
+sphinx-thebe>=0.3.0
 sphinx-design
 ablog
 pydata_sphinx_theme>=0.13.0
 sphinxemoji
 torch>=1.12.0
-sphinx-autodoc-typehints
+sphinx-autodoc-typehints>=1.19.0
 sphinxcontrib-applehelp
 sphinxcontrib-devhelp
 sphinxcontrib-htmlhelp
