@@ -37,7 +37,7 @@
 # from holoscan.operators import *
 from holoscan.operators import PingRxOp, PingTxOp, VideoStreamRecorderOp, VideoStreamReplayerOp
 
-from monai.deploy.operators import nvimgcodec_handler
+from monai.deploy.operators import decoder_nvimgcodec
 
 from .clara_viz_operator import ClaraVizOperator
 from .dicom_data_loader_operator import DICOMDataLoaderOperator
