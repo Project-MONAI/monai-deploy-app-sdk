@@ -63,7 +63,7 @@ class DICOMSeriesToVolumeOperator(Operator):
         self.output_name_image = "image"
         self.affine_lps_to_ras = affine_lps_to_ras
         if not decoder_nvimgcodec.register_as_decoder_plugin():
-            logging.warning("The nvimgcodec decoder plugin did not registered successfully.")
+            logging.warning("The nvimgcodec decoder plugin did not register successfully.")
 
         # Need to call the base class constructor last
         super().__init__(fragment, *args, **kwargs)
