@@ -93,7 +93,7 @@ except ImportError:
 NVIMGCODEC_MODULE_NAME = "nvidia.nvimgcodec"  # from nvidia-nvimgcodec-cu12 or other variants
 NVIMGCODEC_MIN_VERSION = "0.6"
 NVIMGCODEC_MIN_VERSION_TUPLE = tuple(int(x) for x in NVIMGCODEC_MIN_VERSION.split("."))
-NVIMGCODEC_PLUGIN_LABEL = "0.6+nvimgcodec"  # helps sorting to be the first in the plugin list
+NVIMGCODEC_PLUGIN_LABEL = "0.6+nvimgcodec"  # to be sorted to first in ascending order of plugins
 NVIMGCODEC_PLUGIN_FUNC_NAME = "_decode_frame"
 
 # Supported decoder classes of the corresponding transfer syntaxes by this decoder plugin.
@@ -240,7 +240,7 @@ def register_as_decoder_plugin(module_path: str | None = None) -> bool:
         decoder_class._available = dict(sorted(decoder_class._available.items(), key=lambda item: item[0]))
         _logger.info(
             f"Registered decoder plugin {NVIMGCODEC_PLUGIN_LABEL} for transfer syntax {decoder_class.UID}: "
-            f"{decoder_class.available_plugins}"
+            f"{decoder_class._available}"
         )
     _logger.info(f"Registered nvimgcodec decoder plugin with {len(SUPPORTED_DECODER_CLASSES)} decoder classes.")
 
