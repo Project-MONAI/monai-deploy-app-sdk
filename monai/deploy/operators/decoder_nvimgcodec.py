@@ -171,7 +171,7 @@ def _decode_frame(src: bytes, runner: DecodeRunner) -> bytearray | bytes:
     # Double check if the transfer syntax is supported although the runner should be correct.
     tsyntax = runner.transfer_syntax
     if not is_available(tsyntax):
-        raise ImportError(f"Transfer syntax {tsyntax} not supported; see details in the debug log.")
+        raise ValueError(f"Transfer syntax {tsyntax} not supported; see details in the debug log.")
 
     nvimgcodec_decoder = nvimgcodec.Decoder()
     decode_params = nvimgcodec.DecodeParams(allow_any_depth=True, color_spec=nvimgcodec.ColorSpec.UNCHANGED)
