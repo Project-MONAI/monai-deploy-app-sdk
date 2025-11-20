@@ -85,7 +85,20 @@ except ImportError:
 try:
     from nvidia import nvimgcodec
 
-    nvimgcodec_version = tuple(int(x) for x in nvimgcodec.__version__.split("."))
+    # Parse version string, extracting only numeric components to handle suffixes like "0.6.0rc1"
+    try:
+        import re
+        version_parts = []
+        for part in nvimgcodec.__version__.split("."):
+            # Extract leading digits from each version component
+            match = re.match(r'^(\d+)', part)
+            if match:
+                version_parts.append(int(match.group(1)))
+            else:
+                break  # Stop at first non-numeric component
+        nvimgcodec_version = tuple(version_parts) if version_parts else (0,)
+    except (AttributeError, ValueError):
+        nvimgcodec_version = (0,)
 except ImportError:
     nvimgcodec = None
 
