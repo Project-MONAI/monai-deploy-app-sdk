@@ -56,7 +56,7 @@ from .publisher_operator import PublisherOperator
 from .stl_conversion_operator import STLConversionOperator, STLConverter
 
 __all__ = [
-    "nvimgcodec_handler",
+    "decoder_nvimgcodec",
     "ClaraVizOperator",
     "DICOMDataLoaderOperator",
     "DICOMEncapsulatedPDFWriterOperator",
