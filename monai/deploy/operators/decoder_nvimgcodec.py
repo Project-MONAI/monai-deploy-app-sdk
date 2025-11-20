@@ -230,8 +230,8 @@ def register_as_decoder_plugin(module_path: str | None = None) -> bool:
 
     for decoder_class in SUPPORTED_DECODER_CLASSES:
         _logger.info(
-            f"Adding plugin {NVIMGCODEC_PLUGIN_LABEL} with module path {module_path} and func name {func_name}"
-            f" for transfer syntax {decoder_class.UID}"
+            f"Adding plugin {NVIMGCODEC_PLUGIN_LABEL} with module path {module_path} and func name {func_name} "
+            f"for transfer syntax {decoder_class.UID}"
         )
         decoder_class.add_plugin(NVIMGCODEC_PLUGIN_LABEL, (module_path, func_name))
 
@@ -239,8 +239,8 @@ def register_as_decoder_plugin(module_path: str | None = None) -> bool:
         # the decoder class search for the plugin to be used.
         decoder_class._available = dict(sorted(decoder_class._available.items(), key=lambda item: item[0]))
         _logger.info(
-            f"Registered decoder plugin {NVIMGCODEC_PLUGIN_LABEL} for transfer syntax {decoder_class.UID}:"
-            f" {decoder_class.available_plugins}"
+            f"Registered decoder plugin {NVIMGCODEC_PLUGIN_LABEL} for transfer syntax {decoder_class.UID}: "
+            f"{decoder_class.available_plugins}"
         )
     _logger.info(f"Registered nvimgcodec decoder plugin with {len(SUPPORTED_DECODER_CLASSES)} decoder classes.")
 
