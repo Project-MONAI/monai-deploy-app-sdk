@@ -187,7 +187,7 @@ def register_as_decoder_plugin(module_path: str | None = None) -> bool:
     """Register as a preferred decoder plugin with supported decoder classes.
 
     The Decoder class does not support sorting the plugins and uses the order in which plugins were added.
-    Further more, the properties of ``available_plugins`` returns sorted labels only but not the Callables or
+    Furthermore, the properties of ``available_plugins`` returns sorted labels only but not the Callables or
     their module and function names, and the function ``remove_plugin`` only returns a boolean.
     So there is no way to remove the available plugins before adding them back after this plugin is added.
 
