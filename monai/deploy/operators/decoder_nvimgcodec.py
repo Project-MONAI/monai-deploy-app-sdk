@@ -90,7 +90,7 @@ except ImportError:
     nvimgcodec = None
 
 # nvimgcodec pypi package name, minimum version required and the label for this decoder plugin.
-NVIMGCODEC_MODULE_NAME = "nvidia.nvimgcodec"  # from nvidia-nvimgcodec-cu12 or or other variant
+NVIMGCODEC_MODULE_NAME = "nvidia.nvimgcodec"  # from nvidia-nvimgcodec-cu12 or other variants
 NVIMGCODEC_MIN_VERSION = "0.6"
 NVIMGCODEC_MIN_VERSION_TUPLE = tuple(int(x) for x in NVIMGCODEC_MIN_VERSION.split("."))
 NVIMGCODEC_PLUGIN_LABEL = "0.6+nvimgcodec"  # helps sorting to be the first in the plugin list
@@ -168,7 +168,7 @@ def _decode_frame(src: bytes, runner: DecodeRunner) -> bytearray | bytes:
     # In this case, pydicom.encaps.generate_fragmented_frames yields a tuple of bytes for each frame and
     # each tuple element is passed in as the src argument.
 
-    # Doublec check if the transfer syntax is supported although the runner should be correct.
+    # Double check if the transfer syntax is supported although the runner should be correct.
     tsyntax = runner.transfer_syntax
     if not is_available(tsyntax):
         raise ImportError(f"Transfer syntax {tsyntax} not supported; see details in the debug log.")
@@ -215,7 +215,7 @@ def register_as_decoder_plugin(module_path: str | None = None) -> bool:
         module_path = _find_module_path(__name__)
     else:
         # Double check if the module path exists and if it is the same as the one for the callable origin.
-        module_path_found, func_name = _get_callable_origin(_decode_frame)  # get the func's module path.
+        module_path_found, func_name_found = _get_callable_origin(_decode_frame)  # get the func's module path.
         if module_path_found:
             if module_path.casefold() != module_path_found.casefold():
                 _logger.info(f"Module path {module_path} does not match {module_path_found} for decoder plugin.")
@@ -223,15 +223,15 @@ def register_as_decoder_plugin(module_path: str | None = None) -> bool:
             _logger.info(f"Module path {module_path} not found for decoder plugin.")
             return False
 
-        if func_name != NVIMGCODEC_PLUGIN_FUNC_NAME:
+        if func_name_found != NVIMGCODEC_PLUGIN_FUNC_NAME:
             _logger.warning(
-                f"Function name {func_name} does not match {NVIMGCODEC_PLUGIN_FUNC_NAME} for decoder plugin."
+                f"Function name {func_name_found} does not match {NVIMGCODEC_PLUGIN_FUNC_NAME} for decoder plugin."
             )
 
     for decoder_class in SUPPORTED_DECODER_CLASSES:
         _logger.info(
             f"Adding plugin {NVIMGCODEC_PLUGIN_LABEL} with module path {module_path} and func name {func_name}"
-            f"for transfer syntax {decoder_class.UID}"
+            f" for transfer syntax {decoder_class.UID}"
         )
         decoder_class.add_plugin(NVIMGCODEC_PLUGIN_LABEL, (module_path, func_name))
 
@@ -240,7 +240,7 @@ def register_as_decoder_plugin(module_path: str | None = None) -> bool:
         decoder_class._available = dict(sorted(decoder_class._available.items(), key=lambda item: item[0]))
         _logger.info(
             f"Registered decoder plugin {NVIMGCODEC_PLUGIN_LABEL} for transfer syntax {decoder_class.UID}:"
-            f"{decoder_class.available_plugins}"
+            f" {decoder_class.available_plugins}"
         )
     _logger.info(f"Registered nvimgcodec decoder plugin with {len(SUPPORTED_DECODER_CLASSES)} decoder classes.")
 
