@@ -37,8 +37,7 @@
 # from holoscan.operators import *
 from holoscan.operators import PingRxOp, PingTxOp, VideoStreamRecorderOp, VideoStreamReplayerOp
 
-from monai.deploy.operators import decoder_nvimgcodec
-
+from . import decoder_nvimgcodec
 from .clara_viz_operator import ClaraVizOperator
 from .dicom_data_loader_operator import DICOMDataLoaderOperator
 from .dicom_encapsulated_pdf_writer_operator import DICOMEncapsulatedPDFWriterOperator
@@ -57,6 +56,7 @@ from .stl_conversion_operator import STLConversionOperator, STLConverter
 
 __all__ = [
     "decoder_nvimgcodec",
+    "BundleConfigNames",
     "ClaraVizOperator",
     "DICOMDataLoaderOperator",
     "DICOMEncapsulatedPDFWriterOperator",
@@ -67,11 +67,15 @@ __all__ = [
     "EquipmentInfo",
     "InferenceOperator",
     "IOMapping",
+    "ModelInfo",
     "MonaiBundleInferenceOperator",
     "MonaiSegInferenceOperator",
     "NiftiDataLoader",
     "PNGConverterOperator",
     "PublisherOperator",
+    "random_with_n_digits",
+    "save_dcm_file",
+    "write_common_modules",
     "STLConversionOperator",
     "STLConverter",
 ]

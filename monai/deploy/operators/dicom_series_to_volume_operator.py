@@ -24,7 +24,8 @@ apply_rescale, _ = optional_import("pydicom.pixels", name="apply_rescale")
 from monai.deploy.core import ConditionType, Fragment, Operator, OperatorSpec
 from monai.deploy.core.domain.dicom_series_selection import StudySelectedSeries
 from monai.deploy.core.domain.image import Image
-from monai.deploy.operators import decoder_nvimgcodec
+
+from . import decoder_nvimgcodec
 
 
 class DICOMSeriesToVolumeOperator(Operator):
