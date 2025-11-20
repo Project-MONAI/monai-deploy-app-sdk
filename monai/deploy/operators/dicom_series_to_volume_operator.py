@@ -24,6 +24,7 @@ apply_rescale, _ = optional_import("pydicom.pixels", name="apply_rescale")
 from monai.deploy.core import ConditionType, Fragment, Operator, OperatorSpec
 from monai.deploy.core.domain.dicom_series_selection import StudySelectedSeries
 from monai.deploy.core.domain.image import Image
+from monai.deploy.operators import nvimgcodec_handler
 
 
 class DICOMSeriesToVolumeOperator(Operator):
@@ -60,6 +61,9 @@ class DICOMSeriesToVolumeOperator(Operator):
         self.input_name_series = "study_selected_series_list"
         self.output_name_image = "image"
         self.affine_lps_to_ras = affine_lps_to_ras
+        if not nvimgcodec_handler.register_as_decoder_plugin():
+            logging.warning("Failed to register nvimgcodec decoder plugin.")
+
         # Need to call the base class constructor last
         super().__init__(fragment, *args, **kwargs)
 
