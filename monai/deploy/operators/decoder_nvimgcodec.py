@@ -83,7 +83,7 @@ except ImportError:
     cp = None
 
 try:
-    from nvidia import nvimgcodec as nvimgcodec
+    from nvidia import nvimgcodec
 
     nvimgcodec_version = tuple(int(x) for x in nvimgcodec.__version__.split("."))
 except ImportError:
@@ -194,7 +194,7 @@ def register_as_decoder_plugin(module_path: str | None = None) -> bool:
     For now, have to access the ``private`` property ``_available`` of the Decoder class to sort the available
     plugins and make sure this custom plugin is the first in the sorted list by its label. It is known that the
     first plugin in the default list is always ``gdcm`` for the supported decoder classes, so label name needs
-    to be lexicographically greater than ``gdcm`` to be the first in the sorted list.
+    to be lexicographically less than ``gdcm`` to be the first in the sorted list.
 
     Args:
         module_path (str | None): The importable module path for this plugin.
