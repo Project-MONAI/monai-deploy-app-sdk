@@ -9,52 +9,53 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# This decoder plugin for nvimgcodec <https://github.com/NVIDIA/nvImageCodec> decompresses
-# encoded Pixel Data for the following transfer syntaxes:
-#     JPEGBaseline8Bit, # 1.2.840.10008.1.2.4.50, JPEG Baseline (Process 1)
-#     JPEGExtended12Bit, # 1.2.840.10008.1.2.4.51, JPEG Extended (Process 2 & 4)
-#     JPEGLossless, # 1.2.840.10008.1.2.4.57, JPEG Lossless, Non-Hierarchical (Process 14)
-#     JPEGLosslessSV1, # 1.2.840.10008.1.2.4.70, JPEG Lossless, Non-Hierarchical, First-Order Prediction
-#     JPEG2000Lossless, # 1.2.840.10008.1.2.4.90, JPEG 2000 Image Compression (Lossless Only)
-#     JPEG2000, # 1.2.840.10008.1.2.4.91, JPEG 2000 Image Compression
-#     HTJ2KLossless, # 1.2.840.10008.1.2.4.201, HTJ2K Image Compression (Lossless Only)
-#     HTJ2KLosslessRPCL, # 1.2.840.10008.1.2.4.202, HTJ2K with RPCL Options Image Compression (Lossless Only)
-#     HTJ2K, # 1.2.840.10008.1.2.4.203, HTJ2K Image Compression
-#
-# There are two ways to add a custom decoding plugin to pydicom:
-# 1. Using the pixel_data_handlers backend, though pydicom.pixel_data_handlers module is deprecated
-#    and will be removed in v4.0.
-# 2. Using the pixels backend by adding a decoder plugin to existing decoders with the add_plugin method,
-#    see https://pydicom.github.io/pydicom/stable/guides/decoding/decoder_plugins.html
-#
-# It is noted that pydicom.dataset.Dataset.pixel_array changed in version 3.0 where the backend used for
-# pixel data decoding changed from the pixel_data_handlers module to the pixels module.
-#
-# So, this implementation uses the pixels backend.
-#
-# Plugin Requirements:
-# A custom decoding plugin must implement three objects within the same module:
-#  - A function named is_available with the following signature:
-#     def is_available(uid: pydicom.uid.UID) -> bool:
-#       Where uid is the Transfer Syntax UID for the corresponding decoder as a UID
-#  - A dict named DECODER_DEPENDENCIES with the type dict[pydicom.uid.UID, tuple[str, ...], such as:
-#     DECODER_DEPENDENCIES = {JPEG2000Lossless: ('numpy', 'pillow', 'imagecodecs'),}
-#       This will be used to provide the user with a list of dependencies required by the plugin.
-#  - A function that performs the decoding with the following function signature as in Github repo:
-#     def _decode_frame(src: bytes, runner: DecodeRunner) -> bytearray | bytes
-#       src is a single frame’s worth of raw compressed data to be decoded, and
-#       runner is a DecodeRunner instance that manages the decoding process.
-#
-# Adding plugins to a Decoder:
-# Additional plugins can be added to an existing decoder with the add_plugin() method
-#  ```python
-#   from pydicom.pixels.decoders import RLELosslessDecoder
-#   RLELosslessDecoder.add_plugin(
-#     'my_decoder',  # the plugin's label
-#     ('my_package.decoders', 'my_decoder_func')  # the import paths
-#   )
-#  ```
+"""
+This decoder plugin for nvimgcodec <https://github.com/NVIDIA/nvImageCodec> decompresses
+encoded Pixel Data for the following transfer syntaxes:
+    JPEGBaseline8Bit, 1.2.840.10008.1.2.4.50, JPEG Baseline (Process 1)
+    JPEGExtended12Bit, 1.2.840.10008.1.2.4.51, JPEG Extended (Process 2 & 4)
+    JPEGLossless, 1.2.840.10008.1.2.4.57, JPEG Lossless, Non-Hierarchical (Process 14)
+    JPEGLosslessSV1, 1.2.840.10008.1.2.4.70, JPEG Lossless, Non-Hierarchical, First-Order Prediction
+    JPEG2000Lossless, 1.2.840.10008.1.2.4.90, JPEG 2000 Image Compression (Lossless Only)
+    JPEG2000, 1.2.840.10008.1.2.4.91, JPEG 2000 Image Compression
+    HTJ2KLossless, 1.2.840.10008.1.2.4.201, HTJ2K Image Compression (Lossless Only)
+    HTJ2KLosslessRPCL, 1.2.840.10008.1.2.4.202, HTJ2K with RPCL Options Image Compression (Lossless Only)
+    HTJ2K, 1.2.840.10008.1.2.4.203, HTJ2K Image Compression
 
+There are two ways to add a custom decoding plugin to pydicom:
+1. Using the pixel_data_handlers backend, though pydicom.pixel_data_handlers module is deprecated
+   and will be removed in v4.0.
+2. Using the pixels backend by adding a decoder plugin to existing decoders with the add_plugin method,
+   see https://pydicom.github.io/pydicom/stable/guides/decoding/decoder_plugins.html
+
+It is noted that pydicom.dataset.Dataset.pixel_array changed in version 3.0 where the backend used for
+pixel data decoding changed from the pixel_data_handlers module to the pixels module.
+
+So, this implementation uses the pixels backend.
+
+Plugin Requirements:
+A custom decoding plugin must implement three objects within the same module:
+ - A function named is_available with the following signature:
+    def is_available(uid: pydicom.uid.UID) -> bool:
+      Where uid is the Transfer Syntax UID for the corresponding decoder as a UID
+ - A dict named DECODER_DEPENDENCIES with the type dict[pydicom.uid.UID, tuple[str, ...], such as:
+    DECODER_DEPENDENCIES = {JPEG2000Lossless: ('numpy', 'pillow', 'imagecodecs'),}
+      This will be used to provide the user with a list of dependencies required by the plugin.
+ - A function that performs the decoding with the following function signature as in Github repo:
+    def _decode_frame(src: bytes, runner: DecodeRunner) -> bytearray | bytes
+      src is a single frame’s worth of raw compressed data to be decoded, and
+      runner is a DecodeRunner instance that manages the decoding process.
+
+Adding plugins to a Decoder:
+Additional plugins can be added to an existing decoder with the add_plugin() method
+ ```python
+  from pydicom.pixels.decoders import RLELosslessDecoder
+  RLELosslessDecoder.add_plugin(
+    'my_decoder',  the plugin's label
+    ('my_package.decoders', 'my_decoder_func')  the import paths
+  )
+ ```
+"""
 
 import inspect
 import logging
@@ -88,10 +89,11 @@ try:
     # Parse version string, extracting only numeric components to handle suffixes like "0.6.0rc1"
     try:
         import re
+
         version_parts = []
         for part in nvimgcodec.__version__.split("."):
             # Extract leading digits from each version component
-            match = re.match(r'^(\d+)', part)
+            match = re.match(r"^(\d+)", part)
             if match:
                 version_parts.append(int(match.group(1)))
             else:
@@ -107,7 +109,6 @@ NVIMGCODEC_MODULE_NAME = "nvidia.nvimgcodec"  # from nvidia-nvimgcodec-cu12 or o
 NVIMGCODEC_MIN_VERSION = "0.6"
 NVIMGCODEC_MIN_VERSION_TUPLE = tuple(int(x) for x in NVIMGCODEC_MIN_VERSION.split("."))
 NVIMGCODEC_PLUGIN_LABEL = "0.6+nvimgcodec"  # to be sorted to first in ascending order of plugins
-NVIMGCODEC_PLUGIN_FUNC_NAME = "_decode_frame"
 
 # Supported decoder classes of the corresponding transfer syntaxes by this decoder plugin.
 SUPPORTED_DECODER_CLASSES = [
@@ -193,7 +194,20 @@ def _decode_frame(src: bytes, runner: DecodeRunner) -> bytearray | bytes:
     return bytearray(decoded_data.cpu())  # HWC layout, interleaved format, and contiguous array in C-style
 
 
-# End of required function for decoder plugin
+def _is_nvimgcodec_available() -> bool:
+    """Return ``True`` if nvimgcodec is available, ``False`` otherwise."""
+
+    if not nvimgcodec or not _passes_version_check(NVIMGCODEC_MODULE_NAME, NVIMGCODEC_MIN_VERSION_TUPLE) or not cp:
+        _logger.debug(f"nvimgcodec (version >= {NVIMGCODEC_MIN_VERSION}) or CuPy missing.")
+        return False
+    if not cp.cuda.is_available():
+        _logger.debug("CUDA device not found.")
+        return False
+
+    return True
+
+
+# Helper functions for an application to register this decoder plugin with Pydicom at application startup.
 
 
 def register_as_decoder_plugin(module_path: str | None = None) -> bool:
@@ -219,10 +233,14 @@ def register_as_decoder_plugin(module_path: str | None = None) -> bool:
     """
 
     if not _is_nvimgcodec_available():
-        _logger.info(f"Module {NVIMGCODEC_MODULE_NAME} is not available.")
+        _logger.warning(f"Module {NVIMGCODEC_MODULE_NAME} is not available.")
         return False
 
-    func_name = NVIMGCODEC_PLUGIN_FUNC_NAME
+    try:
+        func_name = getattr(_decode_frame, "__name__", None)
+    except NameError:
+        _logger.error("Decoder function `_decode_frame` not found.")
+        return False
 
     if module_path is None:
         module_path = _find_module_path(__name__)
@@ -231,44 +249,66 @@ def register_as_decoder_plugin(module_path: str | None = None) -> bool:
         module_path_found, func_name_found = _get_callable_origin(_decode_frame)  # get the func's module path.
         if module_path_found:
             if module_path.casefold() != module_path_found.casefold():
-                _logger.info(f"Module path {module_path} does not match {module_path_found} for decoder plugin.")
+                _logger.warning(f"Module path {module_path} does not match {module_path_found} for decoder plugin.")
         else:
-            _logger.info(f"Module path {module_path} not found for decoder plugin.")
+            _logger.error(f"Module path {module_path} not found for decoder plugin.")
             return False
 
-        if func_name_found != NVIMGCODEC_PLUGIN_FUNC_NAME:
+        if func_name != func_name_found:
             _logger.warning(
-                f"Function name {func_name_found} does not match {NVIMGCODEC_PLUGIN_FUNC_NAME} for decoder plugin."
+                f"Function {func_name_found} in {module_path_found} instead of {func_name} used for decoder plugin."
             )
 
     for decoder_class in SUPPORTED_DECODER_CLASSES:
-        _logger.info(
-            f"Adding plugin {NVIMGCODEC_PLUGIN_LABEL} with module path {module_path} and func name {func_name} "
-            f"for transfer syntax {decoder_class.UID}"
+        _logger.debug(
+            f"Adding plugin for transfer syntax {decoder_class.UID}: "
+            f"{NVIMGCODEC_PLUGIN_LABEL} with {func_name} in module path {module_path}."
         )
-        decoder_class.add_plugin(NVIMGCODEC_PLUGIN_LABEL, (module_path, func_name))
+        decoder_class.add_plugin(NVIMGCODEC_PLUGIN_LABEL, (module_path, str(func_name)))
 
         # Need to sort the plugins to make sure the custom plugin is the first in items() of
         # the decoder class search for the plugin to be used.
         decoder_class._available = dict(sorted(decoder_class._available.items(), key=lambda item: item[0]))
-        _logger.info(
-            f"Registered decoder plugin {NVIMGCODEC_PLUGIN_LABEL} for transfer syntax {decoder_class.UID}: "
-            f"{decoder_class._available}"
-        )
-    _logger.info(f"Registered nvimgcodec decoder plugin with {len(SUPPORTED_DECODER_CLASSES)} decoder classes.")
+        _logger.debug(f"Sorted plugins for transfer syntax {decoder_class.UID}: {decoder_class._available}")
+    _logger.info(f"Registered {NVIMGCODEC_MODULE_NAME} with {len(SUPPORTED_DECODER_CLASSES)} decoder classes.")
 
     return True
 
 
 def _find_module_path(module_name: str | None) -> str:
-    """Return the importable module path for this file.
+    """Return the importable module path for *module_name* file.
 
     When *module_name* is ``None`` or ``"__main__"``, search the loaded modules
     for an entry whose ``__file__`` resolves to the current file.
-    Likely to be in module paths that start with ``monai.deploy.operators`` or ``monai.data``.
+
+    When *module_name* is provided and not ``"__main__"``, validate it exists in
+    loaded modules and corresponds to the current file, returning it if valid.
+
+    When used in MONAI, likely in module paths ``monai.deploy.operators`` or ``monai.data``.
     """
 
     current_file = Path(__file__).resolve()
+
+    # If a specific module name is provided (not None or "__main__"), validate it
+    if module_name and module_name != "__main__":
+        module = sys.modules.get(module_name)
+        if module:
+            module_file = getattr(module, "__file__", None)
+            if module_file:
+                try:
+                    if Path(module_file).resolve() == current_file:
+                        return module_name
+                    else:
+                        _logger.warning(f"Module {module_name} found but its file path does not match current file.")
+                except (OSError, RuntimeError):
+                    _logger.warning(f"Could not resolve file path for module {module_name}.")
+            else:
+                _logger.warning(f"Module {module_name} has no __file__ attribute.")
+        else:
+            _logger.warning(f"Module {module_name} not found in loaded modules.")
+        # Fall through to search for the correct module
+
+    # Search for modules that correspond to the current file
     candidates: list[str] = []
 
     for name, module in sys.modules.items():
@@ -297,9 +337,9 @@ def _find_module_path(module_name: str | None) -> str:
 
 
 def _get_callable_origin(obj: Callable[..., Any]) -> tuple[str | None, str | None]:
-    """Return the importable module path and attribute name for *obj*.
+    """Return the importable module path and attribute(function) name for *obj*.
 
-    Can be used to get the importable module path and func name of existing loaded functions.
+    Can be used to get the importable module path and func name of existing callables.
 
     Args:
         obj: Callable retrieved via :func:`getattr` or similar.
@@ -332,16 +372,3 @@ def _get_callable_origin(obj: Callable[..., Any]) -> tuple[str | None, str | Non
                     continue
 
     return module_path, attr_name
-
-
-def _is_nvimgcodec_available() -> bool:
-    """Return ``True`` if nvimgcodec is available, ``False`` otherwise."""
-
-    if not nvimgcodec or not _passes_version_check(NVIMGCODEC_MODULE_NAME, NVIMGCODEC_MIN_VERSION_TUPLE) or not cp:
-        _logger.debug(f"nvimgcodec (version >= {NVIMGCODEC_MIN_VERSION}) or CuPy missing.")
-        return False
-    if not cp.cuda.is_available():
-        _logger.debug("CUDA device not found.")
-        return False
-
-    return True
