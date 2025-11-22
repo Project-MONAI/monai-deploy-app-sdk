@@ -59,6 +59,7 @@ Additional plugins can be added to an existing decoder with the add_plugin() met
 
 import inspect
 import logging
+import numpy as np
 import sys
 from pathlib import Path
 from typing import Any, Callable, Iterable
@@ -184,15 +185,51 @@ def _decode_frame(src: bytes, runner: DecodeRunner) -> bytearray | bytes:
 
     # Double check if the transfer syntax is supported although the runner should be correct.
     tsyntax = runner.transfer_syntax
+    _logger.info(f"transfer_syntax: {tsyntax}")
+
     if not is_available(tsyntax):
         raise ValueError(f"Transfer syntax {tsyntax} not supported; see details in the debug log.")
 
+    # Source image frame attributes
+    rows = getattr(runner, 'rows', None)
+    columns = getattr(runner, 'columns', None)
+    samples_per_pixel = getattr(runner, 'samples_per_pixel', None)
+
+
+    _logger.info("Source image frame attributes from DecodeRunner:")
+    _logger.info(f"rows: {rows}")
+    _logger.info(f"columns: {columns}")
+    _logger.info(f"samples_per_pixel: {samples_per_pixel}")
+    _logger.info(f"number_of_frames: {getattr(runner, 'number_of_frames', None)}") # Multi frame image, but one frame at a time
+    _logger.info(f"index: {getattr(runner, 'index', None)}") # Current frame index in the image
+    _logger.info(f"frame_length: {runner.frame_length()}") # Multi frame image, but one frame at a time
+    _logger.info(f"extended_offsets: {getattr(runner, 'extended_offsets', None)}") # Multi frame image, but one frame at a time
+    _logger.info(f"pixel_representation: {getattr(runner, 'pixel_representation', None)}")
+    _logger.info(f"bits_allocated: {getattr(runner, 'bits_allocated', None)}")
+    _logger.info(f"bits_stored: {getattr(runner, 'bits_stored', None)}")
+    _logger.info(f"photometric_interpretation: {getattr(runner, 'photometric_interpretation', None)}")
+    _logger.info(f"pixel_representation: {getattr(runner, 'pixel_representation', None)}")
+    _logger.info(f"planar_configuration: {getattr(runner, 'planar_configuration', None)}")
+
+
     nvimgcodec_decoder = nvimgcodec.Decoder()
     decode_params = nvimgcodec.DecodeParams(allow_any_depth=True, color_spec=nvimgcodec.ColorSpec.UNCHANGED)
+    decoded_data = nvimgcodec_decoder.decode(src, params=decode_params) # HWC layout, interleaved format, and contiguous array in C-style
 
-    decoded_data = nvimgcodec_decoder.decode(src, params=decode_params)
-    return bytearray(decoded_data.cpu())  # HWC layout, interleaved format, and contiguous array in C-style
+    _logger.info("Decoded data attributes:")
+    _logger.info(f"decoded_data shape: {decoded_data.shape}")
+    _logger.info(f"decoded_data dtype: {decoded_data.dtype}")
+    _logger.info(f"decoded_data strides: {decoded_data.strides}")
+    _logger.info(f"decoded_data width: {decoded_data.width}")
+    _logger.info(f"decoded_data height: {decoded_data.height}")
+    _logger.info(f"decoded_data ndim: {decoded_data.ndim}")
+    _logger.info(f"decoded_data precision: {decoded_data.precision}")
+    _logger.info(f"decoded_data buffer_kind: {decoded_data.buffer_kind}")
 
+    _logger.info("Decoded data copied to system memory:")
+    superface = np.asarray(decoded_data.cpu())
+    np.ascontiguousarray(superface)
+    return superface.tobytes()
 
 def _is_nvimgcodec_available() -> bool:
     """Return ``True`` if nvimgcodec is available, ``False`` otherwise."""
@@ -208,7 +245,6 @@ def _is_nvimgcodec_available() -> bool:
 
 
 # Helper functions for an application to register this decoder plugin with Pydicom at application startup.
-
 
 def register_as_decoder_plugin(module_path: str | None = None) -> bool:
     """Register as a preferred decoder plugin with supported decoder classes.
