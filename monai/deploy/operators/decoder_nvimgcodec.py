@@ -128,6 +128,14 @@ SUPPORTED_TRANSFER_SYNTAXES: Iterable[UID] = [x.UID for x in SUPPORTED_DECODER_C
 
 _logger = logging.getLogger(__name__)
 
+# Lazy singletons for nvimgcodec resources; initialized on first use
+if nvimgcodec:
+    _NVIMGCODEC_DECODER: Any = None
+    _NVIMGCODEC_DECODE_PARAMS: Any = None
+else:  # pragma: no cover - nvimgcodec not installed
+    _NVIMGCODEC_DECODER = None
+    _NVIMGCODEC_DECODE_PARAMS = None
+
 # Required for decoder plugin
 DECODER_DEPENDENCIES = {
     x: ("numpy", "cupy", f"{NVIMGCODEC_MODULE_NAME}>={NVIMGCODEC_MIN_VERSION}") for x in SUPPORTED_TRANSFER_SYNTAXES
@@ -156,6 +164,25 @@ def is_available(uid: UID) -> bool:
         return False
 
     return True
+
+
+def _get_decoder_resources() -> tuple[Any, Any]:
+    """Return cached nvimgcodec decoder and decode parameters."""
+
+    if nvimgcodec is None:
+        raise ImportError("nvimgcodec package is not available.")
+
+    global _NVIMGCODEC_DECODER, _NVIMGCODEC_DECODE_PARAMS
+
+    if _NVIMGCODEC_DECODER is None:
+        _NVIMGCODEC_DECODER = nvimgcodec.Decoder()
+    if _NVIMGCODEC_DECODE_PARAMS is None:
+        _NVIMGCODEC_DECODE_PARAMS = nvimgcodec.DecodeParams(
+            allow_any_depth=True,
+            color_spec=nvimgcodec.ColorSpec.UNCHANGED,
+        )
+
+    return _NVIMGCODEC_DECODER, _NVIMGCODEC_DECODE_PARAMS
 
 
 # Required function for decoder plugin (specific signature but flexible name to be registered to a decoder)
@@ -190,14 +217,10 @@ def _decode_frame(src: bytes, runner: DecodeRunner) -> bytearray | bytes:
     if not is_available(tsyntax):
         raise ValueError(f"Transfer syntax {tsyntax} not supported; see details in the debug log.")
 
-    nvimgcodec_decoder = nvimgcodec.Decoder()
-    decode_params = nvimgcodec.DecodeParams(allow_any_depth=True, color_spec=nvimgcodec.ColorSpec.UNCHANGED)
-    decoded_data = nvimgcodec_decoder.decode(
-        src, params=decode_params
-    )  # HWC layout, interleaved format, and contiguous array in C-style
-    superface = np.asarray(decoded_data.cpu())
-    np.ascontiguousarray(superface)
-    return superface.tobytes()
+    decoder, params = _get_decoder_resources()
+    decoded_surface = decoder.decode(src, params=params).cpu()
+    np_surface = np.ascontiguousarray(np.asarray(decoded_surface))
+    return np_surface.tobytes()
 
 
 def _is_nvimgcodec_available() -> bool:
