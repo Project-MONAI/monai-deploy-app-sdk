@@ -296,17 +296,33 @@ def register_as_decoder_plugin(module_path: str | None = None) -> bool:
             )
 
     for decoder_class in SUPPORTED_DECODER_CLASSES:
-        _logger.debug(
-            f"Adding plugin for transfer syntax {decoder_class.UID}: "
+        if NVIMGCODEC_PLUGIN_LABEL in decoder_class.available_plugins:
+            _logger.debug(f"{NVIMGCODEC_PLUGIN_LABEL} already registered for transfer syntax {decoder_class.UID}.")
+            continue
+
+        decoder_class.add_plugin(NVIMGCODEC_PLUGIN_LABEL, (module_path, str(func_name)))
+        _logger.info(
+            f"Added plugin for transfer syntax {decoder_class.UID}: "
             f"{NVIMGCODEC_PLUGIN_LABEL} with {func_name} in module path {module_path}."
         )
-        decoder_class.add_plugin(NVIMGCODEC_PLUGIN_LABEL, (module_path, str(func_name)))
 
         # Need to sort the plugins to make sure the custom plugin is the first in items() of
         # the decoder class search for the plugin to be used.
         decoder_class._available = dict(sorted(decoder_class._available.items(), key=lambda item: item[0]))
         _logger.debug(f"Sorted plugins for transfer syntax {decoder_class.UID}: {decoder_class._available}")
-    _logger.info(f"Registered {NVIMGCODEC_MODULE_NAME} with {len(SUPPORTED_DECODER_CLASSES)} decoder classes.")
+
+    _logger.info(f"{NVIMGCODEC_MODULE_NAME} registered with {len(SUPPORTED_DECODER_CLASSES)} decoder classes.")
+
+    return True
+
+
+def unregister_as_decoder_plugin() -> bool:
+    """Unregister the decoder plugin from the supported decoder classes."""
+
+    for decoder_class in SUPPORTED_DECODER_CLASSES:
+        if NVIMGCODEC_PLUGIN_LABEL in decoder_class.available_plugins:
+            decoder_class.remove_plugin(NVIMGCODEC_PLUGIN_LABEL)
+        _logger.info(f"Unregistered plugin for transfer syntax {decoder_class.UID}: {NVIMGCODEC_PLUGIN_LABEL}")
 
     return True
 
