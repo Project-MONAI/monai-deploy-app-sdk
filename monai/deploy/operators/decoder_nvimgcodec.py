@@ -229,8 +229,12 @@ def _is_nvimgcodec_available() -> bool:
     if not nvimgcodec or not _passes_version_check(NVIMGCODEC_MODULE_NAME, NVIMGCODEC_MIN_VERSION_TUPLE) or not cp:
         _logger.debug(f"nvimgcodec (version >= {NVIMGCODEC_MIN_VERSION}) or CuPy missing.")
         return False
-    if not cp.cuda.is_available():
-        _logger.debug("CUDA device not found.")
+    try:
+        if not cp.cuda.is_available():
+            _logger.debug("CUDA device not found.")
+            return False
+    except Exception as exc:  # pragma: no cover - environment specific
+        _logger.debug("CUDA availability check failed: %s", exc)
         return False
 
     return True
