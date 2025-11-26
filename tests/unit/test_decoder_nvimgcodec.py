@@ -3,6 +3,7 @@ from pathlib import Path
 
 import numpy as np
 import pytest
+from pydicom import config as pydicom_config
 from pydicom import dcmread
 from pydicom.data import get_testdata_files
 
@@ -77,7 +78,10 @@ CONFIRMED_EQUAL_PIXEL_FILES = {
 }
 
 
-@pytest.mark.skipif(not _is_nvimgcodec_available(), reason="nvimgcodec dependencies unavailable")
+@pytest.mark.skipif(
+    (not _is_nvimgcodec_available()) or (not pydicom_config.have_gdcm),
+    reason="nvimgcodec and GDCM dependencies unavailable",
+)
 def test_nvimgcodec_decoder_matches_default():
     """Ensure nvimgcodec decoder matches default decoding for supported transfer syntaxes."""
 
