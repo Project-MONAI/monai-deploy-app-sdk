@@ -13,7 +13,6 @@ from monai.deploy.operators.decoder_nvimgcodec import (
     unregister_as_decoder_plugin,
 )
 
-
 # The JPEG 8-bit standard allows a maximum 1 bit of difference for each pixel component.
 # It is normal for slight differences to exist due to varying internal precision in the
 # decoders' inverse Discrete Cosine Transform (IDCT) implementations
@@ -26,55 +25,55 @@ TRANSFER_SYNTAXES_WITH_UNEQUAL_PIXEL_VALUES = [
 
 # Files that cannot be decoded with the default decoders
 SKIPPING_DEFAULT_ERRORED_FILES = {
-    'UN_sequence.dcm': '1.2.840.10008.1.2.4.70',
-    'JPEG-lossy.dcm': '1.2.840.10008.1.2.4.51',
-    'JPEG2000-embedded-sequence-delimiter.dcm': '1.2.840.10008.1.2.4.91',
-    'emri_small_jpeg_2k_lossless_too_short.dcm': '1.2.840.10008.1.2.4.90',
+    "UN_sequence.dcm": "1.2.840.10008.1.2.4.70",
+    "JPEG-lossy.dcm": "1.2.840.10008.1.2.4.51",
+    "JPEG2000-embedded-sequence-delimiter.dcm": "1.2.840.10008.1.2.4.91",
+    "emri_small_jpeg_2k_lossless_too_short.dcm": "1.2.840.10008.1.2.4.90",
 }
 
 # Files that have unequal pixel values between default and nvimgcodec decoders
 SKIPPING_UNEQUAL_PIXEL_FILES = {
-    'SC_rgb_jpeg_lossy_gdcm.dcm': '1.2.840.10008.1.2.4.50',
-    'SC_rgb_dcmtk_+eb+cr.dcm': '1.2.840.10008.1.2.4.50',
-    'SC_rgb_jpeg_dcmtk.dcm': '1.2.840.10008.1.2.4.50',
-    'SC_rgb_dcmtk_+eb+cy+n1.dcm': '1.2.840.10008.1.2.4.50',
-    'SC_rgb_dcmtk_+eb+cy+s2.dcm': '1.2.840.10008.1.2.4.50',
-    'examples_ybr_color.dcm': '1.2.840.10008.1.2.4.50',
-    'SC_rgb_dcmtk_+eb+cy+n2.dcm': '1.2.840.10008.1.2.4.50',
-    'SC_rgb_dcmtk_+eb+cy+s4.dcm': '1.2.840.10008.1.2.4.50',
-    'SC_rgb_jpeg.dcm': '1.2.840.10008.1.2.4.50',
-    'SC_rgb_jpeg_app14_dcmd.dcm': '1.2.840.10008.1.2.4.50',
-    'SC_jpeg_no_color_transform.dcm': '1.2.840.10008.1.2.4.50',
-    'SC_jpeg_no_color_transform_2.dcm': '1.2.840.10008.1.2.4.50',
-    'SC_rgb_small_odd_jpeg.dcm': '1.2.840.10008.1.2.4.50',
-    'SC_rgb_dcmtk_+eb+cy+np.dcm': '1.2.840.10008.1.2.4.50',
-    'color3d_jpeg_baseline.dcm': '1.2.840.10008.1.2.4.50',
-    'MR2_J2KI.dcm': '1.2.840.10008.1.2.4.91',
-    'RG3_J2KI.dcm': '1.2.840.10008.1.2.4.91',
-    'US1_J2KI.dcm': '1.2.840.10008.1.2.4.91'
+    "SC_rgb_jpeg_lossy_gdcm.dcm": "1.2.840.10008.1.2.4.50",
+    "SC_rgb_dcmtk_+eb+cr.dcm": "1.2.840.10008.1.2.4.50",
+    "SC_rgb_jpeg_dcmtk.dcm": "1.2.840.10008.1.2.4.50",
+    "SC_rgb_dcmtk_+eb+cy+n1.dcm": "1.2.840.10008.1.2.4.50",
+    "SC_rgb_dcmtk_+eb+cy+s2.dcm": "1.2.840.10008.1.2.4.50",
+    "examples_ybr_color.dcm": "1.2.840.10008.1.2.4.50",
+    "SC_rgb_dcmtk_+eb+cy+n2.dcm": "1.2.840.10008.1.2.4.50",
+    "SC_rgb_dcmtk_+eb+cy+s4.dcm": "1.2.840.10008.1.2.4.50",
+    "SC_rgb_jpeg.dcm": "1.2.840.10008.1.2.4.50",
+    "SC_rgb_jpeg_app14_dcmd.dcm": "1.2.840.10008.1.2.4.50",
+    "SC_jpeg_no_color_transform.dcm": "1.2.840.10008.1.2.4.50",
+    "SC_jpeg_no_color_transform_2.dcm": "1.2.840.10008.1.2.4.50",
+    "SC_rgb_small_odd_jpeg.dcm": "1.2.840.10008.1.2.4.50",
+    "SC_rgb_dcmtk_+eb+cy+np.dcm": "1.2.840.10008.1.2.4.50",
+    "color3d_jpeg_baseline.dcm": "1.2.840.10008.1.2.4.50",
+    "MR2_J2KI.dcm": "1.2.840.10008.1.2.4.91",
+    "RG3_J2KI.dcm": "1.2.840.10008.1.2.4.91",
+    "US1_J2KI.dcm": "1.2.840.10008.1.2.4.91",
 }
 
 CONFIRMED_EQUAL_PIXEL_FILES = {
-    'JPGExtended.dcm': '1.2.840.10008.1.2.4.51',
-    'examples_jpeg2k.dcm': '1.2.840.10008.1.2.4.90',
-    'J2K_pixelrep_mismatch.dcm': '1.2.840.10008.1.2.4.90',
-    'SC_rgb_gdcm_KY.dcm': '1.2.840.10008.1.2.4.91',
-    'GDCMJ2K_TextGBR.dcm': '1.2.840.10008.1.2.4.90',
-    'SC_rgb_jpeg_gdcm.dcm': '1.2.840.10008.1.2.4.70',
-    'MR_small_jp2klossless.dcm': '1.2.840.10008.1.2.4.90',
-    'JPEG2000.dcm': '1.2.840.10008.1.2.4.91',
-    '693_J2KI.dcm': '1.2.840.10008.1.2.4.91',
-    '693_J2KR.dcm': '1.2.840.10008.1.2.4.90',
-    'bad_sequence.dcm': '1.2.840.10008.1.2.4.70',
-    'emri_small_jpeg_2k_lossless.dcm': '1.2.840.10008.1.2.4.90',
-    'explicit_VR-UN.dcm': '1.2.840.10008.1.2.4.90',
-    'JPEG-LL.dcm': '1.2.840.10008.1.2.4.70',
-    'JPGLosslessP14SV1_1s_1f_8b.dcm': '1.2.840.10008.1.2.4.70',
-    'MR2_J2KR.dcm': '1.2.840.10008.1.2.4.90',
-    'RG1_J2KI.dcm': '1.2.840.10008.1.2.4.91',
-    'RG1_J2KR.dcm': '1.2.840.10008.1.2.4.90',
-    'RG3_J2KR.dcm': '1.2.840.10008.1.2.4.90',
-    'US1_J2KR.dcm': '1.2.840.10008.1.2.4.90'
+    "JPGExtended.dcm": "1.2.840.10008.1.2.4.51",
+    "examples_jpeg2k.dcm": "1.2.840.10008.1.2.4.90",
+    "J2K_pixelrep_mismatch.dcm": "1.2.840.10008.1.2.4.90",
+    "SC_rgb_gdcm_KY.dcm": "1.2.840.10008.1.2.4.91",
+    "GDCMJ2K_TextGBR.dcm": "1.2.840.10008.1.2.4.90",
+    "SC_rgb_jpeg_gdcm.dcm": "1.2.840.10008.1.2.4.70",
+    "MR_small_jp2klossless.dcm": "1.2.840.10008.1.2.4.90",
+    "JPEG2000.dcm": "1.2.840.10008.1.2.4.91",
+    "693_J2KI.dcm": "1.2.840.10008.1.2.4.91",
+    "693_J2KR.dcm": "1.2.840.10008.1.2.4.90",
+    "bad_sequence.dcm": "1.2.840.10008.1.2.4.70",
+    "emri_small_jpeg_2k_lossless.dcm": "1.2.840.10008.1.2.4.90",
+    "explicit_VR-UN.dcm": "1.2.840.10008.1.2.4.90",
+    "JPEG-LL.dcm": "1.2.840.10008.1.2.4.70",
+    "JPGLosslessP14SV1_1s_1f_8b.dcm": "1.2.840.10008.1.2.4.70",
+    "MR2_J2KR.dcm": "1.2.840.10008.1.2.4.90",
+    "RG1_J2KI.dcm": "1.2.840.10008.1.2.4.91",
+    "RG1_J2KR.dcm": "1.2.840.10008.1.2.4.90",
+    "RG3_J2KR.dcm": "1.2.840.10008.1.2.4.90",
+    "US1_J2KR.dcm": "1.2.840.10008.1.2.4.90",
 }
 
 
@@ -158,7 +157,7 @@ def test_nvimgcodec_decoder_matches_default():
             if transfer_syntax in TRANSFER_SYNTAXES_WITH_UNEQUAL_PIXEL_VALUES:
                 diff = baseline_compare.astype(np.float32) - nv_compare.astype(np.float32)
                 peak_absolute_error = float(np.max(np.abs(diff)))
-                mean_squared_error = float(np.mean(diff ** 2))
+                mean_squared_error = float(np.mean(diff**2))
                 inspected_unequal_files[Path(path).name] = {
                     "transfer_syntax": transfer_syntax,
                     "peak_absolute_error": peak_absolute_error,
@@ -181,9 +180,12 @@ def test_nvimgcodec_decoder_matches_default():
     print(f"Confirmed tested files: {confirmed_equal_pixel_files}")
 
     assert compared > 0, "No compatible DICOM files found for nvimgcodec decoder test."
-    assert (x in default_errored_files.keys() for x in (nvimgcodec_errored_files.keys())), "nvimgcodec decoder errored files found."
+    assert (
+        x in default_errored_files.keys() for x in (nvimgcodec_errored_files.keys())
+    ), "nvimgcodec decoder errored files found."
     assert len(unequal_pixel_files) == 0, "Unequal files found."
     assert len(confirmed_equal_pixel_files) > 0, "No files with equal pixel values after decoding with both decoders."
+
 
 if __name__ == "__main__":
     test_nvimgcodec_decoder_matches_default()
