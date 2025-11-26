@@ -576,6 +576,10 @@ class InMemImageReader(ImageReader):
 
         # Referring to the MONAI ITKReader, the spacing is simply a NumPy array from the ITK image
         # GetSpacing, in WHD.
+        img_meta_dict["row_pixel_spacing"] = img_meta_dict.get("row_pixel_spacing", 1.0)
+        img_meta_dict["col_pixel_spacing"] = img_meta_dict.get("col_pixel_spacing", 1.0)
+        img_meta_dict["depth_pixel_spacing"] = img_meta_dict.get("depth_pixel_spacing", 1.0)
+
         meta_dict["spacing"] = np.asarray(
             [
                 img_meta_dict["row_pixel_spacing"],

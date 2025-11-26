@@ -25,6 +25,8 @@ from monai.deploy.core import ConditionType, Fragment, Operator, OperatorSpec
 from monai.deploy.core.domain.dicom_series_selection import StudySelectedSeries
 from monai.deploy.core.domain.image import Image
 
+from . import decoder_nvimgcodec
+
 
 class DICOMSeriesToVolumeOperator(Operator):
     """This operator converts an instance of DICOMSeries into an Image object.
@@ -60,6 +62,9 @@ class DICOMSeriesToVolumeOperator(Operator):
         self.input_name_series = "study_selected_series_list"
         self.output_name_image = "image"
         self.affine_lps_to_ras = affine_lps_to_ras
+        if not decoder_nvimgcodec.register_as_decoder_plugin():
+            logging.warning("The nvimgcodec decoder plugin did not register successfully.")
+
         # Need to call the base class constructor last
         super().__init__(fragment, *args, **kwargs)
 
