@@ -3,7 +3,6 @@ from pathlib import Path
 
 import numpy as np
 import pytest
-from pydicom import config as pydicom_config
 from pydicom import dcmread
 from pydicom.data import get_testdata_files
 
@@ -79,7 +78,7 @@ CONFIRMED_EQUAL_PIXEL_FILES = {
 
 
 @pytest.mark.skipif(
-    (not _is_nvimgcodec_available()) or (not pydicom_config.have_gdcm),
+    (not _is_nvimgcodec_available()),
     reason="nvimgcodec (with CUDA) and GDCM must be available",
 )
 def test_nvimgcodec_decoder_matches_default() -> None:
@@ -113,8 +112,8 @@ def test_nvimgcodec_decoder_matches_default() -> None:
             print(f"Skipping: unsupported transfer syntax DICOM file {path}: {transfer_syntax}")
             continue
 
-        baseline_pixels = None
-        nv_pixels = None
+        baseline_pixels: np.ndarray = np.array([])
+        nv_pixels: np.ndarray = np.array([])
 
         # Baseline (default pydicom) decode
         try:
@@ -159,8 +158,8 @@ def test_nvimgcodec_decoder_matches_default() -> None:
         if not np.allclose(
             baseline_compare,
             nv_compare,
-            rtol=_rtol,
-            atol=_atol,
+            rtol=rtol,
+            atol=atol,
         ):
             if transfer_syntax in TRANSFER_SYNTAXES_WITH_UNEQUAL_PIXEL_VALUES:
                 diff = baseline_compare.astype(np.float32) - nv_compare.astype(np.float32)
@@ -172,9 +171,9 @@ def test_nvimgcodec_decoder_matches_default() -> None:
                     "mean_squared_error": mean_squared_error,
                 }
             else:
-                unequal_pixel_files[Path(path).name] = {"transfer_syntax": transfer_syntax}
+                unequal_pixel_files[Path(path).name] = f"transfer_syntax: {transfer_syntax}"
         else:
-            confirmed_equal_pixel_files[Path(path).name] = transfer_syntax
+            confirmed_equal_pixel_files[Path(path).name] = f"transfer_syntax: {transfer_syntax}"
 
         compared += 1
 
@@ -183,8 +182,8 @@ def test_nvimgcodec_decoder_matches_default() -> None:
     print(f"Total tested DICOM files: {compared}")
     print(f"Default errored files: {default_errored_files}")
     print(f"nvimgcodec errored files: {nvimgcodec_errored_files}")
-    print(f"Unequal files (tolerance: {_rtol}, {_atol}): {unequal_pixel_files}")
-    print(f"Inspected unequal files (tolerance: {_rtol}, {_atol}): {inspected_unequal_files}")
+    print(f"Unequal files (tolerance: {rtol}, {atol}): {unequal_pixel_files}")
+    print(f"Inspected unequal files (tolerance: {rtol}, {atol}): {inspected_unequal_files}")
     print(f"Confirmed tested files: {confirmed_equal_pixel_files}")
 
     assert compared > 0, "No compatible DICOM files found for nvimgcodec decoder test."
