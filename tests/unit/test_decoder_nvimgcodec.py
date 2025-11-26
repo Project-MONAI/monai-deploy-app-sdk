@@ -80,23 +80,23 @@ CONFIRMED_EQUAL_PIXEL_FILES = {
 
 @pytest.mark.skipif(
     (not _is_nvimgcodec_available()) or (not pydicom_config.have_gdcm),
-    reason="nvimgcodec and GDCM dependencies unavailable",
+    reason="nvimgcodec (with CUDA) and GDCM must be available",
 )
-def test_nvimgcodec_decoder_matches_default():
-    """Ensure nvimgcodec decoder matches default decoding for supported transfer syntaxes."""
+def test_nvimgcodec_decoder_matches_default() -> None:
+    """Ensure nvimgcodec decoder matches default decoding for supported syntaxes."""
 
     test_files = get_testdata_files("*.dcm")
     baseline_total = 0.0
     nvimgcodec_total = 0.0
     compared = 0
-    _rtol = 0.01  # The relative tolerance parameter
-    _atol = 1.00  # The absolute tolerance parameter
+    rtol = 0.01
+    atol = 1.0
 
-    default_errored_files = dict()
-    nvimgcodec_errored_files = dict()
-    unequal_pixel_files = dict()
-    inspected_unequal_files = dict()
-    confirmed_equal_pixel_files = dict()
+    default_errored_files: dict[str, str] = {}
+    nvimgcodec_errored_files: dict[str, str] = {}
+    unequal_pixel_files: dict[str, str] = {}
+    inspected_unequal_files: dict[str, dict[str, float | str]] = {}
+    confirmed_equal_pixel_files: dict[str, str] = {}
 
     for path in test_files:
         default_errored = False
@@ -113,6 +113,10 @@ def test_nvimgcodec_decoder_matches_default():
             print(f"Skipping: unsupported transfer syntax DICOM file {path}: {transfer_syntax}")
             continue
 
+        baseline_pixels = None
+        nv_pixels = None
+
+        # Baseline (default pydicom) decode
         try:
             ds_default = dcmread(path, force=True)
             start = time.perf_counter()
