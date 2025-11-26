@@ -212,7 +212,7 @@ def _decode_frame(src: bytes, runner: DecodeRunner) -> bytearray | bytes:
 
     # Double check if the transfer syntax is supported although the runner should be correct.
     tsyntax = runner.transfer_syntax
-    _logger.info(f"transfer_syntax: {tsyntax}")
+    _logger.debug(f"transfer_syntax: {tsyntax}")
 
     if not is_available(tsyntax):
         raise ValueError(f"Transfer syntax {tsyntax} not supported; see details in the debug log.")
