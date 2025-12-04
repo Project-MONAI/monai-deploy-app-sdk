@@ -64,6 +64,10 @@ from pathlib import Path
 from typing import Any, Callable, Iterable
 
 import numpy as np
+from pydicom.pixels.common import PhotometricInterpretation as PI  # noqa: N817
+from pydicom.pixels.common import (
+    RunnerBase,
+)
 from pydicom.pixels.decoders import (
     HTJ2KDecoder,
     HTJ2KLosslessDecoder,
@@ -75,11 +79,9 @@ from pydicom.pixels.decoders import (
     JPEGLosslessDecoder,
     JPEGLosslessSV1Decoder,
 )
-
 from pydicom.pixels.decoders.base import DecodeRunner
 from pydicom.pixels.utils import _passes_version_check
-from pydicom.uid import UID, JPEG2000TransferSyntaxes, JPEGTransferSyntaxes
-from pydicom.pixels.common import PhotometricInterpretation as PI
+from pydicom.uid import UID, JPEG2000TransferSyntaxes
 
 try:
     import cupy as cp
@@ -140,7 +142,8 @@ else:  # pragma: no cover - nvimgcodec not installed
 
 # Required for decoder plugin
 DECODER_DEPENDENCIES = {
-    x: ("numpy", "cupy", f"{NVIMGCODEC_MODULE_NAME}>={NVIMGCODEC_MIN_VERSION}") for x in SUPPORTED_TRANSFER_SYNTAXES
+    x: ("numpy", "cupy", f"{NVIMGCODEC_MODULE_NAME}>={NVIMGCODEC_MIN_VERSION}, nvidia-nvjpeg2k-cu12>=0.9.1,")
+    for x in SUPPORTED_TRANSFER_SYNTAXES
 }
 
 
@@ -168,11 +171,58 @@ def is_available(uid: UID) -> bool:
     return True
 
 
+# Required for decoder plugin
+def _decode_frame(src: bytes, runner: DecodeRunner) -> bytearray | bytes:
+    """Return the decoded image data in `src` as a :class:`bytearray` or :class:`bytes`."""
+    tsyntax = runner.transfer_syntax
+    _logger.debug(f"transfer_syntax: {tsyntax}")
+
+    if not is_available(tsyntax):
+        raise ValueError(f"Transfer syntax {tsyntax} not supported; see details in the debug log.")
+
+    runner.set_frame_option(runner.index, "decoding_plugin", "nvimgcodec")  # type: ignore[attr-defined]
+
+    is_jpeg2k = tsyntax in JPEG2000TransferSyntaxes
+    samples_per_pixel = runner.samples_per_pixel
+    photometric_interpretation = runner.photometric_interpretation
+
+    # --- JPEG 2000: Precision/Bit depth ---
+    if is_jpeg2k:
+        precision, bits_allocated = _jpeg2k_precision_bits(runner)
+        runner.set_frame_option(runner.index, "bits_allocated", bits_allocated)  # type: ignore[attr-defined]
+        _logger.debug(f"Set bits_allocated to {bits_allocated} for J2K precision {precision}")
+
+    # Check if RGB conversion requested (following Pillow decoder logic)
+    convert_to_rgb = (
+        samples_per_pixel > 1 and runner.get_option("as_rgb", False) and "YBR" in photometric_interpretation
+    )
+
+    decoder = _get_decoder_resources()
+    params = _get_decode_params(runner)
+    decoded_surface = decoder.decode(src, params=params).cpu()
+    np_surface = np.ascontiguousarray(np.asarray(decoded_surface))
+
+    # Handle JPEG2000-specific postprocessing separately
+    if is_jpeg2k:
+        np_surface = _jpeg2k_postprocess(np_surface, runner)
+
+    # Update photometric interpretation if we converted to RGB, or JPEG 2000 YBR*
+    if convert_to_rgb or photometric_interpretation in (PI.YBR_ICT, PI.YBR_RCT):
+        runner.set_frame_option(runner.index, "photometric_interpretation", PI.RGB)  # type: ignore[attr-defined]
+        _logger.debug(
+            "Set photometric_interpretation to RGB after conversion"
+            if convert_to_rgb
+            else f"Set photometric_interpretation to RGB for {photometric_interpretation}"
+        )
+
+    return np_surface.tobytes()
+
+
 def _get_decoder_resources() -> Any:
     """Return cached nvimgcodec decoder (parameters are created per decode)."""
 
-    if nvimgcodec is None:
-        raise ImportError("nvimgcodec package is not available.")
+    if not _is_nvimgcodec_available():
+        raise RuntimeError("nvimgcodec package is not available.")
 
     global _NVIMGCODEC_DECODER
 
@@ -182,74 +232,64 @@ def _get_decoder_resources() -> Any:
     return _NVIMGCODEC_DECODER
 
 
-def _get_decode_params(runner: DecodeRunner) -> Any:
+def _get_decode_params(runner: RunnerBase) -> Any:
     """Create decode parameters based on DICOM image characteristics.
-    
+
     Mimics the behavior of pydicom's Pillow decoder:
     - By default, keeps JPEG data in YCbCr format (no conversion)
     - If as_rgb option is True and photometric interpretation is YBR*, converts to RGB
-    
+
     This matches the logic in pydicom.pixels.decoders.pillow._decode_frame()
-    
+
     Args:
-        runner: The DecodeRunner instance with access to DICOM metadata.
-        
+        runner: The DecodeRunner or RunnerBase instance with access to DICOM metadata.
+
     Returns:
         nvimgcodec.DecodeParams: Configured decode parameters.
     """
-    if nvimgcodec is None:
-        raise ImportError("nvimgcodec package is not available.")
-    
+    if not _is_nvimgcodec_available():
+        raise RuntimeError("nvimgcodec package is not available.")
+
     # Access DICOM metadata from the runner
     samples_per_pixel = runner.samples_per_pixel
     photometric_interpretation = runner.photometric_interpretation
-    
+
     # Default: keep color space unchanged
     color_spec = nvimgcodec.ColorSpec.UNCHANGED
-    
-    # Import PhotometricInterpretation enum for JPEG 2000 color transformations
-    from pydicom.pixels.common import PhotometricInterpretation as PI
-    
+
     # For multi-sample (color) images, check if RGB conversion is requested
     if samples_per_pixel > 1:
         # JPEG 2000 color transformations are always returned as RGB (matches Pillow)
         if photometric_interpretation in (PI.YBR_ICT, PI.YBR_RCT):
             color_spec = nvimgcodec.ColorSpec.RGB
             _logger.debug(
-                f"Using RGB color spec for JPEG 2000 color transformation "
-                f"(PI: {photometric_interpretation})"
+                f"Using RGB color spec for JPEG 2000 color transformation " f"(PI: {photometric_interpretation})"
             )
         else:
             # Check the as_rgb option - same as Pillow decoder
             convert_to_rgb = runner.get_option("as_rgb", False) and "YBR" in photometric_interpretation
-            
+
             if convert_to_rgb:
                 # Convert YCbCr to RGB as requested
                 color_spec = nvimgcodec.ColorSpec.RGB
-                _logger.debug(
-                    f"Using RGB color spec (as_rgb=True, PI: {photometric_interpretation})"
-                )
+                _logger.debug(f"Using RGB color spec (as_rgb=True, PI: {photometric_interpretation})")
             else:
                 # Keep YCbCr unchanged - matches Pillow's image.draft("YCbCr") behavior
                 _logger.debug(
-                    f"Using UNCHANGED color spec to preserve YCbCr "
-                    f"(as_rgb=False, PI: {photometric_interpretation})"
+                    f"Using UNCHANGED color spec to preserve YCbCr " f"(as_rgb=False, PI: {photometric_interpretation})"
                 )
     else:
         # Grayscale image - keep unchanged
-        _logger.debug(
-            f"Using UNCHANGED color spec for grayscale image "
-            f"(samples_per_pixel: {samples_per_pixel})"
-        )
-    
+        _logger.debug(f"Using UNCHANGED color spec for grayscale image " f"(samples_per_pixel: {samples_per_pixel})")
+
     return nvimgcodec.DecodeParams(
         allow_any_depth=True,
         color_spec=color_spec,
     )
 
 
-def _jpeg2k_precision_bits(runner):
-    precision = runner.get_frame_option(runner.index, "j2k_precision", runner.bits_stored)
+def _jpeg2k_precision_bits(runner: DecodeRunner) -> tuple[int, int]:
+    precision = runner.get_frame_option(runner.index, "j2k_precision", runner.bits_stored)  # type: ignore[attr-defined]
     if 0 < precision <= 8:
         return precision, 8
     elif 8 < precision <= 16:
@@ -300,54 +340,6 @@ def _jpeg2k_postprocess(np_surface, runner):
 
     return np_surface
 
-def _decode_frame(src: bytes, runner: DecodeRunner) -> bytearray | bytes:
-    """Return the decoded image data in `src` as a :class:`bytearray` or :class:`bytes`."""
-    tsyntax = runner.transfer_syntax
-    _logger.debug(f"transfer_syntax: {tsyntax}")
-
-    if not is_available(tsyntax):
-        raise ValueError(f"Transfer syntax {tsyntax} not supported; see details in the debug log.")
-
-    runner.set_frame_option(runner.index, "decoding_plugin", "nvimgcodec")
-
-    is_jpeg2k = tsyntax in JPEG2000TransferSyntaxes
-    samples_per_pixel = runner.samples_per_pixel
-    photometric_interpretation = runner.photometric_interpretation
-
-    # --- JPEG 2000: Precision/Bit depth ---
-    if is_jpeg2k:
-        precision, bits_allocated = _jpeg2k_precision_bits(runner)
-        runner.set_frame_option(runner.index, "bits_allocated", bits_allocated)
-        _logger.debug(f"Set bits_allocated to {bits_allocated} for J2K precision {precision}")
-
-    # Check if RGB conversion requested (following Pillow decoder logic)
-    convert_to_rgb = (
-        samples_per_pixel > 1
-        and runner.get_option("as_rgb", False)
-        and "YBR" in photometric_interpretation
-    )
-
-    decoder = _get_decoder_resources()
-    params = _get_decode_params(runner)
-    decoded_surface = decoder.decode(src, params=params).cpu()
-    np_surface = np.ascontiguousarray(np.asarray(decoded_surface))
-
-    # Handle JPEG2000-specific postprocessing separately
-    if is_jpeg2k:
-        np_surface = _jpeg2k_postprocess(np_surface, runner)
-
-    # Update photometric interpretation if we converted to RGB, or JPEG 2000 YBR*
-    if convert_to_rgb or photometric_interpretation in (PI.YBR_ICT, PI.YBR_RCT):
-        runner.set_frame_option(runner.index, "photometric_interpretation", PI.RGB)
-        _logger.debug(
-            "Set photometric_interpretation to RGB after conversion"
-            if convert_to_rgb
-            else f"Set photometric_interpretation to RGB for {photometric_interpretation}"
-        )
-
-    return np_surface.tobytes()
-
-
 
 def _is_nvimgcodec_available() -> bool:
     """Return ``True`` if nvimgcodec is available, ``False`` otherwise."""
@@ -360,13 +352,13 @@ def _is_nvimgcodec_available() -> bool:
             _logger.debug("CUDA device not found.")
             return False
     except Exception as exc:  # pragma: no cover - environment specific
-        _logger.debug("CUDA availability check failed: %s", exc)
+        _logger.debug(f"CUDA availability check failed: {exc}")
         return False
 
     return True
 
 
-# Helper functions for an application to register this decoder plugin with Pydicom at application startup.
+# Helper functions for an application to register/unregister this decoder plugin with Pydicom at application startup.
 
 
 def register_as_decoder_plugin(module_path: str | None = None) -> bool:
