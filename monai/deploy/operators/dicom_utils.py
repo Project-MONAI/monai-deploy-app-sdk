@@ -15,18 +15,18 @@ from pathlib import Path
 from random import randint
 from typing import Any, Optional
 
+from monai.deploy.core.domain.dicom_series import DICOMSeries
 from monai.deploy.utils.importutil import optional_import
+from monai.deploy.utils.version import get_sdk_semver
 
 dcmread, _ = optional_import("pydicom", name="dcmread")
 dcmwrite, _ = optional_import("pydicom.filewriter", name="dcmwrite")
 generate_uid, _ = optional_import("pydicom.uid", name="generate_uid")
 ImplicitVRLittleEndian, _ = optional_import("pydicom.uid", name="ImplicitVRLittleEndian")
+UID, _ = optional_import("pydicom.uid", name="UID")
 Dataset_, _ = optional_import("pydicom.dataset", name="Dataset")
 FileDataset, _ = optional_import("pydicom.dataset", name="FileDataset")
 Sequence, _ = optional_import("pydicom.sequence", name="Sequence")
-
-from monai.deploy.core.domain.dicom_series import DICOMSeries
-from monai.deploy.utils.version import get_sdk_semver
 
 # To address mypy complaint
 Dataset: Any = Dataset_
@@ -113,7 +113,30 @@ def save_dcm_file(data_set: Dataset, file_path: Path, validate_readable: bool = 
     if not str(file_path).strip():
         raise ValueError("file_path to save dcm file not provided.")
 
-    dcmwrite(str(file_path).strip(), data_set, write_like_original=False)
+    implicit_vr = True
+    little_endian = True
+
+    transfer_syntax = getattr(getattr(data_set, "file_meta", None), "TransferSyntaxUID", None)
+    if transfer_syntax is not None:
+        ts_uid = None
+        if hasattr(transfer_syntax, "is_implicit_VR"):
+            ts_uid = transfer_syntax
+        elif UID is not None:
+            try:
+                ts_uid = UID(str(transfer_syntax))
+            except Exception:
+                ts_uid = None
+        if ts_uid is not None:
+            implicit_vr = getattr(ts_uid, "is_implicit_VR", implicit_vr)
+            little_endian = getattr(ts_uid, "is_little_endian", little_endian)
+
+    dcmwrite(
+        str(file_path).strip(),
+        data_set,
+        enforce_file_format=True,
+        implicit_vr=implicit_vr,
+        little_endian=little_endian,
+    )
     logging.info(f"Finished writing DICOM instance to file {file_path}")
 
     if validate_readable:
@@ -187,8 +210,6 @@ def write_common_modules(
     # Write modules to data set
     ds = Dataset()
     ds.file_meta = file_meta
-    ds.is_implicit_VR = True
-    ds.is_little_endian = True
 
     # Content Date (0008,0023) and Content Time (0008,0033) are defined to be the date and time that
     # the document content creation started. In the context of analysis results, these may be considered
