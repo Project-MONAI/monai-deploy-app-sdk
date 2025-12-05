@@ -1,6 +1,6 @@
 scikit-image>=0.17.2
 pydicom>=3.0.0
-PyPDF2>=2.11.1
+pypdf>=4.0.0
 types-pytz>=2024.1.0.20240203
 highdicom>=0.18.2
 SimpleITK>=2.0.0
