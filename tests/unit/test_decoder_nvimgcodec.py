@@ -1,5 +1,6 @@
 import time
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 import pytest
@@ -14,18 +15,33 @@ from monai.deploy.operators.decoder_nvimgcodec import (
 )
 
 
-def get_test_dicoms():
-    """Use pydicom package's embedded test DICOM files for testing."""
+def get_test_dicoms(folder_path: str | None = None):
+    """Use pydicom package's embedded test DICOM files for testing or a custom folder of DICOM files."""
 
-    for path in get_testdata_files("*.dcm"):
+    # function's own util function
+    def _is_supported_dicom_file(path: str) -> bool:
         try:
             dataset = dcmread(path, stop_before_pixels=True)  # ignore non-compliant DICOM files
             transfer_syntax = dataset.file_meta.TransferSyntaxUID
-            if transfer_syntax not in SUPPORTED_TRANSFER_SYNTAXES:
-                continue
-            yield path
+            return transfer_syntax in SUPPORTED_TRANSFER_SYNTAXES
         except Exception:
+            return False
+
+    dcm_paths = []
+    if folder_path is not None:
+        folder_path_p = Path(folder_path)
+        if folder_path_p.exists():
+            dcm_paths = sorted(folder_path_p.glob("*.dcm"))
+        else:
+            raise FileNotFoundError(f"Custom folder {folder_path} does not exist")
+    else:
+        # use pydicom package's embedded test DICOM files for testing
+        dcm_paths = [Path(x) for x in get_testdata_files("*.dcm")]
+
+    for dcm_path in dcm_paths:
+        if not _is_supported_dicom_file(str(dcm_path)):
             continue
+        yield str(dcm_path)
 
 
 @pytest.mark.skipif(
@@ -82,14 +98,14 @@ def test_nvimgcodec_decoder_matches_default(path: str) -> None:
     np.testing.assert_allclose(baseline_pixels, nv_pixels, rtol=rtol, atol=atol)
 
 
-def performance_test_nvimgcodec_decoder_against_defaults():
+def performance_test_nvimgcodec_decoder_against_defaults(folder_path: str | None = None) -> None:
     """Test and compare the performance of the nvimgcodec decoder against the default decoders
-    with all DICOM files of supported transfer syntaxes"""
+    with all DICOM files of supported transfer syntaxes in a custom folder or pidicom dataset"""
 
     total_baseline_time = 0.0
     total_nvimgcodec_time = 0.0
 
-    files_tested_with_perf = {}  # key: path, value: performance_metrics
+    files_tested_with_perf: dict[str, dict[str, Any]] = {}  # key: path, value: performance_metrics
     files_with_errors = []
 
     try:
@@ -97,7 +113,7 @@ def performance_test_nvimgcodec_decoder_against_defaults():
     except Exception:
         pass
 
-    for path in get_test_dicoms():
+    for path in get_test_dicoms(folder_path):
         try:
             ds_default = dcmread(path)
             transfer_syntax = ds_default.file_meta.TransferSyntaxUID
@@ -106,7 +122,7 @@ def performance_test_nvimgcodec_decoder_against_defaults():
             baseline_execution_time = time.perf_counter() - start
             total_baseline_time += baseline_execution_time
 
-            perf = {}
+            perf: dict[str, Any] = {}
             perf["transfer_syntax"] = transfer_syntax
             perf["baseline_execution_time"] = baseline_execution_time
             files_tested_with_perf[path] = perf
@@ -153,6 +169,9 @@ def performance_test_nvimgcodec_decoder_against_defaults():
 
 if __name__ == "__main__":
 
-    # Use pytest to test the functionality with each DICOM file of supported transfer syntaxes individually
-    # and the following ompares the performance of the nvimgcodec decoder against the default decoders
-    performance_test_nvimgcodec_decoder_against_defaults()
+    # Use pytest to test the functionality with pydicom embedded DICOM files of supported transfer syntaxes individually
+    # python -m pytest test_decoder_nvimgcodec.py
+    #
+    # The following compares the performance of the nvimgcodec decoder against the default decoders
+    # with DICOM files in pidicom embedded dataset or an optional custom folder
+    performance_test_nvimgcodec_decoder_against_defaults()  # e.g. "/tmp/multi-frame-dcm"
