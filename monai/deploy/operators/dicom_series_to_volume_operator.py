@@ -25,6 +25,8 @@ from monai.deploy.core import ConditionType, Fragment, Operator, OperatorSpec
 from monai.deploy.core.domain.dicom_series_selection import StudySelectedSeries
 from monai.deploy.core.domain.image import Image
 
+from . import decoder_nvimgcodec
+
 
 class DICOMSeriesToVolumeOperator(Operator):
     """This operator converts an instance of DICOMSeries into an Image object.
@@ -51,6 +53,25 @@ class DICOMSeriesToVolumeOperator(Operator):
     def __init__(self, fragment: Fragment, *args, affine_lps_to_ras: bool = True, **kwargs):
         """Create an instance for a containing application object.
 
+        This operator converts instances of DICOMSeries into an Image object.
+        The loaded Image Object can be used for further processing via other operators.
+        The data array will be a 3D image NumPy array with index order of `DHW`.
+        Channel is limited to 1 as of now, and `C` is absent in the NumPy array.
+
+        This operator registers `nvimgcodec` based compressed pixel data decoder plugin with Pydicom
+        at application startup to support and improve the performance of decoding DICOM files with compressed
+        pixel data of in JPEG, JPEG 2000, and HTJ2K, irrespective of if python-gdcm, Python libjpg and openjpeg
+        based decoder plugins are available at runtime.
+
+        Registering the decoder plugin is all automatic and does not require any additional change in user's application
+        except for adding a dependency on the `nvimgcodec-cu12` and `nvidia-nvjpeg2k-cu12` packages (suffix of cu12 means
+        CUDA 12.0 though cu13 is also supported).
+
+        Named Input:
+            study_selected_series_list: List of StudySelectedSeries.
+        Named Output:
+            image: Image object.
+
         Args:
             fragment (Fragment): An instance of the Application class which is derived from Fragment.
             affine_lps_to_ras (bool): If true, the affine transform in the image metadata is RAS oriented,
@@ -60,6 +81,9 @@ class DICOMSeriesToVolumeOperator(Operator):
         self.input_name_series = "study_selected_series_list"
         self.output_name_image = "image"
         self.affine_lps_to_ras = affine_lps_to_ras
+        if not decoder_nvimgcodec.register_as_decoder_plugin():
+            logging.warning("The nvimgcodec decoder plugin did not register successfully.")
+
         # Need to call the base class constructor last
         super().__init__(fragment, *args, **kwargs)
 

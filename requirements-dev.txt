@@ -23,8 +23,8 @@ pytest-lazy-fixture==0.6.3
 cucim~=21.06; platform_system == "Linux"
 monai>=1.3.0
 docker>=5.0.0
-pydicom>=2.3.0
-PyPDF2>=2.11.1
+pydicom>=3.0.0
+pypdf>=4.0.0
 highdicom>=0.18.2
 SimpleITK>=2.0.0
 Pillow>=8.0.0
@@ -34,3 +34,9 @@ nibabel>=3.2.1
 numpy-stl>=2.12.0
 trimesh>=3.8.11
 torch>=2.6.0
+nvidia-nvimgcodec-cu12>=0.6.1
+nvidia-nvjpeg2k-cu12>=0.9.1
+python-gdcm>=3.0.10
+pylibjpeg>=2.0
+pylibjpeg-libjpeg>=2.1
+pylibjpeg-openjpeg>=2.0
