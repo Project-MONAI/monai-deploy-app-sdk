@@ -22,7 +22,7 @@ MONAI Deploy App SDK offers a framework and associated tools to design, develop 
 
 ## User Guide
 
-User guide is available at [docs.monai.io](https://docs.monai.io/projects/monai-deploy-app-sdk/en/stable/).
+User guide is available at [project-monai.github.io](https://project-monai.github.io/deploy.html).
 
 ## Citation
 
@@ -45,7 +45,7 @@ pip install monai-deploy-app-sdk
 
 ## Getting Started
 
-Getting started guide is available at [here](https://docs.monai.io/projects/monai-deploy-app-sdk/en/stable/getting_started/index.html).
+Getting started guide is available at [here](https://project-monai.github.io/deploy.html#getting-started).
 
 ```bash
 pip install monai-deploy-app-sdk
@@ -72,30 +72,30 @@ cp examples/apps/simple_imaging_app/input/brain_mr_input.jpg input/
 monai-deploy run simple_app-x64-workstation-dgpu-linux-amd64:latest -i input -o output
 ```
 
-### [Tutorials](https://docs.monai.io/projects/monai-deploy-app-sdk/en/stable/getting_started/tutorials/index.html)
+### [Tutorials](https://monai.readthedocs.io/projects/monai-deploy-app-sdk/en/stable/getting_started/tutorials/index.html)
 
 Tutorials are provided to help getting started with the App SDK, to name but a few below.
 
-#### [1) Creating a simple image processing app](https://docs.monai.io/projects/monai-deploy-app-sdk/en/stable/getting_started/tutorials/simple_app.html)
+#### [1) Creating a simple image processing app](https://monai.readthedocs.io/projects/monai-deploy-app-sdk/en/stable/getting_started/tutorials/simple_app.html)
 
-#### [2) Creating MedNIST Classifier app](https://docs.monai.io/projects/monai-deploy-app-sdk/en/stable/getting_started/tutorials/mednist_app.html)
+#### [2) Creating MedNIST Classifier app](https://monai.readthedocs.io/projects/monai-deploy-app-sdk/en/stable/getting_started/tutorials/mednist_app.html)
 
 YouTube Video (to be updated with the new version):
 
 - [MedNIST Classification Example](https://www.youtube.com/watch?v=WwjilJFHuU4)
 
-### [3) Creating a Segmentation app](https://docs.monai.io/projects/monai-deploy-app-sdk/en/stable/getting_started/tutorials/segmentation_app.html)
+### [3) Creating a Segmentation app](https://monai.readthedocs.io/projects/monai-deploy-app-sdk/en/stable/getting_started/tutorials/segmentation_app.html)
 
 YouTube Video (demonstrating the previous version of the App SDK):
 
 - [Spleen Organ Segmentation - Jupyter Notebook Tutorial](https://www.youtube.com/watch?v=cqDVxzYt9lY)
 - [Spleen Organ Segmentation - Deep Dive](https://www.youtube.com/watch?v=nivgfD4pwWE)
 
-### [4) Creating a Segmentation app including visualization with Clara Viz](https://docs.monai.io/projects/monai-deploy-app-sdk/en/stable/getting_started/tutorials/segmentation_clara-viz_app.html)
+### [4) Creating a Segmentation app including visualization with Clara Viz](https://monai.readthedocs.io/projects/monai-deploy-app-sdk/en/stable/getting_started/tutorials/segmentation_clara-viz_app.html)
 
-### [5) Creating a Segmentation app consuming a MONAI Bundle](https://docs.monai.io/projects/monai-deploy-app-sdk/en/stable/getting_started/tutorials/monai_bundle_app.html)
+### [5) Creating a Segmentation app consuming a MONAI Bundle](https://monai.readthedocs.io/projects/monai-deploy-app-sdk/en/stable/getting_started/tutorials/monai_bundle_app.html)
 
-### [Examples](https://docs.monai.io/projects/monai-deploy-app-sdk/en/stable/getting_started/examples.html)
+### [Examples](https://monai.readthedocs.io/projects/monai-deploy-app-sdk/en/stable/getting_started/examples.html)
 
 <https://github.com/Project-MONAI/monai-deploy-app-sdk/tree/main/examples/apps> has example apps that you can see, to name but a few
 
@@ -122,8 +122,8 @@ Ask and answer questions over on [MONAI Deploy App SDK's GitHub Discussions tab]
 
 ## Links
 
-- Website: <https://monai.io>
-- API documentation: <https://docs.monai.io/projects/monai-deploy-app-sdk>
+- Website: <https://project-monai.github.io/>
+- API documentation: <https://monai.readthedocs.io/projects/monai-deploy-app-sdk/en/stable/modules/index.html>
 - Code: <https://github.com/Project-MONAI/monai-deploy-app-sdk>
 - Project tracker: <https://github.com/Project-MONAI/monai-deploy-app-sdk/projects>
 - Issue tracker: <https://github.com/Project-MONAI/monai-deploy-app-sdk/issues>

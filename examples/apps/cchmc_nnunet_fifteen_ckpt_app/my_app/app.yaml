@@ -22,7 +22,7 @@ application:
   outputFormats: ["file"]
 
 # specifies the resources our app needs to run
-# per MONAI docs (https://docs.monai.io/projects/monai-deploy-app-sdk/en/latest/developing_with_sdk/executing_packaged_app_locally.html)
+# per MONAI docs (https://monai.readthedocs.io/projects/monai-deploy-app-sdk/en/latest/developing_with_sdk/executing_packaged_app_locally.html)
 # MAR does not validate all of the resource requirements embedded in the MAP to ensure they are met in host system
 # e.g, MAR will throw an error if gpu requirement is not met on host system; however, gpuMemory parameter doesn't appear to be validated
 resources:

@@ -2,7 +2,7 @@
 
 This tutorial shows how to create an inference application with multiple models, focusing on model files organization, inferring with named model in the application, and packaging.
 
-The models used in this example are trained with MONAI, and are packaged in the [MONAI Bundle](https://docs.monai.io/en/latest/bundle_intro.html) format.
+The models used in this example are trained with MONAI, and are packaged in the [MONAI Bundle](https://monai.readthedocs.io/en/stable/bundle_intro.html) format.
 
 ## Setup
 

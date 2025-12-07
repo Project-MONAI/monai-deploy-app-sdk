@@ -71,7 +71,7 @@ This bundle structure is compatible with MONAI inference tools and the MONAI Dep
 
 
 ## Setting Up Environment
-Instructions regarding installation of MONAI Deploy App SDK and details of the necessary system requirements can be found on the MONAI Deploy App SDK [GitHub Repository](https://github.com/Project-MONAI/monai-deploy-app-sdk) and [docs](https://docs.monai.io/projects/monai-deploy-app-sdk/en/latest/getting_started/installing_app_sdk.html). Instructions on how to create a virtual environment and install other dependencies can be found in the MONAI Deploy App SDK docs under the Creating a Segmentation App Consuming a MONAI Bundle [example](https://docs.monai.io/projects/monai-deploy-app-sdk/en/latest/getting_started/tutorials/monai_bundle_app.html).
+Instructions regarding installation of MONAI Deploy App SDK and details of the necessary system requirements can be found on the MONAI Deploy App SDK [GitHub Repository](https://github.com/Project-MONAI/monai-deploy-app-sdk) and [docs](https://monai.readthedocs.io/projects/monai-deploy-app-sdk/en/latest/getting_started/installing_app_sdk.html). Instructions on how to create a virtual environment and install other dependencies can be found in the MONAI Deploy App SDK docs under the Creating a Segmentation App Consuming a MONAI Bundle [example](https://monai.readthedocs.io/projects/monai-deploy-app-sdk/en/latest/getting_started/tutorials/monai_bundle_app.html).
 
 Per MONAI, MONAI Deploy App SDK is required to be run in a Linux environment, specifically Ubuntu 22.04 on X86-64, as this is the only X86 platform that the underlying Holoscan SDK has been tested to support as of now. This project uses Poetry for dependency management, which simplifies setting up the environment with all required dependencies.
 
@@ -113,7 +113,7 @@ python my_app -i "$HOLOSCAN_INPUT_PATH" -o "$HOLOSCAN_OUTPUT_PATH" -m "$HOLOSCAN
 ```
 
 ## Building the MAP
-It is recommended that the NVIDIA Clara Holoscan base image is pulled prior to building the MAP. If this base image is not pulled prior to MAP building, it will be done so automically during the build process, which will increase the build time from around 1/2 minutes to around 10/15 minutes. Ensure the base image matches the Holoscan SDK version being used in your environment (e.g. if you are using Holoscan SDK v3.2.0, replace `${holoscan-version}` with `v3.2.0`).
+It is recommended that the NVIDIA Clara Holoscan base image is pulled prior to building the MAP. If this base image is not pulled prior to MAP building, it will be done so automatically during the build process, which will increase the build time from around 1/2 minutes to around 10/15 minutes. Ensure the base image matches the Holoscan SDK version being used in your environment (e.g. if you are using Holoscan SDK v3.2.0, replace `${holoscan-version}` with `v3.2.0`).
 
 ```
 docker pull nvcr.io/nvidia/clara-holoscan/holoscan:${holoscan-version}-dgpu
@@ -153,7 +153,7 @@ docker image ls | grep ${tag_prefix}
 ## Display and Extract MAP Contents
 There are a few commands that can be executed in the command line to view MAP contents.
 
-To display some basic MAP manifests, use the `show` command. The following command will run and subsequently remove a MAP Docker container; the `show` command will display informaiton about the MAP-associated `app.json` and `pkg.json` files as command line outputs.
+To display some basic MAP manifests, use the `show` command. The following command will run and subsequently remove a MAP Docker container; the `show` command will display information about the MAP-associated `app.json` and `pkg.json` files as command line outputs.
 
 ```
 docker run --rm ${tag_prefix}-x64-workstation-dgpu-linux-amd64:${image_version} show

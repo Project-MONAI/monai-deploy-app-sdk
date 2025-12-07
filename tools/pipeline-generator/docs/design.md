@@ -13,7 +13,7 @@ By bridging the gap between model packaging and application deployment, this pro
 
 ## **Background**
 
-The **[MONAI Bundle](https://docs.monai.io/en/latest/mb_specification.html#archive-format)** is a standardized format designed to package deep learning models for medical imaging. It includes the model weights, metadata, transforms, and documentation needed to make the model self-contained and portable.
+The **[MONAI Bundle](https://monai.readthedocs.io/en/latest/mb_specification.html#archive-format)** is a standardized format designed to package deep learning models for medical imaging. It includes the model weights, metadata, transforms, and documentation needed to make the model self-contained and portable.
 
 The **Holoscan SDK** is NVIDIA’s real-time streaming application SDK for AI workloads in healthcare and edge devices. The **MONAI Deploy App SDK** builds on top of the Holoscan SDK, adding medical imaging domain-specific operators and functionalities to enable the creation of composable inference applications, particularly for radiology and imaging pipelines.
 

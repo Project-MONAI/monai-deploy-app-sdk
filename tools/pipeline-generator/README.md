@@ -1,6 +1,6 @@
 # Pipeline Generator
 
-A CLI tool for generating [MONAI Deploy](https://github.com/Project-MONAI/monai-deploy-app-sdk) application pipelines from [MONAI Bundles](https://docs.monai.io/en/stable/bundle_intro.html).
+A CLI tool for generating [MONAI Deploy](https://github.com/Project-MONAI/monai-deploy-app-sdk) application pipelines from [MONAI Bundles](https://monai.readthedocs.io/en/stable/bundle_intro.html).
 
 ## Features
 
