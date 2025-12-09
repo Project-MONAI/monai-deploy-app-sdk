@@ -1,6 +1,6 @@
 import time
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any, Iterator, cast
 
 import numpy as np
 import pytest
@@ -27,7 +27,7 @@ else:
 _PNG_EXPORT_WARNING_EMITTED = False
 
 
-def _iter_frames(pixel_array: np.ndarray):
+def _iter_frames(pixel_array: np.ndarray) -> Iterator[tuple[int, np.ndarray, bool]]:
     """Yield per-frame arrays and whether they represent color data."""
     arr = np.asarray(pixel_array)
     if arr.ndim == 2:
@@ -204,7 +204,7 @@ def performance_test_nvimgcodec_decoder_against_defaults(
     folder_path: str | None = None, png_output_dir: str | None = None
 ) -> None:
     """Test and compare the performance of the nvimgcodec decoder against the default decoders
-    with all DICOM files of supported transfer syntaxes in a custom folder or pidicom dataset.
+    with all DICOM files of supported transfer syntaxes in a custom folder or pydicom embedded dataset.
 
     If `png_output_dir` is provided, decoded frames are saved as PNG files for both decoders."""
 
@@ -288,5 +288,5 @@ if __name__ == "__main__":
     # python -m pytest test_decoder_nvimgcodec.py
     #
     # The following compares the performance of the nvimgcodec decoder against the default decoders
-    # with DICOM files in pidicom embedded dataset or an optional custom folder
+    # with DICOM files in pydicom embedded dataset or an optional custom folder
     performance_test_nvimgcodec_decoder_against_defaults()  # or use ("/tmp/multi-frame-dcm", png_output_dir="decoded_png")
