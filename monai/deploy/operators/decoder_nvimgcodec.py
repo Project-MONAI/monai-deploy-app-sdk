@@ -180,8 +180,9 @@ def _decode_frame(src: bytes, runner: DecodeRunner) -> bytearray | bytes:
     if not is_available(tsyntax):
         raise ValueError(f"Transfer syntax {tsyntax} not supported; see details in the debug log.")
 
-    runner.set_frame_option(runner.index, "decoding_plugin", "nvimgcodec")  # type: ignore[attr-defined]
-
+    # runner.set_frame_option(runner.index, "decoding_plugin", "nvimgcodec")  # type: ignore[attr-defined]
+    # in pydicom v3.1.0 can use the above call
+    runner.set_option("decoding_plugin", "nvimgcodec")
     is_jpeg2k = tsyntax in JPEG2000TransferSyntaxes
     samples_per_pixel = runner.samples_per_pixel
     photometric_interpretation = runner.photometric_interpretation
@@ -189,7 +190,9 @@ def _decode_frame(src: bytes, runner: DecodeRunner) -> bytearray | bytes:
     # --- JPEG 2000: Precision/Bit depth ---
     if is_jpeg2k:
         precision, bits_allocated = _jpeg2k_precision_bits(runner)
-        runner.set_frame_option(runner.index, "bits_allocated", bits_allocated)  # type: ignore[attr-defined]
+        # runner.set_frame_option(runner.index, "bits_allocated", bits_allocated)  # type: ignore[attr-defined]
+        # in pydicom v3.1.0 can use the abover call
+        runner.set_option("bits_allocated", bits_allocated)
         _logger.debug(f"Set bits_allocated to {bits_allocated} for J2K precision {precision}")
 
     # Check if RGB conversion requested (following Pillow decoder logic)
@@ -199,8 +202,12 @@ def _decode_frame(src: bytes, runner: DecodeRunner) -> bytearray | bytes:
 
     decoder = _get_decoder_resources()
     params = _get_decode_params(runner)
-    decoded_surface = decoder.decode(src, params=params).cpu()
-    np_surface = np.ascontiguousarray(np.asarray(decoded_surface))
+    decoded_data = decoder.decode(src, params=params)
+    if decoded_data:
+        decoded_data = decoded_data.cpu()
+    else:
+        raise RuntimeError(f"Decoded data is None: {type(decoded_data)}")
+    np_surface = np.ascontiguousarray(np.asarray(decoded_data))
 
     # Handle JPEG2000-specific postprocessing separately
     if is_jpeg2k:
@@ -208,7 +215,9 @@ def _decode_frame(src: bytes, runner: DecodeRunner) -> bytearray | bytes:
 
     # Update photometric interpretation if we converted to RGB, or JPEG 2000 YBR*
     if convert_to_rgb or photometric_interpretation in (PI.YBR_ICT, PI.YBR_RCT):
-        runner.set_frame_option(runner.index, "photometric_interpretation", PI.RGB)  # type: ignore[attr-defined]
+        # runner.set_frame_option(runner.index, "photometric_interpretation", PI.RGB)  # type: ignore[attr-defined]
+        # in pydicon v3.1.0 can use the above call
+        runner.set_option("photometric_interpretation", PI.RGB)
         _logger.debug(
             "Set photometric_interpretation to RGB after conversion"
             if convert_to_rgb
@@ -261,7 +270,7 @@ def _get_decode_params(runner: RunnerBase) -> Any:
     if samples_per_pixel > 1:
         # JPEG 2000 color transformations are always returned as RGB (matches Pillow)
         if photometric_interpretation in (PI.YBR_ICT, PI.YBR_RCT):
-            color_spec = nvimgcodec.ColorSpec.RGB
+            color_spec = nvimgcodec.ColorSpec.SRGB
             _logger.debug(
                 f"Using RGB color spec for JPEG 2000 color transformation " f"(PI: {photometric_interpretation})"
             )
@@ -271,7 +280,7 @@ def _get_decode_params(runner: RunnerBase) -> Any:
 
             if convert_to_rgb:
                 # Convert YCbCr to RGB as requested
-                color_spec = nvimgcodec.ColorSpec.RGB
+                color_spec = nvimgcodec.ColorSpec.SRGB
                 _logger.debug(f"Using RGB color spec (as_rgb=True, PI: {photometric_interpretation})")
             else:
                 # Keep YCbCr unchanged - matches Pillow's image.draft("YCbCr") behavior
@@ -289,7 +298,9 @@ def _get_decode_params(runner: RunnerBase) -> Any:
 
 
 def _jpeg2k_precision_bits(runner: DecodeRunner) -> tuple[int, int]:
-    precision = runner.get_frame_option(runner.index, "j2k_precision", runner.bits_stored)  # type: ignore[attr-defined]
+    # precision = runner.get_frame_option(runner.index, "j2k_precision", runner.bits_stored)  # type: ignore[attr-defined]
+    # in pydicom v3.1.0 can use the above call
+    precision = runner.get_option("j2k_precision", runner.bits_stored)
     if 0 < precision <= 8:
         return precision, 8
     elif 8 < precision <= 16:
@@ -317,15 +328,22 @@ def _jpeg2k_bitshift(arr, bit_shift):
 
 def _jpeg2k_postprocess(np_surface, runner):
     """Handle JPEG 2000 postprocessing: sign correction and bit shifts."""
-    precision = runner.get_frame_option(runner.index, "j2k_precision", runner.bits_stored)
-    bits_allocated = runner.get_frame_option(runner.index, "bits_allocated", runner.bits_allocated)
+    # precision = runner.get_frame_option("j2k_precision", runner.bits_stored)
+    # bits_allocated = runner.get_frame_option(runner.index, "bits_allocated", runner.bits_allocated)
+    # in pydicom v3.1.0 can use the above calls
+    precision = runner.get_option("j2k_precision", runner.bits_stored)
+    bits_allocated = runner.get_option("bits_allocated", runner.bits_allocated)
     is_signed = runner.pixel_representation
     if runner.get_option("apply_j2k_sign_correction", False):
-        is_signed = runner.get_frame_option(runner.index, "j2k_is_signed", is_signed)
+        # is_signed = runner.get_frame_option(runner.index, "j2k_is_signed", is_signed)
+        # in pydicom v3.1.0 can use the above call
+        is_signed = runner.get_option("j2k_is_signed", is_signed)
 
     # Sign correction for signed data
     if is_signed and runner.pixel_representation == 1:
-        dtype = runner.frame_dtype(runner.index)
+        # dtype = runner.frame_dtype(runner.index)
+        # in pydicomv3.1.0 can use the above call
+        dtype = runner.pixel_dtype
         buffer = bytearray(np_surface.tobytes())
         arr = np.frombuffer(buffer, dtype=f"<u{dtype.itemsize}")
         np_surface = _jpeg2k_sign_correction(arr, dtype, bits_allocated)
@@ -334,7 +352,9 @@ def _jpeg2k_postprocess(np_surface, runner):
     bit_shift = bits_allocated - precision
     if bit_shift:
         buffer = bytearray(np_surface.tobytes() if isinstance(np_surface, np.ndarray) else np_surface)
-        dtype = runner.frame_dtype(runner.index)
+        # dtype = runner.frame_dtype(runner.index)
+        # in v3.1.0 can use the above call
+        dtype = runner.pixel_dtype
         arr = np.frombuffer(buffer, dtype=dtype)
         np_surface = _jpeg2k_bitshift(arr, bit_shift)
 
