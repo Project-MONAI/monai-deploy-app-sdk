@@ -1,3 +1,4 @@
+import logging
 import time
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Iterator, cast
@@ -8,6 +9,7 @@ from pydicom import dcmread
 from pydicom.data import get_testdata_files
 
 from monai.deploy.operators.decoder_nvimgcodec import (
+    SUPPORTED_DECODER_CLASSES,
     SUPPORTED_TRANSFER_SYNTAXES,
     _is_nvimgcodec_available,
     register_as_decoder_plugin,
@@ -25,6 +27,9 @@ else:
     PILImageType = Any
 
 _PNG_EXPORT_WARNING_EMITTED = False
+
+_DEFAULT_PLUGIN_CACHE: dict[str, Any] = {}
+_logger = logging.getLogger(__name__)
 
 
 def _iter_frames(pixel_array: np.ndarray) -> Iterator[tuple[int, np.ndarray, bool]]:
@@ -103,7 +108,7 @@ def _save_frames_as_png(pixel_array: np.ndarray, output_dir: Path, file_stem: st
 
     if PILImage is None:
         if not _PNG_EXPORT_WARNING_EMITTED:
-            print("Skipping PNG export because Pillow is not installed.")
+            _logger.info("Skipping PNG export because Pillow is not installed.")
             _PNG_EXPORT_WARNING_EMITTED = True
         return
 
@@ -174,6 +179,8 @@ def test_nvimgcodec_decoder_matches_default(path: str) -> None:
         default_decoder_error_message = f"{e}"
         default_decoder_errored = True
 
+    # Remove and cache the other default decoder plugins first
+    _remove_default_plugins()
     # Register the nvimgcodec decoder plugin and unregister it after each use.
     register_as_decoder_plugin()
     try:
@@ -184,20 +191,26 @@ def test_nvimgcodec_decoder_matches_default(path: str) -> None:
         nvimgcodec_decoder_errored = True
     finally:
         unregister_as_decoder_plugin()
+        _restore_default_plugins()
 
     if default_decoder_errored and nvimgcodec_decoder_errored:
-        print(
+        _logger.info(
             f"All decoders encountered errors for transfer syntax {transfer_syntax} in {Path(path).name}:\n"
             f"Default decoder error: {default_decoder_error_message}\n"
             f"nvimgcodec decoder error: {nvimgcodec_decoder_error_message}"
         )
         return
     elif nvimgcodec_decoder_errored and not default_decoder_errored:
-        raise AssertionError(f"nvimgcodec decoder errored: {nvimgcodec_decoder_errored} but default decoder succeeded")
+        raise AssertionError(
+            f"nvimgcodec decoder errored but default decoder succeeded for transfer syntax {transfer_syntax}"
+        )
 
-    assert baseline_pixels.shape == nv_pixels.shape, f"Shape mismatch for {Path(path).name}"
-    assert baseline_pixels.dtype == nv_pixels.dtype, f"Dtype mismatch for {Path(path).name}"
-    np.testing.assert_allclose(baseline_pixels, nv_pixels, rtol=rtol, atol=atol)
+    assert baseline_pixels.shape == nv_pixels.shape, f"Shape mismatch with transfer syntax {transfer_syntax}"
+    assert baseline_pixels.dtype == nv_pixels.dtype, f"Dtype mismatch with transfer syntax {transfer_syntax}"
+    try:
+        np.testing.assert_allclose(baseline_pixels, nv_pixels, rtol=rtol, atol=atol)
+    except AssertionError as e:
+        raise AssertionError(f"Pixels values mismatch with transfer syntax {transfer_syntax}") from e
 
 
 def performance_test_nvimgcodec_decoder_against_defaults(
@@ -241,8 +254,10 @@ def performance_test_nvimgcodec_decoder_against_defaults(
             files_with_errors.append(Path(path).name)
             continue
 
+    _remove_default_plugins()
     # Register the nvimgcodec decoder plugin and unregister it after each use.
     register_as_decoder_plugin()
+
     combined_perf = {}
     for path, perf in files_tested_with_perf.items():
         try:
@@ -256,9 +271,11 @@ def performance_test_nvimgcodec_decoder_against_defaults(
             if png_root is not None:
                 nv_dir = png_root / Path(path).stem / "nvimgcodec"
                 _save_frames_as_png(nv_pixels, nv_dir, Path(path).stem)
-        except Exception:
+        except Exception as e:
+            _logger.info(f"Error decoding {path} with nvimgcodec decoder: {e}")
             continue
     unregister_as_decoder_plugin()
+    _restore_default_plugins()
 
     # Performance of the nvimgcodec decoder against the default decoders
     # with all DICOM files of supported transfer syntaxes
@@ -282,6 +299,26 @@ def performance_test_nvimgcodec_decoder_against_defaults(
     print(f"\n\n__Files not tested due to errors encountered by default decoders__: \n{files_with_errors}")
 
 
+def _remove_default_plugins():
+    """Remove the default plugins from the supported decoder classes."""
+
+    global _DEFAULT_PLUGIN_CACHE
+    for decoder_class in SUPPORTED_DECODER_CLASSES:
+        _DEFAULT_PLUGIN_CACHE[decoder_class.UID.name] = (
+            decoder_class._available
+        )  # while box, no API to get DecodeFunction
+        _logger.info(f"Removing default plugins of {decoder_class}: {decoder_class.available_plugins}.")
+        decoder_class._available = {}  # remove all plugins, ref is still held by _DEFAULT_PLUGIN_CACHE
+        _logger.info(f"Removed default plugins of {decoder_class}: {decoder_class.available_plugins}.")
+
+
+def _restore_default_plugins():
+    """Restore the default plugins to the supported decoder classes."""
+    for decoder_class in SUPPORTED_DECODER_CLASSES:
+        decoder_class._available = _DEFAULT_PLUGIN_CACHE[decoder_class.UID.name]  # restore all plugins
+        _logger.info(f"Restored default plugins of {decoder_class}: {decoder_class.available_plugins}.")
+
+
 if __name__ == "__main__":
 
     # Use pytest to test the functionality with pydicom embedded DICOM files of supported transfer syntaxes individually
@@ -289,4 +326,6 @@ if __name__ == "__main__":
     #
     # The following compares the performance of the nvimgcodec decoder against the default decoders
     # with DICOM files in pydicom embedded dataset or an optional custom folder
-    performance_test_nvimgcodec_decoder_against_defaults()  # or use ("/tmp/multi-frame-dcm", png_output_dir="decoded_png")
+    performance_test_nvimgcodec_decoder_against_defaults(
+        png_output_dir="decoded_png"
+    )  # or use ("/tmp/multi-frame-dcm", png_output_dir="decoded_png")
