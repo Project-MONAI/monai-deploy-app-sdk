@@ -71,6 +71,7 @@ __all__ = [
     "IOMapping",
     "ModelInfo",
     "MonaiBundleInferenceOperator",
+    "MONetBundleInferenceOperator",
     "MonaiSegInferenceOperator",
     "NiftiDataLoader",
     "PNGConverterOperator",
