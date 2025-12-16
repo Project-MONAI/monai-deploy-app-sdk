@@ -195,22 +195,26 @@ def test_nvimgcodec_decoder_matches_default(path: str) -> None:
 
     if default_decoder_errored and nvimgcodec_decoder_errored:
         _logger.info(
-            f"All decoders encountered errors for transfer syntax {transfer_syntax} in {Path(path).name}:\n"
+            f"All decoders encountered errors for transfer syntax: {transfer_syntax} in file: {Path(path).name}:\n"
             f"Default decoder error: {default_decoder_error_message}\n"
             f"nvimgcodec decoder error: {nvimgcodec_decoder_error_message}"
         )
         return
     elif nvimgcodec_decoder_errored and not default_decoder_errored:
         raise AssertionError(
-            f"nvimgcodec decoder errored but default decoder succeeded for transfer syntax {transfer_syntax}"
+            f"Only nvimgcodec encountered errors for transfer syntax: {transfer_syntax} in file: {Path(path).name}:\n"
+            f"with error: {nvimgcodec_decoder_error_message}"
         )
 
     assert baseline_pixels.shape == nv_pixels.shape, f"Shape mismatch with transfer syntax {transfer_syntax}"
     assert baseline_pixels.dtype == nv_pixels.dtype, f"Dtype mismatch with transfer syntax {transfer_syntax}"
     try:
         np.testing.assert_allclose(baseline_pixels, nv_pixels, rtol=rtol, atol=atol)
+        _logger.info(f"Pixels values matched for transfer syntax: {transfer_syntax} in file: {Path(path).name}")
     except AssertionError as e:
-        raise AssertionError(f"Pixels values mismatch with transfer syntax {transfer_syntax}") from e
+        raise AssertionError(
+            f"Pixels values mismatch for transfer syntax: {transfer_syntax} in file: {Path(path).name}"
+        ) from e
 
 
 def performance_test_nvimgcodec_decoder_against_defaults(
@@ -307,16 +311,15 @@ def _remove_default_plugins():
         _DEFAULT_PLUGIN_CACHE[decoder_class.UID.name] = (
             decoder_class._available
         )  # while box, no API to get DecodeFunction
-        _logger.info(f"Removing default plugins of {decoder_class}: {decoder_class.available_plugins}.")
         decoder_class._available = {}  # remove all plugins, ref is still held by _DEFAULT_PLUGIN_CACHE
-        _logger.info(f"Removed default plugins of {decoder_class}: {decoder_class.available_plugins}.")
+        _logger.info(f"Removed default plugins of {decoder_class.UID.name}: {decoder_class.available_plugins}.")
 
 
 def _restore_default_plugins():
     """Restore the default plugins to the supported decoder classes."""
     for decoder_class in SUPPORTED_DECODER_CLASSES:
         decoder_class._available = _DEFAULT_PLUGIN_CACHE[decoder_class.UID.name]  # restore all plugins
-        _logger.info(f"Restored default plugins of {decoder_class}: {decoder_class.available_plugins}.")
+        _logger.info(f"Restored default plugins of {decoder_class.UID.name}: {decoder_class.available_plugins}.")
 
 
 if __name__ == "__main__":
@@ -328,4 +331,4 @@ if __name__ == "__main__":
     # with DICOM files in pydicom embedded dataset or an optional custom folder
     performance_test_nvimgcodec_decoder_against_defaults(
         png_output_dir="decoded_png"
-    )  # or use ("/tmp/multi-frame-dcm", png_output_dir="decoded_png")
+    )  # or use (folder_path="/data/dcm", png_output_dir="decoded_png")

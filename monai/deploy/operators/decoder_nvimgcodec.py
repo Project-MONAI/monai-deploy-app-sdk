@@ -182,7 +182,7 @@ def _decode_frame(src: bytes, runner: DecodeRunner) -> bytearray | bytes:
 
     # runner.set_frame_option(runner.index, "decoding_plugin", "nvimgcodec")  # type: ignore[attr-defined]
     # in pydicom v3.1.0 can use the above call
-    runner.set_option("decoding_plugin", "nvimgcodec")
+    # runner.set_option("decoding_plugin", "nvimgcodec")
     is_jpeg2k = tsyntax in JPEG2000TransferSyntaxes
     samples_per_pixel = runner.samples_per_pixel
     photometric_interpretation = runner.photometric_interpretation
@@ -262,6 +262,18 @@ def _get_decode_params(runner: RunnerBase) -> Any:
     # Access DICOM metadata from the runner
     samples_per_pixel = runner.samples_per_pixel
     photometric_interpretation = runner.photometric_interpretation
+    transfer_syntax = runner.transfer_syntax
+    as_rgb = runner.get_option("as_rgb", False)
+    force_rgb = runner.get_option("force_rgb", False)
+    force_ybr = runner.get_option("force_ybr", False)
+
+    _logger.debug("DecodeRunner options:")
+    _logger.debug(f"transfer_syntax: {transfer_syntax}")
+    _logger.debug(f"photometric_interpretation: {photometric_interpretation}")
+    _logger.debug(f"samples_per_pixel: {samples_per_pixel}")
+    _logger.debug(f"as_rgb: {as_rgb}")
+    _logger.debug(f"force_rgb: {force_rgb}")
+    _logger.debug(f"force_ybr: {force_ybr}")
 
     # Default: keep color space unchanged
     color_spec = nvimgcodec.ColorSpec.UNCHANGED
@@ -274,9 +286,14 @@ def _get_decode_params(runner: RunnerBase) -> Any:
             _logger.debug(
                 f"Using RGB color spec for JPEG 2000 color transformation " f"(PI: {photometric_interpretation})"
             )
+        elif photometric_interpretation in (PI.RGB) and transfer_syntax in (JPEGBaseline8BitDecoder.UID):
+            color_spec = nvimgcodec.ColorSpec.SYCC
+            _logger.debug(
+                f"Need to decode without YCC->RGB for PI: {photometric_interpretation} of transfer syntanx {transfer_syntax}"
+            )
         else:
             # Check the as_rgb option - same as Pillow decoder
-            convert_to_rgb = runner.get_option("as_rgb", False) and "YBR" in photometric_interpretation
+            convert_to_rgb = as_rgb or (force_rgb and "YBR" in photometric_interpretation)
 
             if convert_to_rgb:
                 # Convert YCbCr to RGB as requested
@@ -289,7 +306,10 @@ def _get_decode_params(runner: RunnerBase) -> Any:
                 )
     else:
         # Grayscale image - keep unchanged
-        _logger.debug(f"Using UNCHANGED color spec for grayscale image " f"(samples_per_pixel: {samples_per_pixel})")
+        _logger.debug(
+            f"Using UNCHANGED color spec for grayscale image (samples_per_pixel: {samples_per_pixel},"
+            f" PI: {photometric_interpretation}, transfer_syntax: {transfer_syntax})"
+        )
 
     return nvimgcodec.DecodeParams(
         allow_any_depth=True,
@@ -436,7 +456,7 @@ def register_as_decoder_plugin(module_path: str | None = None) -> bool:
             continue
 
         decoder_class.add_plugin(NVIMGCODEC_PLUGIN_LABEL, (module_path, str(func_name)))
-        _logger.info(
+        _logger.debug(
             f"Added plugin for transfer syntax {decoder_class.UID}: "
             f"{NVIMGCODEC_PLUGIN_LABEL} with {func_name} in module path {module_path}."
         )
@@ -457,7 +477,8 @@ def unregister_as_decoder_plugin() -> bool:
     for decoder_class in SUPPORTED_DECODER_CLASSES:
         if NVIMGCODEC_PLUGIN_LABEL in decoder_class.available_plugins:
             decoder_class.remove_plugin(NVIMGCODEC_PLUGIN_LABEL)
-        _logger.info(f"Unregistered plugin for transfer syntax {decoder_class.UID}: {NVIMGCODEC_PLUGIN_LABEL}")
+        _logger.debug(f"Unregistered plugin for transfer syntax {decoder_class.UID}: {NVIMGCODEC_PLUGIN_LABEL}")
+    _logger.info(f"Unregistered plugin {NVIMGCODEC_PLUGIN_LABEL} for all supported transfer syntaxex.")
 
     return True
 
