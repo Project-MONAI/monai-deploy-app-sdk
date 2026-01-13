@@ -118,7 +118,6 @@ NVIMGCODEC_PLUGIN_LABEL = "0.6+nvimgcodec"  # to be sorted to first in ascending
 # Supported decoder classes of the corresponding transfer syntaxes by this decoder plugin.
 SUPPORTED_DECODER_CLASSES = [
     JPEGBaseline8BitDecoder,  # 1.2.840.10008.1.2.4.50, JPEG Baseline (Process 1)
-    JPEGExtended12BitDecoder,  # 1.2.840.10008.1.2.4.51, JPEG Extended (Process 2 & 4)
     JPEGLosslessDecoder,  # 1.2.840.10008.1.2.4.57, JPEG Lossless, Non-Hierarchical (Process 14)
     JPEGLosslessSV1Decoder,  # 1.2.840.10008.1.2.4.70, JPEG Lossless, Non-Hierarchical, First-Order Prediction
     JPEG2000LosslessDecoder,  # 1.2.840.10008.1.2.4.90, JPEG 2000 Image Compression (Lossless Only)
@@ -147,6 +146,7 @@ DECODER_DEPENDENCIES = {
 }
 
 DEFAULT_PI_NAME = "nvimgcodec_default_photometric_interpretation"
+
 
 # Required for decoder plugin
 def is_available(uid: UID) -> bool:

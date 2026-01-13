@@ -28,6 +28,8 @@ else:
 
 _PNG_EXPORT_WARNING_EMITTED = False
 
+_IGNORED_FILES_STEMS = ["GDCMJ2K_TextGBR".lower()]
+
 _DEFAULT_PLUGIN_CACHE: dict[str, Any] = {}
 _logger = logging.getLogger(__name__)
 
@@ -76,7 +78,7 @@ def _prepare_frame_for_png(frame: np.ndarray, is_color: bool) -> np.ndarray:
         if arr_max == arr_min:
             return np.zeros_like(arr, dtype=np.uint8)
         scaled = (arr_float - arr_min) / (arr_max - arr_min)
-        return np.clip(np.round(scaled * 255.0), 0, 255).astype(np.uint8)
+        return np.clip(np.round(scaled * 255.0), 0, 255).astype(np.uint8)  # type: ignore[no-any-return]
 
     # Grayscale path
     arr_min = float(arr.min())
@@ -99,7 +101,7 @@ def _prepare_frame_for_png(frame: np.ndarray, is_color: bool) -> np.ndarray:
     scaled = (arr_float - arr_min) / (arr_max - arr_min)
     scaled = np.clip(np.round(scaled * scale), 0, scale)
     target_dtype = np.uint16 if use_uint16 else np.uint8
-    return scaled.astype(target_dtype)
+    return scaled.astype(target_dtype)  # type: ignore[no-any-return]
 
 
 def _save_frames_as_png(pixel_array: np.ndarray, output_dir: Path, file_stem: str) -> None:
@@ -147,6 +149,8 @@ def get_test_dicoms(folder_path: str | None = None):
 
     for dcm_path in dcm_paths:
         if not _is_supported_dicom_file(str(dcm_path)):
+            continue
+        if dcm_path.stem.lower() in _IGNORED_FILES_STEMS:
             continue
         yield str(dcm_path)
 
