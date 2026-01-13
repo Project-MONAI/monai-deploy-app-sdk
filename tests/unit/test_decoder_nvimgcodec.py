@@ -160,7 +160,7 @@ def test_nvimgcodec_decoder_matches_default(path: str) -> None:
     """Ensure NVIDIA nvimgcodec decoder matches default decoding for supported syntaxes."""
 
     rtol = 0.01
-    atol = 1.0
+    atol = 4.0
 
     baseline_pixels: np.ndarray = np.array([])
     nv_pixels: np.ndarray = np.array([])

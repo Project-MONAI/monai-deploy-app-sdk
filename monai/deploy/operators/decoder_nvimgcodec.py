@@ -146,6 +146,7 @@ DECODER_DEPENDENCIES = {
     for x in SUPPORTED_TRANSFER_SYNTAXES
 }
 
+DEFAULT_PI_NAME = "nvimgcodec_default_photometric_interpretation"
 
 # Required for decoder plugin
 def is_available(uid: UID) -> bool:
@@ -209,10 +210,6 @@ def _decode_frame(src: bytes, runner: DecodeRunner) -> bytearray | bytes:
         raise RuntimeError(f"Decoded data is None: {type(decoded_data)}")
     np_surface = np.ascontiguousarray(np.asarray(decoded_data))
 
-    # Handle JPEG2000-specific postprocessing separately
-    if is_jpeg2k:
-        np_surface = _jpeg2k_postprocess(np_surface, runner)
-
     # Update photometric interpretation if we converted to RGB, or JPEG 2000 YBR*
     if convert_to_rgb or photometric_interpretation in (PI.YBR_ICT, PI.YBR_RCT):
         # runner.set_frame_option(runner.index, "photometric_interpretation", PI.RGB)  # type: ignore[attr-defined]
@@ -236,7 +233,7 @@ def _get_decoder_resources() -> Any:
     global _NVIMGCODEC_DECODER
 
     if _NVIMGCODEC_DECODER is None:
-        _NVIMGCODEC_DECODER = nvimgcodec.Decoder()
+        _NVIMGCODEC_DECODER = nvimgcodec.Decoder(options=":fancy_upsampling=1")
 
     return _NVIMGCODEC_DECODER
 
@@ -261,7 +258,13 @@ def _get_decode_params(runner: RunnerBase) -> Any:
 
     # Access DICOM metadata from the runner
     samples_per_pixel = runner.samples_per_pixel
-    photometric_interpretation = runner.photometric_interpretation
+    photometric_interpretation = runner.get_option(DEFAULT_PI_NAME, runner.photometric_interpretation)
+
+    # we will change the PI at the end of the function if we convert to rgb
+    # but we need to have original PI to decide if we need to apply color transform for JPEG
+    if runner.get_option(DEFAULT_PI_NAME, None) is None:
+        runner.set_option(DEFAULT_PI_NAME, photometric_interpretation)
+
     transfer_syntax = runner.transfer_syntax
     as_rgb = runner.get_option("as_rgb", False)
     force_rgb = runner.get_option("force_rgb", False)
@@ -286,11 +289,15 @@ def _get_decode_params(runner: RunnerBase) -> Any:
             _logger.debug(
                 f"Using RGB color spec for JPEG 2000 color transformation " f"(PI: {photometric_interpretation})"
             )
-        elif photometric_interpretation in (PI.RGB) and transfer_syntax in (JPEGBaseline8BitDecoder.UID):
-            color_spec = nvimgcodec.ColorSpec.SYCC
-            _logger.debug(
-                f"Need to decode without YCC->RGB for PI: {photometric_interpretation} of transfer syntanx {transfer_syntax}"
-            )
+        elif transfer_syntax in (JPEGBaseline8BitDecoder.UID, JPEGExtended12BitDecoder.UID):
+            # approach is similar to pylibjpeg from pydicom - for ybr full and 422 it needs conversion from ycbcr to rbg
+            # for any other PI it just skips color conversion (ignoring what is inside jpeg header)
+            if photometric_interpretation in (PI.YBR_FULL, PI.YBR_FULL_422):
+                # we want to apply ycbcr -> rgb conversion
+                color_spec = nvimgcodec.ColorSpec.SRGB
+            else:
+                # ignore color conversion as image should already by in rgb or grayscale (but jpeg header may contain wrong data)
+                color_spec = nvimgcodec.ColorSpec.SYCC
         else:
             # Check the as_rgb option - same as Pillow decoder
             convert_to_rgb = as_rgb or (force_rgb and "YBR" in photometric_interpretation)
@@ -331,54 +338,6 @@ def _jpeg2k_precision_bits(runner: DecodeRunner) -> tuple[int, int]:
         return precision, 16
     else:
         raise ValueError(f"Only 'Bits Stored' values up to 16 are supported, got {precision}")
-
-
-def _jpeg2k_sign_correction(arr, dtype, bits_allocated):
-    arr = arr.view(dtype)
-    arr -= np.int32(2 ** (bits_allocated - 1))
-    _logger.debug("Applied J2K sign correction")
-    return arr
-
-
-def _jpeg2k_bitshift(arr, bit_shift):
-    np.right_shift(arr, bit_shift, out=arr)
-    _logger.debug(f"Applied J2K bit shift: {bit_shift} bits")
-    return arr
-
-
-def _jpeg2k_postprocess(np_surface, runner):
-    """Handle JPEG 2000 postprocessing: sign correction and bit shifts."""
-    # precision = runner.get_frame_option("j2k_precision", runner.bits_stored)
-    # bits_allocated = runner.get_frame_option(runner.index, "bits_allocated", runner.bits_allocated)
-    # in pydicom v3.1.0 can use the above calls
-    precision = runner.get_option("j2k_precision", runner.bits_stored)
-    bits_allocated = runner.get_option("bits_allocated", runner.bits_allocated)
-    is_signed = runner.pixel_representation
-    if runner.get_option("apply_j2k_sign_correction", False):
-        # is_signed = runner.get_frame_option(runner.index, "j2k_is_signed", is_signed)
-        # in pydicom v3.1.0 can use the above call
-        is_signed = runner.get_option("j2k_is_signed", is_signed)
-
-    # Sign correction for signed data
-    if is_signed and runner.pixel_representation == 1:
-        # dtype = runner.frame_dtype(runner.index)
-        # in pydicomv3.1.0 can use the above call
-        dtype = runner.pixel_dtype
-        buffer = bytearray(np_surface.tobytes())
-        arr = np.frombuffer(buffer, dtype=f"<u{dtype.itemsize}")
-        np_surface = _jpeg2k_sign_correction(arr, dtype, bits_allocated)
-
-    # Bit shift if bits_allocated > precision
-    bit_shift = bits_allocated - precision
-    if bit_shift:
-        buffer = bytearray(np_surface.tobytes() if isinstance(np_surface, np.ndarray) else np_surface)
-        # dtype = runner.frame_dtype(runner.index)
-        # in v3.1.0 can use the above call
-        dtype = runner.pixel_dtype
-        arr = np.frombuffer(buffer, dtype=dtype)
-        np_surface = _jpeg2k_bitshift(arr, bit_shift)
-
-    return np_surface
 
 
 def _is_nvimgcodec_available() -> bool:
