@@ -1,6 +1,7 @@
 holoscan-cu12
 holoscan-cli
 numpy>=1.21.6
+scipy>=1.7.0
 colorama>=0.4.1
 tritonclient[all]>=2.53.0
 typeguard>=3.0.0
