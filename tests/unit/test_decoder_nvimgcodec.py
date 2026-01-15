@@ -1,7 +1,7 @@
 import logging
 import time
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Iterator, cast
+from typing import Any, Iterator, cast
 
 import numpy as np
 import pytest
@@ -21,10 +21,6 @@ try:
 except Exception:  # pragma: no cover - Pillow may be unavailable in some environments
     PILImage = None  # type: ignore[assignment]
 
-if TYPE_CHECKING:
-    from PIL.Image import Image as PILImageType
-else:
-    PILImageType = Any
 
 _PNG_EXPORT_WARNING_EMITTED = False
 
@@ -47,14 +43,13 @@ def _iter_frames(pixel_array: np.ndarray) -> Iterator[tuple[int, np.ndarray, boo
         else:
             for index in range(arr.shape[0]):
                 frame = arr[index]
-                is_color = frame.ndim == 3 and frame.shape[-1] in (3, 4)
-                yield index, frame, is_color
+                yield index, frame, False  # grayscale multi-frame images
         return
 
     if arr.ndim == 4:
         for index in range(arr.shape[0]):
             frame = arr[index]
-            is_color = frame.ndim == 3 and frame.shape[-1] in (3, 4)
+            is_color = frame.shape[-1] in (3, 4)
             yield index, frame, is_color
         return
 
@@ -69,30 +64,29 @@ def _prepare_frame_for_png(frame: np.ndarray, is_color: bool) -> np.ndarray:
     if not is_color and arr.ndim == 3 and arr.shape[-1] == 1:
         arr = arr[..., 0]
 
+    arr_float = arr.astype(np.float64, copy=False)
+    if np.issubdtype(arr.dtype, np.integer):
+        arr_min = float(arr.min())
+        arr_max = float(arr.max())
+    else:
+        arr_min = float(arr_float.min())
+        arr_max = float(arr_float.max())
+
     if is_color:
         if arr.dtype == np.uint8:
             return arr
-        arr_float = arr.astype(np.float64, copy=False)
-        arr_min = float(arr_float.min())
-        arr_max = float(arr_float.max())
         if arr_max == arr_min:
             return np.zeros_like(arr, dtype=np.uint8)
         scaled = (arr_float - arr_min) / (arr_max - arr_min)
         return np.clip(np.round(scaled * 255.0), 0, 255).astype(np.uint8)  # type: ignore[no-any-return]
 
     # Grayscale path
-    arr_min = float(arr.min())
-    arr_max = float(arr.max())
-
     if np.issubdtype(arr.dtype, np.integer):
         if arr_min >= 0 and arr_max <= 255:
             return arr.astype(np.uint8, copy=False)
         if arr_min >= 0 and arr_max <= 65535:
             return arr.astype(np.uint16, copy=False)
 
-    arr_float = arr.astype(np.float64, copy=False)
-    arr_min = float(arr_float.min())
-    arr_max = float(arr_float.max())
     if arr_max == arr_min:
         return np.zeros_like(arr_float, dtype=np.uint8)
 
@@ -311,19 +305,27 @@ def _remove_default_plugins():
     """Remove the default plugins from the supported decoder classes."""
 
     global _DEFAULT_PLUGIN_CACHE
+    _logger.debug("Removing default plugins from the supported decoder classes.")
+
     for decoder_class in SUPPORTED_DECODER_CLASSES:
         _DEFAULT_PLUGIN_CACHE[decoder_class.UID.name] = (
             decoder_class._available
-        )  # while box, no API to get DecodeFunction
+        )  # white box, no API to get DecodeFunction
         decoder_class._available = {}  # remove all plugins, ref is still held by _DEFAULT_PLUGIN_CACHE
         _logger.info(f"Removed default plugins of {decoder_class.UID.name}: {decoder_class.available_plugins}.")
 
 
 def _restore_default_plugins():
     """Restore the default plugins to the supported decoder classes."""
+
+    global _DEFAULT_PLUGIN_CACHE
+    _logger.debug("Restoring default plugins to the supported decoder classes.")
+
     for decoder_class in SUPPORTED_DECODER_CLASSES:
         decoder_class._available = _DEFAULT_PLUGIN_CACHE[decoder_class.UID.name]  # restore all plugins
         _logger.info(f"Restored default plugins of {decoder_class.UID.name}: {decoder_class.available_plugins}.")
+    # Clear the cache
+    _DEFAULT_PLUGIN_CACHE = {}
 
 
 if __name__ == "__main__":

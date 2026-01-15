@@ -75,7 +75,6 @@ from pydicom.pixels.decoders import (
     JPEG2000Decoder,
     JPEG2000LosslessDecoder,
     JPEGBaseline8BitDecoder,
-    JPEGExtended12BitDecoder,
     JPEGLosslessDecoder,
     JPEGLosslessSV1Decoder,
 )
@@ -181,9 +180,8 @@ def _decode_frame(src: bytes, runner: DecodeRunner) -> bytearray | bytes:
     if not is_available(tsyntax):
         raise ValueError(f"Transfer syntax {tsyntax} not supported; see details in the debug log.")
 
-    # runner.set_frame_option(runner.index, "decoding_plugin", "nvimgcodec")  # type: ignore[attr-defined]
-    # in pydicom v3.1.0 can use the above call
-    # runner.set_option("decoding_plugin", "nvimgcodec")
+    # runner.set_frame_option(runner.index, "decoding_plugin", NVIMGCODEC_PLUGIN_LABEL)  # type: ignore[attr-defined]
+    # in pydicom v3.1.0 can use the above call, but do we want to limit to this plugin?
     is_jpeg2k = tsyntax in JPEG2000TransferSyntaxes
     samples_per_pixel = runner.samples_per_pixel
     photometric_interpretation = runner.photometric_interpretation
@@ -192,7 +190,7 @@ def _decode_frame(src: bytes, runner: DecodeRunner) -> bytearray | bytes:
     if is_jpeg2k:
         precision, bits_allocated = _jpeg2k_precision_bits(runner)
         # runner.set_frame_option(runner.index, "bits_allocated", bits_allocated)  # type: ignore[attr-defined]
-        # in pydicom v3.1.0 can use the abover call
+        # in pydicom v3.1.0 can use the above call
         runner.set_option("bits_allocated", bits_allocated)
         _logger.debug(f"Set bits_allocated to {bits_allocated} for J2K precision {precision}")
 
@@ -207,13 +205,13 @@ def _decode_frame(src: bytes, runner: DecodeRunner) -> bytearray | bytes:
     if decoded_data:
         decoded_data = decoded_data.cpu()
     else:
-        raise RuntimeError(f"Decoded data is None: {type(decoded_data)}")
+        raise RuntimeError(f"Decoding failed: decoder.decode() returned a falsy value of type {type(decoded_data)}")
     np_surface = np.ascontiguousarray(np.asarray(decoded_data))
 
     # Update photometric interpretation if we converted to RGB, or JPEG 2000 YBR*
     if convert_to_rgb or photometric_interpretation in (PI.YBR_ICT, PI.YBR_RCT):
         # runner.set_frame_option(runner.index, "photometric_interpretation", PI.RGB)  # type: ignore[attr-defined]
-        # in pydicon v3.1.0 can use the above call
+        # in pydicom v3.1.0 can use the above call
         runner.set_option("photometric_interpretation", PI.RGB)
         _logger.debug(
             "Set photometric_interpretation to RGB after conversion"
@@ -289,14 +287,14 @@ def _get_decode_params(runner: RunnerBase) -> Any:
             _logger.debug(
                 f"Using RGB color spec for JPEG 2000 color transformation " f"(PI: {photometric_interpretation})"
             )
-        elif transfer_syntax in (JPEGBaseline8BitDecoder.UID, JPEGExtended12BitDecoder.UID):
-            # approach is similar to pylibjpeg from pydicom - for ybr full and 422 it needs conversion from ycbcr to rbg
+        elif transfer_syntax in (JPEGBaseline8BitDecoder.UID):
+            # approach is similar to pylibjpeg from pydicom - for ybr full and 422 it needs conversion from ycbcr to rgb
             # for any other PI it just skips color conversion (ignoring what is inside jpeg header)
             if photometric_interpretation in (PI.YBR_FULL, PI.YBR_FULL_422):
                 # we want to apply ycbcr -> rgb conversion
                 color_spec = nvimgcodec.ColorSpec.SRGB
             else:
-                # ignore color conversion as image should already by in rgb or grayscale (but jpeg header may contain wrong data)
+                # ignore color conversion as image should already be in rgb or grayscale (but jpeg header may contain wrong data)
                 color_spec = nvimgcodec.ColorSpec.SYCC
         else:
             # Check the as_rgb option - same as Pillow decoder
@@ -437,7 +435,7 @@ def unregister_as_decoder_plugin() -> bool:
         if NVIMGCODEC_PLUGIN_LABEL in decoder_class.available_plugins:
             decoder_class.remove_plugin(NVIMGCODEC_PLUGIN_LABEL)
         _logger.debug(f"Unregistered plugin for transfer syntax {decoder_class.UID}: {NVIMGCODEC_PLUGIN_LABEL}")
-    _logger.info(f"Unregistered plugin {NVIMGCODEC_PLUGIN_LABEL} for all supported transfer syntaxex.")
+    _logger.info(f"Unregistered plugin {NVIMGCODEC_PLUGIN_LABEL} for all supported transfer syntaxes.")
 
     return True
 
