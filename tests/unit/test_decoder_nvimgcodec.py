@@ -284,10 +284,10 @@ def performance_test_nvimgcodec_decoder_against_defaults(
     # Performance of the nvimgcodec decoder against the default decoders
     # with all DICOM files of supported transfer syntaxes
     print(
-        "## nvimgcodec decoder performance against Pydicom default decoders for all supported transfer syntaxes in the test dataset"
-        "\n"
-        "**Note:** nvImgCodec is well suited for multiple-frame DICOM files, where decoder initialization time is less of a"
-        " percentage of total execution time "
+        "## nvimgcodec decoder performance against Pydicom default decoders\n"
+        "Test data include all Pydicom test DICOM instances of supported transfer syntaxes\n"
+        "**Note:** nvImgCodec is well suited for multi-frame image with batch decompression, "
+        "but the Pydicom decoder runner invokes the decoders frame by frame."
         "\n\n"
         "| Transfer Syntax | Default Decoder Execution Time | nvimgcodec Decoder Execution Time | File Name |"
         "\n"
