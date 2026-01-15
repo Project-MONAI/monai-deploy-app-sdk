@@ -24,6 +24,8 @@ except Exception:  # pragma: no cover - Pillow may be unavailable in some enviro
 
 _PNG_EXPORT_WARNING_EMITTED = False
 
+# DCM files known to contain compressed data that can't be decoded  with nvimgcodec
+# e.g. GDCMJ2K_TextGBR.dcm bit stream has no end marker
 _IGNORED_FILES_STEMS = ["GDCMJ2K_TextGBR".lower()]
 
 _DEFAULT_PLUGIN_CACHE: dict[str, Any] = {}
