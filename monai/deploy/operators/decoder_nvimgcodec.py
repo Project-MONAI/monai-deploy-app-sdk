@@ -1,4 +1,4 @@
-# Copyright 2025 MONAI Consortium
+# Copyright 2025-2026 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -13,7 +13,6 @@
 This decoder plugin for nvimgcodec <https://github.com/NVIDIA/nvImageCodec> decompresses
 encoded Pixel Data for the following transfer syntaxes:
     JPEGBaseline8Bit, 1.2.840.10008.1.2.4.50, JPEG Baseline (Process 1)
-    JPEGExtended12Bit, 1.2.840.10008.1.2.4.51, JPEG Extended (Process 2 & 4)
     JPEGLossless, 1.2.840.10008.1.2.4.57, JPEG Lossless, Non-Hierarchical (Process 14)
     JPEGLosslessSV1, 1.2.840.10008.1.2.4.70, JPEG Lossless, Non-Hierarchical, First-Order Prediction
     JPEG2000Lossless, 1.2.840.10008.1.2.4.90, JPEG 2000 Image Compression (Lossless Only)
