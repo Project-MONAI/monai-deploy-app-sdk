@@ -237,9 +237,16 @@ def performance_test_nvimgcodec_decoder_against_defaults(
     except Exception:
         pass
 
+    is_loaded = False
     for path in get_test_dicoms(folder_path):
         try:
             ds_default = dcmread(path)
+
+            # Minimize lazy loading impact
+            if not is_loaded:
+                ds_default.pixel_array
+                is_loaded = True
+
             transfer_syntax = ds_default.file_meta.TransferSyntaxUID
             start = time.perf_counter()
             baseline_pixels = ds_default.pixel_array
@@ -263,9 +270,16 @@ def performance_test_nvimgcodec_decoder_against_defaults(
     register_as_decoder_plugin()
 
     combined_perf = {}
+    is_loaded = False
     for path, perf in files_tested_with_perf.items():
         try:
             ds_custom = dcmread(path)
+
+            # Minimize lazy loading impact
+            if not is_loaded:
+                ds_custom.pixel_array
+                is_loaded = True
+
             start = time.perf_counter()
             nv_pixels = ds_custom.pixel_array
             perf["nvimgcodec_execution_time"] = time.perf_counter() - start
@@ -286,8 +300,12 @@ def performance_test_nvimgcodec_decoder_against_defaults(
     print(
         "## nvimgcodec decoder performance against Pydicom default decoders\n"
         "Test data include all Pydicom test DICOM instances of supported transfer syntaxes\n"
-        "**Note:** nvImgCodec is well suited for multi-frame image with batch decompression, "
-        "but the Pydicom decoder runner invokes the decoders frame by frame."
+        "**Note:**\n"
+        " - nvImgCodec is well suited for multi-frame image with batch decompression, "
+        "but the Pydicom decoder runner invokes the decoders frame by frame.\n"
+        " - Lazy loading impact is minimized by loading the first applicable test file's pixel data "
+        "twice and ignoring the first run execution time; as such the measurement for the first "
+        "test file is skewed by potential cacheing"
         "\n\n"
         "| Transfer Syntax | Default Decoder Execution Time | nvimgcodec Decoder Execution Time | File Name |"
         "\n"
