@@ -10,6 +10,7 @@
 ```{toctree}
 :maxdepth: 1
 
+v3.5.0
 v3.4.0
 v3.3.0
 v3.2.0
