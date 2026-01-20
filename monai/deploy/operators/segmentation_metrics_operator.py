@@ -154,25 +154,29 @@ class SegmentationMetricsOperator(Operator):
         
         Args:
             pixel_count: Number of pixels in the mask.
-            spacing: Pixel/voxel spacing.
+            spacing: Pixel/voxel spacing in mm.
             is_3d: Whether the data is 3D or 2D.
             xp: numpy or cupy module.
             
         Returns:
-            Volume in mm³ (3D) or area in mm² (2D).
+            Volume in mL (3D) or area in cm² (2D).
         """
         if spacing is None:
             # Return pixel/voxel count if spacing is not available
             return float(pixel_count)
         
         if is_3d:
-            # Volume = pixel_count * spacing_x * spacing_y * spacing_z
-            volume_per_voxel = spacing[0] * spacing[1] * spacing[2]
-            return float(pixel_count * volume_per_voxel)
+            # Volume = pixel_count * spacing_x * spacing_y * spacing_z (in mm³)
+            # Convert mm³ to mL: 1 mL = 1000 mm³
+            volume_per_voxel_mm3 = spacing[0] * spacing[1] * spacing[2]
+            volume_ml = float(pixel_count * volume_per_voxel_mm3) / 1000.0
+            return volume_ml
         else:
-            # Area = pixel_count * spacing_x * spacing_y
-            area_per_pixel = spacing[0] * spacing[1]
-            return float(pixel_count * area_per_pixel)
+            # Area = pixel_count * spacing_x * spacing_y (in mm²)
+            # Convert mm² to cm²: 1 cm² = 100 mm²
+            area_per_pixel_mm2 = spacing[0] * spacing[1]
+            area_cm2 = float(pixel_count * area_per_pixel_mm2) / 100.0
+            return area_cm2
 
     def calculate_metrics(
         self,
@@ -189,12 +193,12 @@ class SegmentationMetricsOperator(Operator):
             
         Returns:
             Dictionary with metrics for each label:
-                - volume_mm3 (3D) or area_mm2 (2D): Volume or area of the segmented region
+                - volume_ml (3D) or area_cm2 (2D): Volume in mL or area in cm² of the segmented region
                 - num_slices: Number of slices containing the organ
                 - slice_range: Tuple (first_slice, last_slice) containing the organ
                 - pixel_count: Number of pixels/voxels with this label
-                - mean_intensity: Mean intensity of pixels in the mask region
-                - std_intensity: Standard deviation of intensity in the mask region
+                - mean_intensity_hu: Mean intensity in HU of pixels in the mask region
+                - std_intensity_hu: Standard deviation of intensity in HU in the mask region
         """
         # Convert inputs to arrays, preserving GPU location if present
         seg_array = self._to_array(segmentation_mask, preserve_gpu=True)
@@ -245,12 +249,12 @@ class SegmentationMetricsOperator(Operator):
                 # Skip if label not present
                 if pixel_count == 0:
                     results[label_name] = {
-                        "volume_mm3" if is_3d else "area_mm2": 0.0,
+                        "volume_ml" if is_3d else "area_cm2": 0.0,
                         "num_slices": 0,
                         "slice_range": None,
                         "pixel_count": 0,
-                        "mean_intensity": 0.0,
-                        "std_intensity": 0.0,
+                        "mean_intensity_hu": 0.0,
+                        "std_intensity_hu": 0.0,
                     }
                     if self.compute_components:
                         results[label_name]["num_connected_components"] = 0
@@ -281,12 +285,12 @@ class SegmentationMetricsOperator(Operator):
                 
                 # Store results for this label
                 results[label_name] = {
-                    "volume_mm3" if is_3d else "area_mm2": volume_or_area,
+                    "volume_ml" if is_3d else "area_cm2": volume_or_area,
                     "num_slices": int(num_slices),
                     "slice_range": slice_range,
                     "pixel_count": int(pixel_count),
-                    "mean_intensity": mean_intensity,
-                    "std_intensity": std_intensity,
+                    "mean_intensity_hu": mean_intensity,
+                    "std_intensity_hu": std_intensity,
                 }
                 
                 # Connected components analysis (> 5 pixels) - optional
@@ -366,7 +370,7 @@ def test():
     seg_data[85:88, 85:88, 85:88] = 2  # Another small spleen fragment
     
     # Create Image objects with spacing metadata
-    scan_image = Image(scan_data, metadata={"spacing": [1.0, 1.0, 1.0]})  # 1mm spacing
+    scan_image = Image(scan_data, metadata={"spacing": [1.0, 1.0, 1.0]})  # 1mm spacing (mL = mm³/1000)
     seg_image = Image(seg_data)
     
     # Define label dictionary
