@@ -9,11 +9,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import datetime
 import logging
 import os
 from pathlib import Path
 from typing import Dict, Optional, Union
 
+import numpy as np
 import pydicom
 
 from monai.deploy.core import Fragment, Operator, OperatorSpec
@@ -81,8 +83,9 @@ class DICOMSCWriterOperator(Operator):
         # need to init the output folder until the execution context supports dynamic FS path
         # not trying to create the folder to avoid exception on init
         self.output_folder = Path(output_folder) if output_folder else DICOMSCWriterOperator.DEFAULT_OUTPUT_FOLDER
-        self.input_name_sc_dir = "dicom_sc_dir"
+        
         self.input_name_study_series = "study_selected_series_list"
+        self.input_overlay_image = "input_overlay_image"
 
         # for copying DICOM attributes from a provided DICOMSeries
         # required input for write_common_modules; will always be True for this implementation
@@ -92,16 +95,7 @@ class DICOMSCWriterOperator(Operator):
         self.equipment_info = equipment_info if equipment_info else EquipmentInfo()
         self.custom_tags = custom_tags
 
-        # set own Modality and SOP Class UID
-        # Standard SOP Classes: https://dicom.nema.org/dicom/2013/output/chtml/part04/sect_B.5.html
-        # Modality, e.g.,
-        #   "OT" for PDF
-        #   "SR" for Structured Report.
-        # Media Storage SOP Class UID, e.g.,
-        #   "1.2.840.10008.5.1.4.1.1.88.11" for Basic Text SR Storage
-        #   "1.2.840.10008.5.1.4.1.1.104.1" for Encapsulated PDF Storage,
-        #   "1.2.840.10008.5.1.4.1.1.88.34" for Comprehensive 3D SR IOD
-        #   "1.2.840.10008.5.1.4.1.1.66.4" for Segmentation Storage
+        
         self.modality_type = "OT"  # OT Modality for Secondary Capture
         self.sop_class_uid = (
             "1.2.840.10008.5.1.4.1.1.7.4"  # SOP Class UID for Multi-frame True Color Secondary Capture Image Storage
@@ -125,8 +119,7 @@ class DICOMSCWriterOperator(Operator):
         Args:
             spec (OperatorSpec): The Operator specification for inputs and outputs etc.
         """
-
-        spec.input(self.input_name_sc_dir)
+        spec.input(self.input_overlay_image)
         spec.input(self.input_name_study_series)
 
     def compute(self, op_input, op_output, context):
@@ -144,15 +137,10 @@ class DICOMSCWriterOperator(Operator):
             ValueError: Content object and file path not in the inputs, or no DICOM series provided.
             IOError: If the input content is blank.
         """
-
-        # receive the temporary DICOM SC file path and study selected series list
-        dicom_sc_dir = Path(op_input.receive(self.input_name_sc_dir))
-        if not dicom_sc_dir:
-            raise IOError("Temporary DICOM SC path is read but blank.")
-        if not dicom_sc_dir.is_dir():
-            raise NotADirectoryError(f"Provided temporary DICOM SC path is not a directory: {dicom_sc_dir}")
-        self._logger.info(f"Received temporary DICOM SC path: {dicom_sc_dir}")
-
+        # input_overlay_image
+        overlay_image = op_input.receive(self.input_overlay_image)
+        
+        # Recieve input series
         study_selected_series_list = op_input.receive(self.input_name_study_series)
         if not study_selected_series_list or len(study_selected_series_list) < 1:
             raise ValueError("Missing input, list of 'StudySelectedSeries'.")
@@ -174,37 +162,21 @@ class DICOMSCWriterOperator(Operator):
         self.output_folder.mkdir(parents=True, exist_ok=True)
 
         # write the new DICOM SC instance
-        self.write(dicom_sc_dir, dicom_series, self.output_folder)
+        self.process_images(overlay_image, dicom_series, self.output_folder)
 
-    def write(self, dicom_sc_dir, dicom_series: DICOMSeries, output_dir: Path):
-        """Writes a new, updated DICOM SC instance and deletes the temporary DICOM SC instance.
-        The new, updated DICOM SC instance is the temporary DICOM SC instance with source
-        DICOM Series metadata copied.
+    
+    def process_images(self, overlay_image, dicom_series: DICOMSeries, output_folder: Path):
+        """Process the overlay image and write the DICOM SC instance.
 
         Args:
-            dicom_sc_dir: temporary DICOM SC file path.
+            overlay_image: The overlay image (temporary DICOM SC).
             dicom_series (DICOMSeries): DICOMSeries object encapsulating the original series.
-
+            output_folder (Path): The folder for saving the generated DICOM SC instance file.
+            
         Returns:
             None
-
-        File output:
-           New, updated DICOM SC file (with source DICOM Series metadata) in the provided output folder.
         """
-
-        if not isinstance(output_dir, Path):
-            raise ValueError("output_dir is not a valid Path.")
-
-        output_dir.mkdir(parents=True, exist_ok=True)  # just in case
-
-        # find the temporary DICOM SC file in the directory; there should only be one .dcm file present
-        dicom_files = list(dicom_sc_dir.glob("*.dcm"))
-        dicom_sc_file = dicom_files[0]
-
-        # load the temporary DICOM SC file using pydicom
-        dicom_sc_dataset = pydicom.dcmread(dicom_sc_file)
-        self._logger.info(f"Loaded temporary DICOM SC file: {dicom_sc_file}")
-
+    
         # use write_common_modules to copy metadata from dicom_series
         # this will copy metadata and return an updated Dataset
         ds = write_common_modules(
@@ -218,36 +190,123 @@ class DICOMSCWriterOperator(Operator):
 
         # Secondary Capture specific tags
         ds.ImageType = ["DERIVED", "SECONDARY"]
-
-        # for now, only allow str Keywords and str value
-        if self.custom_tags:
-            for k, v in self.custom_tags.items():
-                if isinstance(k, str) and isinstance(v, str):
-                    try:
-                        ds.update({k: v})
-                    except Exception as ex:
-                        # best effort for now
-                        logging.warning(f"Tag {k} was not written, due to {ex}")
-
-        # merge the copied metadata into the loaded temporary DICOM SC file (dicom_sc_dataset)
-        for tag, value in ds.items():
-            dicom_sc_dataset[tag] = value
-
-        # save the updated DICOM SC file to the output folder
-        # instance file name is the same as the new SOP instance UID
-        output_file_path = self.output_folder.joinpath(
-            f"{dicom_sc_dataset.SOPInstanceUID}{DICOMSCWriterOperator.DCM_EXTENSION}"
-        )
-        dicom_sc_dataset.save_as(output_file_path)
-        self._logger.info(f"Saved updated DICOM SC file at: {output_file_path}")
-
-        # remove the temporary DICOM SC file
-        os.remove(dicom_sc_file)
-        self._logger.info(f"Removed temporary DICOM SC file: {dicom_sc_file}")
-
-        # check if the temp directory is empty, then delete it
-        if not any(dicom_sc_dir.iterdir()):
-            os.rmdir(dicom_sc_dir)
-            self._logger.info(f"Removed temporary directory: {dicom_sc_dir}")
+        
+        # Convert overlay_image to numpy array if it's an Image object
+        from monai.deploy.core import Image
+        if isinstance(overlay_image, Image):
+            image_numpy = overlay_image.asnumpy()
+        elif isinstance(overlay_image, np.ndarray):
+            image_numpy = overlay_image
         else:
-            self._logger.warning(f"Temporary directory {dicom_sc_dir} is not empty, skipping removal.")
+            raise ValueError(f"Unsupported overlay_image type: {type(overlay_image)}")
+        
+        # Handle 3D RGB image (multi-frame)
+        # Expected formats: (Slices, Channels, Height, Width), (Slices, Height, Width, Channels), or (Channels, Slices, Height, Width)
+        if image_numpy.ndim == 4:
+            # Handle (Channels, Slices, Height, Width) -> (Slices, Channels, Height, Width)
+            if image_numpy.shape[0] == 3:
+                image_numpy = np.transpose(image_numpy, (1, 0, 2, 3))
+            # Check if channels are in position 1 or 3
+            if image_numpy.shape[1] == 3:
+                # Format: (Slices, 3, Height, Width) -> (Slices, Height, Width, 3)
+                image_numpy = np.transpose(image_numpy, (0, 2, 3, 1))
+            elif image_numpy.shape[3] != 3:
+                raise ValueError(f"Expected 3 channels for RGB, got shape: {image_numpy.shape}")
+            # Now in format: (Slices, Height, Width, 3)
+            num_frames, rows, cols, samples_per_pixel = image_numpy.shape
+        elif image_numpy.ndim == 3:
+            # Single frame: (3, Height, Width) or (Height, Width, 3)
+            if image_numpy.shape[0] == 3:
+                image_numpy = np.transpose(image_numpy, (1, 2, 0))
+            rows, cols, samples_per_pixel = image_numpy.shape
+            num_frames = 1
+            # Add frame dimension: (Height, Width, 3) -> (1, Height, Width, 3)
+            image_numpy = image_numpy[np.newaxis, ...]
+        else:
+            raise ValueError(f"Unexpected image dimensions: {image_numpy.shape}")
+        
+        # Ensure uint8 data type for RGB
+        if image_numpy.dtype != np.uint8:
+            # Normalize to 0-255 range if needed
+            if image_numpy.max() <= 1.0:
+                image_numpy = (image_numpy * 255).astype(np.uint8)
+            else:
+                image_numpy = image_numpy.astype(np.uint8)
+        
+        # Set image-specific DICOM tags for RGB Secondary Capture
+        ds.Rows = rows
+        ds.Columns = cols
+        ds.SamplesPerPixel = samples_per_pixel
+        ds.PhotometricInterpretation = "RGB"
+        ds.BitsAllocated = 8
+        ds.BitsStored = 8
+        ds.HighBit = 7
+        ds.PixelRepresentation = 0  # unsigned
+        ds.PlanarConfiguration = 0  # interleaved RGB (R1G1B1R2G2B2...)
+        ds.NumberOfFrames = num_frames
+        
+        # Set the pixel data (flatten all frames)
+        ds.PixelData = image_numpy.tobytes()
+        
+        # Generate unique SOP Instance UID for this instance
+        sc_sop_instance_uid = generate_uid()
+        ds.SOPInstanceUID = sc_sop_instance_uid
+        
+        # Add date and time stamps
+        dt_now = datetime.datetime.now()
+        ds.SeriesDate = dt_now.strftime("%Y%m%d")
+        ds.SeriesTime = dt_now.strftime("%H%M%S")
+        ds.ContentDate = dt_now.strftime("%Y%m%d")
+        ds.ContentTime = dt_now.strftime("%H%M%S")
+        ds.TimezoneOffsetFromUTC = (
+            dt_now.astimezone().isoformat()[-6:].replace(":", "")
+        )
+        
+        # Apply custom tags if provided
+        if self.custom_tags:
+            for tag_keyword, tag_value in self.custom_tags.items():
+                try:
+                    if hasattr(ds, tag_keyword):
+                        setattr(ds, tag_keyword, tag_value)
+                        self._logger.info(f"Custom tag {tag_keyword} set to: {tag_value}")
+                    else:
+                        self._logger.warning(f"Unknown DICOM tag keyword: {tag_keyword}")
+                except Exception as ex:
+                    self._logger.warning(f"Failed to set custom tag {tag_keyword}: {ex}")
+        
+        # Ensure required UIDs are set
+        if not hasattr(ds, 'SeriesInstanceUID') or not ds.SeriesInstanceUID:
+            ds.SeriesInstanceUID = generate_uid()
+        
+        # Set file meta information
+        file_meta = Dataset()
+        file_meta.TransferSyntaxUID = ImplicitVRLittleEndian
+        file_meta.MediaStorageSOPClassUID = self.sop_class_uid
+        file_meta.MediaStorageSOPInstanceUID = sc_sop_instance_uid
+        file_meta.ImplementationClassUID = generate_uid()
+        
+        # Create output path
+        output_path = output_folder / f"{sc_sop_instance_uid}{DICOMSCWriterOperator.DCM_EXTENSION}"
+        
+        # Create FileDataset and save
+        ds.file_meta = file_meta
+        ds.is_little_endian = True
+        ds.is_implicit_VR = True
+        
+        # Save the DICOM file
+        ds.save_as(output_path, write_like_original=False)
+        
+        self._logger.info(f"DICOM Secondary Capture saved to: {output_path}")
+        self._logger.info(f"Number of frames: {num_frames}, Dimensions: {rows}x{cols}, Channels: {samples_per_pixel}")
+        
+        # Verify the file was created
+        try:
+            if output_path.exists():
+                self._logger.info(f"File size: {output_path.stat().st_size} bytes")
+            else:
+                self._logger.error(f"File was not created: {output_path}")
+        except Exception as ex:
+            self._logger.warning(f"Could not verify output file: {ex}")
+        
+        
+        

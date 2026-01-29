@@ -21,6 +21,7 @@ fi
 tag_prefix=$1
 image_version=$2
 
+
 # load in environment variables
 source .env
 
