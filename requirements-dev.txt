@@ -41,4 +41,3 @@ pylibjpeg>=2.0
 pylibjpeg-libjpeg>=2.1
 pylibjpeg-openjpeg>=2.0
 pandas>=1.3.0
-plotly>=5.0.0

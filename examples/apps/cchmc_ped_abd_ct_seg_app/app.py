@@ -29,10 +29,13 @@ from pydicom.sr.codedict import codes
 from monai.deploy.conditions import CountCondition
 from monai.deploy.core import Application
 from monai.deploy.operators.dicom_data_loader_operator import DICOMDataLoaderOperator
+from monai.deploy.operators.dicom_encapsulated_pdf_writer_operator import DICOMEncapsulatedPDFWriterOperator
 from monai.deploy.operators.dicom_seg_writer_operator import DICOMSegmentationWriterOperator, SegmentDescription
 from monai.deploy.operators.dicom_series_selector_operator import DICOMSeriesSelectorOperator
 from monai.deploy.operators.dicom_series_to_volume_operator import DICOMSeriesToVolumeOperator
 from monai.deploy.operators.dicom_text_sr_writer_operator import DICOMTextSRWriterOperator, EquipmentInfo, ModelInfo
+from monai.deploy.operators.segmentation_metrics_operator import SegmentationMetricsOperator
+from monai.deploy.operators.segmentation_zscore_operator import SegmentationZScoreOperator
 
 
 # inherit new Application class instance, AIAbdomenSegApp, from MONAI Application base class
@@ -95,10 +98,10 @@ class AIAbdomenSegApp(Application):
         series_to_vol_op = DICOMSeriesToVolumeOperator(self, name="series_to_vol_op")
 
         # custom inference op
-        # output_labels specifies which of the organ segmentations are desired in the DICOM SEG, DICOM SC, and DICOM SR outputs
-        # 1 = Liver, 2 = Spleen, 3 = Pancreas; all segmentations performed, but visibility in outputs (SEG, SC, SR) controlled here
-        # all organ volumes will be written to MongoDB
-        output_labels = [1, 2, 3]
+        # output_labels specifies which of the organ segmentations are desired in the DICOM SEG and DICOM SC outputs
+        # 1 = Liver, 2 = Spleen, 3 = Pancreas; all segmentations performed by model
+        # Only liver and spleen metrics/z-scores will be computed (no normative data for pancreas)
+        output_labels = [1, 2]  # Liver and Spleen only
         abd_seg_op = AbdomenSegOperator(
             self, app_context=app_context, model_path=model_path, output_labels=output_labels, name="abd_seg_op"
         )
@@ -187,6 +190,30 @@ class AIAbdomenSegApp(Application):
             output_folder=app_output_path / "SC",
         )
 
+        # Segmentation Metrics Operator - computes volume, slices, intensity stats
+        # The label_dict will be provided by the inference operator based on organs to analyze
+        seg_metrics_op = SegmentationMetricsOperator(self, use_gpu=True, name="seg_metrics_op")
+
+        # Segmentation Z-Score Operator - computes z-scores and percentiles, generates PDF report
+        assets_path = model_path.parent / "assets"  # Assumes assets folder is in model directory
+        seg_zscore_op = SegmentationZScoreOperator(
+            self,
+            assets_path=str(assets_path),
+            generate_plots=True,
+            name="seg_zscore_op",
+        )
+
+        # DICOM Encapsulated PDF Writer - creates DICOM PDF from zscore report
+        custom_tags_pdf = {"SeriesDescription": "AI Generated Z-Score Report; Not for Clinical Use."}
+        dicom_pdf_writer = DICOMEncapsulatedPDFWriterOperator(
+            self,
+            output_folder=app_output_path / "PDF",
+            model_info=my_model_info,
+            equipment_info=my_equipment,
+            custom_tags=custom_tags_pdf,
+            name="dicom_pdf_writer",
+        )
+
         # MongoDB database, collection, and MAP version info
         database_name = "CTLiverSpleenSegPredictions"
         collection_name = "OrganVolumes"
@@ -207,8 +234,15 @@ class AIAbdomenSegApp(Application):
         )
         self.add_flow(series_to_vol_op, abd_seg_op, {("image", "image")})
 
-        # note below the dicom_seg_writer, dicom_sr_writer, dicom_sc_writer, and mongodb_entry_creator each require
-        # two inputs, each coming from a source operator
+        # Segmentation Metrics Pipeline - compute metrics from segmentation and input scan
+        self.add_flow(abd_seg_op, seg_metrics_op, {("seg_image", "segmentation_mask")})
+        self.add_flow(series_to_vol_op, seg_metrics_op, {("image", "input_scan")})
+        self.add_flow(abd_seg_op, seg_metrics_op, {("label_dict", "label_dict")})
+
+        # Z-Score Pipeline - compute z-scores from metrics and patient demographics
+        self.add_flow(seg_metrics_op, seg_zscore_op, {("metrics_dict", "metrics_dict")})
+        self.add_flow(abd_seg_op, seg_zscore_op, {("patient_age", "patient_age")})
+        self.add_flow(abd_seg_op, seg_zscore_op, {("patient_sex", "patient_sex")})
 
         # DICOM SEG
         self.add_flow(
@@ -216,11 +250,17 @@ class AIAbdomenSegApp(Application):
         )
         self.add_flow(abd_seg_op, dicom_seg_writer, {("seg_image", "seg_image")})
 
-        # DICOM SR
+        # DICOM SR - now uses zscore_dict output instead of text from transforms
         self.add_flow(
             series_selector_op, dicom_sr_writer, {("study_selected_series_list", "study_selected_series_list")}
         )
-        self.add_flow(abd_seg_op, dicom_sr_writer, {("result_text_dicom_sr", "text")})
+        self.add_flow(seg_zscore_op, dicom_sr_writer, {("zscore_text", "text")})
+
+        # DICOM PDF - encapsulated PDF with zscore plots
+        self.add_flow(
+            series_selector_op, dicom_pdf_writer, {("study_selected_series_list", "study_selected_series_list")}
+        )
+        self.add_flow(seg_zscore_op, dicom_pdf_writer, {("pdf_bytes", "pdf_bytes")})
 
         # DICOM SC
         self.add_flow(
@@ -228,11 +268,11 @@ class AIAbdomenSegApp(Application):
         )
         self.add_flow(abd_seg_op, dicom_sc_writer, {("dicom_sc_dir", "dicom_sc_dir")})
 
-        # MongoDB
+        # MongoDB - now uses zscore_dict output
         self.add_flow(
             series_selector_op, mongodb_entry_creator, {("study_selected_series_list", "study_selected_series_list")}
         )
-        self.add_flow(abd_seg_op, mongodb_entry_creator, {("result_text_mongodb", "text")})
+        self.add_flow(seg_zscore_op, mongodb_entry_creator, {("mongodb_text", "text")})
         self.add_flow(mongodb_entry_creator, mongodb_writer, {("mongodb_database_entry", "mongodb_database_entry")})
 
         logging.info(f"End {self.compose.__name__}")

@@ -10,6 +10,7 @@
 # limitations under the License.
 
 import logging
+from time import time
 from typing import Dict, Optional, Tuple, Union
 
 import numpy as np
@@ -24,6 +25,10 @@ cupyx_scipy_ndimage, has_cupyx_scipy = optional_import("cupyx.scipy.ndimage")
 from monai.deploy.core import ConditionType, Fragment, Operator, OperatorSpec
 from monai.deploy.core.domain.image import Image
 
+from monai.data import MetaTensor
+from monai.transforms import Orientation
+#from monai.utils import get_tuple_axcodes
+
 
 class SegmentationMetricsOperator(Operator):
     """This operator computes segmentation metrics for predicted segmentation masks.
@@ -35,22 +40,26 @@ class SegmentationMetricsOperator(Operator):
         segmentation_mask: Segmentation mask as tensor, numpy array, or Image object.
         input_scan: Input scan/image as tensor, numpy array, or Image object.
         label_dict: Dictionary mapping label names to their corresponding mask indices.
+        segmentation_metatensor: Optional MetaTensor version of segmentation mask for GPU processing.
+        use_gpu: If True and GPU is available, use CuPy for GPU acceleration.
     Named Output:
         metrics_dict: Dictionary containing metrics for each label.
     """
 
-    def __init__(self, fragment: Fragment, *args, use_gpu: bool = True, compute_components: bool = True, **kwargs):
+    def __init__(self, fragment: Fragment, *args, compute_components: bool = True, labels_dict: dict = {'organ1': 1}, use_gpu: Optional[bool] = True, **kwargs):
         """Create an instance for a containing application object.
 
         Args:
             fragment (Fragment): An instance of the Application class which is derived from Fragment.
+            compute_components (bool): If True, computes connected components for each labeled region > 5 pixels and outputs in the metrics dictionary. Set to False if not needed. Default is True.
+            labels_dict (dict): Dictionary mapping label names to their corresponding mask indices. Provide only labels for which metrics are desired.
             use_gpu (bool): If True and GPU is available, use CuPy for GPU acceleration. Default is True.
-            compute_components (bool): If True, compute connected components. Set to False if not needed. Default is True.
         """
-
+        self._logger = logging.getLogger("{}.{}".format(__name__, type(self).__name__))
         self.input_name_seg_mask = "segmentation_mask"
         self.input_name_scan = "input_scan"
-        self.input_name_labels = "label_dict"
+        self.input_name_labels = labels_dict
+        
         self.output_name_metrics = "metrics_dict"
         self.use_gpu = use_gpu and has_cupy
         self.compute_components = compute_components
@@ -60,8 +69,7 @@ class SegmentationMetricsOperator(Operator):
 
     def setup(self, spec: OperatorSpec):
         spec.input(self.input_name_seg_mask)
-        spec.input(self.input_name_scan)
-        spec.input(self.input_name_labels)
+        spec.input(self.input_name_scan)        
         spec.output(self.output_name_metrics).condition(ConditionType.NONE)
 
     def compute(self, op_input, op_output, context):
@@ -70,79 +78,88 @@ class SegmentationMetricsOperator(Operator):
         # Receive inputs
         segmentation_mask = op_input.receive(self.input_name_seg_mask)
         input_scan = op_input.receive(self.input_name_scan)
-        label_dict = op_input.receive(self.input_name_labels)
+         
+        # Log type of inputs
+        self._logger.info(f"Received segmentation mask of type: {type(segmentation_mask).__name__}")
+        self._logger.info(f"Received input scan of type: {type(input_scan).__name__}")
+        
+        label_dict = self.input_name_labels
 
         # Validate inputs
         if label_dict is None or not isinstance(label_dict, dict):
             raise ValueError("label_dict must be a dictionary mapping label names to mask indices")
 
         # Calculate metrics
+        # log if calculate_metrics is using GPU or CPU
+        self._logger.info(f"Calculating segmentation metrics using {'GPU' if self.use_gpu else 'CPU'} backend | Segmentation_mask is in GPU already: {segmentation_mask.device.type == 'cuda' if hasattr(segmentation_mask, 'device') else False}.")
+        # Time the calculate_metrics function
+        start_time = time()
         metrics = self.calculate_metrics(segmentation_mask, input_scan, label_dict)
-        
+        end_time = time()
+        self._logger.info(f"Segmentation metrics calculation took {end_time - start_time:.4f} seconds.")
         # Emit output
         op_output.emit(metrics, self.output_name_metrics)
 
-    def _to_array(self, data: Union[torch.Tensor, np.ndarray, Image], preserve_gpu: bool = True) -> Union[np.ndarray, "cupy.ndarray"]:
-        """Convert input data to numpy or cupy array.
-        
-        Args:
-            data: Input data as tensor, numpy array, or Image object.
-            preserve_gpu: If True, keep data on GPU if it's already there. If False, convert to numpy.
-            
-        Returns:
-            Array in numpy or cupy format.
-        """
-        # Extract array from Image object if needed
-        if isinstance(data, Image):
-            data = data.asnumpy()
-        
-        # Convert torch tensor - check if on GPU
-        if isinstance(data, torch.Tensor):
-            if preserve_gpu and data.is_cuda and has_cupy:
-                # Convert CUDA tensor to CuPy array directly
-                return cupy.asarray(data.detach())
-            else:
-                return data.detach().cpu().numpy()
-        
-        # Check if already a CuPy array
-        if has_cupy and isinstance(data, cupy.ndarray):
-            if preserve_gpu:
-                return data
-            else:
-                return cupy.asnumpy(data)
-        
-        # Check if it's numpy array
-        if isinstance(data, np.ndarray):
-            if preserve_gpu and self.use_gpu and has_cupy:
-                # User requested GPU but data is on CPU - transfer
-                try:
-                    return cupy.asarray(data)
-                except Exception as e:
-                    logging.warning(f"Failed to convert to cupy array, using numpy: {e}")
-                    return data
-            return data
-        
-        # Fallback to numpy
-        return np.asarray(data)
 
     def _get_spacing(self, image_obj: Union[torch.Tensor, np.ndarray, Image]) -> Optional[Tuple[float, ...]]:
         """Extract spacing from Image object metadata.
-        
-        Args:
-            image_obj: Image object that may contain spacing metadata.
-            
-        Returns:
-            Tuple of spacing values or None if not available.
-        """
-        if isinstance(image_obj, Image):
-            metadata = image_obj.metadata()
-            if metadata:
-                # Try common spacing keys
-                spacing = metadata.get("spacing") or metadata.get("pixdim") or metadata.get("pixel_spacing")
-                if spacing is not None:
-                    return tuple(spacing) if isinstance(spacing, (list, tuple, np.ndarray)) else None
-        return None
 
+            Args:
+                image_obj: Image object that must contain spacing metadata.
+        Returns:
+            Tuple of spacing values.
+
+        Raises:
+            ValueError: If spacing cannot be extracted.
+        """
+        if not isinstance(image_obj, Image):
+            raise ValueError("Spacing required: input must be an Image with metadata containing spacing.")
+        
+        # Type of Image object
+        self._logger.info(f"Extracting spacing from image metadata for image type: {type(image_obj).__name__} ")
+        metadata = image_obj.metadata() or {}
+
+        spacing = None
+        if metadata:
+            # Try common spacing keys in order of preference
+            spacing = (
+                metadata.get("spacing") or 
+                metadata.get("pixdim") or 
+                metadata.get("pixel_spacing")
+            )
+            
+            # If not found, try DICOM-specific pixel spacing keys
+            if spacing is None:
+                row_spacing = metadata.get("row_pixel_spacing")
+                col_spacing = metadata.get("col_pixel_spacing")
+                depth_spacing = metadata.get("depth_pixel_spacing")
+                
+                if row_spacing is not None and col_spacing is not None and depth_spacing is not None:
+                    spacing = (float(row_spacing), float(col_spacing), float(depth_spacing))
+            
+            if spacing is not None and not isinstance(spacing, (list, tuple, np.ndarray)):
+                raise ValueError(
+                    f"Spacing required: expected list/tuple/ndarray, got {type(spacing).__name__}."
+                )
+
+        if spacing is None:
+            affine = getattr(image_obj, "affine", None)
+            if affine is not None:
+                affine_arr = np.asarray(affine)
+                if affine_arr.shape[0] < 3 or affine_arr.shape[1] < 3:
+                    raise ValueError("Spacing required: affine matrix missing spatial axes.")
+                spacing = (
+                    float(np.linalg.norm(affine_arr[:3, 0])),
+                    float(np.linalg.norm(affine_arr[:3, 1])),
+                    float(np.linalg.norm(affine_arr[:3, 2])),
+                )
+            else:
+                raise ValueError(
+                    "Spacing required: metadata missing and affine attribute not available for spacing extraction."
+                )
+
+        return tuple(spacing)
+    
     def _compute_volume_or_area(
         self, 
         pixel_count: Union[int, "cupy.ndarray"],
@@ -180,15 +197,15 @@ class SegmentationMetricsOperator(Operator):
 
     def calculate_metrics(
         self,
-        segmentation_mask: Union[torch.Tensor, np.ndarray, Image],
-        input_scan: Union[torch.Tensor, np.ndarray, Image],
-        label_dict: Dict[str, int]
+        segmentation_mask: Union[Image, MetaTensor],
+        input_scan: Image,
+        label_dict: Dict[str, int],
     ) -> Dict[str, Dict[str, Union[float, int, Tuple[int, int]]]]:
         """Calculate segmentation metrics for each label.
         
         Args:
-            segmentation_mask: Segmentation mask (tensor, numpy array, or Image).
-            input_scan: Input scan/image (tensor, numpy array, or Image).
+            segmentation_mask: Segmentation mask (Image or MetaTensor).
+            input_scan: Input scan/image (Image).
             label_dict: Dictionary mapping label names to mask indices.
             
         Returns:
@@ -200,47 +217,60 @@ class SegmentationMetricsOperator(Operator):
                 - mean_intensity_hu: Mean intensity in HU of pixels in the mask region
                 - std_intensity_hu: Standard deviation of intensity in HU in the mask region
         """
-        # Convert inputs to arrays, preserving GPU location if present
-        seg_array = self._to_array(segmentation_mask, preserve_gpu=True)
-        scan_array = self._to_array(input_scan, preserve_gpu=True)
         
-        # Auto-detect if data is on GPU
-        data_on_gpu = has_cupy and isinstance(seg_array, cupy.ndarray)
-        
-        # Determine which library to use (numpy or cupy) based on actual data location
-        xp = cupy if data_on_gpu else np
-        
-        if data_on_gpu:
-            logging.debug("Using GPU for metrics computation (data already on GPU)")
-        else:
-            logging.debug("Using CPU for metrics computation")
-        
-        # Get spacing for volume/area calculation
+        # Get spacing from input scan
         spacing = self._get_spacing(input_scan)
         
-        # Determine if 3D or 2D
-        is_3d = len(seg_array.shape) == 3 or (len(seg_array.shape) == 4 and seg_array.shape[0] == 1)
+        scan_array = input_scan.asnumpy()
         
-        # Remove batch dimension if present
-        if len(seg_array.shape) == 4 and seg_array.shape[0] == 1:
-            seg_array = seg_array[0]
-        if len(scan_array.shape) == 4 and scan_array.shape[0] == 1:
-            scan_array = scan_array[0]
+        xp = np  # Default to numpy
+        if self.use_gpu and has_cupy:
+            xp = cupy
+        
+        # Parameter to Determine if 3D or 2D
+        is_3d = False
+        
+        # Process segmentation mask to array, check if 3D or 2D, and if cupy or numpy array
+        if isinstance(segmentation_mask, Image):
+            seg_array = segmentation_mask.asnumpy()
+            if len(seg_array.shape) == 3:
+                is_3d = True
+        else:
+            try:
+                seg_array = xp.asarray(segmentation_mask)
+            except Exception as e:
+                seg_array = segmentation_mask.cpu().numpy() # Fallback to CPU numpy array, applies if self.use_gpu is False or CuPy not available
+                  
+            seg_array = seg_array[0] if seg_array.shape[0] == 1 else seg_array  # Remove batch dimension if present
+            if len(seg_array.shape) == 3:
+                is_3d = True
+            # Transpose to match scan_array shape if needed
+            if seg_array.shape != scan_array.shape and is_3d:
+                seg_array = xp.transpose(seg_array, tuple((2,1,0)))
+            elif seg_array.shape != scan_array.shape and not is_3d:
+                seg_array = xp.transpose(seg_array, tuple((1,0)))
+
+        if self.use_gpu and has_cupy and not isinstance(seg_array, cupy.ndarray): # If input segmentation mask is not already on GPU, move it there, applies when input is on CPU
+            self._logger.info("Moving segmentation mask from CPU to GPU for processing.")
+            seg_array = xp.asarray(seg_array)
         
         # Ensure scan and segmentation have same shape
         if seg_array.shape != scan_array.shape:
-            logging.warning(
+            self._logger.warning(
                 f"Segmentation shape {seg_array.shape} doesn't match scan shape {scan_array.shape}. "
                 "Attempting to proceed but results may be incorrect."
             )
         
+        #Print mean, max min for scan_array for debugging
+        self._logger.info(f"Input scan array stats - mean: {xp.mean(scan_array):.2f}, max: {xp.max(scan_array):.2f}, min: {xp.min(scan_array):.2f}")
+        
+        
         # Initialize results dictionary
-        results = {}
+        results = {}    
         
         # Calculate metrics for each label
         for label_name, label_idx in label_dict.items():
             try:
-                # Create binary mask for this label
                 label_mask = (seg_array == label_idx)
                 
                 # Pixel count
@@ -267,10 +297,7 @@ class SegmentationMetricsOperator(Operator):
                 if is_3d:
                     # Find which slices contain the label
                     slices_with_label = xp.any(label_mask, axis=(1, 2))
-                    if self.use_gpu and has_cupy:
-                        slices_with_label = cupy.asnumpy(slices_with_label)
-                    
-                    slice_indices = np.where(slices_with_label)[0]
+                    slice_indices = xp.where(slices_with_label)[0]
                     num_slices = len(slice_indices)
                     slice_range = (int(slice_indices[0]), int(slice_indices[-1])) if num_slices > 0 else None
                 else:
@@ -278,19 +305,26 @@ class SegmentationMetricsOperator(Operator):
                     num_slices = 1
                     slice_range = (0, 0)
                 
+                # Print the device of label_mask using is_cuda
+                if has_cupy and isinstance(label_mask, cupy.ndarray):
+                    self._logger.info(f"Label mask for '{label_name}' is on GPU.")
+                    masked_intensities = scan_array[label_mask.get()]
+                else:
+                    self._logger.info(f"Label mask for '{label_name}' is on CPU.")
+                    masked_intensities = scan_array[label_mask]
+                
                 # Intensity statistics (mean and std of pixels within the mask)
-                masked_intensities = scan_array[label_mask]
                 mean_intensity = float(xp.mean(masked_intensities))
                 std_intensity = float(xp.std(masked_intensities))
                 
                 # Store results for this label
                 results[label_name] = {
-                    "volume_ml" if is_3d else "area_cm2": volume_or_area,
+                    "volume_ml" if is_3d else "area_cm2": round(volume_or_area,3),
                     "num_slices": int(num_slices),
                     "slice_range": slice_range,
                     "pixel_count": int(pixel_count),
-                    "mean_intensity_hu": mean_intensity,
-                    "std_intensity_hu": std_intensity,
+                    "mean_intensity": round(mean_intensity,3),
+                    "std_intensity": round(std_intensity,3),
                 }
                 
                 # Connected components analysis (> 5 pixels) - optional
@@ -299,12 +333,170 @@ class SegmentationMetricsOperator(Operator):
                     results[label_name]["num_connected_components"] = int(num_components)
                 
             except Exception as e:
-                logging.error(f"Error calculating metrics for label '{label_name}' (index {label_idx}): {e}")
+                self._logger.error(f"Error calculating metrics for label '{label_name}' (index {label_idx}): {e}")
                 results[label_name] = {
                     "error": str(e)
                 }
         
+        self._logger.info("Segmentation metrics calculation completed.")
+        self._logger.info(f"Metrics results: {results}")
+        
         return results
+    
+    # def calculate_metrics(
+    #     self,
+    #     segmentation_mask: Image,
+    #     input_scan: Image,
+    #     label_dict: Dict[str, int],
+    #     segmentation_metatensor: Optional[MetaTensor] = None,
+    # ) -> Dict[str, Dict[str, Union[float, int, Tuple[int, int]]]]:
+    #     """Calculate segmentation metrics for each label.
+        
+    #     Args:
+    #         segmentation_mask: Segmentation mask (Image).
+    #         input_scan: Input scan/image (Image).
+    #         label_dict: Dictionary mapping label names to mask indices.
+    #         segmentation_metatensor: Optional MetaTensor version of segmentation mask for GPU processing.
+            
+    #     Returns:
+    #         Dictionary with metrics for each label:
+    #             - volume_ml (3D) or area_cm2 (2D): Volume in mL or area in cm² of the segmented region
+    #             - num_slices: Number of slices containing the organ
+    #             - slice_range: Tuple (first_slice, last_slice) containing the organ
+    #             - pixel_count: Number of pixels/voxels with this label
+    #             - mean_intensity_hu: Mean intensity in HU of pixels in the mask region
+    #             - std_intensity_hu: Standard deviation of intensity in HU in the mask region
+    #     """
+        
+    #     # Get spacing from input scan
+    #     spacing = self._get_spacing(input_scan)
+        
+    #     # Convert inputs to arrays, if use_gpu is False, data will be on CPU, otherwise on GPU if possible
+    #     seg_array = segmentation_mask.asnumpy()
+    #     scan_array = input_scan.asnumpy()
+        
+    #     # Determine if 3D or 2D
+    #     is_3d = len(seg_array.shape) == 3 or (len(seg_array.shape) == 4 and seg_array.shape[0] == 1)
+        
+    #     # Remove batch dimension if present
+    #     if len(seg_array.shape) == 4 and seg_array.shape[0] == 1:
+    #         seg_array = seg_array[0]
+    #     if len(scan_array.shape) == 4 and scan_array.shape[0] == 1:
+    #         scan_array = scan_array[0]
+        
+    #     # Process segmentation metatensor for GPU if available
+    #     seg_array_gpu = None
+    #     xp = np  # Default to numpy
+    #     if self.use_gpu and segmentation_metatensor is not None and has_cupy:
+    #         self._logger.info("Using segmentation metatensor for GPU processing.")
+    #         seg_array_gpu = cupy.asarray(segmentation_metatensor)
+    #         seg_array_gpu = seg_array_gpu[0] if seg_array_gpu.shape[0] == 1 else seg_array_gpu  # Remove batch dimension if present
+    #         # Transpose to match seg_array shape if needed
+    #         if seg_array_gpu.shape != seg_array.shape:
+    #             seg_array_gpu = cupy.transpose(seg_array_gpu, tuple((2,1,0)))
+    #         xp = cupy
+        
+    #     # Ensure scan and segmentation have same shape
+    #     if seg_array.shape != scan_array.shape:
+    #         self._logger.warning(
+    #             f"Segmentation shape {seg_array.shape} doesn't match scan shape {scan_array.shape}. "
+    #             "Attempting to proceed but results may be incorrect."
+    #         )
+        
+    #     #Print mean, max min for scan_array for debugging
+    #     self._logger.info(f"Input scan array stats - mean: {xp.mean(scan_array):.2f}, max: {xp.max(scan_array):.2f}, min: {xp.min(scan_array):.2f}")
+        
+    #     # Print shapes of arrays
+    #     self._logger.info(f"Segmentation array shape: {seg_array.shape}, dtype: {seg_array.dtype}")
+    #     self._logger.info(f"Input scan array shape: {scan_array.shape}, dtype: {scan_array.dtype}")
+    #     if seg_array_gpu is not None:
+    #         self._logger.info(f"Segmentation array on GPU shape: {seg_array_gpu.shape}, dtype: {seg_array_gpu.dtype}")
+        
+    #     # Initialize results dictionary
+    #     results = {}    
+        
+    #     # Calculate metrics for each label
+    #     for label_name, label_idx in label_dict.items():
+    #         try:
+    #             # Create binary mask for this label
+    #             if seg_array_gpu is not None:
+    #                 label_mask = (seg_array_gpu == label_idx)
+    #             else:
+    #                 label_mask = (seg_array == label_idx)
+                
+    #             # Pixel count
+    #             pixel_count = xp.sum(label_mask)
+                
+    #             # Skip if label not present
+    #             if pixel_count == 0:
+    #                 results[label_name] = {
+    #                     "volume_ml" if is_3d else "area_cm2": 0.0,
+    #                     "num_slices": 0,
+    #                     "slice_range": None,
+    #                     "pixel_count": 0,
+    #                     "mean_intensity_hu": 0.0,
+    #                     "std_intensity_hu": 0.0,
+    #                 }
+    #                 if self.compute_components:
+    #                     results[label_name]["num_connected_components"] = 0
+    #                 continue
+                
+    #             # Compute volume or area
+    #             volume_or_area = self._compute_volume_or_area(pixel_count, spacing, is_3d, xp)
+                
+    #             # Slice information (assumes first dimension is depth/slices for 3D)
+    #             if is_3d:
+    #                 # Find which slices contain the label
+    #                 slices_with_label = xp.any(label_mask, axis=(1, 2))
+    #                 slice_indices = xp.where(slices_with_label)[0]
+    #                 # if self.use_gpu and has_cupy:
+    #                 #     slices_with_label = cupy.asnumpy(slices_with_label)
+                    
+    #                 # slice_indices = np.where(slices_with_label)[0]
+    #                 num_slices = len(slice_indices)
+    #                 slice_range = (int(slice_indices[0]), int(slice_indices[-1])) if num_slices > 0 else None
+    #             else:
+    #                 # For 2D, there's only one "slice"
+    #                 num_slices = 1
+    #                 slice_range = (0, 0)
+                
+    #             # Print the device of label_mask using is_cuda
+    #             if has_cupy and isinstance(label_mask, cupy.ndarray):
+    #                 self._logger.info(f"Label mask for '{label_name}' is on GPU.")
+    #                 masked_intensities = scan_array[label_mask.get()]
+    #             else:
+    #                 self._logger.info(f"Label mask for '{label_name}' is on CPU.")
+    #                 masked_intensities = scan_array[label_mask]
+                
+    #             # Intensity statistics (mean and std of pixels within the mask)
+    #             mean_intensity = float(xp.mean(masked_intensities))
+    #             std_intensity = float(xp.std(masked_intensities))
+                
+    #             # Store results for this label
+    #             results[label_name] = {
+    #                 "volume_ml" if is_3d else "area_cm2": round(volume_or_area,3),
+    #                 "num_slices": int(num_slices),
+    #                 "slice_range": slice_range,
+    #                 "pixel_count": int(pixel_count),
+    #                 "mean_intensity": round(mean_intensity,3),
+    #                 "std_intensity": round(std_intensity,3),
+    #             }
+                
+    #             # Connected components analysis (> 5 pixels) - optional
+    #             if self.compute_components:
+    #                 num_components = self._count_connected_components(label_mask, min_size=5)
+    #                 results[label_name]["num_connected_components"] = int(num_components)
+                
+    #         except Exception as e:
+    #             self._logger.error(f"Error calculating metrics for label '{label_name}' (index {label_idx}): {e}")
+    #             results[label_name] = {
+    #                 "error": str(e)
+    #             }
+        
+    #     self._logger.info("Segmentation metrics calculation completed.")
+    #     self._logger.info(f"Metrics results: {results}")
+        
+    #     return results
 
     def _count_connected_components(
         self, 
@@ -344,7 +536,7 @@ class SegmentationMetricsOperator(Operator):
         
         return num_large_components
 
-
+    
 def test():
     """Test function for the SegmentationMetricsOperator."""
     import time

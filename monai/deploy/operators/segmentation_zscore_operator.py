@@ -43,6 +43,8 @@ class SegmentationZScoreOperator(Operator):
     Named Output:
         zscore_dict: Dictionary with z-scores and percentiles for each organ
         pdf_bytes: Bytes of PDF file with quantile curves and patient values (optional)
+        zscore_text: Formatted text summary for DICOM SR (filtered organs)
+        mongodb_text: Formatted text summary for MongoDB (all organs)
     """
 
     def __init__(
@@ -52,6 +54,7 @@ class SegmentationZScoreOperator(Operator):
         assets_path: Optional[str] = None,
         organ_name_mapping: Optional[Dict[str, str]] = None,
         generate_plots: bool = True,
+        additional_metrics_map: Optional[Dict[str, Dict[str, str]]] = None,
         **kwargs
     ):
         """Create an instance for a containing application object.
@@ -65,12 +68,16 @@ class SegmentationZScoreOperator(Operator):
                 If None, uses exact matching.
             generate_plots (bool): If True, generates matplotlib visualization and outputs as PDF bytes. Default True.
         """
+        self._logger = logging.getLogger("{}.{}".format(__name__, type(self).__name__))
         self.input_name_metrics = "metrics_dict"
-        self.input_name_age = "patient_age"
-        self.input_name_sex = "patient_sex"
-        self.input_name_assets = "assets_path"
+        self.input_name_dcm_series = "study_selected_series_list"
+        self.input_name_assets = assets_path 
+        self.additional_metrics_map = additional_metrics_map
+        
         self.output_name_zscore = "zscore_dict"
         self.output_name_pdf_bytes = "pdf_bytes"
+        self.output_name_zscore_text = "zscore_text"
+        self.output_name_mongodb_text = "mongodb_text"
         
         self.assets_path = assets_path
         self.organ_name_mapping = organ_name_mapping or {}
@@ -80,24 +87,48 @@ class SegmentationZScoreOperator(Operator):
         super().__init__(fragment, *args, **kwargs)
 
     def setup(self, spec: OperatorSpec):
+        
         spec.input(self.input_name_metrics)
-        spec.input(self.input_name_age)
-        spec.input(self.input_name_sex)
-        spec.input(self.input_name_assets)
+        spec.input(self.input_name_dcm_series).condition(ConditionType.NONE)  # Optional input
+        
         spec.output(self.output_name_zscore).condition(ConditionType.NONE)
         spec.output(self.output_name_pdf_bytes).condition(ConditionType.NONE)
+        spec.output(self.output_name_zscore_text).condition(ConditionType.NONE)
+        #spec.output(self.output_name_mongodb_text).condition(ConditionType.NONE)
 
     def compute(self, op_input, op_output, context):
         """Performs computation for this operator and handles I/O."""
         
         # Receive inputs
         metrics_dict = op_input.receive(self.input_name_metrics)
-        patient_age = op_input.receive(self.input_name_age)
-        patient_sex = op_input.receive(self.input_name_sex)
-        assets_path_input = op_input.receive(self.input_name_assets)
+        study_selected_series_list = op_input.receive(self.input_name_dcm_series)
+
+    
+        # Extract patient demographics from DICOM series
+        dicom_series = None
+        for study_selected_series in study_selected_series_list:
+            selected_series = study_selected_series.selected_series[0]
+            dicom_series = selected_series.series
+            break
         
-        # Use input assets_path if provided, otherwise use constructor value
-        assets_path = assets_path_input if assets_path_input is not None else self.assets_path
+        if dicom_series is None:
+            raise ValueError("Could not extract DICOM series from study_selected_series_list")
+        
+        # Get patient info from first SOP instance
+        orig_ds = dicom_series.get_sop_instances()[0].get_native_sop_instance()
+        patient_sex = orig_ds.get("PatientSex", "")
+        patient_age_str = orig_ds.get("PatientAge", "")
+        
+        # Convert DICOM age string (e.g., "012Y") to numeric value
+        if patient_age_str and patient_age_str.endswith("Y"):
+            patient_age = float(patient_age_str[:-1])
+        else:
+            raise ValueError(f"Invalid or missing PatientAge: {patient_age_str}")
+        
+        self._logger.info(f"Extracted PatientSex: {patient_sex}, PatientAge: {patient_age}")
+        
+        if self.assets_path is None:
+            raise ValueError("assets_path must be provided in constructor if not passed as input")
         
         # Validate inputs
         if metrics_dict is None or not isinstance(metrics_dict, dict):
@@ -106,6 +137,12 @@ class SegmentationZScoreOperator(Operator):
         if patient_age is None or not isinstance(patient_age, (int, float)):
             raise ValueError("patient_age must be a numeric value")
         
+        # If patient_sex is m or f, convert to full string
+        if patient_sex.lower() == "m":
+            patient_sex = "Male"
+        elif patient_sex.lower() == "f":
+            patient_sex = "Female"
+        
         if patient_sex is None or not isinstance(patient_sex, str):
             raise ValueError("patient_sex must be a string ('Male' or 'Female')")
         
@@ -113,13 +150,29 @@ class SegmentationZScoreOperator(Operator):
         if patient_sex not in ["Male", "Female"]:
             raise ValueError(f"patient_sex must be 'Male' or 'Female', got: {patient_sex}")
         
-        if assets_path is None:
-            raise ValueError("assets_path must be provided either in constructor or as input")
+        # If additional_metrics_map is provided, augment metrics_dict
+        if self.additional_metrics_map:
+            for metric_key, mapping in self.additional_metrics_map.items():
+                organ = mapping.get("organ")
+                metric = mapping.get("metric")
+                if organ in metrics_dict and metric in metrics_dict[organ]:
+                    metrics_dict[metric_key] = {
+                        "biomarker_value": metrics_dict[organ][metric]
+                    }
         
         # Calculate z-scores and percentiles for all organs
-        zscore_dict, processed_organs = self.calculate_zscores_batch(
-            metrics_dict, patient_age, patient_sex, assets_path
+        zscore_dict, processed_organs, units_dict = self.calculate_zscores_batch(
+            metrics_dict, patient_age, patient_sex, self.assets_path
         )
+        self._logger.info(f"Z-score calculation complete, z_score_dict: {zscore_dict}")
+        
+        # Generate formatted text outputs for SR
+        zscore_text = self._format_text_outputs(zscore_dict, units_dict)
+        
+        # Add units to zscore_dict
+        for organ_name, data in zscore_dict.items():
+            unit = units_dict.get(organ_name, "")
+            data["unit"] = unit
         
         # Generate plot if requested and data is available
         pdf_bytes = None
@@ -127,17 +180,22 @@ class SegmentationZScoreOperator(Operator):
             try:
                 # Create and save visualization to BytesIO buffer
                 pdf_bytes = self.create_visualization(
-                    processed_organs, patient_age, patient_sex, assets_path
+                    processed_organs, patient_age, patient_sex
                 )
                 
-                logging.info(f"PDF report generated in memory ({len(pdf_bytes)} bytes)")
+                self._logger.info(f"PDF report generated in memory ({len(pdf_bytes)} bytes)")
             except Exception as e:
-                logging.error(f"Error generating PDF visualization: {e}")
+                self._logger.error(f"Error generating PDF visualization: {e}")
                 pdf_bytes = None
+        
+        self._logger.info("Emitting outputs")
+        # Print Z-score text
+        self._logger.info(f"Z-Score Text Output:\n{zscore_text}")
         
         # Emit outputs
         op_output.emit(zscore_dict, self.output_name_zscore)
         op_output.emit(pdf_bytes, self.output_name_pdf_bytes)
+        op_output.emit(zscore_text, self.output_name_zscore_text)
 
     def _load_biomarker_data(
         self, biomarker_name: str, assets_path: str
@@ -157,7 +215,7 @@ class SegmentationZScoreOperator(Operator):
             df_f = pd.read_csv(biomarker_path / "results_f_fine.csv", index_col=0)
             return df_m, df_f
         except Exception as e:
-            logging.error(f"Error loading data for biomarker '{biomarker_name}': {e}")
+            self._logger.error(f"Error loading data for biomarker '{biomarker_name}': {e}")
             return None, None
 
     def _calculate_percentile(
@@ -268,7 +326,7 @@ class SegmentationZScoreOperator(Operator):
         patient_age: float,
         patient_sex: str,
         assets_path: str
-    ) -> Tuple[Dict[str, Dict], Dict[str, Dict]]:
+    ) -> Tuple[Dict[str, Dict], Dict[str, Dict], Dict[str, Dict]]:
         """Calculate z-scores and percentiles for all organs in metrics_dict.
         
         Args:
@@ -278,17 +336,19 @@ class SegmentationZScoreOperator(Operator):
             assets_path: Path to assets folder
             
         Returns:
-            Tuple of (zscore_dict, processed_organs_dict) where:
+            Tuple of (zscore_dict, processed_organs_dict, units_dict) where:
             - zscore_dict contains results for output
             - processed_organs_dict contains data needed for plotting
         """
         zscore_dict = {}
         processed_organs = {}
-        
+        # Establish units dict
+        units_dict = {}
+            
         for organ_name, metrics in metrics_dict.items():
             # Skip if metrics contain an error
             if "error" in metrics:
-                logging.warning(f"Skipping organ '{organ_name}' due to error in metrics: {metrics['error']}")
+                self._logger.warning(f"Skipping organ '{organ_name}' due to error in metrics: {metrics['error']}")
                 zscore_dict[organ_name] = {"error": metrics["error"]}
                 continue
             
@@ -296,10 +356,12 @@ class SegmentationZScoreOperator(Operator):
             asset_name = self.organ_name_mapping.get(organ_name, organ_name)
             
             # Extract biomarker value (volume_ml or area_cm2)
-            biomarker_value = metrics.get("volume_ml") or metrics.get("area_cm2")
+            biomarker_value = metrics.get("volume_ml") or metrics.get("area_cm2") or metrics.get("biomarker_value")
+            
+            units_dict[organ_name] = "mL" if "volume_ml" in metrics else "cm²" if "area_cm2" in metrics else ""
             
             if biomarker_value is None or biomarker_value == 0:
-                logging.warning(f"No valid biomarker value for organ '{organ_name}', skipping")
+                self._logger.warning(f"No valid biomarker value for organ '{organ_name}', skipping")
                 zscore_dict[organ_name] = {
                     "percentile": None,
                     "z_score": None,
@@ -312,7 +374,7 @@ class SegmentationZScoreOperator(Operator):
             df_m, df_f = self._load_biomarker_data(asset_name, assets_path)
             
             if df_m is None or df_f is None:
-                logging.error(f"Could not load normative data for '{asset_name}', skipping '{organ_name}'")
+                self._logger.error(f"Could not load normative data for '{asset_name}', skipping '{organ_name}'")
                 zscore_dict[organ_name] = {
                     "error": f"Normative data not available for '{asset_name}'"
                 }
@@ -355,12 +417,12 @@ class SegmentationZScoreOperator(Operator):
                 }
                 
             except Exception as e:
-                logging.error(f"Error calculating z-score for '{organ_name}': {e}")
+                self._logger.error(f"Error calculating z-score for '{organ_name}': {e}")
                 zscore_dict[organ_name] = {
                     "error": str(e)
                 }
         
-        return zscore_dict, processed_organs
+        return zscore_dict, processed_organs, units_dict
 
     def _generate_interpretation(self, percentile: float, z_score: float) -> str:
         """Generate human-readable interpretation of results.
@@ -377,166 +439,190 @@ class SegmentationZScoreOperator(Operator):
             f"This value is at the {percentile*100:.1f}th percentile, "
             f"{abs(z_score):.2f} standard deviations {direction} the population mean"
         )
+    
+    def _format_text_outputs(self, zscore_dict: Dict[str, Dict], units_dict: Dict[str, str]) -> str:
+        """Format zscore results as text for DICOM SR.
+        
+        Args:
+            zscore_dict: Dictionary with z-scores and percentiles for each organ
+            units_dict: Dictionary with units for each organ
+            
+        Returns:
+            Formatted text string for DICOM SR
+        """
+        sr_lines = []
+        
+        # Process each organ
+        for organ_name, zscore_data in zscore_dict.items():
+            # Skip organs with errors
+            if "error" in zscore_data:
+                continue
+                
+            # Get volume/area value
+            biomarker_value = zscore_data.get("biomarker_value")
+            if biomarker_value is None:
+                continue
+            
+            # Format volume/area/biomarker text
+            unit = units_dict.get(organ_name, "")
+            type_ = "Volume" if unit == "mL" else "Area" if unit == "cm²" else "Biomarker"
+            volume_text = f"{organ_name.capitalize()} {type_}: {int(round(biomarker_value))} {unit}"
+            
+            # Add percentile and z-score information
+            percentile_pct = zscore_data.get("percentile_pct")
+            z_score = zscore_data.get("z_score")
+            
+            if percentile_pct is not None and z_score is not None:
+                detail_text = f" (Percentile: {percentile_pct:.1f}%, Z-score: {z_score:.2f})"
+                volume_text += detail_text
+            
+            # Add to SR outputs
+            sr_lines.append(volume_text)
+
+        
+        # Join lines
+        zscore_text = "\n".join(sr_lines) if sr_lines else "No valid organ measurements"
+        
+        return zscore_text
 
     def create_visualization(
         self,
         processed_organs: Dict[str, Dict],
         patient_age: float,
-        patient_sex: str,
-        assets_path: str
+        patient_sex: str
     ) -> bytes:
-        """Create matplotlib visualization with quantile curves and patient values, return as PDF bytes.
+        """Create matplotlib visualization with quantile curves in an Nx2 grid.
         
         Args:
-            processed_organs: Dictionary with organ data from calculate_zscores_batch
+            processed_organs: Dictionary with organ data
             patient_age: Patient age in years
             patient_sex: Patient sex ("Male" or "Female")
-            assets_path: Path to assets folder
             
         Returns:
             bytes: PDF file content as bytes
         """
         if not processed_organs:
-            logging.warning("No organs to visualize")
-            return b""  # Return empty bytes if no organs to visualize
-        
-        # Create subplots: one row per organ, 2 columns (Male, Female)
+            self._logger.warning("No organs to visualize")
+            return b"" 
+
         num_organs = len(processed_organs)
-        organ_names = list(processed_organs.keys())
+        
+        # Calculate rows needed for 2 columns (No math library needed)
+        ncols = 2
+        nrows = (num_organs + 1) // ncols
         
         # Create figure with subplots
         fig, axes = plt.subplots(
-            nrows=num_organs,
-            ncols=2,
-            figsize=(14, 5 * num_organs),
-            squeeze=False
+            nrows=nrows,
+            ncols=ncols,
+            figsize=(15, 5 * nrows),
+            squeeze=False  # Ensures axes is always a 2D array
         )
         
-        # Quantiles to plot
+        # Flatten axes for easy 1D iteration
+        axes_flat = axes.flatten()
+        
+        # Quantiles configuration
         quantiles_to_plot = [0.05, 0.25, 0.50, 0.75, 0.95]
         colors = ['red', 'orange', 'blue', 'green', 'purple']
         labels = ['5th', '25th', '50th', '75th', '95th']
         
-        for row_idx, (organ_name, organ_data) in enumerate(processed_organs.items()):
-            df_m = organ_data["df_m"]
-            df_f = organ_data["df_f"]
+        for i, (organ_name, organ_data) in enumerate(processed_organs.items()):
+            ax = axes_flat[i]
+            
+            # Select relevant dataframe based on sex
+            if patient_sex == "Male":
+                df = organ_data["df_m"]
+            else:
+                df = organ_data["df_f"]
+                
             biomarker_value = organ_data["biomarker_value"]
             percentile = organ_data["percentile"]
             z_score = organ_data["z_score"]
             
-            # Find column names for quantiles
-            quantile_cols_m = [col for col in df_m.columns if col not in ['Age', 'Unnamed: 0'] and col != 'index']
-            quantile_mapping_m = {float(col): col for col in quantile_cols_m}
+            # Extract only quantile columns (exclude metadata)
+            quantile_cols = [
+                col for col in df.columns 
+                if col not in ['Age', 'Unnamed: 0', 'index']
+            ]
+            quantile_mapping = {float(col): col for col in quantile_cols}
             
-            quantile_cols_f = [col for col in df_f.columns if col not in ['Age', 'Unnamed: 0'] and col != 'index']
-            quantile_mapping_f = {float(col): col for col in quantile_cols_f}
-            
-            # Plot male quantile curves (left column)
-            ax_male = axes[row_idx, 0]
-            for i, q in enumerate(quantiles_to_plot):
-                if q in quantile_mapping_m:
-                    col_name = quantile_mapping_m[q]
-                    ax_male.plot(
-                        df_m['Age'],
-                        df_m[col_name],
-                        color=colors[i],
-                        label=f'{labels[i]} percentile',
+            # Plot quantile curves
+            for j, q in enumerate(quantiles_to_plot):
+                if q in quantile_mapping:
+                    col_name = quantile_mapping[q]
+                    ax.plot(
+                        df['Age'],
+                        df[col_name],
+                        color=colors[j],
+                        label=f'{labels[j]} percentile' if i == 0 else "", 
                         linewidth=2
                     )
             
-            # Add patient point if male
-            if patient_sex == "Male":
-                ax_male.scatter(
-                    [patient_age],
-                    [biomarker_value],
-                    color='red',
-                    s=150,
-                    marker='X',
-                    zorder=5,
-                    edgecolors='black',
-                    linewidths=1.5,
-                    label='Patient'
-                )
-                ax_male.annotate(
-                    f'P: {percentile*100:.1f}%\\nZ: {z_score:.2f}',
-                    (patient_age, biomarker_value),
-                    xytext=(10, 10),
-                    textcoords='offset points',
-                    bbox=dict(boxstyle='round,pad=0.5', facecolor='yellow', alpha=0.7),
-                    fontsize=9
-                )
+            # Plot Patient Point
+            ax.scatter(
+                [patient_age],
+                [biomarker_value],
+                color='red',
+                s=150,
+                marker='X',
+                zorder=5,
+                edgecolors='black',
+                linewidths=1.5,
+                label='Patient' if i == 0 else ""
+            )
             
-            ax_male.set_xlabel('Age (years)', fontsize=10)
-            ax_male.set_ylabel('Volume (mL)', fontsize=10)
-            ax_male.set_title(f'{organ_name} - Male', fontsize=12, fontweight='bold')
-            ax_male.grid(True, alpha=0.3)
-            if row_idx == 0:
-                ax_male.legend(loc='best', fontsize=8)
+            # Annotation Box: Value, Percentile, Z-score
+            ax.annotate(
+                f'Val: {biomarker_value:.1f}\nP: {percentile*100:.1f}%\nZ: {z_score:.2f}',
+                (patient_age, biomarker_value),
+                xytext=(10, 10),
+                textcoords='offset points',
+                bbox=dict(boxstyle='round,pad=0.5', facecolor='yellow', alpha=0.7),
+                fontsize=9,
+                fontweight='bold'
+            )
             
-            # Plot female quantile curves (right column)
-            ax_female = axes[row_idx, 1]
-            for i, q in enumerate(quantiles_to_plot):
-                if q in quantile_mapping_f:
-                    col_name = quantile_mapping_f[q]
-                    ax_female.plot(
-                        df_f['Age'],
-                        df_f[col_name],
-                        color=colors[i],
-                        linestyle='--',
-                        label=f'{labels[i]} percentile',
-                        linewidth=2
-                    )
+            # Styling
+            ax.set_xlabel('Age (years)', fontsize=10)
+            ax.set_ylabel('Volume (mL)', fontsize=10)
+            ax.set_title(f'{organ_name}', fontsize=12, fontweight='bold')
+            ax.grid(True, alpha=0.3)
             
-            # Add patient point if female
-            if patient_sex == "Female":
-                ax_female.scatter(
-                    [patient_age],
-                    [biomarker_value],
-                    color='red',
-                    s=150,
-                    marker='X',
-                    zorder=5,
-                    edgecolors='black',
-                    linewidths=1.5,
-                    label='Patient'
+            # Add legend outside the plot area (top center), only on the first plot
+            if i == 0:
+                ax.legend(
+                    loc='lower center', 
+                    bbox_to_anchor=(0.5, 1.05), # Moves legend above the plot
+                    ncol=3, # Arranges items in 3 columns for a flatter look
+                    fontsize=9, 
+                    frameon=False
                 )
-                ax_female.annotate(
-                    f'P: {percentile*100:.1f}%\\nZ: {z_score:.2f}',
-                    (patient_age, biomarker_value),
-                    xytext=(10, 10),
-                    textcoords='offset points',
-                    bbox=dict(boxstyle='round,pad=0.5', facecolor='yellow', alpha=0.7),
-                    fontsize=9
-                )
-            
-            ax_female.set_xlabel('Age (years)', fontsize=10)
-            ax_female.set_ylabel('Volume (mL)', fontsize=10)
-            ax_female.set_title(f'{organ_name} - Female', fontsize=12, fontweight='bold')
-            ax_female.grid(True, alpha=0.3)
-            if row_idx == 0:
-                ax_female.legend(loc='best', fontsize=8)
-        
-        # Overall title
+
+        # Hide any unused subplots
+        for j in range(num_organs, nrows * ncols):
+            axes_flat[j].axis('off')
+
+        # Overall Title
         fig.suptitle(
             f'Organ Volume Quantile Curves - {patient_sex} Patient, Age {patient_age:.1f} years',
-            fontsize=14,
+            fontsize=16,
             fontweight='bold',
             y=0.995
         )
         
         plt.tight_layout()
         
-        # Save to BytesIO buffer and return as bytes
+        # Save to BytesIO buffer
         buffer = BytesIO()
         fig.savefig(buffer, format='pdf', bbox_inches='tight', dpi=150)
         plt.close(fig)
         
-        # Get bytes and return
         pdf_bytes = buffer.getvalue()
         buffer.close()
+        
         return pdf_bytes
-
-
+    
 def test():
     """Test function for the SegmentationZScoreOperator."""
     import numpy as np

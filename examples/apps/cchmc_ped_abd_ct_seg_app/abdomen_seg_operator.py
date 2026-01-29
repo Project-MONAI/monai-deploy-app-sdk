@@ -17,7 +17,7 @@ import torch
 from numpy import float32, int16
 
 # import custom transforms from post_transforms.py
-from post_transforms import CalculateVolumeFromMaskd, ExtractVolumeToTextd, LabelToContourd, OverlayImageLabeld
+from post_transforms import LabelToContourd, OverlayImageLabeld
 
 import monai
 from monai.deploy.core import AppContext, Fragment, Model, Operator, OperatorSpec
@@ -69,8 +69,9 @@ class AbdomenSegOperator(Operator):
         self.app_context = app_context
         self.input_name_image = "image"
         self.output_name_seg = "seg_image"
-        self.output_name_text_dicom_sr = "result_text_dicom_sr"
-        self.output_name_text_mongodb = "result_text_mongodb"
+        self.output_name_label_dict = "label_dict"
+        self.output_name_patient_age = "patient_age"
+        self.output_name_patient_sex = "patient_sex"
         self.output_name_sc_path = "dicom_sc_dir"
 
         # the base class has an attribute called fragment to hold the reference to the fragment object
@@ -140,11 +141,12 @@ class AbdomenSegOperator(Operator):
         # DICOM SEG
         spec.output(self.output_name_seg)
 
-        # DICOM SR
-        spec.output(self.output_name_text_dicom_sr)
+        # Label dictionary for metrics operator
+        spec.output(self.output_name_label_dict)
 
-        # MongoDB
-        spec.output(self.output_name_text_mongodb)
+        # Patient demographics for zscore operator
+        spec.output(self.output_name_patient_age)
+        spec.output(self.output_name_patient_sex)
 
         # DICOM SC
         spec.output(self.output_name_sc_path)
@@ -153,6 +155,10 @@ class AbdomenSegOperator(Operator):
         input_image = op_input.receive(self.input_name_image)
         if not input_image:
             raise ValueError("Input image is not found.")
+
+        # Extract patient demographics from input image metadata
+        patient_age = self._extract_patient_age(input_image)
+        patient_sex = self._extract_patient_sex(input_image)
 
         # this operator gets an in-memory Image object, so a specialized ImageReader is needed.
         _reader = InMemImageReader(input_image)
@@ -194,19 +200,16 @@ class AbdomenSegOperator(Operator):
         # DICOM SEG
         op_output.emit(seg_image, self.output_name_seg)
 
-        # grab result_text_dicom_sr and result_text_mongodb from ExractVolumeToTextd transform
-        result_text_dicom_sr, result_text_mongodb = self.get_result_text_from_transforms(post_transforms)
-        if not result_text_dicom_sr or not result_text_mongodb:
-            raise ValueError("Result text could not be generated.")
+        # Label dictionary for metrics operator - only organs with normative data for z-score analysis
+        # Pancreas is segmented by the model but excluded from metrics (no normative data available)
+        labels = {"liver": 1, "spleen": 2}
+        op_output.emit(labels, self.output_name_label_dict)
 
-        # only log volumes for target organs so logs reflect MAP behavior
-        self._logger.info(f"Calculated Organ Volumes: {result_text_dicom_sr}")
+        # Patient demographics for zscore operator
+        op_output.emit(patient_age, self.output_name_patient_age)
+        op_output.emit(patient_sex, self.output_name_patient_sex)
 
-        # DICOM SR
-        op_output.emit(result_text_dicom_sr, self.output_name_text_dicom_sr)
-
-        # MongoDB
-        op_output.emit(result_text_mongodb, self.output_name_text_mongodb)
+        self._logger.info(f"Patient Age: {patient_age} years, Sex: {patient_sex}")
 
         # DICOM SC
         # temporary DICOM SC (w/o source DICOM metadata) saved in output_folder / temp directory
@@ -240,8 +243,6 @@ class AbdomenSegOperator(Operator):
 
         pred_key = self._pred_dataset_key
 
-        labels = {"background": 0, "liver": 1, "spleen": 2, "pancreas": 3}
-
         return Compose(
             [
                 Activationsd(keys=pred_key, softmax=True),
@@ -254,21 +255,7 @@ class AbdomenSegOperator(Operator):
                     to_tensor=True,
                 ),
                 AsDiscreted(keys=pred_key, argmax=True),
-                # custom post-processing steps
-                CalculateVolumeFromMaskd(keys=pred_key, label_names=labels),
-                # optional code for saving segmentation masks as a NIfTI
-                # SaveImaged(
-                #     keys=pred_key,
-                #     output_ext=".nii.gz",
-                #     output_dir=self.output_folder / "NIfTI",
-                #     meta_keys="pred_meta_dict",
-                #     separate_folder=False,
-                #     output_dtype=int16
-                # ),
-                # volume data stored in dictionary under pred_key + '_volumes' key
-                ExtractVolumeToTextd(
-                    keys=[pred_key + "_volumes"], label_names=labels, output_labels=self.output_labels
-                ),
+                # custom post-processing steps for DICOM SC only
                 # comment out LabelToContourd for seg masks instead of contours; organ filtering will be lost
                 LabelToContourd(keys=pred_key, output_labels=self.output_labels),
                 OverlayImageLabeld(image_key=self._input_dataset_key, label_key=pred_key, overlay_key="overlay"),
@@ -283,12 +270,49 @@ class AbdomenSegOperator(Operator):
             ]
         )
 
-    # grab volume data from ExtractVolumeToTextd transform
-    def get_result_text_from_transforms(self, post_transforms: Compose):
-        """Extracts the result_text variables from post-processing transforms output."""
+    def _extract_patient_age(self, input_image) -> float:
+        """Extracts patient age from input image metadata."""
+        try:
+            # Try to get age from metadata
+            metadata = input_image.metadata() if hasattr(input_image, 'metadata') else {}
+            
+            # PatientAge format is typically 'nnnY' where nnn is age in years
+            patient_age_str = metadata.get('PatientAge', '000Y')
+            
+            # Parse age - assuming format like '012Y' or '12Y'
+            if isinstance(patient_age_str, str) and patient_age_str.endswith('Y'):
+                age = float(patient_age_str[:-1])
+            else:
+                # Try direct conversion
+                age = float(patient_age_str)
+                
+            self._logger.info(f"Extracted patient age: {age} years")
+            return age
+        except Exception as e:
+            self._logger.warning(f"Could not extract patient age: {e}. Using default age of 10.0")
+            return 10.0  # Default age if extraction fails
 
-        # grab the result_text variables from ExractVolumeToTextd transfor
-        for transform in post_transforms.transforms:
-            if isinstance(transform, ExtractVolumeToTextd):
-                return transform.result_text_dicom_sr, transform.result_text_mongodb
-        return None
+    def _extract_patient_sex(self, input_image) -> str:
+        """Extracts patient sex from input image metadata."""
+        try:
+            # Try to get sex from metadata
+            metadata = input_image.metadata() if hasattr(input_image, 'metadata') else {}
+            
+            # PatientSex is typically 'M', 'F', 'O' (Other), or empty
+            patient_sex = metadata.get('PatientSex', 'U')
+            
+            # Normalize to Male/Female
+            if patient_sex.upper() in ['M', 'MALE']:
+                sex = 'Male'
+            elif patient_sex.upper() in ['F', 'FEMALE']:
+                sex = 'Female'
+            else:
+                # Default to Male if unknown
+                sex = 'Male'
+                self._logger.warning(f"Unknown patient sex '{patient_sex}', defaulting to Male")
+                
+            self._logger.info(f"Extracted patient sex: {sex}")
+            return sex
+        except Exception as e:
+            self._logger.warning(f"Could not extract patient sex: {e}. Using default 'Male'")
+            return 'Male'  # Default sex if extraction fails

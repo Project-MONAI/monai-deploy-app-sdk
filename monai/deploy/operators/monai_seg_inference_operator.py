@@ -155,6 +155,7 @@ class MonaiSegInferenceOperator(InferenceOperator):
         sw_batch_size: int = 4,
         inferer: Union[InfererType, str] = InfererType.SLIDING_WINDOW,
         model_path: Path = MODEL_LOCAL_PATH,
+        metatensor_output: Optional[bool] = False, # Optional parameter to output segmentation image tensor as MetaTensor
         **kwargs,
     ):
         """Creates a instance of this class.
@@ -173,7 +174,7 @@ class MonaiSegInferenceOperator(InferenceOperator):
                              Applicable for "SLIDING_WINDOW" only.
             inferer (InfererType, str): The type of inferer to use, "SIMPLE" or "SLIDING_WINDOW". Defaults to "SLIDING_WINDOW".
             model_path (Path): Path to the model file. Defaults to model/models.ts of current working dir.
-            **kwargs: any other sliding window parameters to forward (e.g. `mode`, `cval`, etc.).
+            metatensor_output (bool, optional): Whether to output segmentation image tensor as MetaTensor in addition to Image object.
         """
 
         self._logger = logging.getLogger("{}.{}".format(__name__, type(self).__name__))
@@ -198,6 +199,8 @@ class MonaiSegInferenceOperator(InferenceOperator):
         self.model_path = model_path
         self._input_name_image = "image"
         self._output_name_seg = "seg_image"
+        self._output_name_seg_metatensor = "seg_metatensor"
+        self._meta_tensor_output = metatensor_output
 
         # The execution context passed in on compute does not have the required model info, so need to
         # get and keep the model via the AppContext obj on construction.
@@ -233,6 +236,9 @@ class MonaiSegInferenceOperator(InferenceOperator):
     def setup(self, spec: OperatorSpec):
         spec.input(self._input_name_image)
         spec.output(self._output_name_seg).condition(ConditionType.NONE)  # Downstream receiver optional.
+        
+        if self._meta_tensor_output:
+            spec.output(self._output_name_seg_metatensor).condition(ConditionType.NONE)  # Downstream receiver optional.
 
     @property
     def roi_size(self):
@@ -369,7 +375,13 @@ class MonaiSegInferenceOperator(InferenceOperator):
 
             if not input_image:
                 raise ValueError("Input is None.")
-            op_output.emit(self.compute_impl(input_image, context), self._output_name_seg)
+            
+            if self._meta_tensor_output:
+                seg_image, seg_metatensor = self.compute_impl(input_image, context)
+                op_output.emit(seg_image, self._output_name_seg)
+                op_output.emit(seg_metatensor, self._output_name_seg_metatensor)
+            else:
+                op_output.emit(self.compute_impl(input_image, context), self._output_name_seg)
         finally:
             # Reset state on completing this method execution.
             with self._lock:
@@ -424,7 +436,9 @@ class MonaiSegInferenceOperator(InferenceOperator):
                 self._logger.info(
                     f"Post transform pixel spacings for {self._pred_dataset_key}: {d[0][self._pred_dataset_key].pixdim}"
                 )
+                
                 out_ndarray = d[0][self._pred_dataset_key].cpu().numpy()  # Single output to numpy on CPU
+                
                 self._logger.info(
                     f"Post transform {self._pred_dataset_key} of {type(out_ndarray)} shape: {out_ndarray.shape}"
                 )
@@ -443,8 +457,21 @@ class MonaiSegInferenceOperator(InferenceOperator):
                     f"Output Seg image numpy array of type {type(out_ndarray)} shape: {out_ndarray.shape}"
                 )
                 self._logger.info(f"Output Seg image pixel max value: {np.amax(out_ndarray)}")
-
-                return Image(out_ndarray, input_img_metadata)
+                
+                seg_image = Image(out_ndarray, input_img_metadata)
+                
+                if self._meta_tensor_output:
+                    seg_metatensor = d[0][self._pred_dataset_key].detach()  # MONAI MetaTensor object for segmentation  
+                    
+                    # Log if the seg_metatensor is in cpu or gpu memory
+                    if seg_metatensor.is_cuda:
+                        self._logger.info("The segmentation metatensor is in GPU memory.")
+                    else:
+                        self._logger.info("The segmentation metatensor is in CPU memory.")
+                
+                    return seg_image, seg_metatensor 
+                else:
+                    return seg_image
 
     def pre_process(self, data: Any, *args, **kwargs) -> Union[Any, Image, Tuple[Any, ...], Dict[Any, Any]]:
         """Transforms input before being used for predicting on a model.
