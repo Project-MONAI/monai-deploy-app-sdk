@@ -26,17 +26,16 @@ from monai.deploy.core.domain.image import Image
 
 
 class SegmentationOverlayOperator(Operator):
-    """This operator computes segmentation metrics for predicted segmentation masks.
+    """
+    This operator generates an RGB overlay image by blending a segmentation mask with the corresponding input scan.
 
-    The computed metrics include volume/area, slice information, pixel counts, and intensity statistics
-    for each labeled region in the segmentation mask.
+    The overlay highlights segmented regions on top of the grayscale or intensity image, using alpha blending for visualization. GPU acceleration is used if available and enabled.
 
     Named Input:
-        segmentation_mask: Segmentation mask as tensor, numpy array, or Image object.
-        input_scan: Input scan/image as tensor, numpy array, or Image object.
-        label_dict: Dictionary mapping label names to their corresponding mask indices.
+        segmentation_mask: Segmentation mask as a tensor, numpy array, or Image object.
+        input_scan: Input scan/image as a tensor, numpy array, or Image object.
     Named Output:
-        metrics_dict: Dictionary containing metrics for each label.
+        overlay: RGB overlay image (same type as input, typically Image) with segmentation regions highlighted.
     """
 
     def __init__(self, fragment: Fragment, *args, use_gpu: bool = True, alpha: float = 0.7, **kwargs):
@@ -111,9 +110,6 @@ class SegmentationOverlayOperator(Operator):
             # NumPy arrays or other types - will be transferred to GPU later if use_gpu=True
             mask_data = segmentation_mask
         
-        # log if data is on GPU
-        self._logger.info(f"Segmentation mask is on GPU: {is_on_gpu}")
-        
         if isinstance(scan, Image):
             scan_data = scan.asnumpy()
         elif isinstance(scan, torch.Tensor):
@@ -128,9 +124,6 @@ class SegmentationOverlayOperator(Operator):
         else:
             # NumPy arrays or other types - will be transferred to GPU later if use_gpu=True
             scan_data = scan
-            
-        # log if data is on GPU
-        self._logger.info(f"Input scan is on GPU: {is_on_gpu}")
         
         # Remove channel dimension if present
         if mask_data.ndim == 4 and mask_data.shape[0] == 1:

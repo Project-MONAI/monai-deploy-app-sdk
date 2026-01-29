@@ -44,7 +44,10 @@ class SegmentationZScoreOperator(Operator):
         zscore_dict: Dictionary with z-scores and percentiles for each organ
         pdf_bytes: Bytes of PDF file with quantile curves and patient values (optional)
         zscore_text: Formatted text summary for DICOM SR (filtered organs)
-        mongodb_text: Formatted text summary for MongoDB (all organs)
+        
+    Notes:
+        - Normative data CSVs should be organized in subfolders under assets_path.
+        - Refer to examples/apps/cchmc_ped_abd_ct_seg_app/assets for expected structure.
     """
 
     def __init__(
@@ -76,8 +79,6 @@ class SegmentationZScoreOperator(Operator):
         
         self.output_name_zscore = "zscore_dict"
         self.output_name_pdf_bytes = "pdf_bytes"
-        self.output_name_zscore_text = "zscore_text"
-        self.output_name_mongodb_text = "mongodb_text"
         
         self.assets_path = assets_path
         self.organ_name_mapping = organ_name_mapping or {}
@@ -93,8 +94,6 @@ class SegmentationZScoreOperator(Operator):
         
         spec.output(self.output_name_zscore).condition(ConditionType.NONE)
         spec.output(self.output_name_pdf_bytes).condition(ConditionType.NONE)
-        spec.output(self.output_name_zscore_text).condition(ConditionType.NONE)
-        #spec.output(self.output_name_mongodb_text).condition(ConditionType.NONE)
 
     def compute(self, op_input, op_output, context):
         """Performs computation for this operator and handles I/O."""
@@ -166,9 +165,6 @@ class SegmentationZScoreOperator(Operator):
         )
         self._logger.info(f"Z-score calculation complete, z_score_dict: {zscore_dict}")
         
-        # Generate formatted text outputs for SR
-        zscore_text = self._format_text_outputs(zscore_dict, units_dict)
-        
         # Add units to zscore_dict
         for organ_name, data in zscore_dict.items():
             unit = units_dict.get(organ_name, "")
@@ -189,14 +185,11 @@ class SegmentationZScoreOperator(Operator):
                 pdf_bytes = None
         
         self._logger.info("Emitting outputs")
-        # Print Z-score text
-        self._logger.info(f"Z-Score Text Output:\n{zscore_text}")
         
         # Emit outputs
         op_output.emit(zscore_dict, self.output_name_zscore)
         op_output.emit(pdf_bytes, self.output_name_pdf_bytes)
-        op_output.emit(zscore_text, self.output_name_zscore_text)
-
+        
     def _load_biomarker_data(
         self, biomarker_name: str, assets_path: str
     ) -> Tuple[Optional[pd.DataFrame], Optional[pd.DataFrame]]:
@@ -440,51 +433,6 @@ class SegmentationZScoreOperator(Operator):
             f"{abs(z_score):.2f} standard deviations {direction} the population mean"
         )
     
-    def _format_text_outputs(self, zscore_dict: Dict[str, Dict], units_dict: Dict[str, str]) -> str:
-        """Format zscore results as text for DICOM SR.
-        
-        Args:
-            zscore_dict: Dictionary with z-scores and percentiles for each organ
-            units_dict: Dictionary with units for each organ
-            
-        Returns:
-            Formatted text string for DICOM SR
-        """
-        sr_lines = []
-        
-        # Process each organ
-        for organ_name, zscore_data in zscore_dict.items():
-            # Skip organs with errors
-            if "error" in zscore_data:
-                continue
-                
-            # Get volume/area value
-            biomarker_value = zscore_data.get("biomarker_value")
-            if biomarker_value is None:
-                continue
-            
-            # Format volume/area/biomarker text
-            unit = units_dict.get(organ_name, "")
-            type_ = "Volume" if unit == "mL" else "Area" if unit == "cm²" else "Biomarker"
-            volume_text = f"{organ_name.capitalize()} {type_}: {int(round(biomarker_value))} {unit}"
-            
-            # Add percentile and z-score information
-            percentile_pct = zscore_data.get("percentile_pct")
-            z_score = zscore_data.get("z_score")
-            
-            if percentile_pct is not None and z_score is not None:
-                detail_text = f" (Percentile: {percentile_pct:.1f}%, Z-score: {z_score:.2f})"
-                volume_text += detail_text
-            
-            # Add to SR outputs
-            sr_lines.append(volume_text)
-
-        
-        # Join lines
-        zscore_text = "\n".join(sr_lines) if sr_lines else "No valid organ measurements"
-        
-        return zscore_text
-
     def create_visualization(
         self,
         processed_organs: Dict[str, Dict],

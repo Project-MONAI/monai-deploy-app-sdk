@@ -10,7 +10,7 @@
 # limitations under the License.
 
 import logging
-from typing import Dict, Optional, Tuple, Union
+from typing import Dict, Union
 
 
 import torch
@@ -18,7 +18,7 @@ import numpy as np
 
 from monai.deploy.utils.importutil import optional_import
 
-from monai.deploy.core import ConditionType, Fragment, Operator, OperatorSpec
+from monai.deploy.core import  Fragment, Operator, OperatorSpec
 from monai.deploy.core.domain.image import Image
 from monai.data import MetaTensor
 from monai.transforms import LabelToContour
@@ -29,17 +29,15 @@ import copy
 
 
 class SegmentationContourOperator(Operator):
-    """This operator computes segmentation metrics for predicted segmentation masks.
+    """
+    This operator generates contour images from segmentation masks for each specified label.
 
-    The computed metrics include volume/area, slice information, pixel counts, and intensity statistics
-    for each labeled region in the segmentation mask.
+    The operator takes a segmentation mask and a label dictionary, and produces a contour image where the boundaries of each labeled region are highlighted. This is useful for visualization, quality control, or exporting contours for further analysis or reporting.
 
     Named Input:
-        segmentation_mask: Segmentation mask as tensor, numpy array, or Image object.
-        input_scan: Input scan/image as tensor, numpy array, or Image object.
-        label_dict: Dictionary mapping label names to their corresponding mask indices.
+        segmentation_mask: Segmentation mask as a tensor, numpy array, MetaTensor, or Image object.
     Named Output:
-        metrics_dict: Dictionary containing metrics for each label.
+        contour: Contour image (same type as input, typically Image) with boundaries of each label highlighted.
     """
 
     def __init__(self, fragment: Fragment, *args, labels_dict: dict = {'organ1': 1}, **kwargs):
@@ -178,7 +176,6 @@ class SegmentationContourOperator(Operator):
         
         return contour_image
         
-    
     def _MT_array_to_Image(self, out_ndarray, input_img_metadata):
         """
         Converts a MetaTensor or ndarray output to an Image object with correct shape and metadata.
