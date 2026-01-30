@@ -12,7 +12,7 @@ python app.py -i <input_dir> -o <out_dir> -m <breast_density_model>
 ## Package the application as a MONAI Application Package (container image)
 In order to build the MONAI App Package, go a level up and execute the following command.
 ```
-monai-deploy package breast_density_classification_app -m <breast_density_model> -c breast_density_classifer_app/app.yaml --tag breast_density:0.1.0 --platform x64-workstation -l DEBUG
+monai-deploy package breast_density_classification_app -m <breast_density_model> -c breast_density_classifer_app/app.yaml --tag breast_density:0.1.0 --platform x86_64 -l DEBUG
 ```
 
 ## Run the MONAI Application Package using MONAI Deploy CLI
