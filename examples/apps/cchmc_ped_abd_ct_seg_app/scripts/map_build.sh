@@ -26,4 +26,4 @@ sdk_version=$3
 source .env
 
 # build MAP 
-monai-deploy package cchmc_ped_abd_ct_seg_app -m $HOLOSCAN_MODEL_PATH -c cchmc_ped_abd_ct_seg_app/app.yaml -t ${tag_prefix}:${image_version} --platform x64-workstation --sdk-version ${sdk_version} -l DEBUG
+monai-deploy package cchmc_ped_abd_ct_seg_app -m $HOLOSCAN_MODEL_PATH -c cchmc_ped_abd_ct_seg_app/app.yaml -t ${tag_prefix}:${image_version} --platform x86_64 --sdk-version ${sdk_version} -l DEBUG

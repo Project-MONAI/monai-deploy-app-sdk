@@ -4,6 +4,6 @@ This article describes how to containerize a MONAI Deploy application, as a **MO
 
 Section [Packaging App](https://monai.readthedocs.io/projects/monai-deploy-app-sdk/en/stable/developing_with_sdk/packaging_app.html) in the MONAI Deploy App SDK [Users Guide](https://monai.readthedocs.io/projects/monai-deploy-app-sdk/en/stable/index.html) describes the general steps to package an application into a MAP. Building MAPs for AArch64 on Linux with discrete GPU can be done with this simple change of command line options,
 
-`--platform x64-workstation` replaced with
+`--platform x86_64` replaced with
 
-`--platform igx-orin-devkit --platform-config dgpu`
+`--platform igx-dgpu`
