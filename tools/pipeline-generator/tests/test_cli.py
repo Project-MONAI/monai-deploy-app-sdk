@@ -142,13 +142,11 @@ class TestCLI:
         with self.runner.isolated_filesystem():
             # Create a test config file
             with open("test_config.yaml", "w") as f:
-                f.write(
-                    """
+                f.write("""
 endpoints:
   - organization: "TestOrg"
     description: "Test organization"
-"""
-                )
+""")
 
             # Run command with config file
             with patch("pipeline_generator.cli.main.HuggingFaceClient") as mock_client_class:
