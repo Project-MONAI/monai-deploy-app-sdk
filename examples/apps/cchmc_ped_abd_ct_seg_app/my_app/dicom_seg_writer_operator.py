@@ -1,4 +1,4 @@
-# Copyright 2021-2025 MONAI Consortium
+# Copyright 2021-2026 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -25,8 +25,11 @@ from monai.deploy.utils.version import get_sdk_semver
 dcmread, _ = optional_import("pydicom", name="dcmread")
 generate_uid, _ = optional_import("pydicom.uid", name="generate_uid")
 ImplicitVRLittleEndian, _ = optional_import("pydicom.uid", name="ImplicitVRLittleEndian")
+ExplicitVRLittleEndian, _ = optional_import("pydicom.uid", name="ExplicitVRLittleEndian")
 Dataset, _ = optional_import("pydicom.dataset", name="Dataset")
 FileDataset, _ = optional_import("pydicom.dataset", name="FileDataset")
+DA, _ = optional_import("pydicom.valuerep", name="DA")
+TM, _ = optional_import("pydicom.valuerep", name="TM")
 PyDicomSequence, _ = optional_import("pydicom.sequence", name="Sequence")
 sitk, _ = optional_import("SimpleITK")
 codes, _ = optional_import("pydicom.sr.codedict", name="codes")
@@ -225,6 +228,7 @@ class DICOMSegmentationWriterOperator(Operator):
 
         self.input_name_seg = "seg_image"
         self.input_name_series = "study_selected_series_list"
+        self.input_name_output_folder = "output_folder"
 
         super().__init__(fragment, *args, **kwargs)
 
@@ -236,6 +240,7 @@ class DICOMSegmentationWriterOperator(Operator):
         """
         spec.input(self.input_name_seg)
         spec.input(self.input_name_series)
+        spec.input(self.input_name_output_folder).condition(ConditionType.NONE)  # Optional input not requiring sender.
 
     def compute(self, op_input, op_output, context):
         """Performs computation for this operator and handles I/O.
@@ -257,39 +262,44 @@ class DICOMSegmentationWriterOperator(Operator):
         for study_selected_series in study_selected_series_list:
             if not isinstance(study_selected_series, StudySelectedSeries):
                 raise ValueError(f"Element in input is not expected type, {StudySelectedSeries}.")
-        
-        # Get the segmentation image
+
         seg_image = op_input.receive(self.input_name_seg)
+
         # In case the input is not the Image object, rather image file path.
         if not isinstance(seg_image, (Image, np.ndarray)) and (isinstance(seg_image, (Path, str))):
-            result = self.select_input_file(str(seg_image))
-            if result is None:
-                raise ValueError(f"No supported image file found at: {seg_image}")
-            seg_image_file, _ = result
+            seg_image_file, _ = self.select_input_file(str(seg_image))
             if Path(seg_image_file).is_file():
                 seg_image = self._image_file_to_numpy(seg_image_file)
             else:
                 raise ValueError("Input 'seg_image' is not an Image or a path.")
 
-        # Set the output_folder
-        output_folder = self.output_folder
+        # If the optional named input, output_folder, has content, use it instead of the one set on the object.
+        # Since this input is optional, must check if data present and if Path or str.
+        output_folder = None
+        try:
+            output_folder = op_input.receive(self.input_name_output_folder)
+        except Exception:
+            pass
+
+        if not output_folder or not isinstance(output_folder, (Path, str)):
+            output_folder = self.output_folder
 
         output_folder.mkdir(parents=True, exist_ok=True)
         self.process_images(seg_image, study_selected_series_list, output_folder)
 
     def process_images(
-        self, image: Union[Image, Path, np.ndarray], study_selected_series_list: List[StudySelectedSeries], output_dir: Path
+        self, image: Union[Image, Path], study_selected_series_list: List[StudySelectedSeries], output_dir: Path
     ):
         """ """
 
         if isinstance(image, Image):
             seg_image_numpy = image.asnumpy()
-        elif isinstance(image, np.ndarray):
-            seg_image_numpy = image
         elif isinstance(image, (Path, str)):
             seg_image_numpy = self._image_file_to_numpy(str(image))
         else:
-            raise ValueError("'image' is not a numpy array, Image object, or supported image file.")
+            if not isinstance(image, np.ndarray):
+                raise ValueError("'image' is not a numpy array, Image object, or supported image file.")
+            seg_image_numpy = image
 
         # Pick DICOM Series that was used as input for getting the seg image.
         # For now, first one in the list.
@@ -331,11 +341,16 @@ class DICOMSegmentationWriterOperator(Operator):
             omit_empty_frames=self._omit_empty_frames,
         )
 
+        # add source SeriesInstanceUID as private DICOM tag
+        # tag identifier: 0019,1001, label: CCHMC Private, VR: UI
+        block = seg.private_block(0x0019, "CCHMC Private", create=True)
+        block.add_new(0x01, "UI", f"{dicom_series._series_instance_uid}") # 0x01 is the offset (0x1001 → offset = 0x01)
+
         # Adding a few tags that are not in the Dataset
         # Also try to set the custom tags that are of string type
         dt_now = datetime.datetime.now()
-        seg.SeriesDate = dt_now.strftime("%Y%m%d")
-        seg.SeriesTime = dt_now.strftime("%H%M%S")
+        seg.SeriesDate = DA(dt_now.strftime("%Y%m%d"))
+        seg.SeriesTime = TM(dt_now.strftime("%H%M%S"))
         seg.TimezoneOffsetFromUTC = (
             dt_now.astimezone().isoformat()[-6:].replace(":", "")
         )  # '2022-09-27T22:36:20.143857-07:00'
@@ -436,7 +451,6 @@ class DICOMSegmentationWriterOperator(Operator):
             ext = which_supported_ext(input_folder, extensions)
             if ext:
                 return input_folder, ext
-            raise ValueError(f"File {input_folder} does not have a supported extension ({extensions})")
         else:
             raise FileNotFoundError("{} is not found.".format(input_folder))
 
@@ -510,4 +524,3 @@ def test():
 
 if __name__ == "__main__":
     test()
-    

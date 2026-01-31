@@ -106,9 +106,7 @@ class SegmentationContourOperator(Operator):
             else:
                 raise ValueError(f"Unsupported number of dimensions in label image: {label_image.ndim}  Expected 2 or 3.")
             # Unsqueeze to add channel dimension
-            self._logger.info(f"Label image shape before expand dims: {label_image.shape}")
             label_image = np.expand_dims(label_image, axis=0)
-            self._logger.info(f"Label image shape after transpose and expand dims: {label_image.shape}")
         elif isinstance(label_image, MetaTensor):
             try:
                 label_image = xp.asarray(label_image) # Direct conversion to cupy array if possible
@@ -145,9 +143,7 @@ class SegmentationContourOperator(Operator):
                     # Create a binary mask for the current label
                     binary_mask = xp.zeros_like(slice_image)
                     binary_mask[slice_image == label] = 1.0
-
-                    # Apply LabelToContour to the 2D slice (replace this with actual contour logic)
-                    self._logger.info(f"Shape of binary mask for label {label}: {binary_mask.shape}, dtype: {binary_mask.dtype}")
+                    
                     # Squeeze the channel dimension
                     thick_edges = LabelToContour()(binary_mask.astype(xp.float32))
 
@@ -194,10 +190,10 @@ class SegmentationContourOperator(Operator):
         out_ndarray = np.squeeze(out_ndarray, 0)
         # Transpose to DHW (see note in original code)
         out_ndarray = out_ndarray.T.astype(np.uint8)
-        self._logger.info(
+        self._logger.debug(
             f"Output Seg image numpy array of type {type(out_ndarray)} shape: {out_ndarray.shape}"
         )
-        self._logger.info(f"Output Seg image pixel max value: {np.amax(out_ndarray)}")
+        self._logger.debug(f"Output Seg image pixel max value: {np.amax(out_ndarray)}")
         seg_image = Image(out_ndarray, input_img_metadata)
         
         return seg_image

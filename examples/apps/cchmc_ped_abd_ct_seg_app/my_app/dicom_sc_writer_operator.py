@@ -1,4 +1,4 @@
-# Copyright 2021-2025 MONAI Consortium
+# Copyright 2021-2026 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -29,6 +29,7 @@ dcmread, _ = optional_import("pydicom", name="dcmread")
 dcmwrite, _ = optional_import("pydicom.filewriter", name="dcmwrite")
 generate_uid, _ = optional_import("pydicom.uid", name="generate_uid")
 ImplicitVRLittleEndian, _ = optional_import("pydicom.uid", name="ImplicitVRLittleEndian")
+ExplicitVRLittleEndian, _ = optional_import("pydicom.uid", name="ExplicitVRLittleEndian")
 Dataset, _ = optional_import("pydicom.dataset", name="Dataset")
 FileDataset, _ = optional_import("pydicom.dataset", name="FileDataset")
 Sequence, _ = optional_import("pydicom.sequence", name="Sequence")
@@ -38,7 +39,7 @@ class DICOMSCWriterOperator(Operator):
     """Class to write a new DICOM Secondary Capture (DICOM SC) instance with source DICOM Series metadata included.
 
     Named inputs:
-        dicom_sc_dir: file path of temporary DICOM SC (w/o source DICOM Series metadata).
+        input_overlay_image: Image object or numpy array of the secondary capture content (RGB).
         study_selected_series_list: DICOM Series for copying metadata from.
 
     Named output:
@@ -84,6 +85,7 @@ class DICOMSCWriterOperator(Operator):
         # not trying to create the folder to avoid exception on init
         self.output_folder = Path(output_folder) if output_folder else DICOMSCWriterOperator.DEFAULT_OUTPUT_FOLDER
         
+        # CHANGED (V3/V2): Input names adapted for direct image injection
         self.input_name_study_series = "study_selected_series_list"
         self.input_overlay_image = "input_overlay_image"
 
@@ -94,7 +96,6 @@ class DICOMSCWriterOperator(Operator):
         self.model_info = model_info if model_info else ModelInfo()
         self.equipment_info = equipment_info if equipment_info else EquipmentInfo()
         self.custom_tags = custom_tags
-
         
         self.modality_type = "OT"  # OT Modality for Secondary Capture
         self.sop_class_uid = (
@@ -187,6 +188,12 @@ class DICOMSCWriterOperator(Operator):
             self.model_info,
             self.equipment_info,
         )
+
+        # CHANGED (V3): Restored V1 Logic for Private Tags
+        # add source SeriesInstanceUID as private DICOM tag
+        # tag identifier: 0019,1001, label: CCHMC Private, VR: UI
+        block = ds.private_block(0x0019, "CCHMC Private", create=True)
+        block.add_new(0x01, "UI", f"{dicom_series._series_instance_uid}") # 0x01 is the offset (0x1001 → offset = 0x01)
 
         # Secondary Capture specific tags
         ds.ImageType = ["DERIVED", "SECONDARY"]
@@ -307,6 +314,65 @@ class DICOMSCWriterOperator(Operator):
                 self._logger.error(f"File was not created: {output_path}")
         except Exception as ex:
             self._logger.warning(f"Could not verify output file: {ex}")
+
+
+def test():
+    from monai.deploy.operators.dicom_data_loader_operator import DICOMDataLoaderOperator
+    from monai.deploy.operators.dicom_series_selector_operator import DICOMSeriesSelectorOperator
+    
+    current_file_dir = Path(__file__).parent.resolve()
+    # Update data_path to point to a valid DICOM series folder on your system for testing metadata copy
+    data_path = current_file_dir.joinpath("../../../inputs/livertumor_ct/dcm/1-CT_series_liver_tumor_from_nii014")
+    out_path = Path("output_sc_op").absolute()
+    
+    # 1. Generate Synthetic RGB Image (Slices, Channels, H, W) -> (2, 3, 256, 256)
+    # This simulates a 2-frame RGB overlay
+    print("Generating synthetic RGB image...")
+    dummy_image = np.random.randint(0, 255, size=(2, 3, 256, 256), dtype=np.uint8)
+    
+    # 2. Setup Operators
+    fragment = Fragment()
+    loader = DICOMDataLoaderOperator(fragment, name="loader_op")
+    series_selector = DICOMSeriesSelectorOperator(fragment, name="selector_op")
+    sc_writer = DICOMSCWriterOperator(
+        fragment,
+        output_folder=out_path,
+        model_info=None,
+        equipment_info=EquipmentInfo(),
+        custom_tags={"SeriesDescription": "Secondary Capture from AI Algorithm"},
+        name="sc_writer"
+    )
+
+    # 3. Load DICOM Series (if available)
+    dicom_series = None
+    try:
+        print(f"Loading DICOM series from: {data_path}")
+        study_list = loader.load_data_to_studies(Path(data_path).absolute())
+        study_selected_series_list = series_selector.filter(None, study_list)
         
-        
-        
+        if study_selected_series_list and len(study_selected_series_list) > 0:
+            for study_selected_series in study_selected_series_list:
+                for selected_series in study_selected_series.selected_series:
+                    dicom_series = selected_series.series
+                    break
+            print("DICOM Series loaded successfully.")
+        else:
+            print("Warning: No DICOM series found. Test will fail if Series metadata is required.")
+            # Create a dummy series object if needed for robust testing without files, 
+            # but for now we assume files exist or we accept failure.
+    except Exception as e:
+        print(f"Skipping DICOM loading due to environment error: {e}")
+
+    # 4. Run Writer Logic directly
+    print(f"Writing Secondary Capture to {out_path}...")
+    try:
+        if dicom_series:
+             sc_writer.process_images(dummy_image, dicom_series, out_path)
+             print("Test Success: DICOM SC written.")
+        else:
+             print("Test Aborted: No valid input DICOM series available to copy metadata from.")
+    except Exception as e:
+        print(f"Test Failed during write: {e}")
+
+if __name__ == "__main__":
+    test()
