@@ -1,8 +1,0 @@
-# Container-specific requirements for full functionality
-# Install all optional dependencies for MONAI Deploy SDK operators
-monai>=1.3.0
-pandas>=1.3.0
-matplotlib>=3.5.1
-pypdf2>=1.26.0
-cupy-cuda12x>=12.0.0
-cucim~=21.06
