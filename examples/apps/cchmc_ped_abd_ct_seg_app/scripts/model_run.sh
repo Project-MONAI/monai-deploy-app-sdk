@@ -11,7 +11,6 @@
 
 # execute model bundle locally (pythonically)
 
-
 # load in environment variables
 source .env
 

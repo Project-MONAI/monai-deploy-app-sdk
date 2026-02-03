@@ -54,6 +54,6 @@ holoscan-cli==3.10.0
 # Requirements for output operators
 pandas>=1.3.0
 matplotlib>=3.5.1
-pypdf2>=1.26.0
+pypdf>=6.6.2
 cupy-cuda12x>=12.0.0
 cucim>=23.10.0

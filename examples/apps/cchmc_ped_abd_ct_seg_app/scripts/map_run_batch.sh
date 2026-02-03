@@ -22,12 +22,8 @@ tag_prefix=$1
 image_version=$2
 parent_input_directory=$3
 
-
 # load in environment variables (need HOLOSCAN_OUTPUT_PATH, others will be rewritten)
 source .env
-
-# Fix CuPy CUDA NVRTC compilation to use C++17
-export CUPY_NVRTC_EXTRA_OPTIONS="--std=c++17"
 
 # remove the output directory
 rm -rf "$HOLOSCAN_OUTPUT_PATH"

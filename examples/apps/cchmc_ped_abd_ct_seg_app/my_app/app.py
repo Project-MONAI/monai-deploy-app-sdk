@@ -11,6 +11,7 @@
 
 import logging
 from pathlib import Path
+import os
 
 # custom inference operator
 from abdomen_seg_operator import AbdomenSegOperator
@@ -209,7 +210,12 @@ class AIAbdomenSegApp(Application):
         seg_metrics_op = SegmentationMetricsOperator(self, name="seg_metrics_op", labels_dict = {"liver": 1, "spleen": 2}, use_gpu=True)
 
         # Segmentation Z-Score Operator - computes z-scores and percentiles, generates PDF report
-        assets_path = model_path.parent / "assets"  # Assumes assets folder is in model directory
+        self._logger.info(f"PWD: {Path.cwd()}")
+        cwd = Path.cwd()
+        assets_path = os.path.join(cwd,"my_app","assets")  # works for python script execution
+        if not os.path.exists(assets_path):
+            assets_path = os.path.join('/opt/holoscan/app',"assets")  # works for MAP execution
+        
         seg_zscore_op = SegmentationZScoreOperator(
             self,
             assets_path=str(assets_path),

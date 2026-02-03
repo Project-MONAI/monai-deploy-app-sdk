@@ -15,8 +15,8 @@ MONAI Deploy App SDK offers a framework and associated tools to design, develop 
 - Updated to holoscan 3.10
 - Includes additional operators for segmentation metrics, look at examples/apps/cchmc_ped_abd_ct_seg_app
 - Includes nnunet support, look at examples/apps/cchmc_nnunet_fifteen_ckpt_app
-- MONAI_seg_inference_operator can now output mask MetaTensor, in addition to Image (Deploy specific) object. 
-
+- MONAI_seg_inference_operator can now output mask MetaTensor, in addition to Image (Deploy specific) object.
+- NVimagecodec for pydicom - fast gpu based image decompression for compressed DICOM 
 
 ## Features
 
