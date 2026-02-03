@@ -8,7 +8,15 @@
 [![License](https://img.shields.io/badge/license-Apache%202.0-green.svg)](LICENSE)
 
 
-MONAI Deploy App SDK offers a framework and associated tools to design, develop and verify AI-driven applications in the healthcare imaging domain.
+MONAI Deploy App SDK offers a framework and associated tools to design, develop and verify AI-driven applications in the healthcare imaging domain. The SDK helps build containerized applications which can then be deployed using the [MONAI Deploy platform](https://github.com/Project-MONAI/monai-deploy) to orchestrate DICOM workflows for clinical use.
+
+
+## New Updates:
+- Updated to holoscan 3.10
+- Includes additional operators for segmentation metrics, look at examples/apps/cchmc_ped_abd_ct_seg_app
+- Includes nnunet support, look at examples/apps/cchmc_nnunet_fifteen_ckpt_app
+- MONAI_seg_inference_operator can now output mask MetaTensor, in addition to Image (Deploy specific) object. 
+
 
 ## Features
 

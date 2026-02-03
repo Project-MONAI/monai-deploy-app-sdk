@@ -195,6 +195,26 @@ class SegmentationMetricsOperator(Operator):
             area_cm2 = float(pixel_count * area_per_pixel_mm2) / 100.0
             return area_cm2
 
+    def _dynamic_round(self, value: float) -> float:
+        """Dynamic rounding based on value magnitude.
+        
+        Args:
+            value: The value to round.
+            
+        Returns:
+            Rounded value with appropriate decimal places:
+            - Values >= 100: 0 decimal places
+            - Values >= 1: 1 decimal place
+            - Values < 1: 2 decimal places
+        """
+        abs_value = abs(value)
+        if abs_value >= 100:
+            return round(value, 0)
+        elif abs_value >= 1:
+            return round(value, 1)
+        else:
+            return round(value, 2)
+
     def calculate_metrics(
         self,
         segmentation_mask: Union[Image, MetaTensor],
@@ -319,12 +339,12 @@ class SegmentationMetricsOperator(Operator):
                 
                 # Store results for this label
                 results[label_name] = {
-                    "volume_ml" if is_3d else "area_cm2": round(volume_or_area,3),
+                    "volume_ml" if is_3d else "area_cm2": self._dynamic_round(volume_or_area),
                     "num_slices": int(num_slices),
                     "slice_range": slice_range,
                     "pixel_count": int(pixel_count),
-                    "mean_intensity": round(mean_intensity,3),
-                    "std_intensity": round(std_intensity,3),
+                    "mean_intensity": self._dynamic_round(mean_intensity),
+                    "std_intensity": self._dynamic_round(std_intensity),
                 }
                 
                 # Connected components analysis (> 5 pixels) - optional
