@@ -15,6 +15,9 @@ from pathlib import Path
 # custom inference operator
 from abdomen_seg_operator import AbdomenSegOperator
 
+# custom DICOMSegmentationWriterOperator
+from dicom_seg_writer_operator import DICOMSegmentationWriterOperator, SegmentDescription
+
 # custom DICOM Secondary Capture (SC) writer operator
 from dicom_sc_writer_operator import DICOMSCWriterOperator
 
@@ -32,12 +35,26 @@ from monai.deploy.conditions import CountCondition
 from monai.deploy.core import Application
 from monai.deploy.operators.dicom_data_loader_operator import DICOMDataLoaderOperator
 from monai.deploy.operators.dicom_encapsulated_pdf_writer_operator import DICOMEncapsulatedPDFWriterOperator
-from monai.deploy.operators.dicom_seg_writer_operator import DICOMSegmentationWriterOperator, SegmentDescription
 from monai.deploy.operators.dicom_series_to_volume_operator import DICOMSeriesToVolumeOperator
-from monai.deploy.operators.segmentation_metrics_operator import SegmentationMetricsOperator
-from monai.deploy.operators.segmentation_zscore_operator import SegmentationZScoreOperator
-from monai.deploy.operators.segmentation_contour_operator import SegmentationContourOperator
-from monai.deploy.operators.segmentation_overlay_operator import SegmentationOverlayOperator
+try:
+    from monai.deploy.operators.segmentation_metrics_operator import SegmentationMetricsOperator
+except ImportError:
+    from segmentation_metrics_operator import SegmentationMetricsOperator
+
+try:
+    from monai.deploy.operators.segmentation_zscore_operator import SegmentationZScoreOperator
+except ImportError:
+    from segmentation_zscore_operator import SegmentationZScoreOperator
+
+try:
+    from monai.deploy.operators.segmentation_contour_operator import SegmentationContourOperator
+except ImportError:
+    from segmentation_contour_operator import SegmentationContourOperator
+
+try:
+    from monai.deploy.operators.segmentation_overlay_operator import SegmentationOverlayOperator
+except ImportError:
+    from segmentation_overlay_operator import SegmentationOverlayOperator
 
 
 

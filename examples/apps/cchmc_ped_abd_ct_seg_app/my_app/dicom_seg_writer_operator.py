@@ -230,6 +230,12 @@ class DICOMSegmentationWriterOperator(Operator):
         self.input_name_series = "study_selected_series_list"
         self.input_name_output_folder = "output_folder"
 
+        # Print type of all objects used for initialization for debugging
+        logging.debug(f"Segment descriptions type: {type(self._seg_descs)}")
+        logging.debug(f"Output folder: {self.output_folder}")
+        logging.debug(f"Model info type: {type(self.model_info)}")
+        
+        
         super().__init__(fragment, *args, **kwargs)
 
     def setup(self, spec: OperatorSpec):

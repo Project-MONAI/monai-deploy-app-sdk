@@ -10,9 +10,10 @@ For questions, please feel free to contact Elan Somasundaram (Elanchezhian.Somas
 
 Some unique features of this MAP pipeline include:
 - **Custom Inference Operator:** custom `AbdomenSegOperator` enables either PyTorch or TorchScript model loading
-- **DICOM Secondary Capture Output:** custom `DICOMSecondaryCaptureWriterOperator` writes a DICOM SC with organ contours
+- **DICOM Secondary Capture Output:** custom `DICOMSecondaryCaptureWriterOperator` writes a DICOM SC with organ contours 
 - **Output Filtering:** model produces Liver-Spleen-Pancreas segmentations, but seg visibility in the outputs (DICOM SEG, SC, SR) can be controlled in `app.py`
-- **MONAI Deploy Express MongoDB Write:** custom operators (`MongoDBEntryCreatorOperator` and `MongoDBWriterOperator`) allow for writing to the MongoDB database associated with MONAI Deploy Express
+- **Volume Metrics:** For liver, liver_hu and spleen, the use of normative values to calculate Z-score and percentile values and displaying them as DICOM PDF and DICOM SR has been added based on CCHMC research data. 
+
 
 ## Scripts
 Several scripts have been compiled that quickly execute useful actions (such as running the app code locally with Python interpreter, MAP packaging, MAP execution, etc.). Some scripts require the input of command line arguments; review the `scripts` folder for more details.
