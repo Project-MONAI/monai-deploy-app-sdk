@@ -1,4 +1,4 @@
-# Copyright 2021-2022 MONAI Consortium
+# Copyright 2021-2026 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -96,6 +96,7 @@ class DICOMTextSRWriterOperator(Operator):
         #   "SR" for Structured Report.
         # Media Storage SOP Class UID, e.g.,
         #   "1.2.840.10008.5.1.4.1.1.88.11" for Basic Text SR Storage
+        #   "1.2.840.10008.5.1.4.1.1.88.22" for Enhanced SR
         #   "1.2.840.10008.5.1.4.1.1.104.1" for Encapsulated PDF Storage,
         #   "1.2.840.10008.5.1.4.1.1.88.34" for Comprehensive 3D SR IOD
         #   "1.2.840.10008.5.1.4.1.1.66.4" for Segmentation Storage
@@ -192,7 +193,11 @@ class DICOMTextSRWriterOperator(Operator):
         )
 
         # SR specific
+        ds.CompletionFlag = "COMPLETE"  # Estimated degree of completeness.
         ds.VerificationFlag = "UNVERIFIED"  # Not attested by a legally accountable person.
+
+        ds.ReferencedPerformedProcedureStepSequence = Sequence([])  # Required by SR Document Series
+        ds.PerformedProcedureCodeSequence = Sequence([])  # Required by SR Document General
 
         # Per recommendation of IHE Radiology Technical Framework Supplement
         # AI Results (AIR) Rev1.1 - Trial Implementation
