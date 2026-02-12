@@ -36,8 +36,7 @@ def sample_map_name():
 
 @pytest.fixture(scope="session")
 def faux_app_manifest():
-    app_manifest = json.loads(
-        """{
+    app_manifest = json.loads("""{
         "command": "/usr/bin/python3 -u /opt/monai/app/main.py",
         "input": {
             "path": "input",
@@ -63,15 +62,13 @@ def faux_app_manifest():
         },
         "timeout": 600,
         "working-directory": "/var/monai"
-        }"""
-    )
+        }""")
     yield app_manifest
 
 
 @pytest.fixture(scope="session")
 def faux_pkg_manifest_with_gpu():
-    pkg_manifest = json.loads(
-        """{
+    pkg_manifest = json.loads("""{
         "sdk-version": "0.0.0",
         "models": [
             {
@@ -85,15 +82,13 @@ def faux_pkg_manifest_with_gpu():
             "memory": "4Gi"
         }
         }
-    """
-    )
+    """)
     yield pkg_manifest
 
 
 @pytest.fixture(scope="session")
 def faux_pkg_manifest():
-    pkg_manifest = json.loads(
-        """{
+    pkg_manifest = json.loads("""{
         "sdk-version": "0.0.0",
         "models": [
             {
@@ -106,16 +101,14 @@ def faux_pkg_manifest():
             "memory": "4Gi"
         }
         }
-    """
-    )
+    """)
     yield pkg_manifest
 
 
 @pytest.fixture(scope="session")
 def faux_app_manifest_with_absolute_path():
     """App manifest with absolute input and output paths"""
-    app_manifest = json.loads(
-        """{
+    app_manifest = json.loads("""{
         "command": "/usr/bin/python3 -u /opt/monai/app/main.py",
         "input": {
             "path": "/input",
@@ -141,8 +134,7 @@ def faux_app_manifest_with_absolute_path():
         },
         "timeout": 600,
         "working-directory": "/var/monai"
-        }"""
-    )
+        }""")
     yield app_manifest
 
 

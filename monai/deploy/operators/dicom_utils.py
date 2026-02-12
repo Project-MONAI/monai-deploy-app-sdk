@@ -1,4 +1,4 @@
-# Copyright 2022 MONAI Consortium
+# Copyright 2022-2026 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -198,8 +198,8 @@ def write_common_modules(
 
     # File meta info data set
     file_meta = Dataset()
-    file_meta.FileMetaInformationGroupLength = 198
-    file_meta.FileMetaInformationVersion = bytes("01", "utf-8")  # '\x00\x01'
+    # file_meta.FileMetaInformationGroupLength = 198
+    file_meta.FileMetaInformationVersion = b"\x00\x01"  # '\x00\x01'
 
     file_meta.MediaStorageSOPClassUID = sop_class_uid
     file_meta.MediaStorageSOPInstanceUID = my_sop_instance_uid
@@ -282,7 +282,7 @@ def write_common_modules(
         ds_purpose_of_reference_code = Dataset()
         ds_purpose_of_reference_code.CodeValue = "Newcode1"
         ds_purpose_of_reference_code.CodingSchemeDesignator = "99IHE"
-        ds_purpose_of_reference_code.CodeMeaning = '"Processing Algorithm'
+        ds_purpose_of_reference_code.CodeMeaning = "Processing Algorithm"
         seq_purpose_of_reference_code.append(ds_purpose_of_reference_code)
 
         seq_contributing_equipment = Sequence()
