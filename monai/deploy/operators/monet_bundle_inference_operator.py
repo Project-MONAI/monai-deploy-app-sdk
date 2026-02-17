@@ -16,7 +16,7 @@ from monai.deploy.operators.monai_bundle_inference_operator import MonaiBundleIn
 from monai.deploy.utils.importutil import optional_import
 from monai.transforms import ConcatItemsd, ResampleToMatch
 from monai.deploy.core.models.torch_model import TorchScriptModel
-
+from monai.deploy.core.models.triton_model import TritonModel
 torch, _ = optional_import("torch", "1.10.2")
 MetaTensor, _ = optional_import("monai.data.meta_tensor", name="MetaTensor")
 __all__ = ["MONetBundleInferenceOperator"]
@@ -76,6 +76,7 @@ class MONetBundleInferenceOperator(MonaiBundleInferenceOperator):
             not isinstance(model_network, torch.nn.Module)
             and not torch.jit.isinstance(model_network, torch.jit.ScriptModule)
             and not isinstance(model_network, TorchScriptModel)
+            and not isinstance(model_network, TritonModel)
         ):
             raise TypeError("model_network must be an instance of torch.nn.Module or torch.jit.ScriptModule")
         self._nnunet_predictor.predictor.network = model_network
@@ -94,4 +95,6 @@ class MONetBundleInferenceOperator(MonaiBundleInferenceOperator):
             data = ConcatItemsd(keys=list(multimodal_data.keys()), name="image")(multimodal_data)["image"]
         if len(data.shape) == 4:
             data = data[None]
-        return self._nnunet_predictor(data)
+        prediction = self._nnunet_predictor(data)
+        prediction.meta = data.meta
+        return prediction
