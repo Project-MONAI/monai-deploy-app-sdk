@@ -25,6 +25,7 @@
     IOMapping
     ModelInfo
     MonaiBundleInferenceOperator
+    MONetBundleInferenceOperator
     MonaiSegInferenceOperator
     PNGConverterOperator
     PublisherOperator
@@ -49,6 +50,7 @@ from .dicom_utils import EquipmentInfo, ModelInfo, random_with_n_digits, save_dc
 from .inference_operator import InferenceOperator
 from .monai_bundle_inference_operator import BundleConfigNames, IOMapping, MonaiBundleInferenceOperator
 from .monai_seg_inference_operator import MonaiSegInferenceOperator
+from .monet_bundle_inference_operator import MONetBundleInferenceOperator
 from .nii_data_loader_operator import NiftiDataLoader
 from .png_converter_operator import PNGConverterOperator
 from .publisher_operator import PublisherOperator
@@ -69,6 +71,7 @@ __all__ = [
     "IOMapping",
     "ModelInfo",
     "MonaiBundleInferenceOperator",
+    "MONetBundleInferenceOperator",
     "MonaiSegInferenceOperator",
     "NiftiDataLoader",
     "PNGConverterOperator",
