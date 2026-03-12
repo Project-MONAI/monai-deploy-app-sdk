@@ -14,10 +14,54 @@ import runpy
 import sys
 import warnings
 from importlib import import_module
+from importlib.metadata import distributions
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple, Type, Union
 
-import pkg_resources
+
+def _normalize_project_name(name: str) -> str:
+    """Normalize project name for lookup (PEP 503)."""
+    return name.lower().replace("_", "-")
+
+
+def _get_working_set() -> Dict[str, Any]:
+    """Build a dict of distribution name -> dist-like object using importlib.metadata."""
+    result: Dict[str, Any] = {}
+    for d in distributions():
+        key = _normalize_project_name(d.name)
+        result[key] = _DistributionAdapter(d)
+    return result
+
+
+class _DistributionAdapter:
+    """Adapter so importlib.metadata Distribution can be used like pkg_resources Distribution."""
+
+    def __init__(self, dist: Any) -> None:
+        self._dist = dist
+        path = getattr(dist, "path", getattr(dist, "_path", None))
+        self._path = Path(path).resolve() if path else None
+
+    @property
+    def key(self) -> str:
+        return _normalize_project_name(self._dist.name)
+
+    @property
+    def egg_info(self) -> Optional[Path]:
+        return self._path
+
+    @property
+    def module_path(self) -> str:
+        if self._path and self._path.is_dir():
+            return str(self._path.parent)
+        return ""
+
+    def requires(self) -> List[str]:
+        meta = self._dist.metadata
+        if hasattr(meta, "get_all"):
+            reqs = meta.get_all("Requires-Dist")
+            return list(reqs) if reqs else []
+        return []
+
 
 if TYPE_CHECKING:
     from monai.deploy.core import Application
@@ -295,9 +339,9 @@ def optional_import(
 
 
 def is_dist_editable(project_name: str) -> bool:
-    distributions: Dict = {v.key: v for v in pkg_resources.working_set}
-    dist: Any = distributions.get(project_name)
-    if not hasattr(dist, "egg_info"):
+    distributions = _get_working_set()
+    dist: Any = distributions.get(_normalize_project_name(project_name))
+    if not hasattr(dist, "egg_info") or dist.egg_info is None:
         return False
     egg_info = Path(dist.egg_info)
     if egg_info.is_dir():
@@ -320,9 +364,9 @@ def is_dist_editable(project_name: str) -> bool:
 
 
 def dist_module_path(project_name: str) -> str:
-    distributions: Dict = {v.key: v for v in pkg_resources.working_set}
-    dist: Any = distributions.get(project_name)
-    if hasattr(dist, "egg_info"):
+    distributions = _get_working_set()
+    dist: Any = distributions.get(_normalize_project_name(project_name))
+    if hasattr(dist, "egg_info") and dist.egg_info is not None:
         egg_info = Path(dist.egg_info)
         if egg_info.is_dir() and egg_info.suffix == ".dist-info":
             if (egg_info / "direct_url.json").exists():
@@ -345,8 +389,8 @@ def dist_module_path(project_name: str) -> str:
 
 
 def is_module_installed(project_name: str) -> bool:
-    distributions: Dict = {v.key: v for v in pkg_resources.working_set}
-    dist: Any = distributions.get(project_name)
+    distributions = _get_working_set()
+    dist: Any = distributions.get(_normalize_project_name(project_name))
     if dist:
         return True
     else:
@@ -354,8 +398,8 @@ def is_module_installed(project_name: str) -> bool:
 
 
 def dist_requires(project_name: str) -> List[str]:
-    distributions: Dict = {v.key: v for v in pkg_resources.working_set}
-    dist: Any = distributions.get(project_name)
+    distributions = _get_working_set()
+    dist: Any = distributions.get(_normalize_project_name(project_name))
     if hasattr(dist, "requires"):
         return [str(req) for req in dist.requires()]
     return []
