@@ -14,6 +14,7 @@ import re
 import runpy
 import sys
 import warnings
+from functools import lru_cache
 from importlib import import_module
 from importlib.metadata import distributions
 from pathlib import Path
@@ -30,12 +31,18 @@ def _normalize_project_name(name: str) -> str:
     return re.sub(r"[-_.]+", "-", name.lower())
 
 
+@lru_cache(maxsize=1)
 def _get_working_set() -> Dict[str, Any]:
-    """Build a dict of distribution name -> dist-like object using importlib.metadata."""
+    """Build a dict of distribution name -> dist-like object using importlib.metadata.
+
+    Cached so we do not rescan on every call. First-discovered distribution
+    is kept for each normalized name when multiple distributions match.
+    """
     result: Dict[str, Any] = {}
     for d in distributions():
         key = _normalize_project_name(d.name)
-        result[key] = _DistributionAdapter(d)
+        if key not in result:
+            result[key] = _DistributionAdapter(d)
     return result
 
 
