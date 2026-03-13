@@ -62,11 +62,7 @@ class _DistributionAdapter:
         return ""
 
     def requires(self) -> List[str]:
-        meta = self._dist.metadata
-        if hasattr(meta, "get_all"):
-            reqs = meta.get_all("Requires-Dist")
-            return list(reqs) if reqs else []
-        return []
+        return list(self._dist.requires or [])
 
 
 if TYPE_CHECKING:
