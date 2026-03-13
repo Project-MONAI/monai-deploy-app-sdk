@@ -10,6 +10,7 @@
 # limitations under the License.
 
 import inspect
+import re
 import runpy
 import sys
 import warnings
@@ -20,8 +21,13 @@ from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple, Ty
 
 
 def _normalize_project_name(name: str) -> str:
-    """Normalize project name for lookup (PEP 503)."""
-    return name.lower().replace("_", "-")
+    """Normalize project name for lookup (PEP 503).
+
+    PEP 503 normalizes by lowercasing and replacing any run of [-_.]
+    with a single hyphen, so distribution key matching works for names
+    containing dots or mixed separators.
+    """
+    return re.sub(r"[-_.]+", "-", name.lower())
 
 
 def _get_working_set() -> Dict[str, Any]:
