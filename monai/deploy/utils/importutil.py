@@ -345,8 +345,8 @@ def optional_import(
 
 
 def is_dist_editable(project_name: str) -> bool:
-    distributions = _get_working_set()
-    dist: Any = distributions.get(_normalize_project_name(project_name))
+    working_set = _get_working_set()
+    dist: Any = working_set.get(_normalize_project_name(project_name))
     if not hasattr(dist, "egg_info") or dist.egg_info is None:
         return False
     egg_info = Path(dist.egg_info)
@@ -370,8 +370,8 @@ def is_dist_editable(project_name: str) -> bool:
 
 
 def dist_module_path(project_name: str) -> str:
-    distributions = _get_working_set()
-    dist: Any = distributions.get(_normalize_project_name(project_name))
+    working_set = _get_working_set()
+    dist: Any = working_set.get(_normalize_project_name(project_name))
     if hasattr(dist, "egg_info") and dist.egg_info is not None:
         egg_info = Path(dist.egg_info)
         if egg_info.is_dir() and egg_info.suffix == ".dist-info":
@@ -395,8 +395,8 @@ def dist_module_path(project_name: str) -> str:
 
 
 def is_module_installed(project_name: str) -> bool:
-    distributions = _get_working_set()
-    dist: Any = distributions.get(_normalize_project_name(project_name))
+    working_set = _get_working_set()
+    dist: Any = working_set.get(_normalize_project_name(project_name))
     if dist:
         return True
     else:
@@ -404,8 +404,8 @@ def is_module_installed(project_name: str) -> bool:
 
 
 def dist_requires(project_name: str) -> List[str]:
-    distributions = _get_working_set()
-    dist: Any = distributions.get(_normalize_project_name(project_name))
+    working_set = _get_working_set()
+    dist: Any = working_set.get(_normalize_project_name(project_name))
     if hasattr(dist, "requires"):
         return [str(req) for req in dist.requires()]
     return []
