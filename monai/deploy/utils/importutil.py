@@ -367,7 +367,7 @@ def is_dist_editable(project_name: str) -> bool:
                     try:
                         if data["dir_info"]["editable"]:
                             return True
-                    except KeyError:
+                    except (KeyError, TypeError):
                         pass
     return False
 
@@ -389,7 +389,7 @@ def dist_module_path(project_name: str) -> str:
                         file_url = data["url"]
                         if file_url.startswith("file://"):
                             return str(file_url[7:])
-                    except KeyError:
+                    except (KeyError, TypeError, AttributeError):
                         pass
 
     if hasattr(dist, "module_path"):
@@ -400,10 +400,7 @@ def dist_module_path(project_name: str) -> str:
 def is_module_installed(project_name: str) -> bool:
     working_set = _get_working_set()
     dist: Any = working_set.get(_normalize_project_name(project_name))
-    if dist:
-        return True
-    else:
-        return False
+    return dist is not None
 
 
 def dist_requires(project_name: str) -> List[str]:
