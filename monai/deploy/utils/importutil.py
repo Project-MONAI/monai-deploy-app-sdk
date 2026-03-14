@@ -64,7 +64,7 @@ class _DistributionAdapter:
 
     @property
     def module_path(self) -> str:
-        if self._path and self._path.is_dir():
+        if self._path:
             return str(self._path.parent)
         return ""
 
