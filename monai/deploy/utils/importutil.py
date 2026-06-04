@@ -416,15 +416,11 @@ def _holoscan_package_path() -> Path:
     """Return the installed holoscan package directory without importing holoscan."""
     spec = importlib.util.find_spec("holoscan")
     if spec is None:
-        raise ModuleNotFoundError(
-            "Holoscan is not installed; cannot locate the holoscan package directory."
-        )
+        raise ModuleNotFoundError("Holoscan is not installed; cannot locate the holoscan package directory.")
     if spec.submodule_search_locations:
         return Path(spec.submodule_search_locations[0]).resolve()
     if spec.origin is None:
-        raise ModuleNotFoundError(
-            "Holoscan package spec has no origin or submodule_search_locations."
-        )
+        raise ModuleNotFoundError("Holoscan package spec has no origin or submodule_search_locations.")
     return Path(spec.origin).resolve().parent
 
 
