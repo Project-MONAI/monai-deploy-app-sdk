@@ -16,7 +16,7 @@ from typing import Any, Dict, ItemsView, List, Tuple
 from monai.deploy.exceptions import ItemNotExistsError, UnknownTypeError
 
 # Store all supported model types in the order they should be checked
-REGISTERED_MODELS = []
+REGISTERED_MODELS: List[type["Model"]] = []
 
 
 class Model:
