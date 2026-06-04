@@ -15,6 +15,7 @@ import runpy
 import sys
 import warnings
 from functools import lru_cache
+import importlib.util
 from importlib import import_module
 from importlib.metadata import distributions
 from pathlib import Path
@@ -412,10 +413,19 @@ def dist_requires(project_name: str) -> List[str]:
 
 
 def _holoscan_package_path() -> Path:
-    """Return the installed holoscan package directory."""
-    import holoscan
-
-    return Path(holoscan.__file__).resolve().parent
+    """Return the installed holoscan package directory without importing holoscan."""
+    spec = importlib.util.find_spec("holoscan")
+    if spec is None:
+        raise ModuleNotFoundError(
+            "Holoscan is not installed; cannot locate the holoscan package directory."
+        )
+    if spec.submodule_search_locations:
+        return Path(spec.submodule_search_locations[0]).resolve()
+    if spec.origin is None:
+        raise ModuleNotFoundError(
+            "Holoscan package spec has no origin or submodule_search_locations."
+        )
+    return Path(spec.origin).resolve().parent
 
 
 def _holoscan_graph_module_name(holoscan_pkg_path: Path) -> Optional[str]:
