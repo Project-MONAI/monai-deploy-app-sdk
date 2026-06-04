@@ -437,7 +437,8 @@ __all__ = ["as_tensor", "core", "gxf"]
 _EXTRA_MODULES = [
     "conditions",
     "executors",
-    "graphs",
+    "flow_graphs",  # holoscan >= 4.1.0
+    "graphs",  # holoscan < 4.1.0
     "logger",
     "operators",
     "resources",
