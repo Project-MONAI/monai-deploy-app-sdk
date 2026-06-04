@@ -12,11 +12,12 @@
 from typing import Any, Dict, Tuple, Union
 
 from monai.deploy.core import Image
-from monai.deploy.operators.monai_bundle_inference_operator import MonaiBundleInferenceOperator, get_bundle_config
-from monai.deploy.utils.importutil import optional_import
-from monai.transforms import ConcatItemsd, ResampleToMatch
 from monai.deploy.core.models.torch_model import TorchScriptModel
 from monai.deploy.core.models.triton_model import TritonModel
+from monai.deploy.operators.monai_bundle_inference_operator import MonaiBundleInferenceOperator
+from monai.deploy.utils.importutil import optional_import
+from monai.transforms import ConcatItemsd, ResampleToMatch
+
 torch, _ = optional_import("torch", "1.10.2")
 MetaTensor, _ = optional_import("monai.data.meta_tensor", name="MetaTensor")
 __all__ = ["MONetBundleInferenceOperator"]

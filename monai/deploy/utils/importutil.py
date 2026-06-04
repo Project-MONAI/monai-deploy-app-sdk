@@ -442,8 +442,8 @@ def _build_holoscan_extra_modules(holoscan_pkg_path: Path) -> list[str]:
 
 
 def _build_holoscan_init_content(extra_modules: list[str]) -> str:
-    extra_modules_repr = ",\n    ".join(f'"{name}"' for name in extra_modules)
-    return f'''\
+    extra_modules_repr = ",\n    ".join(f'{name!r}' for name in extra_modules)
+    return f"""\
 # SPDX-FileCopyrightText: Copyright (c) 2022-2023 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 #
@@ -490,7 +490,7 @@ def __getattr__(name):
     else:
         raise AttributeError(f"module {{__name__}} has no attribute {{name}}")
 
-'''
+"""
 
 
 def fix_holoscan_import():
