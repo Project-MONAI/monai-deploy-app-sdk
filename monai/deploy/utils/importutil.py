@@ -9,13 +9,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import importlib.util
 import inspect
 import re
 import runpy
 import sys
 import warnings
 from functools import lru_cache
-import importlib.util
 from importlib import import_module
 from importlib.metadata import distributions
 from pathlib import Path
