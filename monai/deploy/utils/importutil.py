@@ -9,6 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import importlib.util
 import inspect
 import re
 import runpy
@@ -411,7 +412,44 @@ def dist_requires(project_name: str) -> List[str]:
     return []
 
 
-holoscan_init_content_txt = """
+def _holoscan_package_path() -> Path:
+    """Return the installed holoscan package directory without importing holoscan."""
+    spec = importlib.util.find_spec("holoscan")
+    if spec is None:
+        raise ModuleNotFoundError("Holoscan is not installed; cannot locate the holoscan package directory.")
+    if spec.submodule_search_locations:
+        return Path(spec.submodule_search_locations[0]).resolve()
+    if spec.origin is None:
+        raise ModuleNotFoundError("Holoscan package spec has no origin or submodule_search_locations.")
+    return Path(spec.origin).resolve().parent
+
+
+def _holoscan_graph_module_name(holoscan_pkg_path: Path) -> Optional[str]:
+    """Return the graph submodule name present in the installed Holoscan package."""
+    if (holoscan_pkg_path / "flow_graphs").is_dir():
+        return "flow_graphs"
+    if (holoscan_pkg_path / "graphs").is_dir():
+        return "graphs"
+    return None
+
+
+def _build_holoscan_extra_modules(holoscan_pkg_path: Path) -> list[str]:
+    extra_modules = [
+        "conditions",
+        "executors",
+        "logger",
+        "operators",
+        "resources",
+    ]
+    graph_module = _holoscan_graph_module_name(holoscan_pkg_path)
+    if graph_module is not None:
+        extra_modules.insert(2, graph_module)
+    return extra_modules
+
+
+def _build_holoscan_init_content(extra_modules: list[str]) -> str:
+    extra_modules_repr = ",\n    ".join(f"{name!r}" for name in extra_modules)
+    return f"""\
 # SPDX-FileCopyrightText: Copyright (c) 2022-2023 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 #
@@ -435,12 +473,7 @@ __all__ = ["as_tensor", "core", "gxf"]
 
 # Other modules are exposed to the public API but will only be lazily loaded
 _EXTRA_MODULES = [
-    "conditions",
-    "executors",
-    "graphs",
-    "logger",
-    "operators",
-    "resources",
+    {extra_modules_repr},
 ]
 __all__.extend(_EXTRA_MODULES)
 
@@ -456,12 +489,12 @@ def __getattr__(name):
     import sys
 
     if name in _EXTRA_MODULES:
-        module_name = f"{__name__}.{name}"
+        module_name = f"{{__name__}}.{{name}}"
         module = importlib.import_module(module_name)  # import
         sys.modules[module_name] = module  # cache
         return module
     else:
-        raise AttributeError(f"module {__name__} has no attribute {name}")
+        raise AttributeError(f"module {{__name__}} has no attribute {{name}}")
 
 """
 
@@ -470,11 +503,12 @@ def fix_holoscan_import():
     """Fix holoscan __init__ to enable lazy load for avoiding failure on loading low level libs."""
 
     try:
-        project_name = "holoscan"
-        holoscan_init_path = Path(dist_module_path(project_name)) / project_name / "__init__.py"
+        holoscan_pkg_path = _holoscan_package_path()
+        holoscan_init_path = holoscan_pkg_path / "__init__.py"
+        extra_modules = _build_holoscan_extra_modules(holoscan_pkg_path)
 
         with open(str(holoscan_init_path), "w") as f_w:
-            f_w.write(holoscan_init_content_txt)
+            f_w.write(_build_holoscan_init_content(extra_modules))
         return str(holoscan_init_path)
     except Exception as ex:
         return ex

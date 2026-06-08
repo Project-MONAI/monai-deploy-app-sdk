@@ -38,7 +38,8 @@ pip install monai-deploy-app-sdk
 
 ### Prerequisites
 
-- This SDK depends on [NVIDIA Holoscan SDK](https://pypi.org/project/holoscan/) for its core implementation as well as its CLI, hence inherits its prerequisites, e.g. Ubuntu 22.04 with glibc 2.35 on X86-64 and NVIDIA dGPU drivers version 535 or above.
+- This SDK depends on [NVIDIA Holoscan SDK](https://pypi.org/project/holoscan/) for its core implementation as well as its CLI, hence inherits its prerequisites, e.g. Ubuntu 22.04 with glibc 2.35 on X86-64 and NVIDIA dGPU drivers version 535 or above. Important to note that `holoscan` and `holoscan-cli` up to v4.2 are compatible.
+- Key runtime dependencies also include [nvidia-nvimgcodec](https://pypi.org/project/nvidia-nvimgcodec-cu12/) and its own dependencies for GPU accecelerated DICOM image decoding.
 - [CUDA 12.2](https://developer.nvidia.com/cuda-12-2-0-download-archive) or above is required along with a supported NVIDIA GPU with at least 8GB of video RAM.
 - If inference is not used in an example application and a GPU is not installed, at least [CUDA 12 runtime](https://pypi.org/project/nvidia-cuda-runtime-cu12/) is required, as this is one of the requirements of Holoscan SDK. In addition, the `LIB_LIBRARY_PATH` must be set to include the installed shared library, e.g. in a Python 3.10 env, ```export LD_LIBRARY_PATH=`pwd`/.venv/lib/python3.10/site-packages/nvidia/cuda_runtime/lib:$LD_LIBRARY_PATH```
 - Python: 3.10 to 3.13
@@ -80,20 +81,13 @@ Tutorials are provided to help getting started with the App SDK, to name but a f
 
 #### [2) Creating MedNIST Classifier app](https://monai.readthedocs.io/projects/monai-deploy-app-sdk/en/stable/getting_started/tutorials/mednist_app.html)
 
-YouTube Video (to be updated with the new version):
-
 - [MedNIST Classification Example](https://www.youtube.com/watch?v=WwjilJFHuU4)
 
-### [3) Creating a Segmentation app](https://monai.readthedocs.io/projects/monai-deploy-app-sdk/en/stable/getting_started/tutorials/segmentation_app.html)
+#### [3) Creating a Segmentation app](https://monai.readthedocs.io/projects/monai-deploy-app-sdk/en/stable/getting_started/tutorials/segmentation_app.html)
 
-YouTube Video (demonstrating the previous version of the App SDK):
+#### [4) Creating a Segmentation app including visualization with Clara Viz](https://monai.readthedocs.io/projects/monai-deploy-app-sdk/en/stable/getting_started/tutorials/segmentation_clara-viz_app.html)
 
-- [Spleen Organ Segmentation - Jupyter Notebook Tutorial](https://www.youtube.com/watch?v=cqDVxzYt9lY)
-- [Spleen Organ Segmentation - Deep Dive](https://www.youtube.com/watch?v=nivgfD4pwWE)
-
-### [4) Creating a Segmentation app including visualization with Clara Viz](https://monai.readthedocs.io/projects/monai-deploy-app-sdk/en/stable/getting_started/tutorials/segmentation_clara-viz_app.html)
-
-### [5) Creating a Segmentation app consuming a MONAI Bundle](https://monai.readthedocs.io/projects/monai-deploy-app-sdk/en/stable/getting_started/tutorials/monai_bundle_app.html)
+#### [5) Creating a Segmentation app consuming a MONAI Bundle](https://monai.readthedocs.io/projects/monai-deploy-app-sdk/en/stable/getting_started/tutorials/monai_bundle_app.html)
 
 ### [Examples](https://monai.readthedocs.io/projects/monai-deploy-app-sdk/en/stable/getting_started/examples.html)
 

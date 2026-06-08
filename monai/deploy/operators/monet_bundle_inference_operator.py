@@ -9,14 +9,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Any, Dict, Tuple, Union
+from collections.abc import Hashable, Mapping
+from typing import Any, Dict, Tuple, Union, cast
 
 from monai.deploy.core import Image
-from monai.deploy.operators.monai_bundle_inference_operator import MonaiBundleInferenceOperator, get_bundle_config
-from monai.deploy.utils.importutil import optional_import
-from monai.transforms import ConcatItemsd, ResampleToMatch
 from monai.deploy.core.models.torch_model import TorchScriptModel
 from monai.deploy.core.models.triton_model import TritonModel
+from monai.deploy.operators.monai_bundle_inference_operator import MonaiBundleInferenceOperator
+from monai.deploy.utils.importutil import optional_import
+from monai.transforms import ConcatItemsd, ResampleToMatch
+
 torch, _ = optional_import("torch", "1.10.2")
 MetaTensor, _ = optional_import("monai.data.meta_tensor", name="MetaTensor")
 __all__ = ["MONetBundleInferenceOperator"]
@@ -88,7 +90,9 @@ class MONetBundleInferenceOperator(MonaiBundleInferenceOperator):
             for key in kwargs.keys():
                 if isinstance(kwargs[key], MetaTensor):
                     multimodal_data[key] = ResampleToMatch(mode="bilinear")(kwargs[key], img_dst=data)
-            data = ConcatItemsd(keys=list(multimodal_data.keys()), name="image")(multimodal_data)["image"]
+            data = ConcatItemsd(keys=list(multimodal_data.keys()), name="image")(
+                cast(Mapping[Hashable, Any], multimodal_data)
+            )["image"]
         if len(data.shape) == 4:
             data = data[None]
         prediction = self._nnunet_predictor(data)
