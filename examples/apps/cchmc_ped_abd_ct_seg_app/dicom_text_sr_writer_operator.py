@@ -248,6 +248,8 @@ class DICOMTextSRWriterOperator(Operator):
             if "biomarker_value" in biomarker_dict and "unit" in biomarker_dict:
                 if not self._should_include_metric(biomarker_name):
                     continue
+                if biomarker_dict.get("biomarker_value") is None:
+                    continue  # Skip absent measurements (e.g. organ not segmented)
                 normalized_entries[biomarker_name] = biomarker_dict
                 continue
 
@@ -339,7 +341,7 @@ class DICOMTextSRWriterOperator(Operator):
             if z_score is not None:
                 content_sequence_elements.append(
                     self._build_measurement_item(
-                        f"{biomarker_name}_Z",
+                        f"{biomarker_name}.z",
                         z_score,
                         None,
                     )
@@ -350,7 +352,7 @@ class DICOMTextSRWriterOperator(Operator):
             if percentile is not None:
                 content_sequence_elements.append(
                     self._build_measurement_item(
-                        f"{biomarker_name}_P",
+                        f"{biomarker_name}.p",
                         percentile,
                         "%",
                         "percentile",

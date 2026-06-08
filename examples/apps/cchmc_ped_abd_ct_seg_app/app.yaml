@@ -16,7 +16,7 @@
 # specifies high-level information about our app
 application:
   title: MONAI Deploy App Package - CCHMC Pediatric CT Liver-Spleen Segmentation
-  version: 1.10.0
+  version: 1.11.0
   inputFormats: ["file"]
   outputFormats: ["file"]
 

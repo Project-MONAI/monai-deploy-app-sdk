@@ -24,6 +24,9 @@ from dicom_seg_writer_operator import DICOMSegmentationWriterOperator, SegmentDe
 # custom DICOMSeriesSelectorOperator
 from dicom_series_selector_operator import DICOMSeriesSelectorOperator
 
+# DICOMSeriesToVolumeOperator with custom nvimgcodec decoder for 9-15 bit stored JPEGLossless
+from dicom_series_to_volume_operator import DICOMSeriesToVolumeOperator
+
 # custom DICOMTextSRWriterOperator
 from dicom_text_sr_writer_operator import DICOMTextSRWriterOperator, EquipmentInfo, ModelInfo
 
@@ -41,7 +44,6 @@ from monai.deploy.conditions import CountCondition
 from monai.deploy.core import Application
 from monai.deploy.operators.dicom_data_loader_operator import DICOMDataLoaderOperator
 from monai.deploy.operators.dicom_encapsulated_pdf_writer_operator import DICOMEncapsulatedPDFWriterOperator
-from monai.deploy.operators.dicom_series_to_volume_operator import DICOMSeriesToVolumeOperator
 from monai.deploy.utils.version import get_sdk_semver
 
 
@@ -157,7 +159,7 @@ class AIAbdomenSegApp(Application):
             creator="CCHMC CAIIR",  # institution name
             name=_algorithm_name,  # algorithm name
             version=_algorithm_version,  # algorithm version
-            uid="1.10.0",  # MAP version
+            uid="1.11.0",  # MAP version
         )
 
         # equipment info is MONAI Deploy App SDK information
@@ -222,6 +224,8 @@ class AIAbdomenSegApp(Application):
             generate_plots=True,
             name="seg_zscore_op",
             organ_name_mapping={"liver.hu": "liver_hu"},  # assets folder name mapping
+            sr_name_mapping={"liver": "liver.volume", "spleen": "spleen.volume"},  # DICOM SR Code mapping
+            # sr_filter_keys=["liver.volume", "spleen.volume"],  # only write liver/spleen volumes to SR
             additional_metrics_map={
                 "liver.hu": {
                     "organ": "liver",
@@ -264,6 +268,8 @@ class AIAbdomenSegApp(Application):
             model_info=my_model_info,
             equipment_info=my_equipment_info,
             custom_tags=custom_tags_sr,
+            # # optional: restrict SR content to specific metrics (e.g. volume, num.slices, liver.volume, etc.)
+            # included_fields=["liver.volume", "spleen.volume"],  # only include volume metrics
             # Concept Name Code Sequence: Concept Name Code (modality specific)
             # Determined via PS3.16 - https://dicom.nema.org/medical/dicom/current/output/html/part16.html#PS3.16
             report_code_value="41806-1",

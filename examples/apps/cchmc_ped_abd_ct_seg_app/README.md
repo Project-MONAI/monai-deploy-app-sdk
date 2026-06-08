@@ -12,7 +12,7 @@ The application executes the following processing DAG:
 
 1. **DICOM Data Loader** — loads all DICOM instances from the input folder
 2. **DICOM Series Selector** — selects qualifying CT series using JSON-based rules (see [Series Selection](#series-selection))
-3. **DICOM Series to Volume** — converts the selected series to a 3D image volume
+3. **DICOM Series to Volume** — converts the selected series to a 3D image volume; registers [nvImageCodec](https://github.com/NVIDIA/nvImageCodec) GPU-accelerated decoder plugin (`decoder_nvimgcodec.py`) with `pydicom` at startup for compressed pixel data (JPEG, JPEG 2000, HTJ2K). **Note:** CUDA 12-compatible `nvJPEG` lossless decoder silently produces zero-filled buffers for JPEG Lossless streams where `9 <= BitsStored <= 15` or `DHT` is before `SOF3`. A custom version of `decoder_nvimgcodec.py` has been created that detects this condition and raises `NotImplementedError` so pydicom falls through to the next capable decoder (e.g. `GDCM`). This issue is resolved in  `nvJPEG>= 13.0.2` (see [nvImageCodec issue](https://github.com/NVIDIA/nvImageCodec/pull/51#issuecomment-4407066179))
 4. **Abdomen Seg Operator** — runs DynUNet inference to produce Liver / Spleen / Pancreas segmentation masks (labels 1 / 2 / 3)
 5. **Segmentation Metrics Operator** — computes volume, slice count, pixel count, and intensity statistics per organ
 6. **Segmentation Z-Score Operator** — compares organ metrics to age/sex-specific normative CSV data; generates z-scores, percentiles, and an optional PDF report

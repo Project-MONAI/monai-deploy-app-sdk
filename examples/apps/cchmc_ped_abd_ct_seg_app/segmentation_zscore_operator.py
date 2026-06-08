@@ -362,13 +362,12 @@ class SegmentationZScoreOperator(Operator):
                 continue
 
             # Extract biomarker value (volume_ml/volume for 3D, area_cm2/area for 2D, or explicit biomarker_value)
-            biomarker_value = (
-                metrics.get("volume_ml")
-                or metrics.get("volume")
-                or metrics.get("area_cm2")
-                or metrics.get("area")
-                or metrics.get("biomarker_value")
-            )
+            # Use explicit None checks so that a legitimate 0.0 value is not discarded by the falsy `or` chain.
+            biomarker_value = None
+            for _key in ("volume_ml", "volume", "area_cm2", "area", "biomarker_value"):
+                if _key in metrics and metrics[_key] is not None:
+                    biomarker_value = metrics[_key]
+                    break
 
             if "volume_ml" in metrics or "volume" in metrics:
                 units_dict[sr_name] = "mL"
@@ -382,19 +381,27 @@ class SegmentationZScoreOperator(Operator):
             # Detect absent segmentation via presence fields rather than the biomarker value itself,
             # so that a legitimate 0.0 derived metric (e.g. from additional_metrics_map) is not
             # silently discarded as "no segmentation".
-            no_segmentation = (
-                metrics.get("pixel.count", metrics.get("pixel_count")) == 0
-                or metrics.get("num.slices", metrics.get("num_slices")) == 0
-            )
-            if biomarker_value is None or no_segmentation:
+            if biomarker_value is None:
                 self._logger.warning(f"No valid biomarker value for organ {organ_name!r}, skipping")
                 zscore_dict[sr_name] = {
                     "percentile": None,
                     "z_score": None,
-                    "biomarker_value": biomarker_value,
+                    "biomarker_value": None,
                     "message": "No segmentation detected",
                 }
                 continue
+
+            # Log when an organ has no detected segmentation (volume == 0.0) but still
+            # proceed so that a z-score/percentile and PDF plot are generated.
+            no_segmentation = (
+                metrics.get("pixel.count", metrics.get("pixel_count")) == 0
+                or metrics.get("num.slices", metrics.get("num_slices")) == 0
+            )
+            if no_segmentation:
+                self._logger.info(
+                    f"Organ {organ_name!r} has no detected segmentation (volume=0.0); "
+                    "proceeding with z-score calculation."
+                )
 
             # Load normative data
             df_m, df_f = self._load_biomarker_data(asset_name, assets_path)
@@ -460,6 +467,25 @@ class SegmentationZScoreOperator(Operator):
             f"{abs(z_score):.2f} standard deviations {direction} the population mean"
         )
 
+    @staticmethod
+    def _format_value(value) -> str:
+        """Format a numeric value using dynamic rounding (mirrors DICOMTextSRWriterOperator logic)."""
+        try:
+            val = float(value)
+            abs_val = abs(val)
+            if abs_val > 1000:
+                return f"{val:.0f}"
+            elif abs_val > 10:
+                return f"{val:.1f}"
+            elif abs_val < 0.1:
+                return f"{val:.3f}"
+            elif abs_val < 1:
+                return f"{val:.2f}"
+            else:
+                return f"{val:.2f}"
+        except (TypeError, ValueError):
+            return str(value)
+
     def create_visualization(self, processed_organs: Dict[str, Dict], patient_age: float, patient_sex: str) -> bytes:
         """Create matplotlib visualization with quantile curves in an Nx2 grid.
 
@@ -493,6 +519,7 @@ class SegmentationZScoreOperator(Operator):
         quantiles_to_plot = [0.05, 0.25, 0.50, 0.75, 0.95]
         colors = ["red", "orange", "blue", "green", "purple"]
         labels = ["5th", "25th", "50th", "75th", "95th"]
+        percentile_label = "Percentile"
 
         for i, (organ_name, organ_data) in enumerate(processed_organs.items()):
             ax = axes_flat[i]
@@ -519,7 +546,7 @@ class SegmentationZScoreOperator(Operator):
                         df["Age"],
                         df[col_name],
                         color=colors[j],
-                        label=f"{labels[j]} percentile" if i == 0 else "",
+                        label=f"{labels[j]} {percentile_label}" if i == 0 else "",
                         linewidth=2,
                     )
 
@@ -538,7 +565,7 @@ class SegmentationZScoreOperator(Operator):
 
             # Annotation Box: Value, Percentile, Z-score
             ax.annotate(
-                f"Val: {biomarker_value:.1f}\nP: {percentile*100:.1f}%\nZ: {z_score:.2f}",
+                f"Val: {self._format_value(biomarker_value)}\nP: {percentile*100:.1f}%\nZ: {z_score:.2f}",
                 (patient_age, biomarker_value),
                 xytext=(10, 10),
                 textcoords="offset points",
@@ -559,7 +586,9 @@ class SegmentationZScoreOperator(Operator):
             else:
                 ylabel = "Value"
             ax.set_ylabel(ylabel, fontsize=10)
-            ax.set_title(str(organ_data.get("display_name", organ_name)), fontsize=12, fontweight="bold")
+            raw_title = str(organ_data.get("display_name", organ_name))
+            pdf_title = raw_title.replace(".", " ").replace("_", " ").title()
+            ax.set_title(pdf_title, fontsize=12, fontweight="bold")
             ax.grid(True, alpha=0.3)
 
             # Add legend outside the plot area (top center), only on the first plot
@@ -577,8 +606,10 @@ class SegmentationZScoreOperator(Operator):
             axes_flat[j].axis("off")
 
         # Overall Title
+        # Y ages reported with no decimals; M/W/D ages reported with 4 decimal places
+        age_display = str(int(patient_age)) if patient_age == int(patient_age) else f"{patient_age:.4f}"
         fig.suptitle(
-            f"Organ Quantile Curves - {patient_sex} Patient, Age {patient_age:.1f} years",
+            f"Organ Quantile Curves - {patient_sex} Patient, Age {age_display} years",
             fontsize=16,
             fontweight="bold",
             y=0.995,
