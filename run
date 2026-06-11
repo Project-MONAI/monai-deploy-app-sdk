@@ -346,8 +346,8 @@ install_python_dev_deps() {
         # (LD_LIBRARY_PATH is set to /home/docs/ for that purpose)
         # Note that 'python3.10' is hard-coded here, it should be updated if the Python version changes by
         # .readthedocs.yml or other configurations.
-        run_command ls -al /home/docs/checkouts/readthedocs.org/user_builds/${READTHEDOCS_PROJECT}/envs/${READTHEDOCS_VERSION}/lib/python3.10/site-packages/nvidia/cuda_runtime/lib/
-        run_command cp /home/docs/checkouts/readthedocs.org/user_builds/${READTHEDOCS_PROJECT}/envs/${READTHEDOCS_VERSION}/lib/python3.10/site-packages/nvidia/cuda_runtime/lib/*.so* /home/docs/
+        run_command ls -al /home/docs/checkouts/readthedocs.org/user_builds/${READTHEDOCS_PROJECT}/envs/${READTHEDOCS_VERSION}/lib/python3.10/site-packages/nvidia/cu13/lib/
+        run_command cp /home/docs/checkouts/readthedocs.org/user_builds/${READTHEDOCS_PROJECT}/envs/${READTHEDOCS_VERSION}/lib/python3.10/site-packages/nvidia/cu13/lib/*.so* /home/docs/
         run_command ls -al /home/docs/
     fi
 }
