@@ -139,7 +139,12 @@ else:  # pragma: no cover - nvimgcodec not installed
 
 # Required for decoder plugin
 DECODER_DEPENDENCIES = {
-    x: ("numpy", "cupy", f"{NVIMGCODEC_MODULE_NAME}>={NVIMGCODEC_MIN_VERSION}", "nvidia-nvjpeg2k-cu13>=0.9.1",)
+    x: (
+        "numpy",
+        "cupy",
+        f"{NVIMGCODEC_MODULE_NAME}>={NVIMGCODEC_MIN_VERSION}",
+        "nvidia-nvjpeg2k-cu13>=0.9.1",
+    )
     for x in SUPPORTED_TRANSFER_SYNTAXES
 }
 
