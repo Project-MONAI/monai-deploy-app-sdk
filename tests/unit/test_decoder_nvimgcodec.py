@@ -32,8 +32,8 @@ _IGNORED_FILES_STEMS = ["GDCMJ2K_TextGBR".lower()]
 _DEFAULT_PLUGIN_CACHE: dict[str, Any] = {}
 _logger = logging.getLogger(__name__)
 
-_LOG_FORMAT = "%(asctime)s [%(levelname)s] %(name)s: %(message)s"
-_LOG_DATE_FORMAT = "%H:%M:%S.%f"
+_LOG_FORMAT = "%(asctime)s.%(msecs)03d [%(levelname)s] %(name)s: %(message)s"
+_LOG_DATE_FORMAT = "%H:%M:%S"
 _DECODER_LOGGER = "monai.deploy.operators.decoder_nvimgcodec"
 
 
@@ -44,19 +44,21 @@ def _configure_decoder_test_console_logging() -> Iterator[None]:
     handler.setFormatter(logging.Formatter(_LOG_FORMAT, datefmt=_LOG_DATE_FORMAT))
     handler.setLevel(logging.DEBUG)
 
-    configured_loggers: list[logging.Logger] = []
+    configured_loggers: list[tuple[logging.Logger, int, bool]] = []
     for name in (_DECODER_LOGGER, __name__):
         logger = logging.getLogger(name)
+        configured_loggers.append((logger, logger.level, logger.propagate))
         logger.addHandler(handler)
         logger.setLevel(logging.DEBUG)
-        configured_loggers.append(logger)
+        logger.propagate = False
 
     _logger.info("Verbose console logging enabled for nvimgcodec decoder tests.")
     yield
 
-    for logger in configured_loggers:
+    for logger, previous_level, previous_propagate in configured_loggers:
         logger.removeHandler(handler)
-        logger.setLevel(logging.NOTSET)
+        logger.setLevel(previous_level)
+        logger.propagate = previous_propagate
     handler.close()
 
 
