@@ -38,10 +38,10 @@ pip install monai-deploy-app-sdk
 
 ### Prerequisites
 
-- This SDK depends on [NVIDIA Holoscan SDK](https://pypi.org/project/holoscan/) for its core implementation as well as its CLI, hence inherits its prerequisites, e.g. Ubuntu 22.04 with glibc 2.35 on X86-64 and NVIDIA dGPU drivers version 535 or above. Important to note that `holoscan` and `holoscan-cli` up to v4.2 are compatible.
-- Key runtime dependencies also include [nvidia-nvimgcodec](https://pypi.org/project/nvidia-nvimgcodec-cu12/) and its own dependencies for GPU accecelerated DICOM image decoding.
-- [CUDA 12.2](https://developer.nvidia.com/cuda-12-2-0-download-archive) or above is required along with a supported NVIDIA GPU with at least 8GB of video RAM.
-- If inference is not used in an example application and a GPU is not installed, at least [CUDA 12 runtime](https://pypi.org/project/nvidia-cuda-runtime-cu12/) is required, as this is one of the requirements of Holoscan SDK. In addition, the `LIB_LIBRARY_PATH` must be set to include the installed shared library, e.g. in a Python 3.10 env, ```export LD_LIBRARY_PATH=`pwd`/.venv/lib/python3.10/site-packages/nvidia/cuda_runtime/lib:$LD_LIBRARY_PATH```
+- This SDK depends on [NVIDIA Holoscan SDK (CUDA 13)](https://pypi.org/project/holoscan-cu13/) for its core implementation as well as its CLI, hence inherits its prerequisites, e.g. Ubuntu 22.04 with glibc 2.39 or above (see output of ldd --version) and CUDA Runtime 13.0 or above. It is important to note that `holoscan-cu13` and `holoscan-cli` up to version 4.2 are compatible.
+- Key runtime dependencies also include [nvidia-nvimgcodec](https://pypi.org/project/nvidia-nvimgcodec-cu13/) and its own dependencies for GPU accecelerated DICOM image decoding.
+- [CUDA 13.0](https://developer.nvidia.com/cuda-downloads) or above is required along with a supported NVIDIA GPU with at least 8GB of video RAM.
+- If inference is not used in an example application and a GPU is not installed, at least [CUDA 13 runtime](https://pypi.org/project/nvidia-cuda-runtime/) is required, as this is one of the requirements of Holoscan SDK. In addition, the `LIB_LIBRARY_PATH` must be set to include the installed shared library, e.g. in a Python 3.10 env, ```export LD_LIBRARY_PATH=`pwd`/.venv/lib/python3.10/site-packages/nvidia/cuda_runtime/lib:$LD_LIBRARY_PATH```
 - Python: 3.10 to 3.13
 
 ## Getting Started

@@ -339,7 +339,7 @@ install_python_dev_deps() {
         run_command ${MONAI_PY_EXE} -m pip install -U PyYAML
 
         # Install cuda runtime dependency
-        run_command ${MONAI_PY_EXE} -m pip install nvidia-cuda-runtime-cu12
+        run_command ${MONAI_PY_EXE} -m pip install "nvidia-cuda-runtime==13.*"
 
         # Copy the cuda runtime library to the fixed location (workaround for readthedocs) so that
         # we can leverage the existing LD_LIBRARY_PATH (configured by the readthedocs UI) to locate the cuda runtime library.

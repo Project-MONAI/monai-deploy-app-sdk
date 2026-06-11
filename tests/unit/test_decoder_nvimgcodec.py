@@ -1,4 +1,5 @@
 import logging
+import sys
 import time
 from pathlib import Path
 from typing import Any, Iterator, cast
@@ -30,6 +31,47 @@ _IGNORED_FILES_STEMS = ["GDCMJ2K_TextGBR".lower()]
 
 _DEFAULT_PLUGIN_CACHE: dict[str, Any] = {}
 _logger = logging.getLogger(__name__)
+
+_LOG_FORMAT = "%(asctime)s [%(levelname)s] %(name)s: %(message)s"
+_LOG_DATE_FORMAT = "%H:%M:%S.%f"
+_DECODER_LOGGER = "monai.deploy.operators.decoder_nvimgcodec"
+
+
+@pytest.fixture(scope="module", autouse=True)
+def _configure_decoder_test_console_logging() -> Iterator[None]:
+    """Emit decoder and test logs to the console while this module runs."""
+    handler = logging.StreamHandler(sys.stderr)
+    handler.setFormatter(logging.Formatter(_LOG_FORMAT, datefmt=_LOG_DATE_FORMAT))
+    handler.setLevel(logging.DEBUG)
+
+    configured_loggers: list[logging.Logger] = []
+    for name in (_DECODER_LOGGER, __name__):
+        logger = logging.getLogger(name)
+        logger.addHandler(handler)
+        logger.setLevel(logging.DEBUG)
+        configured_loggers.append(logger)
+
+    _logger.info("Verbose console logging enabled for nvimgcodec decoder tests.")
+    yield
+
+    for logger in configured_loggers:
+        logger.removeHandler(handler)
+        logger.setLevel(logging.NOTSET)
+    handler.close()
+
+
+def _summarize_array(pixels: np.ndarray) -> str:
+    """Return a compact summary of decoded pixel data for logging."""
+    arr = np.asarray(pixels)
+    summary = f"shape={arr.shape}, dtype={arr.dtype}"
+    if arr.size == 0:
+        return summary
+
+    if np.issubdtype(arr.dtype, np.floating):
+        summary += f", min={float(np.nanmin(arr)):.4g}, max={float(np.nanmax(arr)):.4g}"
+    else:
+        summary += f", min={int(arr.min())}, max={int(arr.max())}"
+    return summary
 
 
 def _iter_frames(pixel_array: np.ndarray) -> Iterator[tuple[int, np.ndarray, bool]]:
@@ -161,6 +203,7 @@ def test_nvimgcodec_decoder_matches_default(path: str) -> None:
 
     rtol = 0.01
     atol = 4.0
+    file_name = Path(path).name
 
     baseline_pixels: np.ndarray = np.array([])
     nv_pixels: np.ndarray = np.array([])
@@ -171,13 +214,29 @@ def test_nvimgcodec_decoder_matches_default(path: str) -> None:
     default_decoder_error_message = None
     nvimgcodec_decoder_error_message = None
     transfer_syntax = None
+    _logger.info("Testing %s", path)
     try:
         ds_default = dcmread(path)
         transfer_syntax = ds_default.file_meta.TransferSyntaxUID
+        _logger.info(
+            "Default decoder: file=%s transfer_syntax=%s samples_per_pixel=%s photometric=%s",
+            file_name,
+            transfer_syntax,
+            getattr(ds_default, "SamplesPerPixel", "?"),
+            getattr(ds_default, "PhotometricInterpretation", "?"),
+        )
+        start = time.perf_counter()
         baseline_pixels = ds_default.pixel_array
+        baseline_elapsed = time.perf_counter() - start
+        _logger.info(
+            "Default decoder finished in %.4fs: %s",
+            baseline_elapsed,
+            _summarize_array(baseline_pixels),
+        )
     except Exception as e:
         default_decoder_error_message = f"{e}"
         default_decoder_errored = True
+        _logger.warning("Default decoder failed for %s: %s", file_name, default_decoder_error_message)
 
     # Remove and cache the other default decoder plugins first
     _remove_default_plugins()
@@ -185,10 +244,18 @@ def test_nvimgcodec_decoder_matches_default(path: str) -> None:
     register_as_decoder_plugin()
     try:
         ds_custom = dcmread(path)
+        start = time.perf_counter()
         nv_pixels = ds_custom.pixel_array
+        nv_elapsed = time.perf_counter() - start
+        _logger.info(
+            "nvimgcodec decoder finished in %.4fs: %s",
+            nv_elapsed,
+            _summarize_array(nv_pixels),
+        )
     except Exception as e:
         nvimgcodec_decoder_error_message = f"{e}"
         nvimgcodec_decoder_errored = True
+        _logger.warning("nvimgcodec decoder failed for %s: %s", file_name, nvimgcodec_decoder_error_message)
     finally:
         unregister_as_decoder_plugin()
         _restore_default_plugins()
@@ -210,10 +277,24 @@ def test_nvimgcodec_decoder_matches_default(path: str) -> None:
     assert baseline_pixels.dtype == nv_pixels.dtype, f"Dtype mismatch with transfer syntax {transfer_syntax}"
     try:
         np.testing.assert_allclose(baseline_pixels, nv_pixels, rtol=rtol, atol=atol)
-        _logger.info(f"Pixels values matched for transfer syntax: {transfer_syntax} in file: {Path(path).name}")
+        _logger.info(
+            "Pixels matched for transfer_syntax=%s file=%s rtol=%s atol=%s",
+            transfer_syntax,
+            file_name,
+            rtol,
+            atol,
+        )
     except AssertionError as e:
+        diff = np.abs(baseline_pixels.astype(np.float64) - nv_pixels.astype(np.float64))
+        _logger.error(
+            "Pixel mismatch for transfer_syntax=%s file=%s max_abs_diff=%.4g mean_abs_diff=%.4g",
+            transfer_syntax,
+            file_name,
+            float(diff.max()) if diff.size else 0.0,
+            float(diff.mean()) if diff.size else 0.0,
+        )
         raise AssertionError(
-            f"Pixels values mismatch for transfer syntax: {transfer_syntax} in file: {Path(path).name}"
+            f"Pixels values mismatch for transfer syntax: {transfer_syntax} in file: {file_name}"
         ) from e
 
 
@@ -350,7 +431,9 @@ def _restore_default_plugins():
 if __name__ == "__main__":
 
     # Use pytest to test the functionality with pydicom embedded DICOM files of supported transfer syntaxes individually
-    # python -m pytest test_decoder_nvimgcodec.py
+    # python -m pytest tests/unit/test_decoder_nvimgcodec.py -vv --log-cli-level=DEBUG \
+    #   --log-cli-format="%(asctime)s [%(levelname)s] %(name)s: %(message)s" \
+    #   --log-cli-date-format="%H:%M:%S.%f"
     #
     # The following compares the performance of the nvimgcodec decoder against the default decoders
     # with DICOM files in pydicom embedded dataset or an optional custom folder

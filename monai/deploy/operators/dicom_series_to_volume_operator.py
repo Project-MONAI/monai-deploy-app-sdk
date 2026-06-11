@@ -64,8 +64,7 @@ class DICOMSeriesToVolumeOperator(Operator):
         based decoder plugins are available at runtime.
 
         Registering the decoder plugin is all automatic and does not require any additional change in user's application
-        except for adding a dependency on the `nvimgcodec-cu12` and `nvidia-nvjpeg2k-cu12` packages (suffix of cu12 means
-        CUDA 12.0 though cu13 is also supported).
+        except for adding a dependency on the `nvidia-nvimgcodec-cu13` and `all` of its optional dependencies.
 
         Named Input:
             study_selected_series_list: List of StudySelectedSeries.

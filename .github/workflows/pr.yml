@@ -23,12 +23,12 @@ jobs:
           pip install virtualenv
           virtualenv .venv
           source .venv/bin/activate
-          python3 -m pip install nvidia-cuda-runtime-cu12
+          python3 -m pip install "nvidia-cuda-runtime==13.*"
           ./run setup
       - name: Check formatting
         run: |
           source .venv/bin/activate
-          python3 -m pip install nvidia-cuda-runtime-cu12
+          python3 -m pip install "nvidia-cuda-runtime==13.*"
           python3 -c 'import sys; print(sys.executable)'
           python3 -c 'import site; print(site.getsitepackages())'
           python3 -m pip freeze
@@ -39,14 +39,14 @@ jobs:
       - name: Run Unit tests
         run: |
           source .venv/bin/activate
-          python3 -m pip install nvidia-cuda-runtime-cu12
+          python3 -m pip install "nvidia-cuda-runtime==13.*"
           export CUDA_WHL_LIB_DIR=$(python3 -c 'import nvidia.cuda_runtime; print(nvidia.cuda_runtime.__path__[0])')/lib
           export LD_LIBRARY_PATH="$CUDA_WHL_LIB_DIR:$LD_LIBRARY_PATH"
           ./run test all unit
       - name: Coverage
         run: |
           source .venv/bin/activate
-          python3 -m pip install nvidia-cuda-runtime-cu12
+          python3 -m pip install "nvidia-cuda-runtime==13.*"
           export CUDA_WHL_LIB_DIR=$(python3 -c 'import nvidia.cuda_runtime; print(nvidia.cuda_runtime.__path__[0])')/lib
           export LD_LIBRARY_PATH="$CUDA_WHL_LIB_DIR:$LD_LIBRARY_PATH"
           coverage xml
