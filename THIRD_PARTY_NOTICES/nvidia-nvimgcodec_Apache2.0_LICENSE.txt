@@ -1,4 +1,4 @@
-nvidia-nvimgcodec (PyPI package: nvidia-nvimgcodec-cu12)
+nvidia-nvimgcodec (PyPI package: nvidia-nvimgcodec-cu13)
 
 The MONAI Deploy App SDK optionally integrates with NVIDIA nvImageCodec for
 GPU-accelerated DICOM compressed pixel data decoding.

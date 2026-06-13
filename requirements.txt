@@ -1,4 +1,4 @@
-holoscan-cu12>=4.0.0,<4.3.0
+holoscan-cu13>=4.0.0,<4.3.0
 holoscan-cli>=4.0.0,<4.3.0
 numpy>=1.21.6
 colorama>=0.4.1

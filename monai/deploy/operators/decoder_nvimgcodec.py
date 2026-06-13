@@ -108,7 +108,7 @@ except ImportError:
     nvimgcodec = None
 
 # nvimgcodec pypi package name, minimum version required and the label for this decoder plugin.
-NVIMGCODEC_MODULE_NAME = "nvidia.nvimgcodec"  # from nvidia-nvimgcodec-cu12 or other variants
+NVIMGCODEC_MODULE_NAME = "nvidia.nvimgcodec"  # from nvidia-nvimgcodec-cu13 or other variants
 NVIMGCODEC_MIN_VERSION = "0.6"
 NVIMGCODEC_MIN_VERSION_TUPLE = tuple(int(x) for x in NVIMGCODEC_MIN_VERSION.split("."))
 NVIMGCODEC_PLUGIN_LABEL = "0.6+nvimgcodec"  # to be sorted to first in ascending order of plugins
@@ -139,7 +139,12 @@ else:  # pragma: no cover - nvimgcodec not installed
 
 # Required for decoder plugin
 DECODER_DEPENDENCIES = {
-    x: ("numpy", "cupy", f"{NVIMGCODEC_MODULE_NAME}>={NVIMGCODEC_MIN_VERSION}, nvidia-nvjpeg2k-cu12>=0.9.1,")
+    x: (
+        "numpy",
+        "cupy",
+        f"{NVIMGCODEC_MODULE_NAME}>={NVIMGCODEC_MIN_VERSION}",
+        "nvidia-nvjpeg2k-cu13>=0.9.1",
+    )
     for x in SUPPORTED_TRANSFER_SYNTAXES
 }
 
