@@ -1,4 +1,4 @@
-# Copyright 2021-2025 MONAI Consortium
+# Copyright 2021-2026 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -12,6 +12,10 @@
 # __main__.py is needed for MONAI Application Packager to detect the main app code (app.py) when
 # app.py is executed in the application folder path
 # e.g., python my_app
+
+# # specify GPU to use for this application
+# import os
+# os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
 import logging
 

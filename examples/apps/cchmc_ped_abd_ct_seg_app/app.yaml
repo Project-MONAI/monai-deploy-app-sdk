@@ -1,4 +1,4 @@
-# Copyright 2021-2025 MONAI Consortium
+# Copyright 2021-2026 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -15,8 +15,8 @@
 
 # specifies high-level information about our app
 application:
-  title: MONAI Deploy App Package - CCHMC Pediatric CT Abdominal Segmentation
-  version: 0.0.1
+  title: MONAI Deploy App Package - CCHMC Pediatric CT Liver-Spleen Segmentation
+  version: 1.11.0
   inputFormats: ["file"]
   outputFormats: ["file"]
 
@@ -28,5 +28,5 @@ resources:
   cpu: 1
   gpu: 1
   memory: 1Gi
-  # during MAP execution, for an input DICOM Series of 204 instances, GPU usage peaks at just under 8900 MiB ~= 9.3 GB ~= 8.7 Gi 
-  gpuMemory: 9Gi
+  # during MAP execution, for an input DICOM Series of 204 instances, GPU usage peaks right around 10600 MiB ~= 11.1 GB ~= 10.4 Gi 
+  gpuMemory: 11Gi

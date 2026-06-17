@@ -1,4 +1,4 @@
-# Copyright 2021-2025 MONAI Consortium
+# Copyright 2021-2026 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -18,21 +18,33 @@ from abdomen_seg_operator import AbdomenSegOperator
 # custom DICOM Secondary Capture (SC) writer operator
 from dicom_sc_writer_operator import DICOMSCWriterOperator
 
-# custom MongoDB operators
-from mongodb_entry_creator_operator import MongoDBEntryCreatorOperator
-from mongodb_writer_operator import MongoDBWriterOperator
+# custom DICOMSegmentationWriterOperator
+from dicom_seg_writer_operator import DICOMSegmentationWriterOperator, SegmentDescription
+
+# custom DICOMSeriesSelectorOperator
+from dicom_series_selector_operator import DICOMSeriesSelectorOperator
+
+# DICOMSeriesToVolumeOperator with custom nvimgcodec decoder for 9-15 bit stored JPEGLossless
+from dicom_series_to_volume_operator import DICOMSeriesToVolumeOperator
+
+# custom DICOMTextSRWriterOperator
+from dicom_text_sr_writer_operator import DICOMTextSRWriterOperator, EquipmentInfo, ModelInfo
 
 # required for setting SegmentDescription attributes
 # direct import as this is not part of App SDK package
 from pydicom.sr.codedict import codes
 
+# custom Segmentation operators
+from segmentation_contour_operator import SegmentationContourOperator
+from segmentation_metrics_operator import SegmentationMetricsOperator
+from segmentation_overlay_operator import SegmentationOverlayOperator
+from segmentation_zscore_operator import SegmentationZScoreOperator
+
 from monai.deploy.conditions import CountCondition
 from monai.deploy.core import Application
 from monai.deploy.operators.dicom_data_loader_operator import DICOMDataLoaderOperator
-from monai.deploy.operators.dicom_seg_writer_operator import DICOMSegmentationWriterOperator, SegmentDescription
-from monai.deploy.operators.dicom_series_selector_operator import DICOMSeriesSelectorOperator
-from monai.deploy.operators.dicom_series_to_volume_operator import DICOMSeriesToVolumeOperator
-from monai.deploy.operators.dicom_text_sr_writer_operator import DICOMTextSRWriterOperator, EquipmentInfo, ModelInfo
+from monai.deploy.operators.dicom_encapsulated_pdf_writer_operator import DICOMEncapsulatedPDFWriterOperator
+from monai.deploy.utils.version import get_sdk_semver
 
 
 # inherit new Application class instance, AIAbdomenSegApp, from MONAI Application base class
@@ -43,16 +55,15 @@ class AIAbdomenSegApp(Application):
 
     This application loads a set of DICOM instances, selects the appropriate series, converts the series to
     3D volume image, performs inference with a custom inference operator, including pre-processing
-    and post-processing, saves a DICOM SEG (organ contours), a DICOM Secondary Capture (organ contours overlay),
-    and a DICOM SR (organ volumes), and writes organ volumes and relevant DICOM tags to the MONAI Deploy Express
-    MongoDB database (optional).
+    and post-processing, produces segmentation metrics, and saves a DICOM SEG (organ masks), a
+    DICOM Secondary Capture (organ contours overlay), and a DICOM SR (organ volumes).
 
     Pertinent MONAI Bundle:
       https://github.com/cchmc-dll/pediatric_abdominal_segmentation_bundle/tree/original
 
     Execution Time Estimate:
       With a NVIDIA GeForce RTX 3090 24GB GPU, for an input DICOM Series of 204 instances, the execution time is around
-      25 seconds for DICOM SEG, DICOM SC, and DICOM SR outputs, as well as the MDE MongoDB database write.
+      21 seconds for DICOM SEG, DICOM SC, and DICOM SR outputs.
     """
 
     def __init__(self, *args, **kwargs):
@@ -95,12 +106,15 @@ class AIAbdomenSegApp(Application):
         series_to_vol_op = DICOMSeriesToVolumeOperator(self, name="series_to_vol_op")
 
         # custom inference op
-        # output_labels specifies which of the organ segmentations are desired in the DICOM SEG, DICOM SC, and DICOM SR outputs
-        # 1 = Liver, 2 = Spleen, 3 = Pancreas; all segmentations performed, but visibility in outputs (SEG, SC, SR) controlled here
-        # all organ volumes will be written to MongoDB
-        output_labels = [1, 2, 3]
+        # output_labels specifies organ label mapping
+        output_labels = {"background": 0, "liver": 1, "spleen": 2, "pancreas": 3}
         abd_seg_op = AbdomenSegOperator(
-            self, app_context=app_context, model_path=model_path, output_labels=output_labels, name="abd_seg_op"
+            self,
+            app_context=app_context,
+            model_path=model_path,
+            output_folder=app_output_path,
+            output_labels=output_labels,
+            name="abd_seg_op",
         )
 
         # create DICOM Seg writer providing the required segment description for each segment with
@@ -109,7 +123,7 @@ class AIAbdomenSegApp(Application):
         # https://dicom.nema.org/medical/dicom/current/output/chtml/part05/sect_6.2.html
 
         # general algorithm information
-        _algorithm_name = "CCHMC Pediatric CT Abdominal Segmentation"
+        _algorithm_name = "CCHMC Pediatric CT Liver-Spleen Segmentation"
         _algorithm_family = codes.DCM.ArtificialIntelligence
         _algorithm_version = "0.4.3"
 
@@ -140,15 +154,44 @@ class AIAbdomenSegApp(Application):
             ),
         ]
 
-        # custom tags - add Device UID to DICOM SEG to match SR and SC tags
-        custom_tags_seg = {"SeriesDescription": "AI Generated DICOM SEG; Not for Clinical Use.", "DeviceUID": "0.0.1"}
-        custom_tags_sr = {"SeriesDescription": "AI Generated DICOM SR; Not for Clinical Use."}
-        custom_tags_sc = {"SeriesDescription": "AI Generated DICOM Secondary Capture; Not for Clinical Use."}
+        # model info is algorithm information
+        my_model_info = ModelInfo(
+            creator="CCHMC CAIIR",  # institution name
+            name=_algorithm_name,  # algorithm name
+            version=_algorithm_version,  # algorithm version
+            uid="1.11.0",  # MAP version
+        )
+
+        # equipment info is MONAI Deploy App SDK information
+        my_equipment_info = EquipmentInfo(
+            manufacturer="The MONAI Consortium",
+            manufacturer_model="MONAI Deploy App SDK",
+            software_version_number=get_sdk_semver(),
+        )
+
+        # custom tags - add AlgorithmName for monitoring purposes
+        custom_tags_seg = {
+            "SeriesDescription": "AI Generated DICOM SEG; Not for Clinical Use.",
+            "AlgorithmName": f"{my_model_info.name}:{my_model_info.version}:{my_model_info.uid}",
+        }
+        custom_tags_sr = {
+            "SeriesDescription": "AI Generated DICOM SR; Not for Clinical Use.",
+            "AlgorithmName": f"{my_model_info.name}:{my_model_info.version}:{my_model_info.uid}",
+        }
+        custom_tags_sc = {
+            "SeriesDescription": "AI Generated DICOM Secondary Capture; Not for Clinical Use.",
+            "AlgorithmName": f"{my_model_info.name}:{my_model_info.version}:{my_model_info.uid}",
+        }
+        custom_tags_pdf = {
+            "SeriesDescription": "AI Generated Z-Score Report; Not for Clinical Use.",
+            "AlgorithmName": f"{my_model_info.name}:{my_model_info.version}:{my_model_info.uid}",
+        }
 
         # DICOM SEG Writer op writes content from segment_descriptions to output DICOM images as DICOM tags
         dicom_seg_writer = DICOMSegmentationWriterOperator(
             self,
             segment_descriptions=segment_descriptions,
+            model_info=my_model_info,
             custom_tags=custom_tags_seg,
             # store DICOM SEG in SEG subdirectory; necessary for routing in CCHMC MDE workflow definition
             output_folder=app_output_path / "SEG",
@@ -159,9 +202,61 @@ class AIAbdomenSegApp(Application):
             name="dicom_seg_writer",
         )
 
-        # model and equipment info
-        my_model_info = ModelInfo("CCHMC CAIIR", "CCHMC Pediatric CT Abdominal Segmentation", "0.4.3", "0.0.1")
-        my_equipment = EquipmentInfo(manufacturer="The MONAI Consortium", manufacturer_model="MONAI Deploy App SDK")
+        # Segmentation Metrics Operator computes volume, slices, and intensity stats
+        # label_dict indicates organs to analyze (output visibility controlled here)
+        seg_metrics_op = SegmentationMetricsOperator(
+            self, name="seg_metrics_op", labels_dict={"liver": 1, "spleen": 2, "pancreas": 3}, use_gpu=True
+        )
+
+        # Segmentation Z-Score operator computes z-scores and percentiles, and generates a PDF report
+        # get assets path
+        app_root = Path(__file__).resolve().parent
+        assets_dir = app_root / "assets"  # works for python script execution
+
+        if not assets_dir.exists():
+            assets_dir = Path("/opt/holoscan/app/assets")  # works for python script execution
+
+        self._logger.info(f"Using assets path: {assets_dir}")
+
+        seg_zscore_op = SegmentationZScoreOperator(
+            self,
+            assets_path=str(assets_dir),
+            generate_plots=True,
+            name="seg_zscore_op",
+            organ_name_mapping={"liver.hu": "liver_hu"},  # assets folder name mapping
+            sr_name_mapping={"liver": "liver.volume", "spleen": "spleen.volume"},  # DICOM SR Code mapping
+            # sr_filter_keys=["liver.volume", "spleen.volume"],  # only write liver/spleen volumes to SR
+            additional_metrics_map={
+                "liver.hu": {
+                    "organ": "liver",
+                    "metric": "mean.intensity.hu",
+                }
+            },
+        )
+
+        # DICOM Encapsulated PDF Writer operator creates a DICOM PDF from the z-score PDF report
+        dicom_pdf_writer = DICOMEncapsulatedPDFWriterOperator(
+            self,
+            model_info=my_model_info,
+            equipment_info=my_equipment_info,
+            custom_tags=custom_tags_pdf,
+            # store DICOM Encapsulated PDF in PDF subdirectory; necessary for routing in CCHMC MDE workflow definition
+            output_folder=app_output_path / "PDF",
+            name="dicom_pdf_writer",
+        )
+
+        # Segmentation Contour operator creates segmentation contour DICOMs from segmentation
+        # label_dict indicates organs to analyze (output visibility controlled here)
+        dicom_contour_creator_op = SegmentationContourOperator(
+            self,
+            labels_dict={"liver": 1, "spleen": 2, "pancreas": 3},
+        )
+
+        # Segmentation Overlay operator creates segmentation overlay DICOMs from segmentation
+        dicom_overlay_creator_op = SegmentationOverlayOperator(
+            self,
+            use_gpu=True,
+        )
 
         # DICOM SR Writer op
         dicom_sr_writer = DICOMTextSRWriterOperator(
@@ -171,32 +266,29 @@ class AIAbdomenSegApp(Application):
             # changed to True to copy DICOM attributes so DICOM SR has same Study UID
             copy_tags=True,
             model_info=my_model_info,
-            equipment_info=my_equipment,
+            equipment_info=my_equipment_info,
             custom_tags=custom_tags_sr,
+            # # optional: restrict SR content to specific metrics (e.g. volume, num.slices, liver.volume, etc.)
+            # included_fields=["liver.volume", "spleen.volume"],  # only include volume metrics
+            # Concept Name Code Sequence: Concept Name Code (modality specific)
+            # Determined via PS3.16 - https://dicom.nema.org/medical/dicom/current/output/html/part16.html#PS3.16
+            report_code_value="41806-1",
+            report_coding_scheme_designator="LN",
+            report_code_meaning="CT Abdomen Report",
             # store DICOM SR in SR subdirectory; necessary for routing in CCHMC MDE workflow definition
             output_folder=app_output_path / "SR",
+            name="dicom_sr_writer",
         )
 
         # custom DICOM SC Writer op
         dicom_sc_writer = DICOMSCWriterOperator(
             self,
             model_info=my_model_info,
-            equipment_info=my_equipment,
+            equipment_info=my_equipment_info,
             custom_tags=custom_tags_sc,
             # store DICOM SC in SC subdirectory; necessary for routing in CCHMC MDE workflow definition
             output_folder=app_output_path / "SC",
         )
-
-        # MongoDB database, collection, and MAP version info
-        database_name = "CTLiverSpleenSegPredictions"
-        collection_name = "OrganVolumes"
-        map_version = "0.0.1"
-
-        # custom MongoDB Entry Creator op
-        mongodb_entry_creator = MongoDBEntryCreatorOperator(self, map_version=map_version)
-
-        # custom MongoDB Writer op
-        mongodb_writer = MongoDBWriterOperator(self, database_name=database_name, collection_name=collection_name)
 
         # create the processing pipeline, by specifying the source and destination operators, and
         # ensuring the output from the former matches the input of the latter, in both name and type
@@ -207,8 +299,15 @@ class AIAbdomenSegApp(Application):
         )
         self.add_flow(series_to_vol_op, abd_seg_op, {("image", "image")})
 
-        # note below the dicom_seg_writer, dicom_sr_writer, dicom_sc_writer, and mongodb_entry_creator each require
-        # two inputs, each coming from a source operator
+        # note below several operators each require two inputs, each coming from a source operator
+
+        # Segmentation Metrics
+        self.add_flow(abd_seg_op, seg_metrics_op, {("seg_metatensor", "segmentation_mask")})
+        self.add_flow(series_to_vol_op, seg_metrics_op, {("image", "input_scan")})
+
+        # Z-Scores
+        self.add_flow(series_selector_op, seg_zscore_op, {("study_selected_series_list", "study_selected_series_list")})
+        self.add_flow(seg_metrics_op, seg_zscore_op, {("metrics_dict", "metrics_dict")})
 
         # DICOM SEG
         self.add_flow(
@@ -216,37 +315,45 @@ class AIAbdomenSegApp(Application):
         )
         self.add_flow(abd_seg_op, dicom_seg_writer, {("seg_image", "seg_image")})
 
+        # DICOM Encapsulated PDF
+        self.add_flow(
+            series_selector_op, dicom_pdf_writer, {("study_selected_series_list", "study_selected_series_list")}
+        )
+        self.add_flow(seg_zscore_op, dicom_pdf_writer, {("pdf_bytes", "pdf_bytes")})
+
         # DICOM SR
         self.add_flow(
             series_selector_op, dicom_sr_writer, {("study_selected_series_list", "study_selected_series_list")}
         )
-        self.add_flow(abd_seg_op, dicom_sr_writer, {("result_text_dicom_sr", "text")})
+        self.add_flow(seg_zscore_op, dicom_sr_writer, {("zscore_dict", "dict")})
 
-        # DICOM SC
+        # DICOM Contour (for Secondary Capture)
+        self.add_flow(abd_seg_op, dicom_contour_creator_op, {("seg_image", "segmentation_mask")})
+
+        # DICOM Overlay (for Secondary Capture)
+        self.add_flow(
+            series_selector_op, dicom_overlay_creator_op, {("study_selected_series_list", "study_selected_series_list")}
+        )
+        self.add_flow(dicom_contour_creator_op, dicom_overlay_creator_op, {("contour", "segmentation_mask")})
+        self.add_flow(series_to_vol_op, dicom_overlay_creator_op, {("image", "input_scan")})
+
+        # DICOM Secondary Capture
         self.add_flow(
             series_selector_op, dicom_sc_writer, {("study_selected_series_list", "study_selected_series_list")}
         )
-        self.add_flow(abd_seg_op, dicom_sc_writer, {("dicom_sc_dir", "dicom_sc_dir")})
-
-        # MongoDB
-        self.add_flow(
-            series_selector_op, mongodb_entry_creator, {("study_selected_series_list", "study_selected_series_list")}
-        )
-        self.add_flow(abd_seg_op, mongodb_entry_creator, {("result_text_mongodb", "text")})
-        self.add_flow(mongodb_entry_creator, mongodb_writer, {("mongodb_database_entry", "mongodb_database_entry")})
+        self.add_flow(dicom_overlay_creator_op, dicom_sc_writer, {("overlay", "input_overlay_image")})
 
         logging.info(f"End {self.compose.__name__}")
 
 
-# series selection rule in JSON, which selects for axial CT series; flexible ST choices:
-# StudyDescription: matches any value
-# Modality: matches "CT" value (case-insensitive); filters out non-CT modalities
-# ImageType: matches value that contains "PRIMARY", "ORIGINAL", and "AXIAL"; filters out most cor and sag views
-# SeriesDescription: matches any values that do not contain "cor" or "sag" (case-insensitive); filters out cor and sag views
-# SliceThickness: supports list, string, and numerical matching:
-# [3, 5]: matches ST values between 3 and 5
-# "^(5(\\\\.0+)?|5)$": RegEx; matches ST values of 5, 5.0, 5.00, etc.
-# 5: matches ST values of 5, 5.0, 5.00, etc.
+# series selection rule in JSON, which selects for standard axial CT series:
+# StudyDescription (Type 3): matches any value
+# Modality (Type 1): matches "CT" value (case-insensitive); filters out non-CT modalities
+# ImageOrientationPatient (Type 1): matches Axial orientation; filters out Cor and Sag orientations
+# ImageType (Type 1): matches value that contains "PRIMARY"; filters out secondary and reformatted series
+# SliceThickness (Type 2): matches ST values between 2 and 5, inclusive; filters out thin slices
+# SeriesDescription (Type 3): matches any values that do not contain "cor", "sag", or "lung" (case-insensitive);
+#   filters out Cor, Sag, and Lung views
 # all valid series will be selected; downstream operators only perform inference and write outputs for 1st selected series
 # please see more detail in DICOMSeriesSelectorOperator
 
@@ -254,13 +361,14 @@ Sample_Rules_Text = """
 {
     "selections": [
         {
-            "name": "Axial CT Series",
+            "name": "Standard Axial CT Series",
             "conditions": {
                 "StudyDescription": "(.*?)",
                 "Modality": "(?i)CT",
-                "ImageType": ["PRIMARY", "ORIGINAL", "AXIAL"],
-                "SeriesDescription": "(?i)^(?!.*(cor|sag)).*$",
-                "SliceThickness": [3, 5]
+                "ImageOrientationPatient": "Axial",
+                "ImageType": ["PRIMARY"],
+                "SliceThickness": [2, 5],
+                "SeriesDescription": "(?i)^(?!.*(cor|sag|lung)).*$"
             }
         }
     ]
@@ -274,7 +382,7 @@ if __name__ == "__main__":
     #     -i <DICOM folder>, for input DICOM CT series folder
     #     -o <output folder>, for the output folder, default $PWD/output
     # e.g.
-    #     monai-deploy exec app.py -i input -m model/dynunet_FT.ts
+    #     monai-deploy exec app.py -i input -m model/new_bundle.ts
     #
     logging.info(f"Begin {__name__}")
     AIAbdomenSegApp().run()
