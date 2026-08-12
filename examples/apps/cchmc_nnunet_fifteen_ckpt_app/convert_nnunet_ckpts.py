@@ -17,6 +17,7 @@ This script follows the logic in the conversion notebook but imports from local 
 import argparse
 import os
 import sys
+from pathlib import Path
 
 # Add the current directory to the path to find the local module
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -42,6 +43,27 @@ def _import_converter():
     print("Error: Could not import convert_best_nnunet_to_monai_bundle from my_app.nnunet_bundle or apps.nnunet_bundle")
     print("Please ensure that nnunet_bundle.py is properly installed in your project.")
     sys.exit(1)
+
+
+def _validated_map_root(value: str) -> Path:
+    """Resolve the MAP output path and keep it within the current directory."""
+    allowed_root = Path.cwd().resolve()
+    map_root = Path(value).expanduser()
+    if not map_root.is_absolute():
+        map_root = allowed_root / map_root
+    map_root = map_root.resolve(strict=False)
+
+    try:
+        map_root.relative_to(allowed_root)
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError(
+            f"MAP_root must be inside the current directory ({allowed_root})."
+        ) from exc
+
+    if map_root.exists() and not map_root.is_dir():
+        raise argparse.ArgumentTypeError(f"MAP_root is not a directory: {map_root}")
+
+    return map_root
 
 
 def parse_args():
@@ -84,7 +106,7 @@ def main():
     }
 
     # Create the MAP root directory
-    map_root = args.MAP_root
+    map_root = _validated_map_root(args.MAP_root)
     os.makedirs(map_root, exist_ok=True)
 
     # Set nnUNet environment variables if provided
