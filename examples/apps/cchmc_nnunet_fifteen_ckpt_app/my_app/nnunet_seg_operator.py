@@ -295,7 +295,7 @@ class NNUnetSegOperator(Operator):
         filtered_pred = torch.where(valid_mask, pred_tensor, torch.zeros_like(pred_tensor))
         data_dict[self._pred_dataset_key] = filtered_pred
 
-        unique_values, counts = torch.unique(filtered_pred, return_counts=True)
+        unique_values, counts = torch.unique(filtered_pred, return_counts=True, dim=None)
         label_summary = {int(value.item()): int(count.item()) for value, count in zip(unique_values, counts)}
         self._logger.info(f"Final segmentation label summary: {label_summary}")
 

@@ -29,6 +29,8 @@ python convert_nnunet_ckpts.py --dataset_name_or_id DATASET_ID --MAP_root OUTPUT
 
 The RESULTS_PATH should have "inference_information.json" file created by nnunetv2 automatically, as the conversion relies on this to figure out the best model configuration and convert those for the MAP.
 
+`MAP_root` must resolve to a directory inside the current working directory. Relative paths such as `.` and `output` are supported; paths that escape the current directory are rejected.
+
 ### Command-line Arguments
 
 | Argument | Description | Required | Default |
