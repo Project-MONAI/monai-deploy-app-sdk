@@ -10,6 +10,7 @@
 # limitations under the License.
 from __future__ import annotations
 
+import logging
 import os
 import shutil
 from pathlib import Path
@@ -22,29 +23,90 @@ from torch.backends import cudnn
 from monai.data.meta_tensor import MetaTensor
 from monai.utils import optional_import
 
-join, _ = optional_import("batchgenerators.utilities.file_and_folder_operations", name="join")
-load_json, _ = optional_import("batchgenerators.utilities.file_and_folder_operations", name="load_json")
+BATCHGEN_UTILS = "batchgenerators.utilities.file_and_folder_operations"
+
+join, _ = optional_import(BATCHGEN_UTILS, name="join")
+load_json, _ = optional_import(BATCHGEN_UTILS, name="load_json")
+load_pickle, _ = optional_import(BATCHGEN_UTILS, name="load_pickle")
 nnunet_predictor_cls, _ = optional_import("nnunetv2.inference.predict_from_raw_data", name="nnUNetPredictor")
 
 __all__ = [
     "get_nnunet_trainer",
     "get_nnunet_monai_predictor",
+    "get_nnunet_monai_predictors_for_ensemble",
     "get_network_from_nnunet_plans",
     "convert_nnunet_to_monai_bundle",
     "convert_monai_bundle_to_nnunet",
     "ModelnnUNetWrapper",
     "EnsembleProbabilitiesToSegmentation",
+    "PostProcessNNUnet",
 ]
 
 # Constants
 NNUNET_CHECKPOINT_FILENAME = "nnunet_checkpoint.pth"
 PLANS_JSON_FILENAME = "plans.json"
 DATASET_JSON_FILENAME = "dataset.json"
+FINAL_MODEL_FILENAME = "final_model.pt"
+BEST_MODEL_FILENAME = "best_model.pt"
+LEGACY_MODEL_FILENAME = "model.pt"
+DEFAULT_MODEL_FILENAMES = (FINAL_MODEL_FILENAME, BEST_MODEL_FILENAME, LEGACY_MODEL_FILENAME)
+
+
+def _resolve_checkpoint_name(model_folder: Union[str, Path], checkpoint_name: Optional[str]) -> str:
+    """Resolve the preferred bundle checkpoint filename to a concrete artifact on disk."""
+
+    model_folder = Path(model_folder)
+    if not model_folder.exists():
+        raise FileNotFoundError(f"Model folder not found: {model_folder}")
+
+    fold_dirs = [path for path in model_folder.glob("fold_*") if path.is_dir()]
+
+    def checkpoint_exists(filename: str) -> bool:
+        if (model_folder / filename).exists():
+            return True
+        return any((fold_dir / filename).exists() for fold_dir in fold_dirs)
+
+    available_models = sorted(
+        {path.name for path in model_folder.glob("*.pt")}.union(
+            {path.name for path in model_folder.glob("fold_*/*.pt")}
+        )
+    )
+
+    if checkpoint_name:
+        if checkpoint_exists(checkpoint_name):
+            return checkpoint_name
+        raise FileNotFoundError(
+            f"Checkpoint file not found in {model_folder}: {checkpoint_name}. "
+            f"Available model files: {', '.join(available_models) or 'none found'}."
+        )
+
+    for candidate in DEFAULT_MODEL_FILENAMES:
+        if checkpoint_exists(candidate):
+            return candidate
+
+    raise FileNotFoundError(
+        f"No supported checkpoint file was found in {model_folder}. "
+        f"Expected one of {DEFAULT_MODEL_FILENAMES}. "
+        f"Available model files: {', '.join(available_models) or 'none found'}."
+    )
+
+
+def _resolve_predictor_device(device: Optional[Union[str, torch.device]]) -> torch.device:
+    """Choose an inference device without assuming a specific CUDA index."""
+
+    if device is None:
+        return torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
+    return device if isinstance(device, torch.device) else torch.device(device)
 
 
 # Convert a single nnUNet model checkpoint to MONAI bundle format
 # The function saves the converted model checkpoint and configuration files in the specified bundle root folder.
-def convert_nnunet_to_monai_bundle(nnunet_config: Dict[str, Any], bundle_root_folder: str, fold: int = 0) -> None:
+def convert_nnunet_to_monai_bundle(
+    nnunet_config: Dict[str, Any],
+    bundle_root_folder: str,
+    fold: int = 0,
+    checkpoint_type: str = "final",
+) -> None:
     """
     Convert nnUNet model checkpoints and configuration to MONAI bundle format.
 
@@ -57,11 +119,20 @@ def convert_nnunet_to_monai_bundle(nnunet_config: Dict[str, Any], bundle_root_fo
         Root folder where the MONAI bundle will be saved.
     fold : int, optional
         Fold number of the nnUNet model to be converted, by default 0.
+    checkpoint_type : str, optional
+        Which nnUNet checkpoint(s) to use for the converted MONAI bundle weights.
+                - ``"final"`` (default): use ``checkpoint_final.pth``; weights saved as ``final_model.pt``.
+        - ``"best"``: use ``checkpoint_best.pth``; weights saved as ``best_model.pt``.
+                - ``"both"``: save both; ``checkpoint_final.pth`` -> ``final_model.pt``,
+                    ``checkpoint_best.pth`` -> ``best_model.pt``.
 
     Returns
     -------
     None
     """
+
+    if checkpoint_type not in ("final", "best", "both"):
+        raise ValueError(f"checkpoint_type must be 'final', 'best', or 'both', got: {checkpoint_type!r}")
 
     nnunet_trainer = "nnUNetTrainer"
     nnunet_plans = "nnUNetPlans"
@@ -83,12 +154,21 @@ def convert_nnunet_to_monai_bundle(nnunet_config: Dict[str, Any], bundle_root_fo
         dataset_name, f"{nnunet_trainer}__{nnunet_plans}__{nnunet_configuration}"
     )
 
+    # checkpoint_final is always loaded: it provides init_args, mirroring_axes, and trainer_name.
+    # Its network_weights are also used when checkpoint_type is 'final' or 'both'.
     nnunet_checkpoint_final = torch.load(
-        Path(nnunet_model_folder).joinpath(f"fold_{fold}", "checkpoint_final.pth"), weights_only=False
+        Path(nnunet_model_folder).joinpath(f"fold_{fold}", "checkpoint_final.pth"),
+        weights_only=False,
+        map_location="cpu",
     )
-    nnunet_checkpoint_best = torch.load(
-        Path(nnunet_model_folder).joinpath(f"fold_{fold}", "checkpoint_best.pth"), weights_only=False
-    )
+    nnunet_checkpoint_best: Optional[Dict[str, Any]] = None
+    # checkpoint_best is only loaded when its weights are actually needed.
+    if checkpoint_type in ("best", "both"):
+        nnunet_checkpoint_best = torch.load(
+            Path(nnunet_model_folder).joinpath(f"fold_{fold}", "checkpoint_best.pth"),
+            weights_only=False,
+            map_location="cpu",
+        )
 
     nnunet_checkpoint = {}
     nnunet_checkpoint["inference_allowed_mirroring_axes"] = nnunet_checkpoint_final["inference_allowed_mirroring_axes"]
@@ -101,7 +181,8 @@ def convert_nnunet_to_monai_bundle(nnunet_config: Dict[str, Any], bundle_root_fo
         nnunet_checkpoint, Path(bundle_root_folder).joinpath("models", nnunet_configuration, NNUNET_CHECKPOINT_FILENAME)
     )
 
-    Path(bundle_root_folder).joinpath("models", nnunet_configuration, f"fold_{fold}").mkdir(parents=True, exist_ok=True)
+    fold_dir = Path(bundle_root_folder) / "models" / nnunet_configuration / f"fold_{fold}"
+    fold_dir.mkdir(parents=True, exist_ok=True)
     # This might not be needed, comment it out for now
     # monai_last_checkpoint = {}
     # monai_last_checkpoint["network_weights"] = nnunet_checkpoint_final["network_weights"]
@@ -110,31 +191,51 @@ def convert_nnunet_to_monai_bundle(nnunet_config: Dict[str, Any], bundle_root_fo
     #     Path(bundle_root_folder).joinpath("models", nnunet_configuration, f"fold_{fold}", "model.pt")
     # )
 
-    monai_best_checkpoint = {}
-    monai_best_checkpoint["network_weights"] = nnunet_checkpoint_best["network_weights"]
-    torch.save(
-        monai_best_checkpoint,
-        Path(bundle_root_folder).joinpath("models", nnunet_configuration, f"fold_{fold}", "best_model.pt"),
-    )
+    if checkpoint_type == "final":
+        torch.save(
+            {"network_weights": nnunet_checkpoint_final["network_weights"]},
+            fold_dir / FINAL_MODEL_FILENAME,
+        )
+    elif checkpoint_type == "best":
+        if nnunet_checkpoint_best is None:
+            raise RuntimeError("checkpoint_best.pth must be loaded when checkpoint_type is 'best'.")
+        torch.save(
+            {"network_weights": nnunet_checkpoint_best["network_weights"]},
+            fold_dir / BEST_MODEL_FILENAME,
+        )
+    else:  # "both"
+        if nnunet_checkpoint_best is None:
+            raise RuntimeError("checkpoint_best.pth must be loaded when checkpoint_type is 'both'.")
+        torch.save(
+            {"network_weights": nnunet_checkpoint_final["network_weights"]},
+            fold_dir / FINAL_MODEL_FILENAME,
+        )
+        torch.save(
+            {"network_weights": nnunet_checkpoint_best["network_weights"]},
+            fold_dir / BEST_MODEL_FILENAME,
+        )
 
-    if not os.path.exists(os.path.join(bundle_root_folder, "models", "jsonpkls", PLANS_JSON_FILENAME)):
+    jsonpkls_dir = Path(bundle_root_folder) / "models" / "jsonpkls"
+    jsonpkls_dir.mkdir(parents=True, exist_ok=True)
+
+    if not (jsonpkls_dir / PLANS_JSON_FILENAME).exists():
         shutil.copy(
             Path(nnunet_model_folder).joinpath(PLANS_JSON_FILENAME),
-            Path(bundle_root_folder).joinpath("models", "jsonpkls", PLANS_JSON_FILENAME),
+            jsonpkls_dir / PLANS_JSON_FILENAME,
         )
 
-    if not os.path.exists(os.path.join(bundle_root_folder, "models", "jsonpkls", DATASET_JSON_FILENAME)):
+    if not (jsonpkls_dir / DATASET_JSON_FILENAME).exists():
         shutil.copy(
             Path(nnunet_model_folder).joinpath(DATASET_JSON_FILENAME),
-            Path(bundle_root_folder).joinpath("models", "jsonpkls", DATASET_JSON_FILENAME),
+            jsonpkls_dir / DATASET_JSON_FILENAME,
         )
 
 
-# A function to convert all nnunet models (configs and folds) to MONAI bundle format.
-# The function iterates through all folds and configurations, converting each model to the specified bundle format.
-# The number of folds, configurations, plans and dataset.json will be parsed from the nnunet folder
 def convert_best_nnunet_to_monai_bundle(
-    nnunet_config: Dict[str, Any], bundle_root_folder: str, inference_info_file: str = "inference_information.json"
+    nnunet_config: Dict[str, Any],
+    bundle_root_folder: str,
+    inference_info_file: str = "inference_information.json",
+    checkpoint_type: str = "final",
 ) -> None:
     """
     Convert all nnUNet models (configs and folds) to MONAI bundle format.
@@ -149,8 +250,11 @@ def convert_best_nnunet_to_monai_bundle(
         - "nnunet_plans": str, optional, name of the nnU-Net plans (default is "nnUNetPlans").
     bundle_root_folder : str
         Path to the root folder of the MONAI bundle.
-    inference_info : str, optional
+    inference_info_file : str, optional
         Path to the inference information file (default is "inference_information.json").
+    checkpoint_type : str, optional
+        Which checkpoint(s) to convert; passed through to ``convert_nnunet_to_monai_bundle``.
+        Allowed values: ``"final"`` (default), ``"best"``, ``"both"``.
 
     Returns
     -------
@@ -158,7 +262,8 @@ def convert_best_nnunet_to_monai_bundle(
     """
     from nnunetv2.utilities.dataset_name_id_conversion import maybe_convert_to_dataset_name
 
-    dataset_name = nnunet_config["dataset_name_or_id"]
+    base_nnunet_config = dict(nnunet_config)
+    dataset_name = base_nnunet_config["dataset_name_or_id"]
 
     inference_info_path = Path(os.environ["nnUNet_results"]).joinpath(
         maybe_convert_to_dataset_name(dataset_name), inference_info_file
@@ -179,55 +284,63 @@ def convert_best_nnunet_to_monai_bundle(
     folds = inference_info["folds"]  # list of folds
 
     cascade_3d_fullres = False
+    cascade_model_dict: Optional[Dict[str, Any]] = None
     for model_dict in best_model_dict["selected_model_or_models"]:
         if model_dict["configuration"] == "3d_cascade_fullres":
             cascade_3d_fullres = True
+            cascade_model_dict = model_dict
 
         print("Converting model: ", model_dict["configuration"])
         nnunet_model_folder = Path(os.environ["nnUNet_results"]).joinpath(
             maybe_convert_to_dataset_name(dataset_name),
             f"{model_dict['trainer']}__{model_dict['plans_identifier']}__{model_dict['configuration']}",
         )
-        nnunet_config["nnunet_configuration"] = model_dict["configuration"]
-        nnunet_config["nnunet_trainer"] = model_dict["trainer"]
-        nnunet_config["nnunet_plans"] = model_dict["plans_identifier"]
+        model_nnunet_config = dict(base_nnunet_config)
+        model_nnunet_config["nnunet_configuration"] = model_dict["configuration"]
+        model_nnunet_config["nnunet_trainer"] = model_dict["trainer"]
+        model_nnunet_config["nnunet_plans"] = model_dict["plans_identifier"]
 
         if not os.path.exists(nnunet_model_folder):
             raise FileNotFoundError(f"Model folder not found: {nnunet_model_folder}")
 
         for fold in folds:
             print("Converting fold: ", fold, " of model: ", model_dict["configuration"])
-            convert_nnunet_to_monai_bundle(nnunet_config, bundle_root_folder, fold)
+            convert_nnunet_to_monai_bundle(model_nnunet_config, bundle_root_folder, fold, checkpoint_type)
 
     # IF model is a cascade model, 3d_lowres is also needed
     if cascade_3d_fullres:
+        if cascade_model_dict is None:
+            raise RuntimeError("Cascade configuration was detected, but its model metadata was not captured.")
         # check if 3d_lowres is already in the bundle
         if not os.path.exists(os.path.join(bundle_root_folder, "models", "3d_lowres")):
             # copy the 3d_lowres model folder from nnunet results
             nnunet_model_folder = Path(os.environ["nnUNet_results"]).joinpath(
                 maybe_convert_to_dataset_name(dataset_name),
-                f"{model_dict['trainer']}__{model_dict['plans_identifier']}__3d_lowres",
+                f"{cascade_model_dict['trainer']}__{cascade_model_dict['plans_identifier']}__3d_lowres",
             )
             if not os.path.exists(nnunet_model_folder):
                 raise FileNotFoundError(f"Model folder not found: {nnunet_model_folder}")
             # copy the 3d_lowres model folder to the bundle root folder
-            nnunet_config["nnunet_configuration"] = "3d_lowres"
-            nnunet_config["nnunet_trainer"] = best_model_dict["selected_model_or_models"][-1][
+            lowres_nnunet_config = dict(base_nnunet_config)
+            lowres_nnunet_config["nnunet_configuration"] = "3d_lowres"
+            lowres_nnunet_config["nnunet_trainer"] = cascade_model_dict[
                 "trainer"
             ]  # Using the same trainer as the cascade model
-            nnunet_config["nnunet_plans"] = best_model_dict["selected_model_or_models"][-1][
+            lowres_nnunet_config["nnunet_plans"] = cascade_model_dict[
                 "plans_identifier"
             ]  # Using the same plans id as the cascade model
             for fold in folds:
                 print("Converting fold: ", fold, " of model: ", "3d_lowres")
-                convert_nnunet_to_monai_bundle(nnunet_config, bundle_root_folder, fold)
+                convert_nnunet_to_monai_bundle(lowres_nnunet_config, bundle_root_folder, fold, checkpoint_type)
 
     # Finally if postprocessing is needed (for ensemble models)
     if "postprocessing_file" in best_model_dict:
         postprocessing_file_path = best_model_dict["postprocessing_file"]
         if not os.path.exists(postprocessing_file_path):
             raise FileNotFoundError(f"Postprocessing file not found: {postprocessing_file_path}")
-        shutil.copy(postprocessing_file_path, Path(bundle_root_folder).joinpath("models", "postprocessing.pkl"))
+        jsonpkls_dir = Path(bundle_root_folder) / "models" / "jsonpkls"
+        jsonpkls_dir.mkdir(parents=True, exist_ok=True)
+        shutil.copy(postprocessing_file_path, jsonpkls_dir / "postprocessing.pkl")
 
 
 def convert_monai_bundle_to_nnunet(nnunet_config: dict, bundle_root_folder: str, fold: int = 0) -> None:
@@ -383,7 +496,6 @@ def get_network_from_nnunet_plans(
     network : torch.nn.Module
         The initialized neural network, with weights loaded if `model_ckpt` is provided.
     """
-    from batchgenerators.utilities.file_and_folder_operations import load_json
     from nnunetv2.utilities.get_network_from_plans import get_network_from_plans
     from nnunetv2.utilities.label_handling.label_handling import determine_num_input_channels
     from nnunetv2.utilities.plans_handling.plans_handler import PlansManager
@@ -527,22 +639,23 @@ def get_nnunet_trainer(
 
 def get_nnunet_monai_predictor(
     model_folder: Union[str, Path],
-    model_name: str = "model.pt",
+    model_name: Optional[str] = None,
     dataset_json: Optional[Dict[Any, Any]] = None,
     plans: Optional[Dict[Any, Any]] = None,
     nnunet_config: Optional[Dict[Any, Any]] = None,
     save_probabilities: bool = False,
     save_files: bool = False,
     use_folds: Optional[Union[int, str]] = None,
+    device: Optional[Union[str, torch.device]] = None,
 ) -> ModelnnUNetWrapper:
     """
     Initializes and returns a `nnUNetMONAIModelWrapper` containing the corresponding `nnUNetPredictor`.
-    The model folder should contain the following files, created during training:
+    The model folder should contain the following artifacts, created during training:
 
-        - dataset.json: from the nnUNet results folder
-        - plans.json: from the nnUNet results folder
-        - nnunet_checkpoint.pth: The nnUNet checkpoint file, containing the nnUNet training configuration
-        - model.pt: The checkpoint file containing the model weights.
+        - nnunet_checkpoint.pth: the nnUNet training configuration stored at the model root
+    - fold_*/final_model.pt, fold_*/best_model.pt, or fold_*/model.pt: model weights
+        - ../jsonpkls/dataset.json: dataset metadata shared across model configurations
+        - ../jsonpkls/plans.json: plan metadata shared across model configurations
 
     The returned wrapper object can be used for inference with MONAI framework:
     Example::
@@ -550,7 +663,7 @@ def get_nnunet_monai_predictor(
         from monai.bundle.nnunet import get_nnunet_monai_predictor
 
         model_folder = 'path/to/monai_bundle/model'
-        model_name = 'model.pt'
+        model_name = 'final_model.pt'
         wrapper = get_nnunet_monai_predictor(model_folder, model_name)
 
         # Perform inference
@@ -563,13 +676,17 @@ def get_nnunet_monai_predictor(
     model_folder : Union[str, Path]
         The folder where the model is stored.
     model_name : str, optional
-        The name of the model file, by default "model.pt".
+        The name of the model file. If omitted, the function auto-detects the first
+        available checkpoint in ``("final_model.pt", "best_model.pt", "model.pt")``.
     dataset_json : dict, optional
         The dataset JSON file containing dataset information.
     plans : dict, optional
         The plans JSON file containing model configuration.
     nnunet_config : dict, optional
         The nnUNet configuration dictionary containing model parameters.
+    device : Union[str, torch.device], optional
+        Inference device for the predictor. If omitted, CUDA is used when available,
+        otherwise CPU.
 
     Returns
     -------
@@ -579,23 +696,26 @@ def get_nnunet_monai_predictor(
 
     from nnunetv2.inference.predict_from_raw_data import nnUNetPredictor
 
+    resolved_model_name = _resolve_checkpoint_name(model_folder, model_name)
+    predictor_device = _resolve_predictor_device(device)
+
     predictor = nnUNetPredictor(
         tile_step_size=0.5,
         use_gaussian=True,
         use_mirroring=True,
-        device=torch.device("cuda", 0),
+        device=predictor_device,
         verbose=True,
         verbose_preprocessing=False,
         allow_tqdm=True,
     )
     # initializes the network architecture, loads the checkpoint
     print("nnunet_predictor: Model Folder: ", model_folder)
-    print("nnunet_predictor: Model name: ", model_name)
+    print("nnunet_predictor: Model name: ", resolved_model_name)
     print("nnunet_predictor: use_folds: ", use_folds)
     wrapper = ModelnnUNetWrapper(
         predictor,
         model_folder=model_folder,
-        checkpoint_name=model_name,
+        checkpoint_name=resolved_model_name,
         dataset_json=dataset_json,
         plans=plans,
         nnunet_config=nnunet_config,
@@ -609,9 +729,12 @@ def get_nnunet_monai_predictor(
 def get_nnunet_monai_predictors_for_ensemble(
     model_list: List[Any],
     model_path: Union[str, Path],
-    model_name: str = "model.pt",
+    model_name: Optional[str] = None,
     use_folds: Optional[Union[int, str]] = None,
+    device: Optional[Union[str, torch.device]] = None,
 ) -> Tuple[ModelnnUNetWrapper, ...]:
+    """Create one predictor wrapper per model configuration for ensemble inference."""
+
     network_list = []
     for model_config in model_list:
         model_folder = Path(model_path).joinpath(model_config)
@@ -622,6 +745,7 @@ def get_nnunet_monai_predictors_for_ensemble(
                 save_probabilities=True,
                 save_files=True,
                 use_folds=use_folds,
+                device=device,
             )
         )
     return tuple(network_list)
@@ -636,9 +760,10 @@ from monai.transforms import MapTransform
 
 class EnsembleProbabilitiesToSegmentation(MapTransform):
     """
-    MONAI transform that loads .npz probability files from metadata['saved_file'] for a given key,
-    averages them, and converts to final segmentation using nnU-Net's LabelManager.
-    Returns a MetaTensor segmentation result (instead of saving to disk).
+    Average saved nnU-Net probability maps and convert them to a segmentation mask.
+
+    The transform expects each input item's metadata to include a ``saved_file`` entry
+    pointing to one or more ``.npz`` probability files written by nnU-Net inference.
     """
 
     def __init__(
@@ -649,26 +774,25 @@ class EnsembleProbabilitiesToSegmentation(MapTransform):
         allow_missing_keys: bool = False,
         output_key: str = "pred",
     ):
+        """Initialize the transform with the nnU-Net dataset and plans metadata."""
+
         super().__init__(keys, allow_missing_keys)
 
         # Load required nnU-Net configs
         self.plans_manager = PlansManager(plans_json_path)
-        self.dataset_json = self._load_json(dataset_json_path)
+        self.dataset_json = load_json(dataset_json_path)
         self.label_manager = self.plans_manager.get_label_manager(self.dataset_json)
         self.output_key = output_key
 
-    def _load_json(self, path: str) -> Dict[Any, Any]:
-        import json
-
-        with open(path, "r") as f:
-            result = json.load(f)
-            return dict(result)  # Ensure return type matches annotation
-
     def __call__(self, data: Dict[Any, Any]) -> Dict[Any, Any]:
+        """Read saved probability files, average them, and attach the segmentation output."""
+
         d = dict(data)
-        all_files = []
+        all_files: List[str] = []
+        last_meta: Dict[Any, Any] = {}
         for key in self.keys:
             meta = d[key].meta if isinstance(d[key], MetaTensor) else d.get("meta", {})
+            last_meta = dict(meta)
             saved_file = meta.get("saved_file", None)
 
             # Support multiple files for ensemble
@@ -682,6 +806,9 @@ class EnsembleProbabilitiesToSegmentation(MapTransform):
                     raise FileNotFoundError(f"Probability file not found: {f}")
                 all_files.append(f)
 
+        if not all_files:
+            raise ValueError("No saved probability files were found in the provided metadata.")
+
         print("All files to average: ", all_files)
         # Step 1: average probabilities
         avg_probs = average_probabilities(all_files)
@@ -691,10 +818,51 @@ class EnsembleProbabilitiesToSegmentation(MapTransform):
 
         # Step 3: wrap as MetaTensor and attach meta
         seg_tensor = MetaTensor(segmentation[None].astype(np.uint8))  # add channel dim
-        seg_tensor.meta = dict(meta)
+        seg_tensor.meta = last_meta
 
         # Replace the key or store in new key
         d[self.output_key] = seg_tensor
+        return d
+
+
+from nnunetv2.postprocessing.remove_connected_components import apply_postprocessing
+
+
+class PostProcessNNUnet(MapTransform):
+    """
+    Apply nnU-Net post-processing rules to MONAI tensor outputs.
+
+    This wraps nnU-Net's connected-component cleanup and size-threshold filtering
+    so the same post-processing can be used inside MONAI pipelines.
+    """
+
+    def __init__(
+        self,
+        keys: KeysCollection,
+        pp_pkl_file_path: str,
+        allow_missing_keys: bool = False,
+    ):
+        """Store the serialized nnU-Net post-processing recipe."""
+
+        super().__init__(keys, allow_missing_keys)
+
+        # Load required nnU-Net configs
+        self.pp_pkl_file_path = pp_pkl_file_path
+        self.pp_fns, self.pp_fn_kwargs = load_pickle(self.pp_pkl_file_path)
+
+    def __call__(self, data: Dict[Any, Any]) -> Dict[Any, Any]:
+        """Apply post-processing to each configured key and preserve metadata."""
+
+        d = dict(data)
+        for key in self.keys:
+            img = d[key][0]
+            meta = d[key].meta if isinstance(d[key], MetaTensor) else d.get("meta", {})
+            segmentation = apply_postprocessing(img, self.pp_fns, self.pp_fn_kwargs)
+            # Step 3: wrap as MetaTensor and attach meta
+            seg_tensor = MetaTensor(segmentation[None].astype(np.uint8))  # add channel dim
+            seg_tensor.meta = dict(meta)
+            # Replace the key or store in new key
+            d[key] = seg_tensor
         return d
 
 
@@ -710,7 +878,8 @@ class ModelnnUNetWrapper(torch.nn.Module):
     model_folder : Union[str, Path]
         The folder path where the model and related files are stored.
     model_name : str, optional
-        The name of the model file, by default "model.pt".
+        The preferred model filename. If not present, the wrapper falls back to the
+        first available checkpoint in ``("final_model.pt", "best_model.pt", "model.pt")``.
     dataset_json : dict, optional
         The dataset JSON file containing dataset information.
     plans : dict, optional
@@ -746,10 +915,13 @@ class ModelnnUNetWrapper(torch.nn.Module):
     ):
 
         super().__init__()
+        self._logger = logging.getLogger(f"{__name__}.{type(self).__name__}")
         self.predictor = predictor
 
         if not checkpoint_name:
             raise ValueError("Model name is required. Please provide a valid model name.")
+
+        self.checkpoint_name = _resolve_checkpoint_name(model_folder, checkpoint_name)
 
         self.tmp_dir = tmp_dir
         self.save_probabilities = save_probabilities
@@ -795,21 +967,27 @@ class ModelnnUNetWrapper(torch.nn.Module):
         # Store configuration name
         self.configuration_name = configuration_name
 
-        # Handle folds
-        if isinstance(use_folds, str) or isinstance(use_folds, int):
-            use_folds = [use_folds]
+        # Normalize folds to a concrete iterable before loading checkpoints.
+        detected_folds = use_folds
+        if detected_folds is None:
+            detected_folds = self.predictor.auto_detect_available_folds(model_training_output_dir, self.checkpoint_name)
 
-        if use_folds is None:
-            use_folds = self.predictor.auto_detect_available_folds(model_training_output_dir, checkpoint_name)
+        if isinstance(detected_folds, (str, int)):
+            resolved_folds: List[Union[int, str]] = [detected_folds]
+        elif isinstance(detected_folds, tuple):
+            resolved_folds = list(detected_folds)
+        elif isinstance(detected_folds, list):
+            resolved_folds = detected_folds
+        else:
+            resolved_folds = [detected_folds]
 
-        # Ensure use_folds is always iterable
-        if not isinstance(use_folds, (list, tuple)):
-            use_folds = [use_folds]
+        if not resolved_folds:
+            raise ValueError("No folds were provided or detected for predictor initialization.")
 
         # Load model parameters from each fold
-        for f in use_folds:
+        for f in resolved_folds:
             f = int(f) if f != "all" else f
-            fold_checkpoint_path = join(model_training_output_dir, f"fold_{f}", checkpoint_name)
+            fold_checkpoint_path = join(model_training_output_dir, f"fold_{f}", self.checkpoint_name)
             monai_checkpoint = torch.load(fold_checkpoint_path, map_location=torch.device("cpu"), weights_only=False)
 
             if "network_weights" in monai_checkpoint.keys():
@@ -869,9 +1047,18 @@ class ModelnnUNetWrapper(torch.nn.Module):
 
         Raises:
             TypeError: If the input is not a MetaTensor.
+            ValueError: If the input is missing batch/channel dimensions or contains
+                more than one item in the batch.
         """
         if not isinstance(x, MetaTensor):
             raise TypeError("Input must be a MetaTensor.")
+        if x.ndim < 5:
+            raise ValueError(f"Input must include batch and channel dimensions, got shape {tuple(x.shape)}.")
+        if x.shape[0] != 1:
+            raise ValueError(
+                "ModelnnUNetWrapper currently supports batch size 1 per forward pass. "
+                f"Received batch size {x.shape[0]}."
+            )
 
         # Extract spatial shape from input
         spatial_shape = list(x.shape[-3:])  # [H, W, D] or [X, Y, Z]
@@ -880,35 +1067,44 @@ class ModelnnUNetWrapper(torch.nn.Module):
         properties_or_list_of_properties = {}
 
         if "pixdim" in x.meta:
-            # Get spacing from pixdim
+            # MONAI stores pixdim in physical axis order (x, y, z), but the tensor has been
+            # transposed into nnU-Net's expected spatial axis order (z, y, x).
             if x.meta["pixdim"].ndim == 1:
-                properties_or_list_of_properties["spacing"] = x.meta["pixdim"][1:4].tolist()
+                spacing_xyz = x.meta["pixdim"][1:4].tolist()
             else:
-                properties_or_list_of_properties["spacing"] = x.meta["pixdim"][0][1:4].numpy().tolist()
+                spacing_xyz = x.meta["pixdim"][0][1:4].numpy().tolist()
+            properties_or_list_of_properties["spacing"] = spacing_xyz[::-1]
 
         elif "affine" in x.meta:
-            # Get spacing from affine matrix
+            # Affine columns are ordered by physical axes (x, y, z). Reverse them to match the
+            # transposed tensor spatial order (z, y, x) passed to nnU-Net.
             affine = x.meta["affine"][0].cpu().numpy() if x.meta["affine"].ndim == 3 else x.meta["affine"].cpu().numpy()
-            spacing = np.array(
+            spacing_xyz = np.array(
                 [
                     np.sqrt(np.sum(affine[:3, 0] ** 2)),
                     np.sqrt(np.sum(affine[:3, 1] ** 2)),
                     np.sqrt(np.sum(affine[:3, 2] ** 2)),
                 ]
             )
-            properties_or_list_of_properties["spacing"] = spacing
+            properties_or_list_of_properties["spacing"] = spacing_xyz[::-1]
         else:
             # Default spacing if no metadata available
             properties_or_list_of_properties["spacing"] = [1.0, 1.0, 1.0]
 
         # Add spatial shape to properties
         properties_or_list_of_properties["spatial_shape"] = spatial_shape
+        self._logger.info(
+            "Wrapper derived inference properties: "
+            f"spacing={properties_or_list_of_properties['spacing']}, "
+            f"spatial_shape={properties_or_list_of_properties['spatial_shape']}"
+        )
 
         # Convert input tensor to numpy array
         image_or_list_of_images = x.cpu().numpy()[0, :]
 
         # Setup output file path if saving enabled
         outfile = None
+        outfile_name: Optional[str] = None
         if self.save_files:
             # Get original filename from metadata
             infile = x.meta["filename_or_obj"]
@@ -916,10 +1112,13 @@ class ModelnnUNetWrapper(torch.nn.Module):
                 infile = infile[0]
 
             # Create output path
-            outfile_name = os.path.basename(infile).split(".")[0]
+            output_stem = os.path.basename(infile).split(".")[0]
+            if not output_stem:
+                raise ValueError("Unable to derive an output filename from metadata['filename_or_obj'].")
+            outfile_name = output_stem
             outfolder = Path(self.tmp_dir).joinpath(self.configuration_name)
             os.makedirs(outfolder, exist_ok=True)
-            outfile = str(Path(outfolder).joinpath(outfile_name))
+            outfile = str(Path(outfolder).joinpath(output_stem))
 
             # Extract 4x4 affine matrix for SimpleITK compatibility
             if "affine" in x.meta:
@@ -943,13 +1142,14 @@ class ModelnnUNetWrapper(torch.nn.Module):
                     "origin": origin,
                     "direction": direction,
                 }
+
         # Handle cascade models by loading segmentation from previous stage
         previous_segmentation = None
         if self.configuration_name == "3d_cascade_fullres":
             # For cascade models, we need the lowres prediction
             lowres_predictions_folder = os.path.join(self.tmp_dir, "3d_lowres")
 
-            if outfile:
+            if outfile and outfile_name is not None:
                 seg_file = os.path.join(lowres_predictions_folder, outfile_name + ".nii.gz")
                 # Load the lowres segmentation from file
                 rw = self.predictor.plans_manager.image_reader_writer_class()
