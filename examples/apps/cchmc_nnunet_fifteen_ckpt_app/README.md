@@ -38,6 +38,7 @@ The RESULTS_PATH should have "inference_information.json" file created by nnunet
 | `--dataset_name_or_id` | Name or ID of the nnUNet dataset to convert | Yes | N/A |
 | `--MAP_root` | Output directory for the converted MONAI bundle | No | Current directory |
 | `--nnUNet_results` | Path to nnUNet results directory with trained models | Yes | Uses environment variable if set |
+| `--checkpoint_type` | Checkpoints to convert: `final` produces `final_model.pt`, `best` produces `best_model.pt`, and `both` produces both files | No | `final` |
 
 #### Example
 
