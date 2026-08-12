@@ -65,7 +65,7 @@ MAP_root/
     ├── 3d_fullres/           # Model configuration (if present)
     │   ├── nnunet_checkpoint.pth
     │   └── fold_X/           # Each fold's model weights
-    │       └── best_model.pt
+    │       └── final_model.pt
     ├── 3d_lowres/            # Model configuration (if present)
     └── 3d_cascade_fullres/   # Model configuration (if present)
 ```
