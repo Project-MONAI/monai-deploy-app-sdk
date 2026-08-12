@@ -10,39 +10,33 @@
 # limitations under the License.
 
 import logging
+import os
+import sys
 from pathlib import Path
 from typing import Dict, List, Optional
 
 import torch
 from numpy import int16, uint8
 
-# Import custom transforms
-from post_transforms import CalculateVolumeFromMaskd, ExtractVolumeToTextd, LabelToContourd, OverlayImageLabeld
-
-# Import from MONAI deploy
+from monai.deploy.core import AppContext, Fragment, Model, Operator, OperatorSpec
+from monai.deploy.operators.monai_seg_inference_operator import InMemImageReader
 from monai.deploy.utils.importutil import optional_import
+from monai.transforms import Compose, KeepLargestConnectedComponentd, Lambdad, LoadImaged, SaveImaged, Transposed
 
 Dataset, _ = optional_import("monai.data", name="Dataset")
 DataLoader, _ = optional_import("monai.data", name="DataLoader")
-import os
-
-# Try importing from local version first, then fall back to MONAI if not available
-# This approach works regardless of how the file is imported (as module or script)
-import sys
 
 # Add current directory to path to ensure the local module is found
 current_dir = os.path.dirname(os.path.abspath(__file__))
 if current_dir not in sys.path:
     sys.path.insert(0, current_dir)
 
-# Import from local nnunet_bundle module
-from nnunet_bundle import EnsembleProbabilitiesToSegmentation, get_nnunet_monai_predictors_for_ensemble
-
-from monai.deploy.core import AppContext, Fragment, Model, Operator, OperatorSpec
-from monai.deploy.operators.monai_seg_inference_operator import InMemImageReader
-
-# Import MONAI transforms
-from monai.transforms import Compose, KeepLargestConnectedComponentd, Lambdad, LoadImaged, SaveImaged, Transposed
+from nnunet_bundle import (
+    EnsembleProbabilitiesToSegmentation,
+    PostProcessNNUnet,
+    get_nnunet_monai_predictors_for_ensemble,
+)
+from post_transforms import CalculateVolumeFromMaskd, ExtractVolumeToTextd, LabelToContourd, OverlayImageLabeld
 
 DEFAULT_OUTPUT_FOLDER = Path.cwd() / "output"
 
@@ -65,7 +59,7 @@ class NNUnetSegOperator(Operator):
         output_folder: Path = DEFAULT_OUTPUT_FOLDER,
         output_labels: Optional[List[int]] = None,
         model_list: Optional[List[str]] = None,
-        model_name: str = "best_model.pt",
+        model_name: Optional[str] = None,
         save_probabilities: bool = False,
         save_files: bool = False,
         **kwargs,
@@ -80,7 +74,8 @@ class NNUnetSegOperator(Operator):
             output_folder: Directory to save output files
             output_labels: List of label indices to include in outputs
             model_list: List of nnU-Net model types to use in ensemble
-            model_name: Name of the model checkpoint file
+            model_name: Preferred checkpoint filename. If omitted, the bundle loader
+                auto-selects ``final_model.pt`` first, then ``best_model.pt``, then ``model.pt``.
             save_probabilities: Whether to save probability maps
             save_files: Whether to save intermediate files
         """
@@ -93,11 +88,19 @@ class NNUnetSegOperator(Operator):
 
         # Model configuration
         self.model_path = self._find_model_file_path(model_path)
-        self.model_list = model_list or ["3d_fullres", "3d_lowres", "3d_cascade_fullres"]
+        self.run_model_list = list(model_list or self._get_model_list_from_plans(self.model_path))
+        if "3d_lowres" in self.run_model_list and "3d_cascade_fullres" in self.run_model_list:
+            self.run_model_list.remove("3d_lowres")
+            cascade_index = self.run_model_list.index("3d_cascade_fullres")
+            self.run_model_list.insert(cascade_index, "3d_lowres")
+        self.ensemble_model_list = [model for model in self.run_model_list if model != "3d_lowres"]
+        if not self.ensemble_model_list:
+            raise ValueError("At least one non-auxiliary model configuration is required for ensemble inference.")
+        self.model_list = self.run_model_list
         self.model_name = model_name
         self.save_probabilities = save_probabilities
         self.save_files = save_files
-        self.prediction_keys = [f"pred_{model}" for model in self.model_list]
+        self.prediction_keys = [f"pred_{model}" for model in self.ensemble_model_list]
 
         # Output configuration
         self.output_folder = output_folder if output_folder is not None else DEFAULT_OUTPUT_FOLDER
@@ -139,6 +142,34 @@ class NNUnetSegOperator(Operator):
 
         return model_path
 
+    def _get_model_list_from_plans(self, model_path: Path) -> List[str]:
+        """Reads the configurations from plans.json and returns the list of model config names."""
+        import json
+
+        plans_path = model_path / "jsonpkls" / "plans.json"
+        if not plans_path.exists():
+            raise FileNotFoundError(f"plans.json not found at {plans_path}. Cannot determine model list.")
+        with open(plans_path) as f:
+            plans = json.load(f)
+        configs = list(plans.get("configurations", {}).keys())
+        if not configs:
+            raise ValueError(f"No configurations found in {plans_path}.")
+
+        available_configs = [cfg for cfg in configs if (model_path / cfg).is_dir()]
+        missing_configs = [cfg for cfg in configs if cfg not in available_configs]
+
+        if missing_configs:
+            self._logger.info(f"Skipping model configurations not present in model_path: {missing_configs}")
+
+        if not available_configs:
+            raise FileNotFoundError(
+                f"No configured nnU-Net model directories were found under {model_path}. "
+                f"Configured in plans.json: {configs}"
+            )
+
+        self._logger.info(f"Derived model_list from plans.json: {available_configs}")
+        return available_configs
+
     def _load_nnunet_models(self):
         """
         Loads nnU-Net ensemble models using MONAI's nnU-Net bundle functionality
@@ -154,7 +185,7 @@ class NNUnetSegOperator(Operator):
         try:
             # Get nnU-Net ensemble predictors (returns tuple of ModelnnUNetWrapper objects)
             network_def = get_nnunet_monai_predictors_for_ensemble(
-                model_list=self.model_list, model_path=str(self.model_path), model_name=self.model_name
+                model_list=self.run_model_list, model_path=str(self.model_path), model_name=self.model_name
             )
 
             # Move models to device and set to evaluation mode
@@ -171,7 +202,7 @@ class NNUnetSegOperator(Operator):
             # Register the loaded Model object in the application context
             self.app_context.models = loaded_model
 
-            self._logger.info(f"Successfully loaded {len(ensemble_predictors)} nnU-Net models: {self.model_list}")
+            self._logger.info(f"Successfully loaded {len(ensemble_predictors)} nnU-Net models: {self.run_model_list}")
 
         except Exception as e:
             self._logger.error(f"Failed to load nnU-Net models: {str(e)}")
@@ -214,7 +245,12 @@ class NNUnetSegOperator(Operator):
             return metadata
 
         # Convert known metadata attributes to appropriate Python types
-        known_conversions = {"SeriesInstanceUID": str, "row_pixel_spacing": float, "col_pixel_spacing": float}
+        known_conversions = {
+            "SeriesInstanceUID": str,
+            "row_pixel_spacing": float,
+            "col_pixel_spacing": float,
+            "depth_pixel_spacing": float,
+        }
 
         for key, conversion_func in known_conversions.items():
             if key in metadata:
@@ -265,12 +301,25 @@ class NNUnetSegOperator(Operator):
         # Apply postprocessing transforms for MAP outputs
         data_dict = post_transforms(data_dict)
 
+        # Keep only labels requested by output_labels.
+        pred_tensor = data_dict[self._pred_dataset_key]
+        allowed_labels = torch.as_tensor(self.output_labels, device=pred_tensor.device, dtype=pred_tensor.dtype)
+        valid_mask = torch.isin(pred_tensor, allowed_labels)
+        filtered_pred = torch.where(valid_mask, pred_tensor, torch.zeros_like(pred_tensor))
+        data_dict[self._pred_dataset_key] = filtered_pred
+
+        unique_values, counts = torch.unique(filtered_pred, return_counts=True, dim=None)
+        label_summary = {int(value.item()): int(count.item()) for value, count in zip(unique_values, counts)}
+        self._logger.info(f"Final segmentation label summary: {label_summary}")
+
+        out_ndarray = filtered_pred.detach().cpu().numpy()
+
         self._logger.info(
             f"Segmentation prediction shape after post processing: {data_dict[self._pred_dataset_key].shape}"
         )
 
         # DICOM SEG output
-        op_output.emit(data_dict[self._pred_dataset_key].squeeze(0).numpy().astype(uint8), self.output_name_seg)
+        op_output.emit(out_ndarray.squeeze(0).astype(uint8), self.output_name_seg)
 
         # DICOM SR output - extract result text
         result_text = self.get_result_text_from_transforms(post_transforms)
@@ -306,6 +355,9 @@ class NNUnetSegOperator(Operator):
         if not input_image:
             raise ValueError("Input is None.")
 
+        # Convert metadata fields that can carry pydicom types incompatible with downstream transforms.
+        self._convert_dicom_metadata_datatype(input_image.metadata())
+
         # Need to try to convert the data type of a few metadata attributes.
         # input_img_metadata = self._convert_dicom_metadata_datatype(input_image.metadata())
         # Need to give a name to the image as in-mem Image obj has no name.
@@ -338,8 +390,13 @@ class NNUnetSegOperator(Operator):
             # Perform ensemble inference
             self._logger.info("Running nnU-Net ensemble inference...")
 
-            for i, predictor in enumerate(ensemble_predictors):
-                model_key = self.prediction_keys[i]
+            for model_name, predictor in zip(self.run_model_list, ensemble_predictors):
+                if model_name not in self.ensemble_model_list:
+                    self._logger.info(f"Running auxiliary model without ensemble key: {model_name}")
+                    predictor(preprocessed_image)
+                    continue
+
+                model_key = f"pred_{model_name}"
                 self._logger.info(f"Running inference with model: {model_key}")
 
                 # Run inference with individual model
@@ -357,21 +414,37 @@ class NNUnetSegOperator(Operator):
     def post_process_stage1(self) -> Compose:
         """Composes transforms for postprocessing the nnU-Net prediction results."""
         pred_key = self._pred_dataset_key
-        return Compose(
+        transforms = [
+            # nnU-Net ensemble post-processing
+            EnsembleProbabilitiesToSegmentation(
+                keys=self.prediction_keys,
+                dataset_json_path=str(self.model_path / "jsonpkls/dataset.json"),
+                plans_json_path=str(self.model_path / "jsonpkls/plans.json"),
+                output_key=pred_key,
+            )
+        ]
+
+        postprocessing_pkl = self.model_path / "jsonpkls" / "postprocessing.pkl"
+        if postprocessing_pkl.exists():
+            transforms.append(
+                PostProcessNNUnet(
+                    keys=pred_key,
+                    pp_pkl_file_path=str(postprocessing_pkl),
+                )
+            )
+        else:
+            self._logger.info(f"No postprocessing.pkl found at {postprocessing_pkl}; skipping nnU-Net postprocessing.")
+
+        transforms.extend(
             [
-                # nnU-Net ensemble post-processing
-                EnsembleProbabilitiesToSegmentation(
-                    keys=self.prediction_keys,
-                    dataset_json_path=str(self.model_path / "jsonpkls/dataset.json"),
-                    plans_json_path=str(self.model_path / "jsonpkls/plans.json"),
-                    output_key=pred_key,
-                ),
                 # Add batch dimension to final prediction
                 Lambdad(keys=[pred_key], func=lambda x: x.unsqueeze(0)),
                 # Transpose dimensions back to original format
                 Transposed(keys=[self._input_dataset_key, pred_key], indices=(0, 1, 4, 3, 2)),
             ]
         )
+
+        return Compose(transforms)
 
     def post_process_stage2(self) -> Compose:
         """Composes transforms for postprocessing MAP outputs"""
