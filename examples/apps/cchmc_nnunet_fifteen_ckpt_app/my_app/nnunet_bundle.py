@@ -918,9 +918,6 @@ class ModelnnUNetWrapper(torch.nn.Module):
         self._logger = logging.getLogger(f"{__name__}.{type(self).__name__}")
         self.predictor = predictor
 
-        if not checkpoint_name:
-            raise ValueError("Model name is required. Please provide a valid model name.")
-
         self.checkpoint_name = _resolve_checkpoint_name(model_folder, checkpoint_name)
 
         self.tmp_dir = tmp_dir

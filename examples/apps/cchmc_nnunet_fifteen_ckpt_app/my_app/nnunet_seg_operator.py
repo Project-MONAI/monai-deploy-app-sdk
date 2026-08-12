@@ -88,11 +88,19 @@ class NNUnetSegOperator(Operator):
 
         # Model configuration
         self.model_path = self._find_model_file_path(model_path)
-        self.model_list = model_list or self._get_model_list_from_plans(self.model_path)
+        self.run_model_list = list(model_list or self._get_model_list_from_plans(self.model_path))
+        if "3d_lowres" in self.run_model_list and "3d_cascade_fullres" in self.run_model_list:
+            self.run_model_list.remove("3d_lowres")
+            cascade_index = self.run_model_list.index("3d_cascade_fullres")
+            self.run_model_list.insert(cascade_index, "3d_lowres")
+        self.ensemble_model_list = [model for model in self.run_model_list if model != "3d_lowres"]
+        if not self.ensemble_model_list:
+            raise ValueError("At least one non-auxiliary model configuration is required for ensemble inference.")
+        self.model_list = self.run_model_list
         self.model_name = model_name
         self.save_probabilities = save_probabilities
         self.save_files = save_files
-        self.prediction_keys = [f"pred_{model}" for model in self.model_list]
+        self.prediction_keys = [f"pred_{model}" for model in self.ensemble_model_list]
 
         # Output configuration
         self.output_folder = output_folder if output_folder is not None else DEFAULT_OUTPUT_FOLDER
@@ -177,7 +185,7 @@ class NNUnetSegOperator(Operator):
         try:
             # Get nnU-Net ensemble predictors (returns tuple of ModelnnUNetWrapper objects)
             network_def = get_nnunet_monai_predictors_for_ensemble(
-                model_list=self.model_list, model_path=str(self.model_path), model_name=self.model_name
+                model_list=self.run_model_list, model_path=str(self.model_path), model_name=self.model_name
             )
 
             # Move models to device and set to evaluation mode
@@ -194,7 +202,7 @@ class NNUnetSegOperator(Operator):
             # Register the loaded Model object in the application context
             self.app_context.models = loaded_model
 
-            self._logger.info(f"Successfully loaded {len(ensemble_predictors)} nnU-Net models: {self.model_list}")
+            self._logger.info(f"Successfully loaded {len(ensemble_predictors)} nnU-Net models: {self.run_model_list}")
 
         except Exception as e:
             self._logger.error(f"Failed to load nnU-Net models: {str(e)}")
@@ -237,7 +245,12 @@ class NNUnetSegOperator(Operator):
             return metadata
 
         # Convert known metadata attributes to appropriate Python types
-        known_conversions = {"SeriesInstanceUID": str, "row_pixel_spacing": float, "col_pixel_spacing": float}
+        known_conversions = {
+            "SeriesInstanceUID": str,
+            "row_pixel_spacing": float,
+            "col_pixel_spacing": float,
+            "depth_pixel_spacing": float,
+        }
 
         for key, conversion_func in known_conversions.items():
             if key in metadata:
@@ -377,8 +390,13 @@ class NNUnetSegOperator(Operator):
             # Perform ensemble inference
             self._logger.info("Running nnU-Net ensemble inference...")
 
-            for i, predictor in enumerate(ensemble_predictors):
-                model_key = self.prediction_keys[i]
+            for model_name, predictor in zip(self.run_model_list, ensemble_predictors):
+                if model_name not in self.ensemble_model_list:
+                    self._logger.info(f"Running auxiliary model without ensemble key: {model_name}")
+                    predictor(preprocessed_image)
+                    continue
+
+                model_key = f"pred_{model_name}"
                 self._logger.info(f"Running inference with model: {model_key}")
 
                 # Run inference with individual model
