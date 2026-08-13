@@ -14,7 +14,7 @@ Target: clinical workflows where single-study latency matters most.
 
 ### Validated
 
-(None yet - ship to validate)
+- [x] Phase 0: Foundation — app scaffolded, cu13 dependencies resolved, profiling harness ready, RMM smoke test passing
 
 ### Active
 
