@@ -1,15 +1,22 @@
 [project]
 name = "cchmc-nnunet-fast"
-version = "0.0.1"
-description = "Fast-track nnU-Net segmentation MAP for CCHMC models"
-requires-python = ">=3.10,<3.13"
+version = "0.1.0"
+description = "Fast nnUNet inference app for CCHMC using CUDA 13 (cu13) stack"
+requires-python = ">=3.10"
+
 dependencies = [
-    "monai-deploy-app-sdk",
+    # Holoscan SDK (CUDA 13)
+    "holoscan-cu13>=4.0.0,<4.3.0",
+    # CuPy for GPU array computing (CUDA 13 only — cupy-cuda12x must NOT be present)
+    "cupy-cuda13x>=13.4.0",
+    # RAPIDS Memory Manager (CUDA 13)
+    "rmm-cu13>=25.10.0",
+    # Medical imaging
+    "monai>=1.3.0",
+    "pydicom>=2.4.0",
+    "highdicom>=0.23.0",
+    # PyTorch (CUDA 13 compatible)
+    "torch>=2.5.0",
+    # Numerical
+    "numpy>=1.24.0",
 ]
-
-# Placeholder — to be populated in Task 0.2 with full dependency list
-# and build-system configuration.
-
-[build-system]
-requires = ["setuptools>=68.0"]
-build-backend = "setuptools.backends._legacy:_Backend"
