@@ -11,26 +11,24 @@ set -euo pipefail
 
 VENV="/tmp/monai-env/.venv"
 
-# Activate the virtual environment (load PIP_PREFIX_DIR for `pip list`)
-# shellcheck disable=SC1091
 if [[ ! -f "${VENV}/bin/activate" ]]; then
     echo "[FAIL] Virtual environment not found at ${VENV}"
     exit 1
 fi
+# shellcheck disable=SC1091
 source "${VENV}/bin/activate"
 
 PYTHON="${VENV}/bin/python"
-PIP="${VENV}/bin/pip"
 
-# Packages we expect — each value is a display-friendly hint
-declare -A EXPECTED=(
-    ["holoscan-cu13"]="holoscan-cu13"
-    ["cupy-cuda13x"]="cupy-cuda13x"
-    ["rmm-cu13"]="rmm-cu13"
-    ["monai"]="MONAI"
-    ["torch"]="PyTorch"
-    ["pydicom"]="pydicom"
-    ["highdicom"]="highdicom"
+# Packages to check (raw pip package name)
+PACKAGES=(
+    "holoscan-cu13"
+    "cupy-cuda13x"
+    "rmm-cu13"
+    "monai"
+    "torch"
+    "pydicom"
+    "highdicom"
 )
 
 FAILED=0
@@ -42,27 +40,33 @@ echo "  venv: ${VENV}"
 echo "=============================================="
 echo ""
 
-for pkg in "${!EXPECTED[@]}"; do
-    label="${EXPECTED[$pkg]}"
-    # pip list --format=json outputs one JSON object per line
-    result=$("${PIP}" list --format=json 2>/dev/null | python3 -c "
-import sys, json
-target = sys.argv[1]
-for line in sys.stdin:
-    obj = json.loads(line)
-    name = obj['name'].lower().replace('-', '').replace('_', '').replace('.', '')
-    if name == target.lower().replace('-', '').replace('_', '').replace('.', ''):
-        print(obj['version'])
-        sys.exit(0)
-sys.exit(1)
-" "$pkg" 2>/dev/null) || result=""
+for pkg in "${PACKAGES[@]}"; do
+    version=$("${PYTHON}" -c "
+import importlib.metadata, sys
+try:
+    dist = importlib.metadata.distribution(sys.argv[1])
+    print(dist.version)
+except importlib.metadata.PackageNotFoundError:
+    sys.exit(1)
+" "$pkg" 2>/dev/null) || version=""
 
-    if [[ -n "$result" ]]; then
-        printf "[OK]   %-20s v%s\n" "$label" "$result"
-        ((PASS++))
+    if [[ -n "$version" ]]; then
+        printf "[OK]   %-20s v%s\n" "$pkg" "$version"
+        PASS=$((PASS + 1))
     else
-        printf "[MISS] %-20s\n" "$label"
-        ((FAILED++))
+        printf "[MISS] %-20s\n" "$pkg"
+        FAILED=$((FAILED + 1))
+    fi
+done
+
+# Check for conflicting packages
+echo ""
+echo "  Conflict checks:"
+for conflict in "cupy-cuda12x" "holoscan"; do
+    if "${PYTHON}" -c "import importlib.metadata; importlib.metadata.distribution('${conflict}')" 2>/dev/null; then
+        printf "  [WARN] %-20s is installed (should be removed)\n" "$conflict"
+    else
+        printf "  [OK]   %-20s not present\n" "$conflict"
     fi
 done
 
@@ -72,7 +76,7 @@ echo "  Passed: ${PASS}  Missing: ${FAILED}"
 echo "----------------------------------------------"
 
 if [[ ${FAILED} -gt 0 ]]; then
-    echo "[FAIL] ${FAILED} required package(s) missing or not detectable"
+    echo "[FAIL] ${FAILED} required package(s) missing"
     exit 1
 fi
 
