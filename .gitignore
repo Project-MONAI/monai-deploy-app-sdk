@@ -261,3 +261,6 @@ fabric.properties
 
 # Built Visual Studio Code Extensions
 *.vsix
+
+# Vendored nnUNet (cloned without .git, not tracked)
+nnUNet/
