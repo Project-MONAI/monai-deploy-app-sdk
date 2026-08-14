@@ -66,7 +66,7 @@ Phase 0 is a hard prerequisite for all subsequent phases. Phases 1–3 are stric
 
 ### Acceptance Criteria
 
-- [x] `pyproject.toml` exists with all dependencies resolved in the uv venv (`/tmp/monai-env/.venv`) — holoscan-cu13 4.2.0, cupy-cuda13x 13.6.0, rmm-cu13 26.2.0, torch 2.13.0+cu130, monai 1.3.0, nnunetv2 (editable)
+- [x] `pyproject.toml` exists with all dependencies resolved in the uv venv (`/tmp/monai-env/.venv`) — met at pip level (holoscan-cu13 4.2.0, cupy-cuda13x 13.6.0, rmm-cu13 26.2.0, torch 2.13.0+cu130, monai 1.3.0, nnunetv2 editable). ⚠ Import-level failure discovered 2026-08-14: `import monai.deploy` fails (SDK still on pre-4.0 holoscan API) and `holoscan.flow_graphs` lacks GXF runtime libs — see STATE.md Blockers
 - [ ] Reference corpus directory contains ≥5 studies with DICOM-SEG and DICOM-SR ground truth — current state: 1 MR series in `testdata/` (62 dcm; 2 SEG, 1 SR outputs); needs ≥5 CT studies from `cchmc_nnunet_fifteen_ckpt_app`
 - [ ] Baseline benchmark CSV exists at `.planning/baseline_results.csv` with end-to-end latency for each study — missing (task 0.4 script not yet written)
 - [ ] Nsight profiling harness script exists and produces a valid `.sqlite` or `.qdstrm` trace — script ready (`.planning/scripts/nsight_profile.sh`), nsys 2025.6.3 in PATH; demo trace not yet generated
