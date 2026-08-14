@@ -7,7 +7,7 @@
 >
 > Derived from: [REQUIREMENTS.md](./REQUIREMENTS.md), [research/SUMMARY.md](./research/SUMMARY.md), [PROJECT.md](./PROJECT.md)
 >
-> Last updated: 2025-08-13
+> Last updated: 2026-08-14
 
 ---
 
@@ -31,6 +31,8 @@ Phase 0 is a hard prerequisite for all subsequent phases. Phases 1–3 are stric
 ---
 
 ## Phase 0: Foundation
+
+**Status (2026-08-14):** 5/7 tasks done. Tasks 0.1, 0.2, 0.6 ✓ (scaffold, cu13 pins, Nsight harness). Tasks 0.3, 0.4, 0.5 ✗ (no ≥5-study CT corpus, no baseline script, no results CSV). Task 0.7 ✗ currently — RMM smoke test SKIPs due to host driver mismatch (CUDA 12.8 driver vs cu13 runtime). See STATE.md.
 
 **Timeline:** Week 1
 **Goal:** Establish project scaffolding, validated dependencies, and a measurable baseline so that every subsequent phase can prove improvement with hard numbers.
@@ -64,11 +66,11 @@ Phase 0 is a hard prerequisite for all subsequent phases. Phases 1–3 are stric
 
 ### Acceptance Criteria
 
-- [ ] `pyproject.toml` exists with all dependencies resolved in the uv venv (`/tmp/monai-env/.venv`)
-- [ ] Reference corpus directory contains ≥5 studies with DICOM-SEG and DICOM-SR ground truth
-- [ ] Baseline benchmark CSV exists at `.planning/baseline_results.csv` with end-to-end latency for each study
-- [ ] Nsight profiling harness script exists and produces a valid `.sqlite` or `.qdstrm` trace
-- [ ] RMM pool allocator verified active in a smoke-test script
+- [x] `pyproject.toml` exists with all dependencies resolved in the uv venv (`/tmp/monai-env/.venv`) — holoscan-cu13 4.2.0, cupy-cuda13x 13.6.0, rmm-cu13 26.2.0, torch 2.13.0+cu130, monai 1.3.0, nnunetv2 (editable)
+- [ ] Reference corpus directory contains ≥5 studies with DICOM-SEG and DICOM-SR ground truth — current state: 1 MR series in `testdata/` (62 dcm; 2 SEG, 1 SR outputs); needs ≥5 CT studies from `cchmc_nnunet_fifteen_ckpt_app`
+- [ ] Baseline benchmark CSV exists at `.planning/baseline_results.csv` with end-to-end latency for each study — missing (task 0.4 script not yet written)
+- [ ] Nsight profiling harness script exists and produces a valid `.sqlite` or `.qdstrm` trace — script ready (`.planning/scripts/nsight_profile.sh`), nsys 2025.6.3 in PATH; demo trace not yet generated
+- [ ] RMM pool allocator verified active in a smoke-test script — `test_rmm.py` exits SKIP on current host (driver 570.211.01 / CUDA 12.8 too old for cu13 runtime); re-verify after driver fix
 
 ---
 

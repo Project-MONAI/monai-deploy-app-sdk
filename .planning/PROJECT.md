@@ -14,10 +14,11 @@ Target: clinical workflows where single-study latency matters most.
 
 ### Validated
 
-- [x] Phase 0: Foundation — app scaffolded, cu13 dependencies resolved, profiling harness ready, RMM smoke test passing
+(none yet — Phase 0 in progress)
 
 ### Active
 
+- [ ] Phase 0 completion: reference corpus (≥5 CT studies), baseline benchmark + `.planning/baseline_results.csv`, RMM verification — blocked on host driver mismatch (CUDA 12.8 driver vs cu13 runtime; see `.planning/STATE.md`)
 - [ ] Support all nnUNet model configurations (2D, 3D_fullres, 3D_lowres, 3D_cascade_fullres)
 - [ ] Holoscan-native preprocessing operator (resampling, normalization on GPU)
 - [ ] Holoscan-native inference operator (tile-based inference with GPU memory management)
@@ -82,7 +83,7 @@ The nnUNet predictor internally does tiling and preprocessing, but it's not leve
 | nnUNet configs must all work | Generalization is a hard requirement | - Pending |
 
 ---
-*Last updated: 2025-07-19 after initialization*
+*Last updated: 2026-08-14 — progress review: Phase 0 acceptance status corrected (was marked validated 2025-08-13/commit 19b4a94 before driver regression surfaced)*
 
 ## Evolution
 
