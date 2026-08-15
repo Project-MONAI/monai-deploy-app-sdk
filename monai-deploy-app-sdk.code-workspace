@@ -21,6 +21,8 @@
 		"python.formatting.provider": "black",
 		"python.linting.mypyEnabled": true,
 		"python.languageServer": "Pylance",
+		"python.defaultInterpreterPath": "/tmp/monai-env/.venv/bin/python",
+		"python.analysis.extraPaths": ["."],
 		"editor.formatOnSaveMode": "modifications",
 	},
 	"launch": {

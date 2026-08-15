@@ -1,0 +1,4 @@
+{
+    "python.defaultInterpreterPath": "/tmp/monai-env/.venv/bin/python",
+    "python.analysis.extraPaths": ["."]
+}

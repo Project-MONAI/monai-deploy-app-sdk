@@ -39,6 +39,29 @@ exclude = '''
 # NOTE: All relative paths are relative to the location of this file.
 [tool.pyright]
 ignore = ["versioneer.py", "_version.py"]
+# Point static analysis at the project's uv-managed venv (see AGENTS.md).
+venvPath = "/tmp/monai-env"
+venv = ".venv"
+pythonVersion = "3.10"
+pythonPlatform = "Linux"
+include = ["monai", "examples", "tests", "tools"]
+exclude = [
+    "**/node_modules",
+    "**/__pycache__",
+    "nnUNet",
+    "testdata",
+    "monai_deploy_app_sdk.egg-info",
+    "build",
+    "dist",
+    "docs",
+]
+# `monai.deploy` is installed as a PEP 660 strict-editable namespace package;
+# its MetaPathFinder is invisible to static analysis, and this repo's `monai`
+# namespace portion is shadowed by the regular `monai` (MONAI) package in the
+# venv. Runtime imports are verified via .planning/scripts/validate_venv.sh and
+# the venv python. Matches the project's mypy convention
+# (ignore_missing_imports = True, see setup.cfg [mypy]).
+reportMissingImports = "none"
 
 # https://google.github.io/pytype/
 [tool.pytype]
