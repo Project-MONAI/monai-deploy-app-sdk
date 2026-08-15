@@ -12,7 +12,7 @@ See: .planning/PROJECT.md (updated 2026-08-14)
 Phase: 0 of 4 (Foundation)
 Plan: 0 of 0 in current phase (Phase 0 executed ad-hoc, outside the GSD plan/execute cycle)
 Status: Phase 0 partial — 5/7 tasks done; venv stack repaired & importable (2026-08-14); remaining gate is GPU driver
-Last activity: 2026-08-14 - Repaired venv (holoscan-cu13 reinstall: 118 files were missing from install; +holoscan-cli, pydicom 3.0.2, highdicom 0.28.1); full monai.deploy import chain verified; README env-setup section added
+Last activity: 2026-08-15 - Venv repaired + static analysis pointed at venv (commits b2420c0, aa3f9ea); user stepped away to update CUDA driver 12.8→13; resume instructions in "Resume after driver update"
 
 Progress: [░░░░░░░░░░░░░░░░░░░░] 0/0 plans (0%)
 
@@ -65,6 +65,22 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-08-14 18:30
-Stopped at: Problem 1 (GXF libs) solved — root cause was corrupted wheel install, not a missing dependency; venv repaired and import-verified; README + STATE.md updated. Next: driver upgrade (only remaining env blocker), then Phase 0 corpus + baseline tasks
+Last session: 2026-08-15 18:04
+Stopped at: Paused by user to update CUDA driver (12.8 → 13). All code + docs committed on `nnunet-fast`. On return: (1) verify driver + RMM, (2) resume Phase 0 tasks 0.3/0.4/0.5/0.6. See "Resume after driver update" below.
 Resume file: None
+
+## Resume after driver update
+
+1. **Confirm driver:** `nvidia-smi | head -4` → expect `CUDA Version: 13.x` (R580+ driver). A reboot may be required after the driver install.
+2. **Re-run the GPU smoke test** — the single gate for the env blocker:
+   `/tmp/monai-env/.venv/bin/python .planning/scripts/test_rmm.py`
+   - prints `cudaAsync` / passes → driver blocker **cleared**. Update the Blockers section + acceptance row #5 here to ✓, commit.
+   - still `SKIP` / `cudaErrorInsufficientDriver` → driver not effective yet (reboot? wrong driver package?). Fix before continuing.
+3. **Resume Phase 0** — remaining acceptance work:
+   - Task 0.3 — assemble reference corpus (≥5 CT studies from `cchmc_nnunet_fifteen_ckpt_app` + ground-truth DICOM-SEG/SR, checksummed)
+   - Task 0.4 — write baseline benchmark script (CSV: study, total ms, per-stage ms)
+   - Task 0.5 — run it on the reference app → `.planning/baseline_results.csv`
+   - Task 0.6 — generate one demo Nsight trace to prove the harness end-to-end
+4. **Phase gate:** all 5 acceptance criteria ✓ → update ROADMAP traceability + PROJECT.md Validated, then `/gsd-transition` → Phase 1 (Core Pipeline).
+
+> Note: shazam LSP "client not started" noise seen on 2026-08-15 was stale in-process manager state after an external pyright-langserver kill — not a code issue; cleared by a fresh pi session.
