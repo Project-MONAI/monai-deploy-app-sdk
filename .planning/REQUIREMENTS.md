@@ -55,13 +55,15 @@ Requirements for initial release. Each maps to roadmap phases.
 ### Testing — equivalence validation and benchmarks
 
 - [ ] **TEST-01**: The system produces DICOM-SEG output with pixel values that are bit-for-bit identical to the current `cchmc_nnunet_fifteen_ckpt_app` on a validated reference corpus of at least 5 representative CT studies
-  - **Deviation (2026-08-17):** the working corpus is the single airway MR series in `testdata/airway_input` (256 slices, 256×256) with complete SC/SEG/SR ground truth in `testdata/airway_output` (airway model `MRI_NICU-Airway_TRAINv2`; models at `examples/apps/cchmc_nnunet_fifteen_ckpt_app/models`). The ≥5-CT-study bar is deferred to the final Phase 1 acceptance gate. ⚠ Fresh reference-app output differs from historical ground truth (~45 mm world-space COM offset, 0 voxel overlap) — pixel-exact validation should primarily gate against freshly regenerated reference output until the ensemble-config/model-version question is resolved (see STATE.md 2026-08-17). TEST-01 remains **unsatisfied** until re-validated on the full corpus.
+  - **Deviation (2026-08-17):** the working corpus is the single airway MR series in `testdata/airway_input` (256 slices, 256×256) with complete SC/SEG/SR ground truth in `testdata/airway_output` (airway model `MRI_NICU-Airway_TRAINv2`; models at `examples/apps/cchmc_nnunet_fifteen_ckpt_app/models`). The ≥5-CT-study bar is deferred to the final Phase 1 acceptance gate. **RESOLVED 2026-08-17 (20:40 UTC):** the earlier concern that the fresh reference app differs from historical GT (~45 mm world-COM, 0 overlap) was a **decoding artifact** — a fresh run (`testdata/current_output`) is **99.902% byte-identical** to historical GT (segment voxel counts 2430 vs 2447, Δ0.7%), so a freshly regenerated reference is a valid pixel-exact gate target. TEST-01 remains **unsatisfied** until `cchmc-nnunet-fast` itself is validated on the corpus.
 - [ ] **TEST-002**: The system produces DICOM-SR measurements that match the current app to within 0.1% tolerance on the same reference corpus
 - [ ] **TEST-003**: The test suite includes an automated pixel-level diff tool that compares new app output against reference output and fails on any divergence
 - [ ] **TEST-004**: The test suite verifies that all intermediate tensors remain on GPU (`device == 'cuda'`) throughout the pipeline and flags any `.cpu()` or `.numpy()` calls before the final output stage
 - [ ] **TEST-005**: The test suite covers all four nnUNet configurations (2D, 3D_fullres, 3D_lowres, 3D_cascade_fullres) with at least one test case each
-- [ ] **TEST-006**: The system provides a benchmark script that measures end-to-end latency (DICOM input to DICOM-SEG write) and per-operator breakdown for a single study
-- [ ] **TEST-007**: The system provides a benchmark comparison against the current `cchmc_nnunet_fifteen_ckpt_app` on identical hardware and input data, reporting speedup ratio and absolute latency
+- [x] **TEST-006**: The system provides a benchmark script that measures end-to-end latency (DICOM input to DICOM-SEG write) and per-operator breakdown for a single study
+  - **Satisfied (Phase 0, 2026-08-17):** `.planning/scripts/baseline_benchmark.py` measures E2E + per-stage latency (setup/inference/postprocess/write) for a single study → `.planning/baseline_results.csv` (169,747 ± 7,274 ms, n=3).
+- [x] **TEST-007**: The system provides a benchmark comparison against the current `cchmc_nnunet_fifteen_ckpt_app` on identical hardware and input data, reporting speedup ratio and absolute latency
+  - **Baseline satisfied (Phase 0, 2026-08-17):** absolute latency of the current/reference app established (169,747 ± 7,274 ms/study) → `.planning/baseline_results.csv`. The **speedup-ratio** half (new app vs baseline) is completed in Phase 2/3 when the faster pipeline exists — this is a shared requirement (Phases 0/2/3).
 
 ## v2 Requirements
 
@@ -148,8 +150,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | TEST-003 | 1 | Pending |
 | TEST-004 | 1 | Pending |
 | TEST-005 | 2 | Pending |
-| TEST-006 | 0, 1, 2, 3 | Pending |
-| TEST-007 | 0, 2, 3 | Pending |
+| TEST-006 | 0, 1, 2, 3 | **Done (Phase 0)** — baseline_benchmark.py + baseline_results.csv |
+| TEST-007 | 0, 2, 3 | **Baseline done (Phase 0)** — speedup-ratio pending Ph2/3 |
 
 **Coverage:**
 - v1 requirements: 36 total
