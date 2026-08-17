@@ -1010,10 +1010,12 @@ class ModelnnUNetWrapper(torch.nn.Module):
             raise RuntimeError(f"Unable to locate trainer class {trainer_name} in nnunetv2.training.nnUNetTrainer.")
 
         # Build network architecture
+        # NOTE (2026-08-17): adapted to vendored nnunetv2 2.8.1 signature
+        # build_network_architecture(plans_manager, configuration_manager, num_input_channels, num_output_channels, enable_deep_supervision).
+        # Glue-code compatibility fix only — no inference math changed.
         network = trainer_class.build_network_architecture(
-            configuration_manager.network_arch_class_name,
-            configuration_manager.network_arch_init_kwargs,
-            configuration_manager.network_arch_init_kwargs_req_import,
+            plans_manager,
+            configuration_manager,
             num_input_channels,
             plans_manager.get_label_manager(dataset_json).num_segmentation_heads,
             enable_deep_supervision=False,

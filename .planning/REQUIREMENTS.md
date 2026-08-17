@@ -55,6 +55,7 @@ Requirements for initial release. Each maps to roadmap phases.
 ### Testing — equivalence validation and benchmarks
 
 - [ ] **TEST-01**: The system produces DICOM-SEG output with pixel values that are bit-for-bit identical to the current `cchmc_nnunet_fifteen_ckpt_app` on a validated reference corpus of at least 5 representative CT studies
+  - **Deviation (2026-08-17):** the working corpus is the single UTE-MR series in `testdata/input` (62 slices, patient 01153813) with complete SC/SEG(2)/SR ground truth in `testdata/output` (SEG source series UID verified against input). The ≥5-CT-study bar is deferred to the final Phase 1 acceptance gate (or Phase 2) when CT data is supplied. TEST-01 remains **unsatisfied** until re-validated on ≥5 studies.
 - [ ] **TEST-002**: The system produces DICOM-SR measurements that match the current app to within 0.1% tolerance on the same reference corpus
 - [ ] **TEST-003**: The test suite includes an automated pixel-level diff tool that compares new app output against reference output and fails on any divergence
 - [ ] **TEST-004**: The test suite verifies that all intermediate tensors remain on GPU (`device == 'cuda'`) throughout the pipeline and flags any `.cpu()` or `.numpy()` calls before the final output stage
@@ -112,49 +113,49 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| PIPE-01 | | Pending |
-| PIPE-02 | | Pending |
-| PIPE-03 | | Pending |
-| PIPE-04 | | Pending |
-| PIPE-05 | | Pending |
-| PREP-01 | | Pending |
-| PREP-02 | | Pending |
-| PREP-03 | | Pending |
-| PREP-04 | | Pending |
-| PREP-05 | | Pending |
-| INF-001 | | Pending |
-| INF-002 | | Pending |
-| INF-003 | | Pending |
-| INF-004 | | Pending |
-| INF-005 | | Pending |
-| INF-006 | | Pending |
-| INF-007 | | Pending |
-| INF-008 | | Pending |
-| INF-009 | | Pending |
-| INF-010 | | Pending |
-| INF-011 | | Pending |
-| POST-01 | | Pending |
-| POST-02 | | Pending |
-| POST-03 | | Pending |
-| INFR-01 | | Pending |
-| INFR-02 | | Pending |
-| INFR-03 | | Pending |
-| INFR-004 | | Pending |
-| INFR-005 | | Pending |
-| INFR-006 | | Pending |
-| TEST-01 | | Pending |
-| TEST-002 | | Pending |
-| TEST-003 | | Pending |
-| TEST-004 | | Pending |
-| TEST-005 | | Pending |
-| TEST-006 | | Pending |
-| TEST-007 | | Pending |
+| PIPE-01 | 0, 1 | Pending |
+| PIPE-02 | 1 | Pending |
+| PIPE-03 | 2 | Pending |
+| PIPE-04 | 2 | Pending |
+| PIPE-05 | 1 | Pending |
+| PREP-01 | 1, 2 | Pending |
+| PREP-02 | 1, 2 | Pending |
+| PREP-03 | 1 | Pending |
+| PREP-04 | 1, 2 | Pending |
+| PREP-05 | 1 | Pending |
+| INF-001 | 1 | Pending |
+| INF-002 | 1 | Pending |
+| INF-003 | 1 | Pending |
+| INF-004 | 1 | Pending |
+| INF-005 | 1 | Pending |
+| INF-006 | 1 | Pending |
+| INF-007 | 1 | Pending |
+| INF-008 | 1 | Pending |
+| INF-009 | 1, 2 | Pending |
+| INF-010 | 1 | Pending |
+| INF-011 | 1 | Pending |
+| POST-01 | 1 | Pending |
+| POST-02 | 1 | Pending |
+| POST-03 | 1 | Pending |
+| INFR-01 | 0, 2 | Pending |
+| INFR-02 | 2 | Pending |
+| INFR-03 | 2 | Pending |
+| INFR-004 | 2 | Pending |
+| INFR-005 | 0, 1 | Pending |
+| INFR-006 | 1 | Pending |
+| TEST-01 | 1, 2 | Pending (deviation: single-MR-study dev corpus, 2026-08-17) |
+| TEST-002 | 1, 2 | Pending |
+| TEST-003 | 1 | Pending |
+| TEST-004 | 1 | Pending |
+| TEST-005 | 2 | Pending |
+| TEST-006 | 0, 1, 2, 3 | Pending |
+| TEST-007 | 0, 2, 3 | Pending |
 
 **Coverage:**
 - v1 requirements: 36 total
-- Mapped to phases: 0
-- Unmapped: 36 ⚠️
+- Mapped to phases: 36
+- Unmapped: 0
 
 ---
 *Requirements defined: 2025-08-13*
-*Last updated: 2025-08-13 after initial definition*
+*Last updated: 2026-08-17 — traceability matrix synced from ROADMAP.md; TEST-01 corpus deviation documented*

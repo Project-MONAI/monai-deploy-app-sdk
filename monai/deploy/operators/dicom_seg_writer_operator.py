@@ -310,6 +310,33 @@ class DICOMSegmentationWriterOperator(Operator):
             self.create_dicom_seg(seg_image_numpy, dicom_series, output_dir)
             break
 
+    def _to_highdicom_frame_major(self, image: np.ndarray, dicom_series: DICOMSeries) -> np.ndarray:
+        """Normalize a segmentation array to highdicom's expected layout.
+
+        highdicom >= 0.28 expects (num_planes, rows, cols[, channels]); apps
+        typically emit channel-first (1, rows, cols, slices) or rows-first
+        (rows, cols, slices) arrays, which older highdicom accepted directly.
+        Without this normalization, 3D volumes with slices != rows crash the
+        Segmentation constructor with a plane_positions/pixel_measures error.
+        """
+        arr = np.asarray(image)
+        src0 = dicom_series.get_sop_instances()[0].get_native_sop_instance()
+        rows = src0.Rows
+        cols = src0.Columns
+        if arr.ndim == 4 and arr.shape[0] == 1:
+            # channel-first single channel: (1, R, C, S) -> (R, C, S)
+            arr = arr[0]
+        if arr.ndim == 3:
+            if arr.shape[0] == rows and arr.shape[1] == cols:
+                # rows-first volume (R, C, S) -> frame-major (S, R, C)
+                arr = np.transpose(arr, (2, 0, 1))
+            # else: assume already frame-major (S, R, C)
+        elif arr.ndim == 4:
+            if arr.shape[1] == rows and arr.shape[2] == cols and arr.shape[0] != rows:
+                # (R, C, S, segs) -> (S, R, C, segs)
+                arr = np.transpose(arr, (2, 0, 1, 3))
+        return arr
+
     def create_dicom_seg(self, image: np.ndarray, dicom_series: DICOMSeries, output_dir: Path):
         # Generate SOP instance UID, and use it as dcm file name too
         seg_sop_instance_uid = hd.UID()  # generate_uid() can be used too.
@@ -318,6 +345,7 @@ class DICOMSegmentationWriterOperator(Operator):
         output_path = output_dir / f"{seg_sop_instance_uid}{DICOMSegmentationWriterOperator.DCM_EXTENSION}"
 
         dicom_dataset_list = [i.get_native_sop_instance() for i in dicom_series.get_sop_instances()]
+        image = self._to_highdicom_frame_major(image, dicom_series)
 
         try:
             version_str = get_sdk_semver()  # SDK Version

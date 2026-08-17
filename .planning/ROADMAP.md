@@ -32,7 +32,7 @@ Phase 0 is a hard prerequisite for all subsequent phases. Phases 1–3 are stric
 
 ## Phase 0: Foundation
 
-**Status (2026-08-17):** 4/7 tasks done. Tasks 0.1, 0.2, 0.6, 0.7 ✓ (scaffold, cu13 pins, Nsight harness, RMM verified on driver 610.57.04/CUDA 13.3 — A100-SXM4-40GB). Task 0.3 ◐ — testdata/input holds 1 MR series (62 dcm) with complete SC/SEG(2)/SR ground truth in testdata/output (source UIDs match); the ≥5-CT-study criterion is unmet (no CT data in repo). Tasks 0.4, 0.5 ✗ (no baseline script, no results CSV) — no longer driver-gated. See STATE.md.
+**Status (2026-08-17):** Tasks 0.1, 0.2, 0.3, 0.6, 0.7 ✓. 0.3 closed with documented deviation: working corpus is the single UTE-MR series in `testdata/input` (62 slices) with complete SC/SEG(2)/SR ground truth in `testdata/output`; the ≥5-CT-study bar is deferred to the final Phase 1 gate (see TEST-01 deviation in REQUIREMENTS.md). 0.7 verified on driver 610.57.04/CUDA 13.3 (A100-SXM4-40GB, `test_rmm.py` PASSED). Task 0.4 ✓ (`.planning/scripts/baseline_benchmark.py`). Tasks 0.5, 0.6 in progress (baseline runs + demo Nsight trace). See STATE.md.
 
 **Timeline:** Week 1
 **Goal:** Establish project scaffolding, validated dependencies, and a measurable baseline so that every subsequent phase can prove improvement with hard numbers.
@@ -67,8 +67,8 @@ Phase 0 is a hard prerequisite for all subsequent phases. Phases 1–3 are stric
 ### Acceptance Criteria
 
 - [x] `pyproject.toml` exists with all dependencies resolved in the uv venv (`/tmp/monai-env/.venv`) — met at pip level (holoscan-cu13 4.2.0, cupy-cuda13x 13.6.0, rmm-cu13 26.2.0, torch 2.13.0+cu130, monai 1.3.0, nnunetv2 editable). ⚠ Import-level failure discovered 2026-08-14: `import monai.deploy` fails (SDK still on pre-4.0 holoscan API) and `holoscan.flow_graphs` lacks GXF runtime libs — see STATE.md Blockers
-- [ ] Reference corpus directory contains ≥5 studies with DICOM-SEG and DICOM-SR ground truth — current state: 1 MR series in `testdata/` (62 dcm; 2 SEG, 1 SR outputs); needs ≥5 CT studies from `cchmc_nnunet_fifteen_ckpt_app`
-- [ ] Baseline benchmark CSV exists at `.planning/baseline_results.csv` with end-to-end latency for each study — missing (task 0.4 script not yet written)
+- [x] Reference corpus available with ground truth — **deviation (2026-08-17):** single UTE-MR series (62 dcm, patient 01153813) in `testdata/input` with SC/SEG(2)/SR ground truth in `testdata/output` (SEG source UID verified against input). The original ≥5-CT-studies criterion is deferred to the final Phase 1 acceptance gate — see TEST-01 deviation note in REQUIREMENTS.md
+- [ ] Baseline benchmark CSV exists at `.planning/baseline_results.csv` with end-to-end latency for each study — script done (0.4); runs in progress (0.5)
 - [ ] Nsight profiling harness script exists and produces a valid `.sqlite` or `.qdstrm` trace — script ready (`.planning/scripts/nsight_profile.sh`), nsys 2025.6.3 in PATH; demo trace not yet generated
 - [x] RMM pool allocator verified active in a smoke-test script — `test_rmm.py` PASSED 2026-08-17 (driver 610.57.04 / CUDA 13.3, A100-SXM4-40GB; `rmm.allocators.torch` active, backend 'pluggable')
 
@@ -125,7 +125,7 @@ This is the **minimum viable replacement** for `NNUnetSegOperator`. Preprocessin
 
 ### Acceptance Criteria
 
-- [ ] Single-config (`3D_fullres`) pipeline runs end-to-end on all 5 reference studies without errors
+- [ ] Single-config (`3D_fullres`) pipeline runs end-to-end on the reference corpus without errors (dev corpus: 1 MR study per TEST-01 deviation 2026-08-17; final gate must re-run on ≥5 studies once supplied)
 - [ ] DICOM-SEG output is bit-for-bit identical to reference app (pixel diff tool passes)
 - [ ] DICOM-SR measurements match within 0.1% tolerance
 - [ ] No `.cpu()` or `.numpy()` calls between inference output and DICOM-SEG writer (GPU residency test passes)
