@@ -5,7 +5,7 @@
 See: .planning/PROJECT.md (updated 2026-08-14)
 
 **Core value:** Single-study inference latency without sacrificing correctness — CT in, pixel-identical DICOM-SEG out, faster, every intermediate step stays on GPU.
-**Current focus:** Phase 0 CLOSED (2026-08-17, documented deviation) → plan Phase 1 (Core Pipeline)
+**Current focus:** Phase 1 (Core Pipeline) — **PLANNED (5 plans, 4 waves), ready to execute**
 
 ## Current Position
 
@@ -14,7 +14,7 @@ Plan: 1 of 1 in current phase (backfilled `0-foundation-01-PLAN.md`; phase was e
 Status: Phase 0 closed in the GSD cycle 2026-08-17 — 7/7 tasks done, all 5 acceptance criteria ✓ (criterion 2 with documented TEST-01 deviation: single airway MR study; ≥5-CT bar deferred to final Phase 1 gate). VERIFICATION status: passed. GT-mismatch carried finding RESOLVED (fresh reference run = 99.902% byte-identical to historical GT). Credits TEST-006 + TEST-007 (baseline); PIPE-01/INFR-01/INFR-005 partial (scaffold/feasibility, completed in Phases 1–2).
 Last activity: 2026-08-17 20:40 UTC - Phase 0 CLOSED in the GSD cycle. GT-mismatch carried finding RESOLVED (fresh reference run `testdata/current_output` = 99.902% byte-identical to historical `testdata/airway_output`; ~45 mm note was a thin-structure IoU decode artifact). Baseline 169,747 ± 7,274 ms (n=3); Nsight demo trace + RMM verified. Docker deferred to post-Phase-3. GSD backfill: .planning/phases/0-foundation/ (PLAN+SUMMARY+VERIFICATION). Run guide: .planning/scripts/REFERENCE_RUN_GUIDE.md
 
-Progress: [█░░░░░░░░░░░░░░░░░░░] Phase 0/4 complete (1/1 plans); Phase 1 = current, awaiting `/gsd-plan-phase 1`
+Progress: [█░░░░░░░░░░░░░░░░░░░] Phase 0/4 complete; Phase 1 planned (5 plans) — ready for `/gsd-execute-phase 1`
 
 ## Transition Log
 
@@ -83,14 +83,23 @@ Resume file: None
 
 ## Next — Phase 1 (Core Pipeline)
 
-Phase 0 CLOSED 2026-08-17 in the GSD cycle (7/7 tasks, 5/5 acceptance, GSD-backfilled). Next:
+Phase 1 (Core Pipeline) is now **PLANNED** — 5 plans across 4 waves in `.planning/phases/1-core-pipeline/`:
+- **01** (wave 1): PreprocessOperator + GPU handoff contract (PREP-01..05, INF-005)
+- **02** (wave 2): SlideWindowOperator / inference core — model load in setup, TTA order, FP32 accumulator (INF-001..008, INF-011)
+- **03** (wave 2): PostResample + EnsembleAverage (in-memory, no disk) + Postprocess (CC on GPU) (POST-01..03, INF-009/010)
+- **04** (wave 3): DAG assembly in app.py (replace NNUnetSegOperator) + NVTX + timing logs (PIPE-01/02/05, INFR-005/006)
+- **05** (wave 4): validation tools (pixel-diff, GPU-residency) + pixel-exact E2E gate + SR comparison (TEST-01 dev-study, TEST-002..004)
 
-1. **`/gsd-transition` Phase 0 → 1** (Phase 0 is now credit-verified Complete in GSD stats)
-2. **`/gsd-plan-phase 1`** — Core Pipeline. Phase 1 planning must carry these inputs:
-   - **Validation strategy (de-risked):** primary gate = `cchmc-nnunet-fast` vs a **freshly regenerated reference** (`testdata/current_output`), which is **confirmed equal to historical GT** (99.902% byte-identical). Historical `testdata/airway_output` is a valid reference. Re-run the reference any time via `.planning/scripts/REFERENCE_RUN_GUIDE.md`.
-   - Baseline to beat: **169.7 ± 7.3 s/study** (`.planning/baseline_results.csv`); inference ≈ 138 s of that
-   - Models available: 3d_fullres, 3d_lowres, 3d_cascade_fullres (plans.json also lists 2d — absent; gates Phase 2/3 multi-config)
-   - Env hazards: `my_app` editable-install name collision (run apps from their app root); venv monai ptp patches (re-apply after monai reinstall); 32 MB stack requirement
+Scope: single config `3D_fullres`; operators built config-driven so Phase 2 adds 2D/lowres/cascade. Gate = pixel-exact vs freshly regenerated reference (`testdata/current_output` == historical GT).
+
+Next:
+1. **`/gsd-execute-phase 1`** (or `/gsd-execute-plan 1 01` for plan-by-plan). Pre-step: regenerate the reference output via `.planning/scripts/REFERENCE_RUN_GUIDE.md` so plan 05's gate has a target.
+2. Phase 1 planning carried these inputs (already embedded in the plans):
+   - **Validation strategy (de-risked):** primary gate = `cchmc-nnunet-fast` vs a **freshly regenerated reference** (`testdata/current_output`, confirmed equal to historical GT).
+   - Baseline to beat: **169.7 ± 7.3 s/study** (inference ≈ 138 s)
+   - Models available: 3d_fullres, 3d_lowres, 3d_cascade_fullres (2d absent; gates Phase 2/3 multi-config)
+   - Env hazards: `my_app` name collision (run apps from their app root); venv monai ptp patches (re-apply after monai reinstall); 32 MB stack requirement
    - Docker build + container test deferred to post-Phase-3 — validate pythonically in Phase 1
+3. **Carried blocker (not a plan task):** TEST-01's ≥5-CT-study corpus is the final Phase 1 acceptance gate — blocked on CT data. The single airway study (dev) gate is what plans 01–05 verify now.
 
 > Note: shazam LSP "client not started" noise seen on 2026-08-15 was stale in-process manager state after an external pyright-langserver kill — not a code issue; cleared by a fresh pi session.
