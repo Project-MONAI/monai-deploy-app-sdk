@@ -3,8 +3,8 @@
 RMM (RAPIDS Memory Manager) smoke test.
 
 Verifies that:
-1. RMM with a cudaMallocAsync pool allocator can be imported and configured.
-2. PyTorch uses the 'cudaAsync' allocator backend after RMM integration.
+1. RMM with a pool allocator can be imported and configured.
+2. PyTorch can switch to the installed RMM allocator integration when available.
 3. A small GPU tensor can be allocated successfully.
 
 If RMM is not installed the script prints a skip message and exits 0.
@@ -44,14 +44,27 @@ if not torch.cuda.is_available():
     print("[SKIP] No CUDA device available — skipping GPU allocation check")
     sys.exit(0)
 
+rmm_allocator_activated = False
+
 try:
-    torch.cuda.memory.allocators.rmm.RMMAllocatorConfig(
-        pool_allocator=True,
-    )
-    torch.cuda.memory.change_current_allocator("rmm")
-    print("[OK]   PyTorch RMM allocator activated")
+    from rmm.allocators.torch import rmm_torch_allocator
+
+    torch.cuda.memory.change_current_allocator(rmm_torch_allocator)
+    rmm_allocator_activated = True
+    print("[OK]   PyTorch RMM allocator activated via rmm.allocators.torch")
 except Exception as e:
-    print(f"[WARN] Could not set RMM allocator in PyTorch: {e}")
+    try:
+        torch.cuda.memory.allocators.rmm.RMMAllocatorConfig(
+            pool_allocator=True,
+        )
+        torch.cuda.memory.change_current_allocator("rmm")
+        rmm_allocator_activated = True
+        print("[OK]   PyTorch RMM allocator activated via torch.cuda.memory.allocators")
+    except Exception as inner_e:
+        print(
+            "[WARN] Could not set RMM allocator in PyTorch: "
+            f"{e}; fallback path also failed: {inner_e}"
+        )
 
 # ---------------------------------------------------------------------------
 # 4. Allocate a small GPU tensor
@@ -70,12 +83,21 @@ except Exception as e:
 backend = torch.cuda.memory.get_allocator_backend()
 print(f"[INFO] Current allocator backend: '{backend}'")
 
-if backend == "cudaAsync":
+if rmm_allocator_activated and backend in {"pluggable", "cudaAsync"}:
+    print(
+        f"[OK]   Allocator backend is '{backend}' with RMM integration active "
+        "— RMM smoke test PASSED"
+    )
+    sys.exit(0)
+
+if not rmm_allocator_activated and backend == "cudaAsync":
     print("[OK]   Allocator backend is 'cudaAsync' — RMM smoke test PASSED")
     sys.exit(0)
+
 else:
     print(
-        f"[FAIL] Expected backend 'cudaAsync', got '{backend}' — "
+        "[FAIL] Expected an RMM-compatible allocator backend "
+        f"('pluggable' or 'cudaAsync'), got '{backend}' — "
         "RMM integration may not be active"
     )
     sys.exit(1)
