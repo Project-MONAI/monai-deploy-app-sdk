@@ -14,7 +14,11 @@ Plan: 1 of 1 in current phase (backfilled `0-foundation-01-PLAN.md`; phase was e
 Status: Phase 0 closed in the GSD cycle 2026-08-17 — 7/7 tasks done, all 5 acceptance criteria ✓ (criterion 2 with documented TEST-01 deviation: single airway MR study; ≥5-CT bar deferred to final Phase 1 gate). VERIFICATION status: passed. GT-mismatch carried finding RESOLVED (fresh reference run = 99.902% byte-identical to historical GT). Credits TEST-006 + TEST-007 (baseline); PIPE-01/INFR-01/INFR-005 partial (scaffold/feasibility, completed in Phases 1–2).
 Last activity: 2026-08-17 20:40 UTC - Phase 0 CLOSED in the GSD cycle. GT-mismatch carried finding RESOLVED (fresh reference run `testdata/current_output` = 99.902% byte-identical to historical `testdata/airway_output`; ~45 mm note was a thin-structure IoU decode artifact). Baseline 169,747 ± 7,274 ms (n=3); Nsight demo trace + RMM verified. Docker deferred to post-Phase-3. GSD backfill: .planning/phases/0-foundation/ (PLAN+SUMMARY+VERIFICATION). Run guide: .planning/scripts/REFERENCE_RUN_GUIDE.md
 
-Progress: [░░░░░░░░░░░░░░░░░░░░] 0/0 plans (0%)
+Progress: [█░░░░░░░░░░░░░░░░░░░] Phase 0/4 complete (1/1 plans); Phase 1 = current, awaiting `/gsd-plan-phase 1`
+
+## Transition Log
+
+- **2026-08-17 Phase 0 → Phase 1:** gate passed (VERIFICATION passed, 5/5 acceptance, TEST-01 corpus deviation documented). PROJECT.md updated: Phase 0 requirements moved to Validated (TEST-006/TEST-007), cu13/resampling/Docker-deferral/baseline decisions logged. Phase 1 is now active and ready for planning (inputs staged in "Next — Phase 1").
 
 ## Phase 0 Acceptance Status
 
