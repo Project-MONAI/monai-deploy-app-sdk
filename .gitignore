@@ -264,3 +264,7 @@ fabric.properties
 
 # Vendored nnUNet (cloned without .git, not tracked)
 nnUNet/
+
+# App runtime scratch + large model weights (not source)
+examples/apps/cchmc_nnunet_fifteen_ckpt_app/tmp/
+examples/apps/cchmc_nnunet_fifteen_ckpt_app/models/

@@ -62,11 +62,14 @@ if ! command -v nsys &>/dev/null; then
 fi
 
 # ── Run nsys profile ──────────────────────────────────────────────────────────
-# --trace=cuda,nvtx,osrt,cub
-#   cuda   — GPU kernel timeline
-#   nvtx   — NVTX range markers (annotations)
-#   osrt   — OS runtime (CPU threads, syscalls)
-#   cub    — CUDA memcpy / bus utilization
+# --trace=cuda,nvtx,osrt,cublas,cudnn
+#   cuda    — GPU kernel timeline
+#   nvtx    — NVTX range markers (annotations)
+#   osrt    — OS runtime (CPU threads, syscalls)
+#   cublas/cudnn — BLAS/CuDNN API + kernel activity (cuda memcpy via cuda trace)
+#
+# NOTE: nsys >= 2024 renamed the old 'cub' trace category; 'cub' is no longer
+# a valid value (fix 2026-08-17, nsys 2025.6.3).
 #
 # --capture-range=cudaProfilerApi
 #   Start/stop profiling via cudaProfilerStart/Stop — useful when the
@@ -75,7 +78,7 @@ fi
 # --capture-range-end=stop
 #   Stop recording when the last range ends.
 nsys profile \
-    --trace=cuda,nvtx,osrt,cub \
+    --trace=cuda,nvtx,osrt,cublas,cudnn \
     --capture-range=cudaProfilerApi \
     --capture-range-end=stop \
     -o "${OUTPUT_FILE}" \

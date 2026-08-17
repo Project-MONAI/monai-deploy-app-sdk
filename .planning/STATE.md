@@ -5,14 +5,14 @@
 See: .planning/PROJECT.md (updated 2026-08-14)
 
 **Core value:** Single-study inference latency without sacrificing correctness — CT in, pixel-identical DICOM-SEG out, faster, every intermediate step stays on GPU.
-**Current focus:** Phase 0: Foundation — closing remaining acceptance criteria
+**Current focus:** Phase 0 CLOSED (2026-08-17, documented deviation) → plan Phase 1 (Core Pipeline)
 
 ## Current Position
 
-Phase: 0 of 4 (Foundation)
+Phase: 0 of 4 (Foundation) — COMPLETE
 Plan: 0 of 0 in current phase (Phase 0 executed ad-hoc, outside the GSD plan/execute cycle)
-Status: Phase 0 partial — tasks 0.1, 0.2, 0.7 ✓; 0.6 ◐ (harness ready, no demo trace); 0.3 ◐ (1 MR study w/ ground truth, ≥5 CT corpus still missing); 0.4, 0.5 ✗ (driver no longer gates these)
-Last activity: 2026-08-17 - Driver update verified (610.57.04 / CUDA 13.3, A100-SXM4-40GB); test_rmm.py PASSED (pluggable RMM allocator active) — env blocker CLEARED. testdata/ audit: input = 1 MR series (62 dcm, patient 01153813), models = 2d + 3d_fullres 5-fold ensembles + jsonpkls, output = SC(1)+SEG(2)+SR(1) matching input series UID
+Status: Phase 0 accepted 2026-08-17 — 7/7 tasks done, all 5 acceptance criteria ✓ (criterion 2 with documented TEST-01 deviation: single airway MR study; ≥5-CT bar deferred to final Phase 1 gate)
+Last activity: 2026-08-17 - Full close-out: reference app runs E2E on airway testdata (SC/SEG/SR); baseline 169,747 ± 7,274 ms (n=3) → .planning/baseline_results.csv; Nsight demo trace with verified NVTX ranges → .planning/profiles/. Carried finding: fresh reference output ~45 mm from historical GT (world COM) — pixel-exact gate strategy decided in Phase 1 planning
 
 Progress: [░░░░░░░░░░░░░░░░░░░░] 0/0 plans (0%)
 
@@ -20,13 +20,13 @@ Progress: [░░░░░░░░░░░░░░░░░░░░] 0/0 pla
 
 | # | Criterion | Status |
 |---|-----------|--------|
-| 1 | pyproject.toml + all cu13 deps resolved in venv | ✓ met — full import chain verified 2026-08-14 (holoscan-cu13 4.2.0 repaired, holoscan-cli 4.2.0, pydicom 3.0.2, highdicom 0.28.1; monai.deploy.core + all example-app operator imports OK) |
-| 2 | Reference corpus ≥5 CT studies with DICOM-SEG/SR ground truth | ✗ not met — testdata/input holds 1 MR series (62 dcm, patient 01153813) with matching SC+SEG(2)+SR ground truth in testdata/output (SEG SourceSeriesUID == input series UID, verified 2026-08-17); ≥5 CT studies still missing |
-| 3 | Baseline benchmark CSV at .planning/baseline_results.csv | ✗ not met — script (0.4) and CSV both missing |
-| 4 | Nsight harness produces valid trace | ◐ partial — .planning/scripts/nsight_profile.sh + nvtx_markers.py ready, nsys 2025.6.3 in PATH; demo trace not yet generated |
-| 5 | RMM pool allocator verified active | ✓ met — 2026-08-17: driver 610.57.04 (CUDA 13.3), torch.cuda.is_available()=True on A100-SXM4-40GB, test_rmm.py PASSED (rmm.allocators.torch active, backend 'pluggable') |
+| 1 | pyproject.toml + all cu13 deps resolved in venv | ✓ met — import chain verified 2026-08-14; monai 1.3.0 + itk 5.4.7 restored/added 2026-08-17 |
+| 2 | Reference corpus with DICOM-SEG/SR ground truth | ✓ met (deviation) — single airway MR series (256 slices) in `testdata/airway_input` + SC/SEG/SR in `testdata/airway_output`; original ≥5-CT bar deferred to final Phase 1 gate (TEST-01 note) |
+| 3 | Baseline benchmark CSV at .planning/baseline_results.csv | ✓ met — 2026-08-17: 169,747 ± 7,274 ms/study (n=3, warmup excluded); per-stage columns populated |
+| 4 | Nsight harness produces valid trace | ✓ met — demo trace .planning/profiles/nsight_demo_target_20260817_111555.nsys-rep (+.sqlite); NVTX preprocess/inference/postprocess ranges verified in trace |
+| 5 | RMM pool allocator verified active | ✓ met — 2026-08-17: driver 610.57.04 (CUDA 13.3), A100-SXM4-40GB, test_rmm.py PASSED (backend 'pluggable') |
 
-Done: app scaffold (examples/apps/cchmc-nnunet-fast, standard MAP layout, app.py skeleton), cu13 pins (commit 7d5e687), Nsight/NVTX harness (d99deb4), RMM + venv validation scripts (8910ae8, 205fcd3).
+Done: app scaffold (examples/apps/cchmc-nnunet-fast, standard MAP layout, app.py skeleton), cu13 pins (commit 7d5e687), Nsight/NVTX harness (d99deb4), RMM + venv validation scripts (8910ae8, 205fcd3), reference-app E2E env repairs + baseline + demo trace (2026-08-17, commits 668ef0f..e2c38be + close-out).
 
 ## Performance Metrics
 
@@ -54,6 +54,8 @@ Logged in PROJECT.md Key Decisions table. Recent:
 - [Phase 0]: Driver cleared 2026-08-17: host updated to 610.57.04 (CUDA 13.3); A100-SXM4-40GB; test_rmm.py passes (pluggable allocator, not literal 'cudaAsync' string — the criterion's intent, RMM active, is met)
 - [Phase 0]: Reference-app env repairs 2026-08-17 (needed to run the baseline): (1) `nnunet_bundle.py` `build_network_architecture` call adapted to vendored nnunetv2 2.8.1 signature (glue only, no math); (2) venv monai reverted 1.6.0 → 1.3.0 per the app's own pin (`monai[einops]==1.3.0`) — 1.6.0 had drifted in and removed/changed writer plumbing; (3) `itk 5.4.7` installed so MONAI `SaveImaged(output_ext='.dcm')` (SC overlay write) resolves an ITKWriter — MONAI has no native DICOM writer, the original env must have had ITK; (4) patched 2 NumPy-2.0-removed `ndarray.ptp()` call sites in venv monai 1.3.0 (`data/utils.py:906`, `transforms/spatial/functional.py:376` → `np.ptp(arr, axis=1)`) — venv is scratch (/tmp), re-apply after any monai reinstall
 - [Phase 0]: Baseline provenance caveat: testdata/output ground truth was generated by an earlier env (pre-2.8.1 nnunetv2, unknown MONAI). After the repairs, Phase 1 validation should diff the new app against FRESHLY regenerated reference output (same env, same nnunetv2 2.8.1) as the primary gate, with testdata/output as the historical reference
+- [Phase 0, 2026-08-17 evening]: testdata replaced by user with airway-consistent data: `testdata/airway_input` (256 MR slices, 256×256, patient 12345678) + `testdata/airway_output/{SC,SEG,SR}` (1 airway SEG, 256 frames, 2430 voxels); models moved to `examples/apps/cchmc_nnunet_fifteen_ckpt_app/models` = `MRI_NICU-Airway_TRAINv2` (airway=1), configs present: 3d_fullres, 3d_lowres, 3d_cascade_fullres (2d listed in plans.json but absent). Reference app runs end-to-end on it (exit 0, SC/SEG/SR produced, ~124 s).
+- [Phase 0, FINDING — Phase 1 risk]: the reference app does NOT reproduce the airway ground truth pixel-for-pixel: fresh run = 2447 voxels vs GT 2430, zero overlap, world-space center-of-mass offset ~45.5 mm (GT COM [178.4, 182.6, -46.5], new [175.9, 213.3, -13.0]; mapping ambiguity ruled out — all array layouts give the same offset). Likely causes: ensemble config (fresh run = 3d_fullres + 3d_cascade_fullres, 2d absent from models dir), nnunetv2 2.8.1 TTA/averaging behavior, or GT from a different model version. TEST-01's pixel-exact bar vs historical GT is therefore at risk — Phase 1 should gate new-app vs freshly-regenerated-reference as primary, and the ensemble-config question needs resolving before the final gate.
 
 ### Pending Todos
 
@@ -73,14 +75,16 @@ Last session: 2026-08-17 03:55 UTC
 Stopped at: Driver + RMM verified; testdata/ audited (see Decisions 2026-08-17). Awaiting corpus-scope decision (single MR study vs ≥5 CT), then baseline script (0.4/0.5) + demo Nsight trace (0.6).
 Resume file: None
 
-## Resume — remaining Phase 0 work (post-driver-clear, 2026-08-17)
+## Next — Phase 1 (Core Pipeline)
 
-Done: driver 610.57.04/CUDA 13.3 confirmed, A100 visible to torch, test_rmm.py PASSED, testdata audited (input=1 MR series; models=2d+3d_fullres; output=SC/SEG/SR matching input UID).
+Phase 0 closed 2026-08-17 (7/7 tasks, 5/5 acceptance with documented deviation). Next:
 
-1. **Corpus decision (task 0.3):** single MR study in testdata/input with full ground truth vs ≥5 CT studies. If relaxing: document TEST-01 deviation in REQUIREMENTS.md/ROADMAP.md.
-2. Task 0.4 — write baseline benchmark script (CSV: study, total ms, per-stage ms)
-3. Task 0.5 — run it on `cchmc_nnunet_fifteen_ckpt_app` → `.planning/baseline_results.csv`
-4. Task 0.6 — generate one demo Nsight trace to prove the harness end-to-end
-5. **Phase gate:** all 5 acceptance criteria ✓ (or documented deviation) → update ROADMAP traceability + PROJECT.md Validated, then `/gsd-transition` → Phase 1 (Core Pipeline).
+1. `/gsd-plan-phase 1` (or plan-milestone) — Core Pipeline
+2. Phase 1 planning must carry these inputs:
+   - **Validation strategy:** primary gate = new app vs FRESHLY regenerated reference output (same env); historical GT in testdata/airway_output is secondary until the ~45 mm world-COM discrepancy is explained (ensemble-config question: fresh run = 3d_fullres + 3d_cascade_fullres, 2d absent from models dir)
+   - Baseline to beat: **169.7 ± 7.3 s/study** (`.planning/baseline_results.csv`); inference ≈ 138 s of that
+   - Models available: 3d_fullres, 3d_lowres, 3d_cascade_fullres (plans.json also lists 2d — absent)
+   - Env hazards: `my_app` editable-install name collision (run apps from their app root); venv monai ptp patches (re-apply after monai reinstall); 32 MB stack requirement
+3. `/gsd-transition` Phase 0 → 1 after Phase 1 plans exist
 
 > Note: shazam LSP "client not started" noise seen on 2026-08-15 was stale in-process manager state after an external pyright-langserver kill — not a code issue; cleared by a fresh pi session.

@@ -32,7 +32,7 @@ Phase 0 is a hard prerequisite for all subsequent phases. Phases 1–3 are stric
 
 ## Phase 0: Foundation
 
-**Status (2026-08-17):** Tasks 0.1, 0.2, 0.3, 0.6, 0.7 ✓. 0.3 closed with documented deviation: working corpus is the single UTE-MR series in `testdata/input` (62 slices) with complete SC/SEG(2)/SR ground truth in `testdata/output`; the ≥5-CT-study bar is deferred to the final Phase 1 gate (see TEST-01 deviation in REQUIREMENTS.md). 0.7 verified on driver 610.57.04/CUDA 13.3 (A100-SXM4-40GB, `test_rmm.py` PASSED). Task 0.4 ✓ (`.planning/scripts/baseline_benchmark.py`). Tasks 0.5, 0.6 in progress (baseline runs + demo Nsight trace). See STATE.md.
+**Status (2026-08-17, evening):** 7/7 tasks done. 0.1 scaffold ✓, 0.2 cu13 pins ✓, 0.3 corpus ✓ (deviation: single airway MR series `testdata/airway_input`, 256 slices, with SC/SEG/SR ground truth in `testdata/airway_output`; ≥5-CT bar deferred to final Phase 1 gate per TEST-01 note), 0.4 benchmark script ✓ (`.planning/scripts/baseline_benchmark.py`), 0.5 baseline ✓ (`.planning/baseline_results.csv`: **169,747 ± 7,274 ms** per study, n=3, setup ~12.8 s / inference ~138 s / postprocess 9–23 s / write ~1.2 s), 0.6 Nsight harness ✓ (demo trace `.planning/profiles/nsight_demo_target_20260817_111555.nsys-rep` + .sqlite, NVTX ranges verified in trace), 0.7 RMM ✓ (driver 610.57.04/CUDA 13.3, A100-SXM4-40GB). Models at `examples/apps/cchmc_nnunet_fifteen_ckpt_app/models` (`MRI_NICU-Airway_TRAINv2`: 3d_fullres, 3d_lowres, 3d_cascade_fullres; 2d absent). ⚠ Carried finding: fresh reference output is ~45 mm from historical GT (world COM) — see STATE.md 2026-08-17 evening. Phase 0 accepted with documented deviation.
 
 **Timeline:** Week 1
 **Goal:** Establish project scaffolding, validated dependencies, and a measurable baseline so that every subsequent phase can prove improvement with hard numbers.
@@ -67,9 +67,9 @@ Phase 0 is a hard prerequisite for all subsequent phases. Phases 1–3 are stric
 ### Acceptance Criteria
 
 - [x] `pyproject.toml` exists with all dependencies resolved in the uv venv (`/tmp/monai-env/.venv`) — met at pip level (holoscan-cu13 4.2.0, cupy-cuda13x 13.6.0, rmm-cu13 26.2.0, torch 2.13.0+cu130, monai 1.3.0, nnunetv2 editable). ⚠ Import-level failure discovered 2026-08-14: `import monai.deploy` fails (SDK still on pre-4.0 holoscan API) and `holoscan.flow_graphs` lacks GXF runtime libs — see STATE.md Blockers
-- [x] Reference corpus available with ground truth — **deviation (2026-08-17):** single UTE-MR series (62 dcm, patient 01153813) in `testdata/input` with SC/SEG(2)/SR ground truth in `testdata/output` (SEG source UID verified against input). The original ≥5-CT-studies criterion is deferred to the final Phase 1 acceptance gate — see TEST-01 deviation note in REQUIREMENTS.md
-- [ ] Baseline benchmark CSV exists at `.planning/baseline_results.csv` with end-to-end latency for each study — script done (0.4); runs in progress (0.5)
-- [ ] Nsight profiling harness script exists and produces a valid `.sqlite` or `.qdstrm` trace — script ready (`.planning/scripts/nsight_profile.sh`), nsys 2025.6.3 in PATH; demo trace not yet generated
+- [x] Reference corpus available with ground truth — **deviation (2026-08-17):** single airway MR series (256 slices) in `testdata/airway_input` with SC/SEG/SR ground truth in `testdata/airway_output`; the original ≥5-CT-studies criterion is deferred to the final Phase 1 acceptance gate — see TEST-01 deviation note in REQUIREMENTS.md. ⚠ Ground truth vs fresh reference-app output: ~45 mm world-space COM offset (ensemble-config / model-version question — see STATE.md)
+- [x] Baseline benchmark CSV exists at `.planning/baseline_results.csv` with end-to-end latency for each study — 169,747 ± 7,274 ms (n=3, 2026-08-17; setup ~12.8 s, inference ~138 s, postprocess 9–23 s, write ~1.2 s)
+- [x] Nsight profiling harness script exists and produces a valid trace — demo trace `.planning/profiles/nsight_demo_target_20260817_111555.nsys-rep` (+ .sqlite) generated 2026-08-17; NVTX ranges (preprocess/inference/postprocess) verified inside the trace. Harness fix: `--trace=cub` → `cublas,cudnn` (nsys 2025.6.3)
 - [x] RMM pool allocator verified active in a smoke-test script — `test_rmm.py` PASSED 2026-08-17 (driver 610.57.04 / CUDA 13.3, A100-SXM4-40GB; `rmm.allocators.torch` active, backend 'pluggable')
 
 ---
