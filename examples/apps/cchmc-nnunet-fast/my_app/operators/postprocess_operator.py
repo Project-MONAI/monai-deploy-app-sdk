@@ -63,9 +63,11 @@ from monai.deploy.core import Image, Operator, OperatorSpec
 try:  # package-style import (my_app.*)
     from my_app.config import find_jsonpkls_dir
     from my_app.operators.gpu_util import GpuTiming, assert_cuda_available, assert_on_gpu, nvtx_range
+    from my_app.operators.sc_overlay import write_sc_overlay
 except ImportError:  # flat import (my_app dir on sys.path, as the app runner provides)
     from config import find_jsonpkls_dir
     from gpu_util import GpuTiming, assert_cuda_available, assert_on_gpu, nvtx_range
+    from sc_overlay import write_sc_overlay
 
 __all__ = [
     "PostprocessOperator",
@@ -332,12 +334,17 @@ class PostprocessOperator(Operator):
             ``DICOMSegmentationWriterOperator``.
         result_text: the airway volume text for DICOM SR
             (e.g. ``"Airway Volume: 1 mL"``).
+        dicom_sc_dir: the temp directory holding the generated DICOM SC
+            overlay ``.dcm`` (LabelToContour + jet colormap + alpha blend,
+            ``SaveImaged(.dcm)`` — reference-parity), consumed by the custom
+            ``DICOMSCWriterOperator``.
     """
 
     INPUT_SEG = "seg"
     INPUT_IMAGE = "image"
     OUTPUT_SEG = "seg"
     OUTPUT_TEXT = "result_text"
+    OUTPUT_SC_DIR = "dicom_sc_dir"
 
     def __init__(
         self,
@@ -347,6 +354,7 @@ class PostprocessOperator(Operator):
         applied_labels: Sequence[int] = (1,),
         label_names: Optional[Dict[int, str]] = None,
         output_labels: Sequence[int] = (1,),
+        output_folder: Optional[Union[str, Any]] = None,
         **kwargs: Any,
     ):
         """Create the operator.
@@ -361,6 +369,10 @@ class PostprocessOperator(Operator):
                 app: ``{"background": 0, "airway": 1}``).
             output_labels: labels included in the SR text (reference app:
                 ``[1]``).
+            output_folder: base output directory; the SC overlay ``.dcm`` is
+                written to ``output_folder / "temp"`` (reference-app
+                behavior: the temp dir is consumed and removed by the
+                ``DICOMSCWriterOperator``).
         """
         # NOTE: holoscan 4.2's Operator.__init__ invokes self.setup(spec)
         # before this constructor body finishes — initialize all state first.
@@ -369,6 +381,7 @@ class PostprocessOperator(Operator):
         self.applied_labels = tuple(int(l) for l in applied_labels)
         self.label_names: Dict[int, str] = dict(label_names or {0: "background", 1: "airway"})
         self.output_labels = tuple(int(l) for l in output_labels)
+        self.output_folder = Path(output_folder) if output_folder is not None else None
         self._rules: Optional[List[Dict[str, Any]]] = None
         super().__init__(fragment, *args, **kwargs)
 
@@ -378,6 +391,7 @@ class PostprocessOperator(Operator):
         spec.input(self.INPUT_IMAGE)
         spec.output(self.OUTPUT_SEG)
         spec.output(self.OUTPUT_TEXT)
+        spec.output(self.OUTPUT_SC_DIR)
         self._load_rules()
 
     def _load_rules(self) -> List[Dict[str, Any]]:
@@ -405,6 +419,35 @@ class PostprocessOperator(Operator):
         if tensor.ndim == 3:
             return tensor
         raise ValueError(f"expected a (Z, Y, X) or (1, Z, Y, X) seg tensor, got ndim={tensor.ndim}.")
+
+    def _write_sc_output(self, seg_cpu: np.ndarray, image: Image) -> Path:
+        """Generate the DICOM SC overlay ``.dcm`` in the temp SC directory.
+
+        Reference-parity side output: LabelToContour contours of the
+        ``output_labels`` over the original image, jet colormap, alpha blend,
+        ``SaveImaged(output_ext='.dcm', output_dtype=int16)`` (see
+        ``sc_overlay.write_sc_overlay``). The custom ``DICOMSCWriterOperator``
+        consumes the returned directory (exactly one ``.dcm``) and removes it.
+        """
+        if self.output_folder is None:
+            raise RuntimeError(
+                "PostprocessOperator requires output_folder to emit the 'dicom_sc_dir' output."
+            )
+        metadata = image.metadata()
+        affine = np.asarray(metadata.get("nifti_affine_transform"))
+        if affine.size == 0 or tuple(affine.shape) != (4, 4):
+            raise ValueError(
+                "Image metadata is missing a 4x4 'nifti_affine_transform'; "
+                "cannot write the SC overlay."
+            )
+        image_volume = np.asarray(image.asnumpy())
+        if image_volume.shape != seg_cpu.shape:
+            raise ValueError(
+                f"SC overlay shape mismatch: image {image_volume.shape} vs seg {seg_cpu.shape}."
+            )
+        sc_temp_dir = self.output_folder / "temp"
+        write_sc_overlay(seg_cpu, image_volume, self.output_labels, affine, sc_temp_dir)
+        return sc_temp_dir
 
     @staticmethod
     def _voxel_volume_mm3(image: Image) -> float:
@@ -467,5 +510,9 @@ class PostprocessOperator(Operator):
             self._logger.info("postprocess timing: %s", json.dumps(record))
             self._logger.info("result text: %s", result_text)
 
+            # SC side output: reference-parity overlay .dcm in the temp dir.
+            dicom_sc_dir = self._write_sc_output(seg_cpu, image)
+
             op_output.emit(seg_cpu, self.OUTPUT_SEG)
             op_output.emit(result_text, self.OUTPUT_TEXT)
+            op_output.emit(dicom_sc_dir, self.OUTPUT_SC_DIR)

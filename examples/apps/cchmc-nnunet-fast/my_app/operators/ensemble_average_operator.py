@@ -199,26 +199,42 @@ class EnsembleAverageOperator(Operator):
     Named Outputs:
         averaged_probabilities: zero-copy GPU tensor (``holoscan.core.Tensor``)
             with the element-wise float32 mean ``(C, Z, Y, X)``.
-
-    The argmax to a segmentation is deliberately NOT part of this operator's
-    output contract — callers apply :func:`argmax_to_segmentation` to the
-    averaged probabilities (argmax-after-average, matching the reference
-    ``EnsembleProbabilitiesToSegmentation``).
+        seg: zero-copy GPU tensor with the uint8 segmentation obtained by
+            :func:`argmax_to_segmentation` on the averaged probabilities
+            (argmax-after-average, matching the reference
+            ``EnsembleProbabilitiesToSegmentation``). This is the output the
+            DAG wires into ``PostprocessOperator``.
     """
 
     INPUT_PROBABILITIES = "probabilities"
     OUTPUT_AVERAGED = "averaged_probabilities"
+    OUTPUT_SEG = "seg"
 
-    def __init__(self, fragment: Any, *args: Any, **kwargs: Any):
+    def __init__(
+        self,
+        fragment: Any,
+        *args: Any,
+        emit_averaged_probabilities: bool = True,
+        **kwargs: Any,
+    ):
         # NOTE: holoscan 4.2's Operator.__init__ invokes self.setup(spec)
         # before this constructor body finishes — initialize all state first.
         self._logger = logging.getLogger(f"{__name__}.{type(self).__name__}")
+        self._emit_averaged = bool(emit_averaged_probabilities)
         super().__init__(fragment, *args, **kwargs)
 
     def setup(self, spec: OperatorSpec) -> None:
-        """Declare the operator's I/O: probabilities in, averaged out."""
+        """Declare the operator's I/O: probabilities in, averaged + seg out.
+
+        ``averaged_probabilities`` is declared only when
+        ``emit_averaged_probabilities`` is True: a declared output with no
+        downstream receiver makes the GXF scheduler reject the entity (no
+        receiver connected to the transmitter), so the DAG wires only ``seg``.
+        """
         spec.input(self.INPUT_PROBABILITIES)
-        spec.output(self.OUTPUT_AVERAGED)
+        if self._emit_averaged:
+            spec.output(self.OUTPUT_AVERAGED)
+        spec.output(self.OUTPUT_SEG)
 
     def compute(self, op_input: Any, op_output: Any, context: Any) -> None:
         """Mean the per-config probability volumes in GPU memory (no disk)."""
@@ -241,9 +257,16 @@ class EnsembleAverageOperator(Operator):
 
             averaged = average_probabilities(tensors)
 
-            # Exit guard: the emitted buffer must be CUDA-resident FP32.
+            # Exit guard: the emitted buffers must be CUDA-resident FP32/uint8.
             assert_on_gpu(averaged)
-            op_output.emit(to_holoscan_gpu_tensor(averaged), self.OUTPUT_AVERAGED)
+            if self._emit_averaged:
+                op_output.emit(to_holoscan_gpu_tensor(averaged), self.OUTPUT_AVERAGED)
+
+            # Argmax AFTER averaging (INF-009) — the uint8 segmentation the
+            # DAG wires into PostprocessOperator.
+            seg = argmax_to_segmentation(averaged)
+            assert_on_gpu(seg)
+            op_output.emit(to_holoscan_gpu_tensor(seg), self.OUTPUT_SEG)
 
             record = timing.stop()
             record["n_configs"] = len(tensors)

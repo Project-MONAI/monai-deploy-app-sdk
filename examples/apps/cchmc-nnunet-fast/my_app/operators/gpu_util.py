@@ -28,7 +28,33 @@ from typing import Any, Dict, Iterator, Optional
 
 import torch
 
-__all__ = ["assert_cuda_available", "assert_on_gpu", "nvtx_range", "GpuTiming"]
+__all__ = [
+    "assert_cuda_available",
+    "assert_on_gpu",
+    "nvtx_range",
+    "GpuTiming",
+    "set_study_id",
+    "get_study_id",
+    "StudyTimingCollector",
+]
+
+# Per-fragment study identity. The DAG carries no explicit study-uid input on
+# every edge, and holoscan 4.2's Python API exposes no compute-context user
+# data, so the operator that sees the DICOM Image first (PreprocessOperator,
+# which runs before all downstream GPU operators by DAG order) registers the
+# study uid here; the other operators of the same fragment read it for their
+# timing records. Valid for this app's single-study-per-run scope.
+_study_by_fragment: Dict[int, str] = {}
+
+
+def set_study_id(fragment: Any, study_id: str) -> None:
+    """Register the current study identifier for a fragment (see module note)."""
+    _study_by_fragment[id(fragment)] = str(study_id)
+
+
+def get_study_id(fragment: Any, default: str = "unknown") -> str:
+    """Return the study identifier registered for ``fragment`` (or ``default``)."""
+    return _study_by_fragment.get(id(fragment), default)
 
 
 def assert_cuda_available() -> None:
@@ -125,3 +151,34 @@ class GpuTiming:
         if self.record is None:
             self.stop()
         return json.dumps(self.record)
+
+
+class StudyTimingCollector:
+    """Accumulates per-operator timing records per fragment for the
+    end-of-run per-study latency aggregate (INFR-006).
+
+    Records are JSON-serializable dicts (``GpuTiming.stop()`` output plus an
+    ``operator``/``study`` field). The Application logs one aggregate per
+    study after the run completes.
+    """
+
+    _records: Dict[int, List[Dict[str, Any]]] = {}
+
+    @classmethod
+    def record(cls, fragment: Any, record: Dict[str, Any]) -> None:
+        cls._records.setdefault(id(fragment), []).append(dict(record))
+
+    @classmethod
+    def studies(cls, fragment: Any) -> Dict[str, List[Dict[str, Any]]]:
+        """Group the fragment's records by their ``study`` field."""
+        grouped: Dict[str, List[Dict[str, Any]]] = {}
+        for r in cls._records.get(id(fragment), []):
+            grouped.setdefault(r.get("study", "unknown"), []).append(r)
+        return grouped
+
+    @classmethod
+    def clear(cls, fragment: Any = None) -> None:
+        if fragment is None:
+            cls._records.clear()
+        else:
+            cls._records.pop(id(fragment), None)

@@ -9,20 +9,143 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+"""cchmc-nnunet-fast application: GPU-resident nnU-Net pipeline.
+
+DAG (Phase 1, single config ``3d_fullres``):
+
+    DICOMDataLoaderOperator
+      -> DICOMSeriesSelectorOperator
+        -> DICOMSeriesToVolumeOperator
+          -> PreprocessOperator -> SlideWindowOperator
+             -> PostResampleOperator -> EnsembleAverageOperator
+                -> PostprocessOperator
+                  -> DICOMSegmentationWriterOperator (SEG)
+                  -> DICOMTextSRWriterOperator       (SR)
+                  -> DICOMSCWriterOperator           (SC)
+
+The monolithic ``NNUnetSegOperator`` of the reference app is replaced by the
+five-operator chain ``Preprocess -> SlideWindow -> PostResample ->
+EnsembleAverage -> Postprocess``; the SDK DICOM I/O operators are unchanged
+(no SDK core edits — the writers are only subclassed here for structured
+timing/NVTX observability).
+"""
+
+import json
 import logging
 from pathlib import Path
 
+# pydicom SR coded dictionary — direct import (not part of the App SDK package)
+from pydicom.sr.codedict import codes
+
+from monai.deploy.conditions import CountCondition
 from monai.deploy.core import Application
+from monai.deploy.operators.dicom_data_loader_operator import DICOMDataLoaderOperator
+from monai.deploy.operators.dicom_seg_writer_operator import DICOMSegmentationWriterOperator, SegmentDescription
+from monai.deploy.operators.dicom_series_to_volume_operator import DICOMSeriesToVolumeOperator
+from monai.deploy.operators.dicom_text_sr_writer_operator import (
+    DICOMTextSRWriterOperator,
+    EquipmentInfo,
+    ModelInfo,
+)
+
+try:  # package-style import (my_app.*)
+    from my_app.operators import (
+        DICOMSCWriterOperator,
+        DICOMSeriesSelectorOperator,
+        EnsembleAverageOperator,
+        GpuTiming,
+        PostprocessOperator,
+        PostResampleOperator,
+        PreprocessOperator,
+        SlideWindowOperator,
+        StudyTimingCollector,
+        get_study_id,
+        nvtx_range,
+    )
+except ImportError:  # flat import (my_app dir on sys.path, as the app runner provides)
+    from operators import (
+        DICOMSCWriterOperator,
+        DICOMSeriesSelectorOperator,
+        EnsembleAverageOperator,
+        GpuTiming,
+        PostprocessOperator,
+        PostResampleOperator,
+        PreprocessOperator,
+        SlideWindowOperator,
+        StudyTimingCollector,
+        get_study_id,
+        nvtx_range,
+    )
+
+# nnU-Net plans.json configuration (Phase 1: single config)
+CONFIG_NAME = "3d_fullres"
+
+# output_labels: which segmentations are desired in the DICOM SEG / SR / SC
+# outputs — 1 = airway
+OUTPUT_LABELS = [1]
+
+# general algorithm information (DICOM VR LO type, 64-char limit)
+_ALGORITHM_NAME = "CCHMC_nnunet_airway_fast"
+_ALGORITHM_FAMILY = codes.DCM.ArtificialIntelligence
+_ALGORITHM_VERSION = "1.0.0"
+_MAP_UID = "1.0.0"
+
+_DEFAULT_LABEL_NAMES = {0: "background", 1: "airway"}
+
+
+def timed_writer_compute(operator, base_class, name, op_input, op_output, context):
+    """Shared compute wrapper for the timed writer subclasses: NVTX range +
+    a structured timing record (INFR-005/INFR-006) around the unmodified SDK
+    writer compute (subclassed, never edited)."""
+    with nvtx_range(name):
+        timing = GpuTiming(name)
+        timing.start()
+        try:
+            return base_class.compute(operator, op_input, op_output, context)
+        finally:
+            record = timing.stop()
+            record["study"] = get_study_id(operator)
+            StudyTimingCollector.record(operator, record)
+            # the SDK SEG writer does not define _logger; fall back to module logger
+            logger = getattr(operator, "_logger", None) or logging.getLogger(f"timed_{type(operator).__name__}")
+            logger.info("timing: %s", json.dumps(record))
+
+
+class TimedDICOMSegmentationWriterOperator(DICOMSegmentationWriterOperator):
+    """SDK SEG writer with an NVTX range + structured timing record."""
+
+    def compute(self, op_input, op_output, context):
+        return timed_writer_compute(
+            self, DICOMSegmentationWriterOperator, "write_seg", op_input, op_output, context
+        )
+
+
+class TimedDICOMTextSRWriterOperator(DICOMTextSRWriterOperator):
+    """SDK SR writer with an NVTX range + structured timing record."""
+
+    def compute(self, op_input, op_output, context):
+        return timed_writer_compute(
+            self, DICOMTextSRWriterOperator, "write_sr", op_input, op_output, context
+        )
+
+
+class TimedDICOMSCWriterOperator(DICOMSCWriterOperator):
+    """Custom SC writer with an NVTX range + structured timing record."""
+
+    def compute(self, op_input, op_output, context):
+        return timed_writer_compute(
+            self, DICOMSCWriterOperator, "write_sc", op_input, op_output, context
+        )
 
 
 class CCHMCNNUnetFastApp(Application):
     """Fast-track nnU-Net segmentation app for CCHMC models.
 
-    This application loads DICOM input, performs inference using an nnU-Net
-    model, and writes segmentation outputs (DICOM SEG, SR, and Secondary Capture).
-
-    The full pipeline (operators, flows, and output writers) will be implemented
-    in Phase 1. This skeleton provides the app shell and compose() hook.
+    Loads DICOM input, performs GPU-resident nnU-Net inference through the
+    five-operator chain (preprocess, sliding-window inference, post-resample,
+    ensemble average, postprocess), and writes segmentation outputs (DICOM
+    SEG, SR, and Secondary Capture). Every operator emits structured timing
+    records; an aggregated per-study latency summary is logged after the run.
     """
 
     def __init__(self, *args, **kwargs):
@@ -31,38 +154,205 @@ class CCHMCNNUnetFastApp(Application):
         super().__init__(*args, **kwargs)
 
     def run(self, *args, **kwargs):
-        """Entry point — delegates to the base Application runner."""
+        """Entry point — delegates to the base Application runner, then logs
+        the aggregated per-study timing summary (preprocess / inference /
+        postprocess / write)."""
         self._logger.info(f"Begin {self.run.__name__}")
         super().run(*args, **kwargs)
+        self._log_study_timing_summaries()
         self._logger.info(f"End {self.run.__name__}")
 
-    def compose(self):
-        """Creates the app-specific operators and chains them into a processing DAG.
+    def _log_study_timing_summaries(self):
+        """Emit one aggregate latency record per study (INFR-006)."""
+        for study, records in StudyTimingCollector.studies(self).items():
+            per_operator = {}
+            for r in records:
+                per_operator[r["operator"]] = r["duration_ms"]
+            aggregate = {
+                "study": study,
+                "operators": per_operator,
+                "total_ms": round(sum(r["duration_ms"] for r in records), 3),
+                "n_records": len(records),
+            }
+            self._logger.info("study_timing_summary: %s", json.dumps(aggregate))
 
-        TODO (Phase 1): Instantiate operators (DICOM loader, series selector,
-        volume converter, nnU-Net inference, output writers) and connect them
-        via self.add_flow().
-        """
+    def compose(self):
+        """Creates the app-specific operators and chains them into the
+        processing DAG."""
         logging.info(f"Begin {self.compose.__name__}")
 
-        # Initialize app context from command-line / env
+        # Use command-line options over environment variables to init context
         app_context = Application.init_app_context(self.argv)
-        _app_input_path = Path(app_context.input_path)
-        _app_output_path = Path(app_context.output_path)
-        _model_path = Path(app_context.model_path)
+        app_input_path = Path(app_context.input_path)
+        app_output_path = Path(app_context.output_path)
+        model_path = Path(app_context.model_path)
 
-        # --- Placeholder: pipeline operators go here ---
-        # study_loader_op = DICOMDataLoaderOperator(...)
-        # series_selector_op = ...
-        # series_to_vol_op = ...
-        # inference_op = ...
-        # dicom_seg_writer = ...
-        #
-        # self.add_flow(study_loader_op, series_selector_op, {...})
-        # ...
+        # Temporary bug fix for MAP execution where model path copy is messed
+        # up — check for a 'models' subfolder and use it if present (same as
+        # the reference app).
+        models_subfolder = model_path / "models"
+        if models_subfolder.exists() and models_subfolder.is_dir():
+            self._logger.info(f"Found 'models' subfolder in {model_path}. Setting model_path to {models_subfolder}")
+            model_path = models_subfolder
+
+        # --- DICOM I/O (SDK, unchanged) ---
+        study_loader_op = DICOMDataLoaderOperator(
+            self, CountCondition(self, 1), input_folder=app_input_path, name="study_loader_op"
+        )
+
+        # custom DICOM Series Selector op (copied from the reference app);
+        # all_matched + SOP sorting: downstream runs on the 1st selected series
+        series_selector_op = DICOMSeriesSelectorOperator(
+            self, rules=Sample_Rules_Text, all_matched=True, sort_by_sop_instance_count=True,
+            name="series_selector_op",
+        )
+
+        series_to_vol_op = DICOMSeriesToVolumeOperator(self, name="series_to_vol_op")
+
+        # --- New GPU operator chain (replaces NNUnetSegOperator) ---
+        preprocess_op = PreprocessOperator(
+            self, model_path=model_path, config_name=CONFIG_NAME, name="preprocess_op"
+        )
+        slidewindow_op = SlideWindowOperator(
+            self, model_path=model_path, config_name=CONFIG_NAME, name="slidewindow_op"
+        )
+        postresample_op = PostResampleOperator(self, name="postresample_op")
+        # averaged_probabilities has no consumer in the DAG (postprocess
+        # consumes the uint8 seg) — disable that output or the GXF scheduler
+        # rejects the entity (declared output with no downstream receiver).
+        ensemble_op = EnsembleAverageOperator(
+            self, emit_averaged_probabilities=False, name="ensemble_average_op"
+        )
+        postprocess_op = PostprocessOperator(
+            self,
+            model_path=model_path,
+            applied_labels=tuple(OUTPUT_LABELS),
+            label_names=_DEFAULT_LABEL_NAMES,
+            output_labels=tuple(OUTPUT_LABELS),
+            output_folder=app_output_path,
+            name="postprocess_op",
+        )
+
+        # --- Writers (subclassed for timing; SDK behavior unmodified) ---
+        # SEG writer: segment description for the airway segment
+        segment_descriptions = [
+            SegmentDescription(
+                segment_label="Airway",
+                segmented_property_category=codes.SCT.BodyStructure,
+                segmented_property_type=codes.SCT.TracheaAndBronchus,
+                algorithm_name=_ALGORITHM_NAME,
+                algorithm_family=_ALGORITHM_FAMILY,
+                algorithm_version=_ALGORITHM_VERSION,
+            ),
+        ]
+
+        my_model_info = ModelInfo(
+            creator="CCHMC",
+            name=_ALGORITHM_NAME,
+            version=_ALGORITHM_VERSION,
+            uid=_MAP_UID,
+        )
+        my_equipment = EquipmentInfo(
+            manufacturer="The MONAI Consortium",
+            manufacturer_model="MONAI Deploy App SDK",
+            software_version_number="3.0.0",
+        )
+
+        custom_tags_seg = {
+            "SeriesDescription": "AI Generated DICOM SEG; Not for Clinical Use.",
+            "AlgorithmName": f"{my_model_info.name}:{my_model_info.version}:{my_model_info.uid}",
+        }
+        custom_tags_sr = {
+            "SeriesDescription": "AI Generated DICOM SR; Not for Clinical Use.",
+            "AlgorithmName": f"{my_model_info.name}:{my_model_info.version}:{my_model_info.uid}",
+        }
+        custom_tags_sc = {
+            "SeriesDescription": "AI Generated DICOM Secondary Capture; Not for Clinical Use.",
+            "AlgorithmName": f"{my_model_info.name}:{my_model_info.version}:{my_model_info.uid}",
+        }
+
+        dicom_seg_writer = TimedDICOMSegmentationWriterOperator(
+            self,
+            segment_descriptions=segment_descriptions,
+            model_info=my_model_info,
+            custom_tags=custom_tags_seg,
+            output_folder=app_output_path / "SEG",
+            # keep input/output series #s aligned (reference-app setting)
+            omit_empty_frames=False,
+            name="dicom_seg_writer",
+        )
+
+        dicom_sr_writer = TimedDICOMTextSRWriterOperator(
+            self,
+            # copy DICOM attributes so the SR carries the same Study UID
+            copy_tags=True,
+            model_info=my_model_info,
+            equipment_info=my_equipment,
+            custom_tags=custom_tags_sr,
+            output_folder=app_output_path / "SR",
+            name="dicom_sr_writer",
+        )
+
+        dicom_sc_writer = TimedDICOMSCWriterOperator(
+            self,
+            model_info=my_model_info,
+            equipment_info=my_equipment,
+            custom_tags=custom_tags_sc,
+            output_folder=app_output_path / "SC",
+            name="dicom_sc_writer",
+        )
+
+        # --- DAG wiring ---
+        self.add_flow(study_loader_op, series_selector_op, {("dicom_study_list", "dicom_study_list")})
+        self.add_flow(
+            series_selector_op,
+            series_to_vol_op,
+            {("study_selected_series_list", "study_selected_series_list")},
+        )
+
+        # volume -> preprocess -> slidewindow -> postresample -> ensemble -> postprocess
+        self.add_flow(series_to_vol_op, preprocess_op, {("image", "image")})
+        self.add_flow(preprocess_op, slidewindow_op, {("preprocessed", "preprocessed")})
+        self.add_flow(preprocess_op, postresample_op, {("preprocessed_meta", "preprocessed_meta")})
+        self.add_flow(slidewindow_op, postresample_op, {("logits", "logits")})
+        self.add_flow(postresample_op, ensemble_op, {("probabilities", "probabilities")})
+        self.add_flow(ensemble_op, postprocess_op, {("seg", "seg")})
+        # the original image is also needed by postprocess (SR voxel volume +
+        # SC overlay)
+        self.add_flow(series_to_vol_op, postprocess_op, {("image", "image")})
+
+        # DICOM SEG: selected series + final segmentation
+        self.add_flow(
+            series_selector_op,
+            dicom_seg_writer,
+            {("study_selected_series_list", "study_selected_series_list")},
+        )
+        self.add_flow(postprocess_op, dicom_seg_writer, {("seg", "seg_image")})
+
+        # DICOM SR: selected series + result text
+        self.add_flow(
+            series_selector_op,
+            dicom_sr_writer,
+            {("study_selected_series_list", "study_selected_series_list")},
+        )
+        self.add_flow(postprocess_op, dicom_sr_writer, {("result_text", "text")})
+
+        # DICOM SC: selected series + temp SC dir (overlay .dcm)
+        self.add_flow(
+            series_selector_op,
+            dicom_sc_writer,
+            {("study_selected_series_list", "study_selected_series_list")},
+        )
+        self.add_flow(postprocess_op, dicom_sc_writer, {("dicom_sc_dir", "dicom_sc_dir")})
 
         logging.info(f"End {self.compose.__name__}")
 
+
+# Series selection rules (JSON). Empty = no attribute conditions: with
+# all_matched=True every series in the study is selected and downstream
+# operators run on the 1st selected series (reference-app behavior).
+Sample_Rules_Text = """
+"""
 
 if __name__ == "__main__":
     logging.info(f"Begin {__name__}")
