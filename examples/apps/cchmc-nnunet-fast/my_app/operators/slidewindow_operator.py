@@ -73,10 +73,10 @@ import torch
 from monai.deploy.core import Operator, OperatorSpec
 
 try:  # package-style import (my_app.*)
-    from my_app.operators.gpu_util import GpuTiming, nvtx_range
+    from my_app.operators.gpu_util import GpuTiming, assert_cuda_available, assert_on_gpu, nvtx_range
     from my_app.operators.preprocess_operator import to_holoscan_gpu_tensor
 except ImportError:  # flat import (my_app dir on sys.path, as the app runner provides)
-    from gpu_util import GpuTiming, nvtx_range
+    from gpu_util import GpuTiming, assert_cuda_available, assert_on_gpu, nvtx_range
     from preprocess_operator import to_holoscan_gpu_tensor
 
 __all__ = [
@@ -541,6 +541,9 @@ class SlideWindowOperator(Operator):
             return self._bundle
         if not self.model_path:
             raise RuntimeError("SlideWindowOperator requires model_path to load the model bundle.")
+        # The model is CUDA-resident by contract — no silent CPU fallback
+        # (INF-001/INF-005).
+        assert_cuda_available()
 
         timing = GpuTiming("model_load")
         timing.start()
@@ -597,11 +600,17 @@ class SlideWindowOperator(Operator):
             timing = GpuTiming("inference")
             timing.start()
 
+            # Entry guard: the pipeline is GPU-resident by contract (INF-005).
+            assert_cuda_available()
+
             holo_tensor = op_input.receive(self.INPUT_PREPROCESSED)
             if holo_tensor is None:
                 raise ValueError("SlideWindowOperator received no 'preprocessed' input.")
 
             tensor = torch.utils.dlpack.from_dlpack(holo_tensor)
+            # Device invariant at the boundary: a CPU tensor raises here and
+            # inference never silently runs on CPU (INF-001/INF-005).
+            assert_on_gpu(tensor)
             data = self._to_preprocessed_4d(tensor.float())
 
             # Eager-mode inference: no_grad here; predict_logits opens one
@@ -613,6 +622,9 @@ class SlideWindowOperator(Operator):
             with torch.no_grad():
                 logits = predict_logits(bundle, data)
 
+            # Exit guard: the emitted buffer must be CUDA-resident FP32
+            # (INF-001/INF-005); to_holoscan_gpu_tensor asserts again at emit.
+            assert_on_gpu(logits)
             op_output.emit(to_holoscan_gpu_tensor(logits), self.OUTPUT_LOGITS)
 
             self._logger.info("inference timing: %s", json.dumps(timing.stop()))
