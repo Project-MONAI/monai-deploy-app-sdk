@@ -1,3 +1,19 @@
+---
+gsd_state_version: 1.0
+milestone: v1.0
+milestone_name: milestone
+status: executing
+stopped_at: Completed 1-core-pipeline-01-PLAN.md (PreprocessOperator + GPU handoff; commits ed7ec81, b7f9132, 8d78d63)
+last_updated: "2026-08-18T03:40:21.451Z"
+last_activity: 2026-08-18 03:40 UTC - Plan 01 of Phase 1 complete (57 min, 4/4 tasks, bit-exact vs reference CPU path)
+progress:
+  total_phases: 4
+  completed_phases: 1
+  total_plans: 6
+  completed_plans: 2
+  percent: 33
+---
+
 # Project State
 
 ## Project Reference
@@ -5,16 +21,16 @@
 See: .planning/PROJECT.md (updated 2026-08-14)
 
 **Core value:** Single-study inference latency without sacrificing correctness — CT in, pixel-identical DICOM-SEG out, faster, every intermediate step stays on GPU.
-**Current focus:** Phase 1 (Core Pipeline) — **PLANNED (5 plans, 4 waves), ready to execute**
+**Current focus:** Phase 1 (Core Pipeline) — **EXECUTING** (plan 01 complete, plan 02 next)
 
 ## Current Position
 
-Phase: 0 of 4 (Foundation) — COMPLETE (GSD-closed 2026-08-17)
-Plan: 1 of 1 in current phase (backfilled `0-foundation-01-PLAN.md`; phase was executed ad-hoc then backfilled)
-Status: Phase 0 closed in the GSD cycle 2026-08-17 — 7/7 tasks done, all 5 acceptance criteria ✓ (criterion 2 with documented TEST-01 deviation: single airway MR study; ≥5-CT bar deferred to final Phase 1 gate). VERIFICATION status: passed. GT-mismatch carried finding RESOLVED (fresh reference run = 99.902% byte-identical to historical GT). Credits TEST-006 + TEST-007 (baseline); PIPE-01/INFR-01/INFR-005 partial (scaffold/feasibility, completed in Phases 1–2).
-Last activity: 2026-08-17 20:40 UTC - Phase 0 CLOSED in the GSD cycle. GT-mismatch carried finding RESOLVED (fresh reference run `testdata/current_output` = 99.902% byte-identical to historical `testdata/airway_output`; ~45 mm note was a thin-structure IoU decode artifact). Baseline 169,747 ± 7,274 ms (n=3); Nsight demo trace + RMM verified. Docker deferred to post-Phase-3. GSD backfill: .planning/phases/0-foundation/ (PLAN+SUMMARY+VERIFICATION). Run guide: .planning/scripts/REFERENCE_RUN_GUIDE.md
+Phase: 1 of 2 (core pipeline)
+Plan: 2 of 5
+Status: Ready to execute
+Last activity: 2026-08-18
 
-Progress: [█░░░░░░░░░░░░░░░░░░░] Phase 0/4 complete; Phase 1 planned (5 plans) — ready for `/gsd-execute-phase 1`
+Progress: [███░░░░░░░░] 33%
 
 ## Transition Log
 
@@ -34,15 +50,16 @@ Done: app scaffold (examples/apps/cchmc-nnunet-fast, standard MAP layout, app.py
 
 ## Performance Metrics
 
-**Velocity:** No GSD plans executed yet (Phase 0 was ad-hoc work — no PLAN/SUMMARY artifacts). Metrics start with the first planned phase.
+**Velocity:** 1 planned GSD plan executed (Phase 1, Plan 01) in 57 min wall (subagent, 4 tasks / 3 commits).
 
 **By Phase:**
 
-| Phase | Plans | Total | Avg/Plan |
-| ----- | ----- | ----- | -------- |
-| 0     | 0     | 0     | -        |
+| Phase | Plans | Total   | Avg/Plan |
+| ----- | ----- | ------- | -------- |
+| 0     | 0     | 0       | -        |
+| 1     | 1     | 57 min  | 57 min   |
 
-**Recent Trend:** n/a
+**Recent Trend:** first planned plan — no trend yet
 
 ## Accumulated Context
 
@@ -62,6 +79,8 @@ Logged in PROJECT.md Key Decisions table. Recent:
 - [Phase 0, FINDING — RESOLVED 2026-08-17 20:40 UTC]: the earlier "reference app does NOT reproduce GT (~45 mm world-COM offset, zero overlap)" note was a **decoding artifact**, not a real mismatch. A fresh reference run (`testdata/current_output`) was made and compared to the historical GT (`testdata/airway_output`): DICOM-SEG segment pixel data is **99.902% byte-identical** (2,095,090/2,097,152), segment voxel counts 2430 (GT) vs 2447 (fresh, Δ0.7%), all differences confined to the airway band (frames 106–225). The airway is a thin 1-voxel structure so IoU is hypersensitive to sub-voxel registration — the raw pixel data confirms a match. The ensemble-config question is moot for the correctness gate. See `.planning/phases/0-foundation/0-foundation-VERIFICATION.md` + `.planning/scripts/REFERENCE_RUN_GUIDE.md`.
 - [Phase 0]: **Docker build + container test deferred** until after Phase 3 optimizations are in place (decided 2026-08-17). Pythonic reference runs (`.planning/scripts/REFERENCE_RUN_GUIDE.md`) are the validation path until then.
 - [Phase 0]: Phase 0 **closed in the GSD cycle** 2026-08-17 — backfilled `.planning/phases/0-foundation/` (01-PLAN, 01-SUMMARY, VERIFICATION status: passed). Credits TEST-006 (benchmark script) + TEST-007 (baseline) as satisfied; PIPE-01/INFR-01/INFR-005 tracked as partial (scaffold/feasibility only, full satisfaction in Phases 1–2).
+- [Phase 1, Plan 01]: GPU handoff contract uses `holoscan.core.Tensor` (DLPack, `device_type == kDLDeviceCUDA`) because `MemoryData` does not exist in the holoscan-cu13 4.2 Python API — zero-copy equivalent. Plan 02+ consume the `preprocessed` tensor (back to torch via DLPack) + `preprocessed_meta` dict (bbox, pre-crop shape, spacing, permute) for post-revert.
+- [Phase 1, Plan 01]: Resampling output dtype captured from plans `dtype_out` (float32) before nnUNet's internal float64 upcast — Rule 1 bug fix; verified bit-exact (max abs diff 0) vs `DefaultPreprocessor.run_case_npy` on the airway study (3D_fullres).
 
 ### Pending Todos
 
@@ -77,13 +96,14 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-08-17 03:55 UTC
-Stopped at: Driver + RMM verified; testdata/ audited (see Decisions 2026-08-17). Awaiting corpus-scope decision (single MR study vs ≥5 CT), then baseline script (0.4/0.5) + demo Nsight trace (0.6).
+Last session: 2026-08-18 03:39 UTC
+Stopped at: Completed 1-core-pipeline-01-PLAN.md (PreprocessOperator + gpu_util + config loader; bit-exact vs reference; GPU handoff via DLPack tensor)
 Resume file: None
 
 ## Next — Phase 1 (Core Pipeline)
 
 Phase 1 (Core Pipeline) is now **PLANNED** — 5 plans across 4 waves in `.planning/phases/1-core-pipeline/`:
+
 - **01** (wave 1): PreprocessOperator + GPU handoff contract (PREP-01..05, INF-005)
 - **02** (wave 2): SlideWindowOperator / inference core — model load in setup, TTA order, FP32 accumulator (INF-001..008, INF-011)
 - **03** (wave 2): PostResample + EnsembleAverage (in-memory, no disk) + Postprocess (CC on GPU) (POST-01..03, INF-009/010)
@@ -93,6 +113,7 @@ Phase 1 (Core Pipeline) is now **PLANNED** — 5 plans across 4 waves in `.plann
 Scope: single config `3D_fullres`; operators built config-driven so Phase 2 adds 2D/lowres/cascade. Gate = pixel-exact vs freshly regenerated reference (`testdata/current_output` == historical GT).
 
 Next:
+
 1. **`/gsd-execute-phase 1`** (or `/gsd-execute-plan 1 01` for plan-by-plan). Pre-step: regenerate the reference output via `.planning/scripts/REFERENCE_RUN_GUIDE.md` so plan 05's gate has a target.
 2. Phase 1 planning carried these inputs (already embedded in the plans):
    - **Validation strategy (de-risked):** primary gate = `cchmc-nnunet-fast` vs a **freshly regenerated reference** (`testdata/current_output`, confirmed equal to historical GT).

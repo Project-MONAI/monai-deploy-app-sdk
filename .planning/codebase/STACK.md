@@ -59,6 +59,7 @@
 - **Ubuntu 22.04+:** glibc 2.35+ required by Holoscan
 - **nnUNet is vendored:** Not installed from PyPI — local editable copy at `nnUNet/`
 - **Python 3.10–3.13:** Supported range per `pyproject.toml`
+- **GPU tensor handoff:** `MemoryData` does not exist in the holoscan-cu13 4.2 Python API — GPU buffers cross operator boundaries as `holoscan.core.Tensor` (DLPack, `device_type == kDLDeviceCUDA`). Downstream operators re-wrap via DLPack (decided 2026-08-18, Phase 1 Plan 01)
 
 ---
 *Mapped: 2025-07-19 via GSD codebase map*
