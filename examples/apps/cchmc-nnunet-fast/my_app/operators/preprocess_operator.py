@@ -286,7 +286,11 @@ def preprocess_reference(
         data: ``(C, X, Y, Z)`` volume in the app-transposed order
             (channel-first, post ``Transposed([0, 3, 2, 1])``), any integer or
             float dtype — it is cast to float32 internally, as the reference
-            does.
+            does. Must be **C-contiguous**: numpy's ``astype`` preserves the
+            input's memory order, and the resample stage (skimage resize /
+            map_coordinates) is not layout-invariant at float32, so an
+            F-ordered input would diverge from the reference by 1 ulp over
+            most voxels (the reference receives a fresh C-contiguous array).
         spacing_xyz: physical voxel spacing ``(sx, sy, sz)`` (LPS column
             norms), as derived from the series affine.
         params: per-config parameters from the bundle plans.
@@ -462,6 +466,14 @@ class PreprocessOperator(Operator):
         # -> Transposed([0, 3, 2, 1]) -> (1, D, H, W)
         data = np.ascontiguousarray(arr.T)[None, ...]
         data = data.transpose(0, 3, 2, 1)
+        # Reference parity REQUIRES a C-contiguous input here: the reference
+        # wrapper passes x.cpu().numpy()[0, :] and nnUNet's astype(float32)
+        # materializes a fresh C-contiguous copy. numpy's astype preserves the
+        # input's memory order, so without this the (F-order) view would be
+        # resampled in F order — skimage.resize/map_coordinates are not
+        # layout-invariant at float32 (measured: 1-ulp diffs at ~16M voxels,
+        # ~1300-voxel seg divergence on the airway tube).
+        data = np.ascontiguousarray(data)
 
         spacing_xyz = self._derive_spacing_xyz(image)
         return preprocess_reference(data, spacing_xyz, params)
