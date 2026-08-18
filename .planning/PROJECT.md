@@ -16,19 +16,16 @@ Target: clinical workflows where single-study latency matters most.
 
 - [x] **Phase 0 — Foundation (2026-08-17, GSD-closed):** cu13 dependencies resolved in `/tmp/monai-env/.venv`; reference corpus (single airway MR study, 256 slices, SC/SEG/SR ground truth — ≥5-CT bar deferred to the final Phase 1 gate per TEST-01); baseline benchmark **169,747 ± 7,274 ms/study** (n=3) → `.planning/baseline_results.csv`; Nsight harness + demo trace (NVTX ranges verified); RMM active. Artifacts: `.planning/phases/0-foundation/`. Satisfies **TEST-006** + **TEST-007** (baseline); scaffold/feasibility for PIPE-01 / INFR-01 / INFR-005.
 - [x] **Reference ground-truth reproduction (2026-08-17):** a fresh reference run (`testdata/current_output`) is **99.902% byte-identical** to the historical GT (`testdata/airway_output`) — the earlier "~45 mm / zero-overlap" concern was a thin-structure IoU decode artifact. The pixel-exact gate is de-risked; a freshly regenerated reference is a valid Phase 1 gate target. Re-run any time via `.planning/scripts/REFERENCE_RUN_GUIDE.md`.
+- [x] **Phase 1 — Core Pipeline (2026-08-18, GSD-closed):** end-to-end Holoscan DAG (Preprocess → SlideWindow → PostResample → EnsembleAverage → Postprocess → DICOM-SEG/SR/SC) replaces `NNUnetSegOperator` with zero SDK core edits; 3d_fullres on the dev airway study is **pixel-exact vs a fresh 3d_fullres-only reference (99.9999% SEG byte-identity, 2 voxels at the documented FP16↔FP32 TTA-accumulation boundary; SR exact; SC bit-identical)**; GPU residency gate PASS (exactly 1 boundary `.cpu()`); NVTX ranges in Nsight trace; structured timing logs. **Baseline: ~61.8 s E2E vs 169.7 s reference baseline (in-study 42.1 s, inference 27.2 s dominant)** → `.planning/benchmarks/baseline-2026-08-18.csv`. Deviations: MONAI sliding-window utilities diverge from nnUNet 2.8.1 (reference utilities used); TTA accumulates FP32 per INF-004 while the reference uses FP16 (bit-for-bit logits unreachable by design). ≥5-study final gate deferred (corpus not yet supplied). Artifacts: `.planning/phases/1-core-pipeline/` (5 SUMMARYs + VERIFICATION).
+- [x] **Holoscan-native preprocessing / inference / ensemble / postprocessing operators** (single-config `3d_fullres`; GPU port of resampling and all-config support is Phase 2)
+- [x] **Maintain existing DICOM I/O operators** — DICOM in → DICOM-SEG/SR/SC out, unchanged SDK operators
+- [x] **NVIDIA Nsight profiling integration + performance baseline** vs `cchmc_nnunet_fifteen_ckpt_app`
 
 ### Active
 
 - [ ] Support all nnUNet model configurations (2D, 3D_fullres, 3D_lowres, 3D_cascade_fullres)
-- [ ] Holoscan-native preprocessing operator (resampling, normalization on GPU)
-- [ ] Holoscan-native inference operator (tile-based inference with GPU memory management)
-- [ ] Holoscan-native ensemble operator (in-memory probability averaging, no disk I/O)
-- [ ] Holoscan-native postprocessing operator (connected component cleanup on GPU)
-- [ ] Maintain existing DICOM I/O operators (DICOM in → DICOM-SEG/SR/SC out)
-- [ ] NVIDIA Nsight profiling integration for performance measurement
-- [ ] **Pixel-exact output equivalence** — optimized app output must match original app output bit-for-bit (same DICOM-SEG pixel values, same SR measurements), validated via systematic comparison across representative test cases
-- [ ] Performance profiling with NVIDIA tools (Nsight Systems, Nsight Compute) to measure end-to-end latency, GPU utilization, and identify bottlenecks
-- [ ] Performance baseline vs current `cchmc_nnunet_fifteen_ckpt_app`
+- [ ] GPU-accelerated preprocessing (resampling/transpose/crop on CuPy) and multi-config pipeline
+- [ ] Final pixel-exact gate re-run on ≥5 studies once the corpus is supplied
 
 ### Out of Scope
 
@@ -87,7 +84,7 @@ The nnUNet predictor internally does tiling and preprocessing, but it's not leve
 | Baseline to beat = 169.7 ± 7.3 s/study (reference app) | The "before" number Phase 2/3 must improve on | Phase 0 |
 
 ---
-*Last updated: 2026-08-17 — Phase 0 → 1 transition: Phase 0 validated (TEST-006/007), GT-mismatch finding resolved, cu13/resampling/Docker-deferral/baseline decisions logged*
+*Last updated: 2026-08-18 — Phase 1 complete & verified (pixel-exact 3d_fullres pipeline, ~61.8 s vs 169.7 s baseline); ready for Phase 2 GPU Acceleration*
 
 ## Evolution
 

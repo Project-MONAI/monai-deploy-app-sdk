@@ -251,43 +251,43 @@ Updated at phase transition boundaries.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| PIPE-01 | 0, 1 | Pending |
-| PIPE-02 | 1 | Pending |
+| PIPE-01 | 0, 1 | Complete |
+| PIPE-02 | 1 | Complete |
 | PIPE-03 | 2 | Pending |
 | PIPE-04 | 2 | Pending |
-| PIPE-05 | 1 | Pending |
-| PREP-01 | 1, 2 | Pending |
-| PREP-02 | 1, 2 | Pending |
-| PREP-03 | 1 | Pending |
-| PREP-04 | 1, 2 | Pending |
-| PREP-05 | 1 | Pending |
-| INF-001 | 1 | Pending |
-| INF-002 | 1 | Pending |
-| INF-003 | 1 | Pending |
-| INF-004 | 1 | Pending |
-| INF-005 | 1 | Pending |
-| INF-006 | 1 | Pending |
-| INF-007 | 1 | Pending |
-| INF-008 | 1 | Pending |
-| INF-009 | 1, 2 | Pending |
-| INF-010 | 1 | Pending |
-| INF-011 | 1 | Pending |
-| POST-01 | 1 | Pending |
-| POST-02 | 1 | Pending |
-| POST-03 | 1 | Pending |
-| INFR-01 | 0, 2 | Pending |
+| PIPE-05 | 1 | Complete |
+| PREP-01 | 1, 2 | In Progress |
+| PREP-02 | 1, 2 | In Progress |
+| PREP-03 | 1 | Complete |
+| PREP-04 | 1, 2 | In Progress |
+| PREP-05 | 1 | Complete |
+| INF-001 | 1 | Complete |
+| INF-002 | 1 | Complete |
+| INF-003 | 1 | Complete |
+| INF-004 | 1 | Complete |
+| INF-005 | 1 | Complete |
+| INF-006 | 1 | Complete |
+| INF-007 | 1 | Complete |
+| INF-008 | 1 | Complete |
+| INF-009 | 1, 2 | In Progress |
+| INF-010 | 1 | Complete |
+| INF-011 | 1 | Complete |
+| POST-01 | 1 | Complete |
+| POST-02 | 1 | Complete |
+| POST-03 | 1 | Complete |
+| INFR-01 | 0, 2 | In Progress |
 | INFR-02 | 2 | Pending |
 | INFR-03 | 2 | Pending |
 | INFR-004 | 2 | Pending |
-| INFR-005 | 0, 1 | Pending |
-| INFR-006 | 1 | Pending |
-| TEST-01 | 1, 2 | Pending |
-| TEST-002 | 1, 2 | Pending |
-| TEST-003 | 1 | Pending |
-| TEST-004 | 1 | Pending |
+| INFR-005 | 0, 1 | Complete |
+| INFR-006 | 1 | Complete |
+| TEST-01 | 1, 2 | In Progress |
+| TEST-002 | 1, 2 | In Progress |
+| TEST-003 | 1 | Complete |
+| TEST-004 | 1 | Complete |
 | TEST-005 | 2 | Pending |
-| TEST-006 | 0, 1, 2, 3 | Pending |
-| TEST-007 | 0, 2, 3 | Pending |
+| TEST-006 | 0, 1, 2, 3 | In Progress |
+| TEST-007 | 0, 2, 3 | In Progress |
 
 **Coverage:**
 - v1 requirements: 36 total
@@ -302,8 +302,8 @@ Use this checklist at each phase transition before advancing.
 
 - [ ] All acceptance criteria for the current phase are met
 - [ ] Requirement traceability matrix updated (Status column reflects completion)
-- [ ] Benchmark results saved to `.planning/benchmarks/`
-- [ ] Profiling artifacts saved to `.planning/profiles/`
+- [ ] Benchmark results saved to `.Complete/benchmarks/`
+- [ ] Profiling artifacts saved to `.Complete/profiles/`
 - [ ] Known issues and technical debt documented
 - [ ] Next phase tasks reviewed for scope changes
 - [ ] `PROJECT.md` Key Decisions table updated if any new decisions were made

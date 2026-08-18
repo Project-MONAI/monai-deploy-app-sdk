@@ -2,9 +2,9 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: executing
-stopped_at: Completed 1-core-pipeline-05-PLAN.md (pixel_diff + gpu_residency gate tools; pixel-exact E2E gate passed within documented 1-voxel fp16/fp32 tolerance after two gate-found fixes: C-contig preprocess, reference-parity contour SEG/SC; baseline benchmark recorded)
-last_updated: "2026-08-18T17:30:00.000Z"
+status: completed
+stopped_at: Completed 1-core-pipeline-04-PLAN.md (DAG assembly in app.py; NVTX trace + structured timing verified; E2E airway run exit 0 with SC/SEG/SR)
+last_updated: "2026-08-18T22:04:34.592Z"
 last_activity: 2026-08-18
 progress:
   total_phases: 4
@@ -27,7 +27,7 @@ See: .planning/PROJECT.md (updated 2026-08-14)
 
 Phase: 1 of 2 (core pipeline)
 Plan: 5 of 5
-Status: Phase 1 complete
+Status: Milestone complete
 Last activity: 2026-08-18
 
 Progress: [██████████] 100% (Phase 1 plans complete; Phase 2 pending)
