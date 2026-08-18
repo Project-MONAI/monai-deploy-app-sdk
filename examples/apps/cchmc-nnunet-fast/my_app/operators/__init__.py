@@ -12,6 +12,7 @@
 # Package for custom operators used by the CCHMC nnU-Net Fast app.
 
 from .gpu_util import GpuTiming, assert_cuda_available, assert_on_gpu, nvtx_range
+from .ensemble_average_operator import EnsembleAverageOperator, argmax_to_segmentation, average_probabilities
 from .postresample_operator import PostResampleOperator, postresample_reference, revert_crop_and_transpose_gpu
 from .preprocess_operator import PreprocessOperator, preprocess_reference, to_holoscan_gpu_tensor
 from .slidewindow_operator import SlideWindowOperator
@@ -24,6 +25,9 @@ __all__ = [
     "PostResampleOperator",
     "postresample_reference",
     "revert_crop_and_transpose_gpu",
+    "EnsembleAverageOperator",
+    "average_probabilities",
+    "argmax_to_segmentation",
     "GpuTiming",
     "assert_cuda_available",
     "assert_on_gpu",
