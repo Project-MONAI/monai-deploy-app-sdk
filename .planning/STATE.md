@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 1-core-pipeline-01-PLAN.md (PreprocessOperator + GPU handoff; commits ed7ec81, b7f9132, 8d78d63)
-last_updated: "2026-08-18T03:40:21.451Z"
-last_activity: 2026-08-18 03:40 UTC - Plan 01 of Phase 1 complete (57 min, 4/4 tasks, bit-exact vs reference CPU path)
+stopped_at: Completed 1-core-pipeline-02-PLAN.md (SlideWindowOperator: setup-time model load, reference TTA order, FP32 accumulators; 100.00000% voxel-identical seg vs reference predictor; config- and checkpoint-driven)
+last_updated: "2026-08-18T05:45:00.000Z"
+last_activity: 2026-08-18
 progress:
   total_phases: 4
   completed_phases: 1
   total_plans: 6
-  completed_plans: 2
-  percent: 33
+  completed_plans: 3
+  percent: 50
 ---
 
 # Project State
@@ -21,20 +21,21 @@ progress:
 See: .planning/PROJECT.md (updated 2026-08-14)
 
 **Core value:** Single-study inference latency without sacrificing correctness — CT in, pixel-identical DICOM-SEG out, faster, every intermediate step stays on GPU.
-**Current focus:** Phase 1 (Core Pipeline) — **EXECUTING** (plan 01 complete, plan 02 next)
+**Current focus:** Phase 1 (Core Pipeline) — **EXECUTING** (plans 01–02 complete, plan 03 next)
 
 ## Current Position
 
 Phase: 1 of 2 (core pipeline)
-Plan: 2 of 5
-Status: Ready to execute
+Plan: 3 of 5
+Status: Executing Phase 1
 Last activity: 2026-08-18
 
-Progress: [███░░░░░░░░] 33%
+Progress: [█████░░░░░░] 50%
 
 ## Transition Log
 
 - **2026-08-17 Phase 0 → Phase 1:** gate passed (VERIFICATION passed, 5/5 acceptance, TEST-01 corpus deviation documented). PROJECT.md updated: Phase 0 requirements moved to Validated (TEST-006/TEST-007), cu13/resampling/Docker-deferral/baseline decisions logged. Phase 1 is now active and ready for planning (inputs staged in "Next — Phase 1").
+- **2026-08-18 Plan 02 complete:** SlideWindowOperator — setup-time one-shot model load (architecture from plans.json, 5 fold weights from resolved checkpoint path), TTA in exact nnUNet order with FP32 sequential accumulation, reference-parity steps/gaussian/autocast boundaries, config- and checkpoint-driven (InferenceParams). Airway study: logits max abs diff 4.539e-01 vs reference (fp16-ref vs fp32-ours; plan's ~1e-6 assumes an fp32 reference — unreachable, seg gate is controlling) and **100.00000% voxel-identical segmentation** (16,646,400/16,646,400). Inference 27.1 s/study, zero cold start on study 2+. Deviations: nnUNet pure SW utilities instead of MONAI swi (monai 1.3.0 kernel/step divergence, measured); per-fold autocast boundary (torch 2.13 corrupts forwards following a mid-autocast load_state_dict — one-loop autocast gave 13.2 diff). See 1-core-pipeline-02-SUMMARY.md.
 
 ## Phase 0 Acceptance Status
 
@@ -50,16 +51,16 @@ Done: app scaffold (examples/apps/cchmc-nnunet-fast, standard MAP layout, app.py
 
 ## Performance Metrics
 
-**Velocity:** 1 planned GSD plan executed (Phase 1, Plan 01) in 57 min wall (subagent, 4 tasks / 3 commits).
+**Velocity:** 2 planned GSD plans executed (Phase 1, Plans 01–02): 57 min + ~105 min wall (subagent, 4 tasks / 3 commits each).
 
 **By Phase:**
 
 | Phase | Plans | Total   | Avg/Plan |
 | ----- | ----- | ------- | -------- |
 | 0     | 0     | 0       | -        |
-| 1     | 1     | 57 min  | 57 min   |
+| 1     | 2     | 162 min | 81 min   |
 
-**Recent Trend:** first planned plan — no trend yet
+**Recent Trend:** second plan took +48 min — inference-core numeric-equivalence debugging dominated (MONAI-swi kernel divergence discovery + the autocast/load_state_dict corruption hunt).
 
 ## Accumulated Context
 
@@ -81,6 +82,9 @@ Logged in PROJECT.md Key Decisions table. Recent:
 - [Phase 0]: Phase 0 **closed in the GSD cycle** 2026-08-17 — backfilled `.planning/phases/0-foundation/` (01-PLAN, 01-SUMMARY, VERIFICATION status: passed). Credits TEST-006 (benchmark script) + TEST-007 (baseline) as satisfied; PIPE-01/INFR-01/INFR-005 tracked as partial (scaffold/feasibility only, full satisfaction in Phases 1–2).
 - [Phase 1, Plan 01]: GPU handoff contract uses `holoscan.core.Tensor` (DLPack, `device_type == kDLDeviceCUDA`) because `MemoryData` does not exist in the holoscan-cu13 4.2 Python API — zero-copy equivalent. Plan 02+ consume the `preprocessed` tensor (back to torch via DLPack) + `preprocessed_meta` dict (bbox, pre-crop shape, spacing, permute) for post-revert.
 - [Phase 1, Plan 01]: Resampling output dtype captured from plans `dtype_out` (float32) before nnUNet's internal float64 upcast — Rule 1 bug fix; verified bit-exact (max abs diff 0) vs `DefaultPreprocessor.run_case_npy` on the airway study (3D_fullres).
+- [Phase 1, Plan 02]: MONAI `sliding_window_inference` not used as-is — monai 1.3.0's step generator and Gaussian kernel measurably diverge from the vendored nnunetv2 2.8.1 (normalized-kernel max abs diff 0.034 on the 128³ patch; different step sets on non-dev shapes); the operator runs the same MONAI-style loop with nnUNet's pure utilities (`compute_steps_for_sliding_window`, `compute_gaussian`, `pad_nd_image`).
+- [Phase 1, Plan 02]: Autocast boundary = per-fold (reference parity); each fold's `load_state_dict` runs OUTSIDE any active autocast. A single autocast around the whole fold loop corrupts the forward following mid-autocast weight loads on torch 2.13 (reproduced on a minimal net; fold-loop diff 13.2 → 4.54e-01 after fix).
+- [Phase 1, Plan 02]: The vendored nnUNet 2.8.1 reference accumulates in FP16 (sliding window, visit counts, TTA sum — source-verified); plan INF-004 deliberately pins FP32 → logits max abs diff 4.539e-01 vs the fp16 reference on the airway study, segmentation (softmax+argmax) 100.00000% voxel-identical. The plan's ~1e-6 logits tolerance is unreachable against an fp16 reference; the seg identity gate is controlling (and plan 05's DICOM-SEG pixel-exact gate is final).
 
 ### Pending Todos
 
@@ -96,8 +100,8 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-08-18 03:39 UTC
-Stopped at: Completed 1-core-pipeline-01-PLAN.md (PreprocessOperator + gpu_util + config loader; bit-exact vs reference; GPU handoff via DLPack tensor)
+Last session: 2026-08-18 05:45 UTC
+Stopped at: Completed 1-core-pipeline-02-PLAN.md (SlideWindowOperator: reference-replica TTA + FP32 GPU inference; 100% voxel-identical seg vs reference; setup-time model load; config- and checkpoint-driven)
 Resume file: None
 
 ## Next — Phase 1 (Core Pipeline)
@@ -114,7 +118,7 @@ Scope: single config `3D_fullres`; operators built config-driven so Phase 2 adds
 
 Next:
 
-1. **`/gsd-execute-phase 1`** (or `/gsd-execute-plan 1 01` for plan-by-plan). Pre-step: regenerate the reference output via `.planning/scripts/REFERENCE_RUN_GUIDE.md` so plan 05's gate has a target.
+1. **`/gsd-execute-plan 1 03`** (PostResample + EnsembleAverage + Postprocess, wave 2) — or `/gsd-execute-phase 1` for the remainder. Pre-step already done: reference output regenerated at `testdata/current_output` (plan 05 gate target).
 2. Phase 1 planning carried these inputs (already embedded in the plans):
    - **Validation strategy (de-risked):** primary gate = `cchmc-nnunet-fast` vs a **freshly regenerated reference** (`testdata/current_output`, confirmed equal to historical GT).
    - Baseline to beat: **169.7 ± 7.3 s/study** (inference ≈ 138 s)
