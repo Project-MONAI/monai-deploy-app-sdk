@@ -268,3 +268,7 @@ nnUNet/
 # App runtime scratch + large model weights (not source)
 examples/apps/cchmc_nnunet_fifteen_ckpt_app/tmp/
 examples/apps/cchmc_nnunet_fifteen_ckpt_app/models/
+
+# GSD agent tracking (runtime state)
+.planning/agent-history.json
+.planning/current-agent-id.txt
