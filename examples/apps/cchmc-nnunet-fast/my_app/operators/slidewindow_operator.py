@@ -73,9 +73,11 @@ import torch
 from monai.deploy.core import Operator, OperatorSpec
 
 try:  # package-style import (my_app.*)
+    from my_app.config import InferenceParams, detect_available_folds, load_inference_params, resolve_checkpoint_name
     from my_app.operators.gpu_util import GpuTiming, assert_cuda_available, assert_on_gpu, nvtx_range
     from my_app.operators.preprocess_operator import to_holoscan_gpu_tensor
 except ImportError:  # flat import (my_app dir on sys.path, as the app runner provides)
+    from config import InferenceParams, detect_available_folds, load_inference_params, resolve_checkpoint_name
     from gpu_util import GpuTiming, assert_cuda_available, assert_on_gpu, nvtx_range
     from preprocess_operator import to_holoscan_gpu_tensor
 
@@ -83,6 +85,7 @@ __all__ = [
     "SlideWindowOperator",
     "ModelBundle",
     "build_mirror_axis_combinations",
+    "build_network_from_params",
     "detect_available_folds",
     "load_model_bundle",
     "mirror_and_predict",
@@ -91,100 +94,21 @@ __all__ = [
     "sliding_window_predict",
 ]
 
-# Reference checkpoint auto-order (nnunet_bundle.py DEFAULT_MODEL_FILENAMES).
-DEFAULT_CHECKPOINT_ORDER: Tuple[str, ...] = ("final_model.pt", "best_model.pt", "model.pt")
 # Reference predictor hyperparameters: get_nnunet_monai_predictor(
-#   tile_step_size=0.5, use_gaussian=True, use_mirroring=True).
+#   tile_step_size=0.5, use_gaussian=True, use_mirroring=True). These are
+# reference predictor constants (not bundle fields); everything bundle-specific
+# (patch size, mirror axes, checkpoint, folds, architecture) is config-driven
+# via my_app.config.load_inference_params.
 DEFAULT_TILE_STEP_SIZE = 0.5
 # Reference gaussian kernel: compute_gaussian(patch, sigma_scale=1/8,
 # value_scaling_factor=10, device=results_device).
 GAUSSIAN_SIGMA_SCALE = 1.0 / 8.0
 GAUSSIAN_VALUE_SCALING_FACTOR = 10.0
 
-NNUNET_CHECKPOINT_FILENAME = "nnunet_checkpoint.pth"
-
 
 # ---------------------------------------------------------------------------
 # Model resolution / loading (setup-time, once)
 # ---------------------------------------------------------------------------
-
-
-def resolve_checkpoint_name(config_dir: Union[str, Path], checkpoint_name: Optional[str] = None) -> str:
-    """Resolve the concrete checkpoint filename for a config directory.
-
-    Mirrors the reference ``_resolve_checkpoint_name``: an explicit name must
-    exist (in the config dir or any ``fold_*/``); otherwise the first
-    available of ``final_model.pt > best_model.pt > model.pt`` wins.
-    """
-    config_dir = Path(config_dir)
-    if not config_dir.exists():
-        raise FileNotFoundError(f"Model folder not found: {config_dir}")
-
-    fold_dirs = [p for p in config_dir.glob("fold_*") if p.is_dir()]
-
-    def checkpoint_exists(filename: str) -> bool:
-        if (config_dir / filename).exists():
-            return True
-        return any((d / filename).exists() for d in fold_dirs)
-
-    available = sorted(
-        {p.name for p in config_dir.glob("*.pt")}
-        | {p.name for p in config_dir.glob("fold_*/*.pt")}
-    )
-
-    if checkpoint_name:
-        if checkpoint_exists(checkpoint_name):
-            return checkpoint_name
-        raise FileNotFoundError(
-            f"Checkpoint file not found in {config_dir}: {checkpoint_name}. "
-            f"Available model files: {', '.join(available) or 'none found'}."
-        )
-
-    for candidate in DEFAULT_CHECKPOINT_ORDER:
-        if checkpoint_exists(candidate):
-            return candidate
-
-    raise FileNotFoundError(
-        f"No supported checkpoint file was found in {config_dir}. "
-        f"Expected one of {DEFAULT_CHECKPOINT_ORDER}. "
-        f"Available model files: {', '.join(available) or 'none found'}."
-    )
-
-
-def detect_available_folds(config_dir: Union[str, Path], checkpoint_name: str) -> List[int]:
-    """Reference ``auto_detect_available_folds``: sorted folds holding the checkpoint."""
-    config_dir = Path(config_dir)
-    return sorted(
-        int(d.name.split("_")[-1])
-        for d in config_dir.glob("fold_*")
-        if d.is_dir() and (d / checkpoint_name).exists()
-    )
-
-
-def _resolve_config_dir_and_jsonpkls(
-    model_path: Union[str, Path], config_name: str
-) -> Tuple[Path, Path]:
-    """Locate the per-config model dir and the bundle ``jsonpkls`` dir.
-
-    Accepts the bundle root (``.../models``), the app root (containing
-    ``models/``), or the per-config dir itself (containing
-    ``nnunet_checkpoint.pth``).
-    """
-    base = Path(model_path)
-    for root in (base, base / "models"):
-        candidate = root / "jsonpkls"
-        if (candidate / "plans.json").is_file():
-            config_dir = root / config_name
-            if (config_dir / NNUNET_CHECKPOINT_FILENAME).exists() or any(config_dir.glob("fold_*")):
-                return config_dir, candidate
-    if (base / NNUNET_CHECKPOINT_FILENAME).exists():
-        jsonpkls = base.parent / "jsonpkls"
-        if (jsonpkls / "plans.json").is_file():
-            return base, jsonpkls
-    raise FileNotFoundError(
-        f"Could not locate config {config_name!r} (with {NNUNET_CHECKPOINT_FILENAME} or "
-        f"fold_*/ dirs) and jsonpkls/plans.json under {model_path}."
-    )
 
 
 @dataclass
@@ -204,6 +128,43 @@ class ModelBundle:
     device: torch.device
 
 
+def build_network_from_params(params: InferenceParams, device: Union[str, torch.device] = "cuda"):
+    """Build the network from the bundle ``plans.json`` architecture entry and
+    load every fold's weights from the resolved checkpoint paths (INF-007).
+
+    No hard-coded trainer class: a custom trainer variant loads through its
+    checkpoint path, with the architecture coming from its plans.
+
+    Returns:
+        ``(network, fold_state_dicts)`` — the network on ``device`` in eval
+        mode (initialized with the first fold's weights) and the CUDA-
+        resident per-fold state dicts.
+    """
+    from nnunetv2.utilities.get_network_from_plans import get_network_from_plans
+
+    device = torch.device(device)
+    network = get_network_from_plans(
+        params.network_class_name,
+        dict(params.network_init_kwargs),
+        tuple(params.network_init_kwargs_req_import),
+        params.num_input_channels,
+        params.num_segmentation_heads,
+        allow_init=True,
+        deep_supervision=False,
+    )
+
+    fold_state_dicts: List[Dict[str, torch.Tensor]] = []
+    for path in params.fold_paths:
+        ckpt = torch.load(path, map_location=device, weights_only=False)
+        fold_state_dicts.append(ckpt["network_weights"] if "network_weights" in ckpt else ckpt)
+
+    # Initialize the network with the first fold's weights (reference behavior).
+    network.load_state_dict(fold_state_dicts[0])
+    network = network.to(device)
+    network.eval()
+    return network, fold_state_dicts
+
+
 def load_model_bundle(
     model_path: Union[str, Path],
     config_name: str = "3d_fullres",
@@ -215,79 +176,27 @@ def load_model_bundle(
 ) -> ModelBundle:
     """Load architecture + every fold's weights once, fully on ``device``.
 
-    The network is built from the bundle ``plans.json`` architecture entry
-    (no hard-coded trainer class) and the weights come from the resolved
-    checkpoint path, so custom trainer variants load through their checkpoint
-    (INF-007).
+    All bundle-specific values (patch size, mirror axes, checkpoint path,
+    folds, architecture) come from ``my_app.config.load_inference_params``
+    (INF-006); the checkpoint follows the reference auto-order
+    ``final_model.pt > best_model.pt > model.pt`` unless given explicitly,
+    and the network is built from the checkpoint's plans (no hard-coded
+    trainer class, INF-007).
     """
-    from nnunetv2.utilities.get_network_from_plans import get_network_from_plans
-    from nnunetv2.utilities.label_handling.label_handling import determine_num_input_channels
-    from nnunetv2.utilities.plans_handling.plans_handler import PlansManager
-
     device = torch.device(device)
-    config_dir, jsonpkls = _resolve_config_dir_and_jsonpkls(model_path, config_name)
-    plans = json.loads((jsonpkls / "plans.json").read_text())
-    dataset_json = json.loads((jsonpkls / "dataset.json").read_text())
-
-    plans_manager = PlansManager(plans)
-    configuration_manager = plans_manager.get_configuration(config_name)
-
-    meta_path = config_dir / NNUNET_CHECKPOINT_FILENAME
-    if meta_path.exists():
-        meta = torch.load(meta_path, map_location="cpu", weights_only=False)
-        trainer_name = str(meta.get("trainer_name", "unknown"))
-        meta_config = (meta.get("init_args") or {}).get("configuration")
-        if meta_config is not None and meta_config != config_name:
-            raise ValueError(
-                f"nnunet_checkpoint.pth for {config_dir} was trained for configuration "
-                f"{meta_config!r}, not {config_name!r}; refusing to mix plans and weights."
-            )
-        mirror_axes = meta.get("inference_allowed_mirroring_axes")
-        mirror_axes = None if mirror_axes is None else tuple(int(m) for m in mirror_axes)
-    else:
-        trainer_name, mirror_axes = "unknown", None
-
-    checkpoint_name = resolve_checkpoint_name(config_dir, checkpoint_name)
-    folds = detect_available_folds(config_dir, checkpoint_name)
-    if not folds:
-        raise FileNotFoundError(
-            f"No fold_* directories with {checkpoint_name!r} found under {config_dir}."
-        )
-
-    num_input_channels = determine_num_input_channels(plans_manager, configuration_manager, dataset_json)
-    num_heads = plans_manager.get_label_manager(dataset_json).num_segmentation_heads
-    network = get_network_from_plans(
-        configuration_manager.network_arch_class_name,
-        configuration_manager.network_arch_init_kwargs,
-        configuration_manager.network_arch_init_kwargs_req_import,
-        num_input_channels,
-        num_heads,
-        allow_init=True,
-        deep_supervision=False,
-    )
-
-    fold_state_dicts: List[Dict[str, torch.Tensor]] = []
-    for f in folds:
-        ckpt = torch.load(
-            config_dir / f"fold_{f}" / checkpoint_name, map_location=device, weights_only=False
-        )
-        fold_state_dicts.append(ckpt["network_weights"] if "network_weights" in ckpt else ckpt)
-
-    # Initialize the network with the first fold's weights (reference behavior).
-    network.load_state_dict(fold_state_dicts[0])
-    network = network.to(device)
-    network.eval()
+    params = load_inference_params(model_path, config_name, checkpoint_name)
+    network, fold_state_dicts = build_network_from_params(params, device)
     # Parity with nnUNetPredictor: it enables cudnn benchmark on cuda devices.
     torch.backends.cudnn.benchmark = True
 
     return ModelBundle(
-        config_name=config_name,
-        trainer_name=trainer_name,
+        config_name=params.config_name,
+        trainer_name=params.trainer_name,
         network=network,
         fold_state_dicts=fold_state_dicts,
-        mirror_axes=mirror_axes,
-        patch_size=tuple(int(s) for s in configuration_manager.patch_size),
-        num_segmentation_heads=int(num_heads),
+        mirror_axes=params.mirror_axes,
+        patch_size=params.patch_size,
+        num_segmentation_heads=params.num_segmentation_heads,
         use_mirroring=bool(use_mirroring),
         use_gaussian=bool(use_gaussian),
         tile_step_size=float(tile_step_size),
