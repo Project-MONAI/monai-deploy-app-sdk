@@ -13,11 +13,13 @@
 
 from .gpu_util import GpuTiming, assert_cuda_available, assert_on_gpu, nvtx_range
 from .preprocess_operator import PreprocessOperator, preprocess_reference, to_holoscan_gpu_tensor
+from .slidewindow_operator import SlideWindowOperator
 
 __all__ = [
     "PreprocessOperator",
     "preprocess_reference",
     "to_holoscan_gpu_tensor",
+    "SlideWindowOperator",
     "GpuTiming",
     "assert_cuda_available",
     "assert_on_gpu",
