@@ -62,11 +62,25 @@ from monai.deploy.core import Image, Operator, OperatorSpec
 
 try:  # package-style import (my_app.*)
     from my_app.config import find_jsonpkls_dir
-    from my_app.operators.gpu_util import GpuTiming, assert_cuda_available, assert_on_gpu, nvtx_range
+    from my_app.operators.gpu_util import (
+        GpuTiming,
+        StudyTimingCollector,
+        assert_cuda_available,
+        assert_on_gpu,
+        get_study_id,
+        nvtx_range,
+    )
     from my_app.operators.sc_overlay import write_sc_overlay
 except ImportError:  # flat import (my_app dir on sys.path, as the app runner provides)
     from config import find_jsonpkls_dir
-    from gpu_util import GpuTiming, assert_cuda_available, assert_on_gpu, nvtx_range
+    from gpu_util import (
+        GpuTiming,
+        StudyTimingCollector,
+        assert_cuda_available,
+        assert_on_gpu,
+        get_study_id,
+        nvtx_range,
+    )
     from sc_overlay import write_sc_overlay
 
 __all__ = [
@@ -505,9 +519,15 @@ class PostprocessOperator(Operator):
 
             counts = {int(v): int(c) for v, c in zip(*np.unique(seg_cpu, return_counts=True))}
             record = timing.stop()
+            record["study"] = str(
+                image.metadata().get("StudyInstanceUID")
+                or image.metadata().get("SeriesInstanceUID")
+                or get_study_id(self.fragment)
+            )
             record["label_counts"] = counts
             record["voxel_volume_mm3"] = voxel_volume
-            self._logger.info("postprocess timing: %s", json.dumps(record))
+            StudyTimingCollector.record(self.fragment, record)
+            self._logger.info("timing: %s", json.dumps(record))
             self._logger.info("result text: %s", result_text)
 
             # SC side output: reference-parity overlay .dcm in the temp dir.

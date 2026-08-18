@@ -22,9 +22,10 @@ Every operator in the pipeline uses these helpers so that:
 from __future__ import annotations
 
 import contextlib
+from datetime import datetime, timezone
 import json
 import time
-from typing import Any, Dict, Iterator, Optional
+from typing import Any, Dict, Iterator, List, Optional
 
 import torch
 
@@ -119,14 +120,24 @@ class GpuTiming:
         timing = GpuTiming("preprocess")
         timing.start()
         ... work ...
-        record = timing.stop()          # {"label", "start_ns", "end_ns", "duration_ms"}
+        record = timing.stop()          # {"operator", "study", "start", "end",
+                                        #  "start_ns", "end_ns", "duration_ms"}
         log.info("timing: %s", json.dumps(record))
+
+    ``start``/``end`` are ISO-8601 UTC wall-clock timestamps; ``start_ns``/
+    ``end_ns`` are monotonic nanoseconds; ``duration_ms`` is derived from the
+    monotonic pair. ``study`` defaults to ``"unknown"`` — set it from the
+    record's owner (e.g. the DICOM Image metadata) before logging.
     """
 
     def __init__(self, label: str = "stage"):
         self.label = label
         self._start_ns: Optional[int] = None
         self.record: Optional[Dict[str, Any]] = None
+
+    @staticmethod
+    def _iso(ns: int) -> str:
+        return datetime.fromtimestamp(ns / 1e9, tz=timezone.utc).isoformat()
 
     def start(self) -> "GpuTiming":
         """Mark the start instant (monotonic, nanoseconds)."""
@@ -139,7 +150,11 @@ class GpuTiming:
         if self._start_ns is None:
             raise RuntimeError("GpuTiming.stop() called before start().")
         self.record = {
+            "operator": self.label,
             "label": self.label,
+            "study": "unknown",
+            "start": self._iso(self._start_ns),
+            "end": self._iso(end_ns),
             "start_ns": self._start_ns,
             "end_ns": end_ns,
             "duration_ms": round((end_ns - self._start_ns) / 1e6, 6),

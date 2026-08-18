@@ -74,11 +74,25 @@ from monai.deploy.core import Operator, OperatorSpec
 
 try:  # package-style import (my_app.*)
     from my_app.config import InferenceParams, detect_available_folds, load_inference_params, resolve_checkpoint_name
-    from my_app.operators.gpu_util import GpuTiming, assert_cuda_available, assert_on_gpu, nvtx_range
+    from my_app.operators.gpu_util import (
+        GpuTiming,
+        StudyTimingCollector,
+        assert_cuda_available,
+        assert_on_gpu,
+        get_study_id,
+        nvtx_range,
+    )
     from my_app.operators.preprocess_operator import to_holoscan_gpu_tensor
 except ImportError:  # flat import (my_app dir on sys.path, as the app runner provides)
     from config import InferenceParams, detect_available_folds, load_inference_params, resolve_checkpoint_name
-    from gpu_util import GpuTiming, assert_cuda_available, assert_on_gpu, nvtx_range
+    from gpu_util import (
+        GpuTiming,
+        StudyTimingCollector,
+        assert_cuda_available,
+        assert_on_gpu,
+        get_study_id,
+        nvtx_range,
+    )
     from preprocess_operator import to_holoscan_gpu_tensor
 
 __all__ = [
@@ -536,4 +550,7 @@ class SlideWindowOperator(Operator):
             assert_on_gpu(logits)
             op_output.emit(to_holoscan_gpu_tensor(logits), self.OUTPUT_LOGITS)
 
-            self._logger.info("inference timing: %s", json.dumps(timing.stop()))
+            record = timing.stop()
+            record["study"] = get_study_id(self.fragment)
+            StudyTimingCollector.record(self.fragment, record)
+            self._logger.info("timing: %s", json.dumps(record))

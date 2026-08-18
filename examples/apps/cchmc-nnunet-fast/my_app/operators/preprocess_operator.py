@@ -48,10 +48,24 @@ from monai.deploy.core import Image, Operator, OperatorSpec
 
 try:  # package-style import (my_app.*)
     from my_app.config import PreprocessParams, load_preprocess_params
-    from my_app.operators.gpu_util import GpuTiming, assert_cuda_available, assert_on_gpu, nvtx_range
+    from my_app.operators.gpu_util import (
+        GpuTiming,
+        StudyTimingCollector,
+        assert_cuda_available,
+        assert_on_gpu,
+        nvtx_range,
+        set_study_id,
+    )
 except ImportError:  # flat import (my_app dir on sys.path, as the app runner provides)
     from config import PreprocessParams, load_preprocess_params
-    from gpu_util import GpuTiming, assert_cuda_available, assert_on_gpu, nvtx_range
+    from gpu_util import (
+        GpuTiming,
+        StudyTimingCollector,
+        assert_cuda_available,
+        assert_on_gpu,
+        nvtx_range,
+        set_study_id,
+    )
 
 __all__ = ["PreprocessOperator", "preprocess_reference", "to_holoscan_gpu_tensor"]
 
@@ -466,6 +480,13 @@ class PreprocessOperator(Operator):
             if image is None:
                 raise ValueError("PreprocessOperator received no 'image' input.")
 
+            # Study identity for the structured timing records: register it
+            # for the fragment so the downstream GPU operators (which receive
+            # tensors, not the Image) can include it in their records.
+            _meta = image.metadata()
+            study = str(_meta.get("StudyInstanceUID") or _meta.get("SeriesInstanceUID") or "unknown")
+            set_study_id(self.fragment, study)
+
             volume, properties = self.preprocess_image(image)
 
             # Move the final float32 tensor to CUDA (channel count preserved:
@@ -480,7 +501,9 @@ class PreprocessOperator(Operator):
             op_output.emit(properties, self.OUTPUT_META)
 
             record = timing.stop()
+            record["study"] = study
             record["bbox_used_for_cropping"] = properties["bbox_used_for_cropping"]
             record["shape_before_cropping"] = list(properties["shape_before_cropping"])
             record["new_shape"] = list(properties["new_shape"])
-            self._logger.info("preprocess timing: %s", json.dumps(record))
+            StudyTimingCollector.record(self.fragment, record)
+            self._logger.info("timing: %s", json.dumps(record))

@@ -104,8 +104,11 @@ def timed_writer_compute(operator, base_class, name, op_input, op_output, contex
             return base_class.compute(operator, op_input, op_output, context)
         finally:
             record = timing.stop()
-            record["study"] = get_study_id(operator)
-            StudyTimingCollector.record(operator, record)
+            # key the registry/collector by the shared fragment (the app),
+            # not the individual operator instance
+            fragment = getattr(operator, "fragment", operator)
+            record["study"] = get_study_id(fragment)
+            StudyTimingCollector.record(fragment, record)
             # the SDK SEG writer does not define _logger; fall back to module logger
             logger = getattr(operator, "_logger", None) or logging.getLogger(f"timed_{type(operator).__name__}")
             logger.info("timing: %s", json.dumps(record))

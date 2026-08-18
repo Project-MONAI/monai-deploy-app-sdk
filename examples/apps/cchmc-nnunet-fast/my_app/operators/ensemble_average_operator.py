@@ -46,10 +46,24 @@ import torch
 from monai.deploy.core import Operator, OperatorSpec
 
 try:  # package-style import (my_app.*)
-    from my_app.operators.gpu_util import GpuTiming, assert_cuda_available, assert_on_gpu, nvtx_range
+    from my_app.operators.gpu_util import (
+        GpuTiming,
+        StudyTimingCollector,
+        assert_cuda_available,
+        assert_on_gpu,
+        get_study_id,
+        nvtx_range,
+    )
     from my_app.operators.preprocess_operator import to_holoscan_gpu_tensor
 except ImportError:  # flat import (my_app dir on sys.path, as the app runner provides)
-    from gpu_util import GpuTiming, assert_cuda_available, assert_on_gpu, nvtx_range
+    from gpu_util import (
+        GpuTiming,
+        StudyTimingCollector,
+        assert_cuda_available,
+        assert_on_gpu,
+        get_study_id,
+        nvtx_range,
+    )
     from preprocess_operator import to_holoscan_gpu_tensor
 
 __all__ = ["EnsembleAverageOperator", "average_probabilities", "argmax_to_segmentation"]
@@ -269,6 +283,8 @@ class EnsembleAverageOperator(Operator):
             op_output.emit(to_holoscan_gpu_tensor(seg), self.OUTPUT_SEG)
 
             record = timing.stop()
+            record["study"] = get_study_id(self.fragment)
             record["n_configs"] = len(tensors)
             record["averaged_shape"] = list(averaged.shape)
-            self._logger.info("ensemble_average timing: %s", json.dumps(record))
+            StudyTimingCollector.record(self.fragment, record)
+            self._logger.info("timing: %s", json.dumps(record))

@@ -51,10 +51,24 @@ from skimage.transform import resize
 from monai.deploy.core import Operator, OperatorSpec
 
 try:  # package-style import (my_app.*)
-    from my_app.operators.gpu_util import GpuTiming, assert_cuda_available, assert_on_gpu, nvtx_range
+    from my_app.operators.gpu_util import (
+        GpuTiming,
+        StudyTimingCollector,
+        assert_cuda_available,
+        assert_on_gpu,
+        get_study_id,
+        nvtx_range,
+    )
     from my_app.operators.preprocess_operator import _determine_do_sep_z_and_axis, to_holoscan_gpu_tensor
 except ImportError:  # flat import (my_app dir on sys.path, as the app runner provides)
-    from gpu_util import GpuTiming, assert_cuda_available, assert_on_gpu, nvtx_range
+    from gpu_util import (
+        GpuTiming,
+        StudyTimingCollector,
+        assert_cuda_available,
+        assert_on_gpu,
+        get_study_id,
+        nvtx_range,
+    )
     from preprocess_operator import _determine_do_sep_z_and_axis, to_holoscan_gpu_tensor
 
 __all__ = [
@@ -341,5 +355,7 @@ class PostResampleOperator(Operator):
             op_output.emit(to_holoscan_gpu_tensor(probabilities), self.OUTPUT_PROBABILITIES)
 
             record = timing.stop()
+            record["study"] = get_study_id(self.fragment)
             record["probabilities_shape"] = list(probabilities.shape)
-            self._logger.info("postresample timing: %s", json.dumps(record))
+            StudyTimingCollector.record(self.fragment, record)
+            self._logger.info("timing: %s", json.dumps(record))
