@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: "Completed 1-core-pipeline-03-PLAN.md (PostResample + EnsembleAverage + Postprocess operators: bit-exact reference post-inference on GPU; identical label mask vs reference postprocess; 100% E2E seg vs fresh reference)"
-last_updated: "2026-08-18T15:55:00.000Z"
+stopped_at: Completed 1-core-pipeline-04-PLAN.md (DAG assembly in app.py replacing NNUnetSegOperator; NVTX + structured per-operator timing; E2E airway run exit 0)
+last_updated: "2026-08-18T17:16:17.000Z"
 last_activity: 2026-08-18
 progress:
   total_phases: 4
   completed_phases: 1
   total_plans: 6
-  completed_plans: 4
-  percent: 67
+  completed_plans: 5
+  percent: 83
 ---
 
 # Project State
@@ -21,22 +21,23 @@ progress:
 See: .planning/PROJECT.md (updated 2026-08-14)
 
 **Core value:** Single-study inference latency without sacrificing correctness — CT in, pixel-identical DICOM-SEG out, faster, every intermediate step stays on GPU.
-**Current focus:** Phase 1 (Core Pipeline) — **EXECUTING** (plans 01–03 complete, plan 04 next)
+**Current focus:** Phase 1 (Core Pipeline) — **EXECUTING** (plans 01–04 complete, plan 05 next)
 
 ## Current Position
 
 Phase: 1 of 2 (core pipeline)
-Plan: 4 of 5
+Plan: 5 of 5
 Status: Executing Phase 1
 Last activity: 2026-08-18
 
-Progress: [███████░░░░] 67%
+Progress: [████████░░░] 83%
 
 ## Transition Log
 
 - **2026-08-17 Phase 0 → Phase 1:** gate passed (VERIFICATION passed, 5/5 acceptance, TEST-01 corpus deviation documented). PROJECT.md updated: Phase 0 requirements moved to Validated (TEST-006/TEST-007), cu13/resampling/Docker-deferral/baseline decisions logged. Phase 1 is now active and ready for planning (inputs staged in "Next — Phase 1").
 - **2026-08-18 Plan 02 complete:** SlideWindowOperator — setup-time one-shot model load (architecture from plans.json, 5 fold weights from resolved checkpoint path), TTA in exact nnUNet order with FP32 sequential accumulation, reference-parity steps/gaussian/autocast boundaries, config- and checkpoint-driven (InferenceParams). Airway study: logits max abs diff 4.539e-01 vs reference (fp16-ref vs fp32-ours; plan's ~1e-6 assumes an fp32 reference — unreachable, seg gate is controlling) and **100.00000% voxel-identical segmentation** (16,646,400/16,646,400). Inference 27.1 s/study, zero cold start on study 2+. Deviations: nnUNet pure SW utilities instead of MONAI swi (monai 1.3.0 kernel/step divergence, measured); per-fold autocast boundary (torch 2.13 corrupts forwards following a mid-autocast load_state_dict — one-loop autocast gave 13.2 diff). See 1-core-pipeline-02-SUMMARY.md.
 - **2026-08-18 Plan 03 complete:** PostResampleOperator + EnsembleAverageOperator + PostprocessOperator. Resample+softmax bit-exact vs the reference export path (required replicating the reference's `set_num_threads(default_num_processes)` scope around torch CPU softmax); in-memory GPU ensemble average in reference accumulation order with CuPy bit-exact final division (torch CUDA `/= n` is 1-ulp off numpy for non-power-of-2 n) and argmax-after-average; postprocess = custom deterministic CuPy two-pass min-seed CC (26-conn; no GPU skimage in venv) with MONAI keep-largest + acvl rule parity, zero-copy DLPack, exactly-once CPU transfer. Gates: identical label mask vs reference postprocess (exact), pre-CC segs 100% identical, **full E2E final seg 100.00000% voxel-identical vs a fresh in-harness reference run**, SR text exact. 6 auto-fixes incl. CC component-count off-by-one (hid 2-component inputs) and DLPack ownership (cp.from_dlpack consumes the caller's torch buffer — clone added). See 1-core-pipeline-03-SUMMARY.md.
+- **2026-08-18 Plan 04 complete:** DAG assembly in app.py — NNUnetSegOperator replaced by Preprocess → SlideWindow → PostResample → EnsembleAverage → Postprocess (15 flows), reference DICOMSeriesSelector/SC-writer copied, SC overlay side-output added to PostprocessOperator (LabelToContour + jet + alpha, SaveImaged .dcm), ensemble emits uint8 seg. NVTX verified in an Nsight trace (preprocess/inference/postresample/ensemble_average/postprocess); structured timing records {operator, study, start, end, duration_ms} + per-study aggregate incl. writers. E2E airway run exit 0, SC/SEG/SR, 3655 voxels, SR exact. **Gate-calibration finding:** testdata/current_output is the reference app's FULL-BUNDLE run (3d_fullres + 3d_cascade_fullres ensemble → 2447 voxels); Phase 1 scope is single-config 3d_fullres (3655) — Plan 05's pixel-exact gate must use a 3d_fullres-only reference. See 1-core-pipeline-04-SUMMARY.md.
 
 ## Phase 0 Acceptance Status
 
@@ -52,16 +53,16 @@ Done: app scaffold (examples/apps/cchmc-nnunet-fast, standard MAP layout, app.py
 
 ## Performance Metrics
 
-**Velocity:** 3 planned GSD plans executed (Phase 1, Plans 01–03): 57 min + ~105 min + ~228 min wall (subagent, 3–4 tasks / 3 commits each).
+**Velocity:** 4 planned GSD plans executed (Phase 1, Plans 01–04): 57 min + ~105 min + ~228 min + ~40 min wall (subagent, 3–4 tasks / 3 commits each).
 
 **By Phase:**
 
 | Phase | Plans | Total     | Avg/Plan |
 | ----- | ----- | --------- | -------- |
 | 0     | 0     | 0         | -        |
-| 1     | 3     | 390 min   | 130 min  |
+| 1     | 4     | 430 min   | 108 min  |
 
-**Recent Trend:** plan 03 was the longest — post-inference bit-exactness hunting (thread-scope softmax, CuPy division parity) plus two CC/DLPack correctness bugs caught by the E2E gate before commit.
+**Recent Trend:** plan 04 was the fastest — the operators were already verified in 01–03; the work was DAG wiring (GXF no-receiver rule), SC side-output, and observability.
 
 ## Accumulated Context
 
@@ -106,8 +107,8 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-08-18 15:55 UTC
-Stopped at: Completed 1-core-pipeline-03-PLAN.md (PostResample + EnsembleAverage + Postprocess operators; bit-exact GPU post-inference; 100% E2E seg vs fresh reference)
+Last session: 2026-08-18 17:16 UTC
+Stopped at: Completed 1-core-pipeline-04-PLAN.md (DAG assembly in app.py; NVTX trace + structured timing verified; E2E airway run exit 0 with SC/SEG/SR)
 Resume file: None
 
 ## Next — Phase 1 (Core Pipeline)
@@ -124,12 +125,10 @@ Scope: single config `3D_fullres`; operators built config-driven so Phase 2 adds
 
 Next:
 
-1. **`/gsd-execute-plan 1 04`** (DAG assembly in app.py + NVTX + timing logs, wave 3) — or `/gsd-execute-phase 1` for the remainder. All three inference-path operators now exist with declared I/O: SlideWindow (preprocessed in → logits out), PostResample (logits + preprocessed_meta in → probabilities out), EnsembleAverage (probabilities in → uint8 CUDA seg out), Postprocess (seg + image in → CPU numpy seg + result_text out).
-2. Phase 1 planning carried these inputs (already embedded in the plans):
-   - **Validation strategy (de-risked):** primary gate = `cchmc-nnunet-fast` vs a **freshly regenerated reference** (`testdata/current_output`, confirmed equal to historical GT).
-   - Baseline to beat: **169.7 ± 7.3 s/study** (inference ≈ 138 s)
-   - Models available: 3d_fullres, 3d_lowres, 3d_cascade_fullres (2d absent; gates Phase 2/3 multi-config)
-   - Env hazards: `my_app` name collision (run apps from their app root); venv monai ptp patches (re-apply after monai reinstall); 32 MB stack requirement
+1. **`/gsd-execute-plan 1 05`** (validation tools + pixel-exact E2E gate + SR comparison, wave 4). CRITICAL gate input (Plan 04 finding): compare against a **3d_fullres-only reference run** (e.g. reference app with `model_list=['3d_fullres']`, as Plan 03 did in-harness) — `testdata/current_output` is the full-bundle cascade ensemble (2447 voxels) and is out of scope for Phase 1 (3655 voxels).
+2. Carried env facts:
+   - App runs: from `examples/apps/cchmc-nnunet-fast`, `ulimit -s unlimited`, `/tmp/monai-env/.venv/bin/python my_app -i <dicom> -m <bundle> -o <out>` (my_app name-collision + 32 MB stack hazards)
+   - venv monai ptp patches (re-apply after monai reinstall); baseline to beat: 169.7 ± 7.3 s/study
    - Docker build + container test deferred to post-Phase-3 — validate pythonically in Phase 1
 3. **Carried blocker (not a plan task):** TEST-01's ≥5-CT-study corpus is the final Phase 1 acceptance gate — blocked on CT data. The single airway study (dev) gate is what plans 01–05 verify now.
 
