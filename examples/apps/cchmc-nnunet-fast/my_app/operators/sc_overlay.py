@@ -14,8 +14,12 @@
 Reproduces the reference app's SC side-output math 1:1 (see
 ``cchmc_nnunet_fifteen_ckpt_app/my_app/post_transforms.py``):
 
-* ``LabelToContourd`` — per-label 2-D-plane contours of the segmentation
-  (MONAI ``LabelToContour`` on the full 3-D binary mask, kept where ``> 0``);
+* ``LabelToContourd`` — the reference's own dict transform: the label image
+  is processed **slice-by-slice along its last axis**, each 2-D slice's
+  binary mask goes through MONAI's ``LabelToContour`` (2-D Laplace kernel,
+  kept where ``> 0``), and the label value is written at the edge voxels.
+  The reference runs it on the label array in its internal orientation
+  (``seg.transpose(2, 1, 0)`` of the original (Z, Y, X) volume);
 * ``OverlayImageLabeld`` — min-max normalized RGB image, jet colormap (256
   entries) on the contour volume, alpha blend (``alpha=0.7``) where the
   contour is present, uint8;
@@ -37,7 +41,13 @@ from numpy import int16
 from monai.data import MetaTensor
 from monai.transforms import LabelToContour, SaveImaged
 
-__all__ = ["generate_contour", "create_overlay", "save_sc_dicom", "write_sc_overlay"]
+__all__ = [
+    "reference_label_to_contour",
+    "generate_contour",
+    "create_overlay",
+    "save_sc_dicom",
+    "write_sc_overlay",
+]
 
 _logger = logging.getLogger(f"{__name__}")
 
@@ -45,8 +55,54 @@ _logger = logging.getLogger(f"{__name__}")
 _JET_COLORMAP = cm.get_cmap("jet", 256)
 
 
+def reference_label_to_contour(seg: np.ndarray, output_labels: Sequence[int]) -> np.ndarray:
+    """Reference ``LabelToContourd`` math applied to ``seg`` **in the given
+    layout** (reference app ``post_transforms.py``, verbatim semantics):
+
+    the label volume is processed slice-by-slice along its last axis; for
+    each slice and each non-background label in ``output_labels`` a binary
+    mask (float32) goes through MONAI's 2-D ``LabelToContour`` (Laplace
+    kernel, padded to keep the shape) and the label value is written at the
+    voxels where the filtered slice is ``> 0``.
+
+    The reference app invokes this on the label array in its internal
+    orientation (``seg.transpose(2, 1, 0)`` of the original (Z, Y, X) volume);
+    callers choose the layout.
+
+    Args:
+        seg: uint8 segmentation ``(Z, Y, X)`` (or the reference-internal
+            orientation — this function is layout-agnostic).
+        output_labels: labels to contour (reference: ``[1]``).
+
+    Returns:
+        uint8 volume of the same shape; 0 in the background, the label value
+        on the (Laplace-thickened) per-slice contour of that label.
+    """
+    contour = np.zeros_like(seg, dtype=np.uint8)
+    for i in range(seg.shape[-1]):
+        slice_image = seg[:, :, i][None]  # (1, a, b) — channel-first 2-D slice
+        unique_labels = np.unique(slice_image)
+        unique_labels = unique_labels[unique_labels != 0]
+        for label in unique_labels:
+            # skip contour generation for labels that are not in output_labels
+            if label not in output_labels:
+                continue
+            binary_mask = np.zeros_like(slice_image)
+            binary_mask[slice_image == label] = 1.0
+            binary_mask = binary_mask.astype(np.float32)
+            thick_edges = LabelToContour()(binary_mask)
+            thick_edges = (np.asarray(thick_edges) > 0).astype(np.uint8)
+            contour[:, :, i] = np.where(thick_edges[0] > 0, label, contour[:, :, i])
+    return contour
+
+
 def generate_contour(seg: np.ndarray, output_labels: Sequence[int]) -> np.ndarray:
-    """Per-label contour volume (reference ``LabelToContourd`` math).
+    """Reference-parity contour in the image's (Z, Y, X) orientation.
+
+    The reference applies ``LabelToContourd`` to the label array in its
+    internal orientation (``seg.transpose(2, 1, 0)``); the resulting contour
+    is mapped back to (Z, Y, X) so it aligns with the original image volume
+    for the SC overlay.
 
     Args:
         seg: uint8 segmentation ``(Z, Y, X)`` in original DICOM orientation.
@@ -56,14 +112,9 @@ def generate_contour(seg: np.ndarray, output_labels: Sequence[int]) -> np.ndarra
         uint8 volume of the same shape; 0 in the background, the label value
         on the (Laplace-thickened) contour of that label.
     """
-    contour = np.zeros(seg.shape, dtype=np.uint8)
-    for label in output_labels:
-        binary_mask = (seg == label).astype(np.float32)
-        if not binary_mask.any():
-            continue
-        thick_edges = LabelToContour()(binary_mask)
-        contour[np.asarray(thick_edges) > 0] = label
-    return contour
+    internal = np.ascontiguousarray(seg.transpose(2, 1, 0))
+    contour_internal = reference_label_to_contour(internal, output_labels)
+    return np.ascontiguousarray(contour_internal.transpose(2, 1, 0))
 
 
 def create_overlay(image_volume: np.ndarray, label_volume: np.ndarray, alpha: float = 0.7) -> np.ndarray:

@@ -70,7 +70,7 @@ try:  # package-style import (my_app.*)
         get_study_id,
         nvtx_range,
     )
-    from my_app.operators.sc_overlay import write_sc_overlay
+    from my_app.operators.sc_overlay import reference_label_to_contour, write_sc_overlay
 except ImportError:  # flat import (my_app dir on sys.path, as the app runner provides)
     from config import find_jsonpkls_dir
     from gpu_util import (
@@ -81,7 +81,7 @@ except ImportError:  # flat import (my_app dir on sys.path, as the app runner pr
         get_study_id,
         nvtx_range,
     )
-    from sc_overlay import write_sc_overlay
+    from sc_overlay import reference_label_to_contour, write_sc_overlay
 
 __all__ = [
     "PostprocessOperator",
@@ -343,8 +343,10 @@ class PostprocessOperator(Operator):
             measurement text).
 
     Named Outputs:
-        seg: final uint8 segmentation as **CPU numpy** ``(Z, Y, X)`` — the
-            exactly-once GPU->CPU boundary transfer, ready for
+        seg: the reference-parity DICOM-SEG payload as CPU numpy uint8 — the
+            per-slice Laplace contour of the label mask in the reference-
+            internal orientation (see ``reference_label_to_contour``), the
+            single exactly-once GPU->CPU boundary transfer, ready for
             ``DICOMSegmentationWriterOperator``.
         result_text: the airway volume text for DICOM SR
             (e.g. ``"Airway Volume: 1 mL"``).
@@ -517,6 +519,15 @@ class PostprocessOperator(Operator):
             if not result_text:
                 raise ValueError("PostprocessOperator produced no result text (no output_labels with label != 0?).")
 
+            # Reference-parity SEG payload (Plan 05 gate): the reference's
+            # post_process_stage2 applies its LabelToContourd to the label
+            # mask — in the reference-internal orientation
+            # ``seg.transpose(2, 1, 0)`` — BEFORE emitting the DICOM-SEG (the
+            # SR volume above is computed on the solid mask, matching the
+            # reference transform order). Emitting this array makes the SDK
+            # SEG writer produce the reference-identical DICOM-SEG layout.
+            seg_internal = np.ascontiguousarray(seg_cpu.transpose(2, 1, 0))
+            seg_contour = reference_label_to_contour(seg_internal, list(self.output_labels))
             counts = {int(v): int(c) for v, c in zip(*np.unique(seg_cpu, return_counts=True))}
             record = timing.stop()
             record["study"] = str(
@@ -525,6 +536,7 @@ class PostprocessOperator(Operator):
                 or get_study_id(self.fragment)
             )
             record["label_counts"] = counts
+            record["contour_voxels"] = int((seg_contour != 0).sum())
             record["voxel_volume_mm3"] = voxel_volume
             StudyTimingCollector.record(self.fragment, record)
             self._logger.info("timing: %s", json.dumps(record))
@@ -533,6 +545,6 @@ class PostprocessOperator(Operator):
             # SC side output: reference-parity overlay .dcm in the temp dir.
             dicom_sc_dir = self._write_sc_output(seg_cpu, image)
 
-            op_output.emit(seg_cpu, self.OUTPUT_SEG)
+            op_output.emit(seg_contour, self.OUTPUT_SEG)
             op_output.emit(result_text, self.OUTPUT_TEXT)
             op_output.emit(dicom_sc_dir, self.OUTPUT_SC_DIR)

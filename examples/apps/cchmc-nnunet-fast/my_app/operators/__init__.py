@@ -23,7 +23,7 @@ from .gpu_util import (
 from .dicom_sc_writer_operator import DICOMSCWriterOperator
 from .dicom_series_selector_operator import DICOMSeriesSelectorOperator
 from .ensemble_average_operator import EnsembleAverageOperator, argmax_to_segmentation, average_probabilities
-from .sc_overlay import create_overlay, generate_contour, save_sc_dicom, write_sc_overlay
+from .sc_overlay import create_overlay, generate_contour, reference_label_to_contour, save_sc_dicom, write_sc_overlay
 from .postprocess_operator import (
     PostprocessOperator,
     cc_label_gpu,
@@ -58,6 +58,7 @@ __all__ = [
     "DICOMSeriesSelectorOperator",
     "DICOMSCWriterOperator",
     "generate_contour",
+    "reference_label_to_contour",
     "create_overlay",
     "save_sc_dicom",
     "write_sc_overlay",
