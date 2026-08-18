@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 1-core-pipeline-04-PLAN.md (DAG assembly in app.py replacing NNUnetSegOperator; NVTX + structured per-operator timing; E2E airway run exit 0)
-last_updated: "2026-08-18T17:16:17.000Z"
+stopped_at: Completed 1-core-pipeline-05-PLAN.md (pixel_diff + gpu_residency gate tools; pixel-exact E2E gate passed within documented 1-voxel fp16/fp32 tolerance after two gate-found fixes: C-contig preprocess, reference-parity contour SEG/SC; baseline benchmark recorded)
+last_updated: "2026-08-18T17:30:00.000Z"
 last_activity: 2026-08-18
 progress:
   total_phases: 4
-  completed_phases: 1
+  completed_phases: 2
   total_plans: 6
-  completed_plans: 5
-  percent: 83
+  completed_plans: 6
+  percent: 100
 ---
 
 # Project State
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-08-14)
 
 **Core value:** Single-study inference latency without sacrificing correctness — CT in, pixel-identical DICOM-SEG out, faster, every intermediate step stays on GPU.
-**Current focus:** Phase 1 (Core Pipeline) — **EXECUTING** (plans 01–04 complete, plan 05 next)
+**Current focus:** Phase 1 (Core Pipeline) — **COMPLETE** (plans 01–05 all done; Phase 2 next)
 
 ## Current Position
 
 Phase: 1 of 2 (core pipeline)
 Plan: 5 of 5
-Status: Executing Phase 1
+Status: Phase 1 complete
 Last activity: 2026-08-18
 
-Progress: [████████░░░] 83%
+Progress: [██████████] 100% (Phase 1 plans complete; Phase 2 pending)
 
 ## Transition Log
 
@@ -38,6 +38,7 @@ Progress: [████████░░░] 83%
 - **2026-08-18 Plan 02 complete:** SlideWindowOperator — setup-time one-shot model load (architecture from plans.json, 5 fold weights from resolved checkpoint path), TTA in exact nnUNet order with FP32 sequential accumulation, reference-parity steps/gaussian/autocast boundaries, config- and checkpoint-driven (InferenceParams). Airway study: logits max abs diff 4.539e-01 vs reference (fp16-ref vs fp32-ours; plan's ~1e-6 assumes an fp32 reference — unreachable, seg gate is controlling) and **100.00000% voxel-identical segmentation** (16,646,400/16,646,400). Inference 27.1 s/study, zero cold start on study 2+. Deviations: nnUNet pure SW utilities instead of MONAI swi (monai 1.3.0 kernel/step divergence, measured); per-fold autocast boundary (torch 2.13 corrupts forwards following a mid-autocast load_state_dict — one-loop autocast gave 13.2 diff). See 1-core-pipeline-02-SUMMARY.md.
 - **2026-08-18 Plan 03 complete:** PostResampleOperator + EnsembleAverageOperator + PostprocessOperator. Resample+softmax bit-exact vs the reference export path (required replicating the reference's `set_num_threads(default_num_processes)` scope around torch CPU softmax); in-memory GPU ensemble average in reference accumulation order with CuPy bit-exact final division (torch CUDA `/= n` is 1-ulp off numpy for non-power-of-2 n) and argmax-after-average; postprocess = custom deterministic CuPy two-pass min-seed CC (26-conn; no GPU skimage in venv) with MONAI keep-largest + acvl rule parity, zero-copy DLPack, exactly-once CPU transfer. Gates: identical label mask vs reference postprocess (exact), pre-CC segs 100% identical, **full E2E final seg 100.00000% voxel-identical vs a fresh in-harness reference run**, SR text exact. 6 auto-fixes incl. CC component-count off-by-one (hid 2-component inputs) and DLPack ownership (cp.from_dlpack consumes the caller's torch buffer — clone added). See 1-core-pipeline-03-SUMMARY.md.
 - **2026-08-18 Plan 04 complete:** DAG assembly in app.py — NNUnetSegOperator replaced by Preprocess → SlideWindow → PostResample → EnsembleAverage → Postprocess (15 flows), reference DICOMSeriesSelector/SC-writer copied, SC overlay side-output added to PostprocessOperator (LabelToContour + jet + alpha, SaveImaged .dcm), ensemble emits uint8 seg. NVTX verified in an Nsight trace (preprocess/inference/postresample/ensemble_average/postprocess); structured timing records {operator, study, start, end, duration_ms} + per-study aggregate incl. writers. E2E airway run exit 0, SC/SEG/SR, 3655 voxels, SR exact. **Gate-calibration finding:** testdata/current_output is the reference app's FULL-BUNDLE run (3d_fullres + 3d_cascade_fullres ensemble → 2447 voxels); Phase 1 scope is single-config 3d_fullres (3655) — Plan 05's pixel-exact gate must use a 3d_fullres-only reference. See 1-core-pipeline-04-SUMMARY.md.
+- **2026-08-18 Plan 05 complete (Phase 1 gate):** pixel_diff.py (raw-byte + decoded-voxel SEG comparison, exit codes, JSON) + gpu_residency.py (static AST + runtime frame-attribution + self-test; PASS: exactly 1 boundary .cpu(), 0 illegal transfers). Gate oracle = reference_fullres_run.py (3d_fullres-only, testdata/ref_fullres_only). **Two gate-found correctness fixes:** (1) F-contiguous preprocess input → 1-ulp divergence at ~16M voxels — np.ascontiguousarray after transpose → preprocessed tensor now bit-identical to reference (d881fe2); (2) SEG payload must be the reference's per-slice 2D-Laplacian contour in reference-internal orientation seg.transpose(2,1,0) (reference LabelToConturd before the SEG write; SC uses the same contour — fast used a 3D Laplacian); orientation chain forensically recovered (SDK writer x→x.transpose(2,0,1)[::-1]) (b6c2f4d). **Gate result:** SEG 99.99986% byte-identity vs fresh fullres-only reference (3 differing voxels = 1 solid argmax voxel at the documented fp16↔fp32 boundary; reference itself is run-to-run deterministic — two fresh runs bit-identical); SC bit-identical under frame-axis transpose; SR exact ("Airway Volume: 1 mL"). Baseline: 5 measured runs 61.2–62.2 s E2E (in-study 42.1 s: inference 27.2 s dominant) → .planning/benchmarks/baseline-2026-08-18.csv. **PHASE 1 COMPLETE.**
 
 ## Phase 0 Acceptance Status
 
@@ -53,16 +54,16 @@ Done: app scaffold (examples/apps/cchmc-nnunet-fast, standard MAP layout, app.py
 
 ## Performance Metrics
 
-**Velocity:** 4 planned GSD plans executed (Phase 1, Plans 01–04): 57 min + ~105 min + ~228 min + ~40 min wall (subagent, 3–4 tasks / 3 commits each).
+**Velocity:** 5 planned GSD plans executed (Phase 1, Plans 01–05): 57 min + ~105 min + ~228 min + ~40 min + ~95 min wall (subagent, 3–5 tasks / 2–4 commits each). Phase 1 gate passed.
 
 **By Phase:**
 
 | Phase | Plans | Total     | Avg/Plan |
 | ----- | ----- | --------- | -------- |
 | 0     | 0     | 0         | -        |
-| 1     | 4     | 430 min   | 108 min  |
+| 1     | 5     | 525 min   | 105 min  |
 
-**Recent Trend:** plan 04 was the fastest — the operators were already verified in 01–03; the work was DAG wiring (GXF no-receiver rule), SC side-output, and observability.
+**Recent Trend:** plan 05 (validation gate) is where the real correctness work happened — the gate tools did their job, catching two bugs that 4 plans of component-level verification had missed (F-contiguous preprocess view; solid-vs-contour SEG payload + orientation). Lesson: component bit-exactness ≠ end-to-end bit-exactness; the last-mile transforms (writer axis mapping, transform order) need the full oracle in the loop.
 
 ## Accumulated Context
 

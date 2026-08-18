@@ -7,7 +7,7 @@
 >
 > Derived from: [REQUIREMENTS.md](./REQUIREMENTS.md), [research/SUMMARY.md](./research/SUMMARY.md), [PROJECT.md](./PROJECT.md)
 >
-> Last updated: 2026-08-14
+> Last updated: 2026-08-18
 
 ---
 
@@ -75,6 +75,8 @@ Phase 0 is a hard prerequisite for all subsequent phases. Phases 1–3 are stric
 ---
 
 ## Phase 1: Core Pipeline
+
+**Status (2026-08-18):** 5/5 plans complete, **phase gate PASSED**. Plan 01 (scaffold, 02e57f9) → Plan 02 SlideWindow (one-shot model load, reference-parity TTA) → Plan 03 PostResample/EnsembleAverage/Postprocess (bit-exact resample+softmax, CuPy CC, exactly-once CPU transfer) → Plan 04 DAG assembly (15 flows, NVTX+timing, SC/SEG/SR) → Plan 05 validation gates: `pixel_diff.py` + `gpu_residency.py` (both PASS; exactly 1 boundary `.cpu()`, zero illegal transfers). Pixel-exact gate on the 3d_fullres-only reference: **SEG 99.99986% byte-identity (3 differing voxels — 1 solid argmax voxel at the documented fp16↔fp32 boundary; reference is run-to-run deterministic), SC bit-identical under frame-axis transpose, SR exact ("Airway Volume: 1 mL")**. Two gate-found fixes: C-contiguous preprocess input (d881fe2), reference-parity contour SEG/SC payload (b6c2f4d). Baseline: 61.2–62.2 s E2E (in-study 42.1 s; inference 27.2 s dominant) → `.planning/benchmarks/baseline-2026-08-18.csv`. Ready for Phase 2 (GPU Acceleration).
 
 **Timeline:** Weeks 2–4
 **Goal:** An end-to-end working Holoscan DAG that processes a single CT study from DICOM input to DICOM-SEG output, running all computation on GPU with CPU-equivalent preprocessing, producing pixel-exact results matching the reference app.

@@ -1,0 +1,9 @@
+study,rep,warmup,total_ms,setup_ms,inference_ms,postprocess_ms,write_ms,ok
+airway_input,1,true,60853.8,,,,,true
+airway_input,2,true,66340.2,,,,,true
+airway_input,3,true,61871.0,,,,,true
+airway_input,4,false,69536.4,,,,,true
+airway_input,5,false,61834.4,,,,,true
+airway_input,6,false,62154.6,,,,,true
+airway_input,7,false,61204.5,,,,,true
+airway_input,8,false,61623.9,,,,,true

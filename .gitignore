@@ -275,3 +275,8 @@ examples/apps/cchmc_nnunet_fifteen_ckpt_app/models/
 
 # Locally regenerated reference outputs (binary DICOM, do not commit)
 testdata/current_output/
+testdata/ref_fullres_only/
+
+# nnUNet scratch dir created at repo root when running the reference app
+# from the repo root (Img_in_context.* per config)
+tmp/
