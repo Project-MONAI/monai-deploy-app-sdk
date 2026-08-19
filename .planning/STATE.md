@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 2-gpu-acceleration-02-PLAN.md (RMM pool allocator + memory budget calculator; pluggable backend + full_volume strategy, E2E clean)
-last_updated: "2026-08-19T07:45:00.000Z"
+stopped_at: Completed 2-gpu-acceleration-03-PLAN.md (cascade operator plumbing + reference model-list semantics; PIPE-03/PIPE-04 operator level, 12-case unit suite, fullres E2E clean)
+last_updated: "2026-08-19T08:15:38.000Z"
 last_activity: 2026-08-19
 progress:
   total_phases: 4
   completed_phases: 2
   total_plans: 12
-  completed_plans: 8
-  percent: 67
+  completed_plans: 9
+  percent: 75
 ---
 
 # Project State
@@ -26,14 +26,15 @@ See: .planning/PROJECT.md (updated 2026-08-14)
 ## Current Position
 
 Phase: 02 of 3 (gpu acceleration)
-Plan: 3 of 6
-Status: Executing Phase 02 (plans 01–02 complete)
+Plan: 4 of 6
+Status: Executing Phase 02
 Last activity: 2026-08-19
 
-Progress: [███████░░░░] 67% (Phase 1 complete; Phase 2 plans 01–02 done, plans 03–06 pending)
+Progress: [███████░░░░] 75% (Phase 1 complete; Phase 2 plans 01–03 done, plans 04–06 pending)
 
 ## Transition Log
 
+- **2026-08-19 Phase 2 Plan 03 complete (cascade operator plumbing + model-list semantics):** `resolve_run_model_list` (config/__init__.py) replicates `nnunet_seg_operator.py:91-99` exactly — plans.json order filtered to model dirs (2d filtered out), reference lowres-before-cascade reorder, ensemble = run minus 3d_lowres, reference's exact ValueError when empty — plus the DATA-DRIVEN previous-stage auto-insertion (`['3d_cascade_fullres']` → `['3d_lowres','3d_cascade_fullres']`; the reference CRASHES on cascade-only — the documented fast-app divergence; zero config-name literals in the insertion step, D-02). `PreprocessParams` gained previous_stage / resample_seg_order(_z) / resample_seg_force_separate_z / foreground_labels, loaded from the PlansManager-RESOLVED configuration (Rule 3: the raw cascade entry inherits spacing + seg kwargs — raw `cfg['spacing']` crashed). `PreprocessOperator`: optional `lowres_seg` input declared ONLY for cascade configs (params.previous_stage, Pitfall 7), seg takes the image's exact layout chain + image-derived bbox crop (GPU), ~16 MB uint8 D2H (D-13), `_resample_seg_to_shape` = bit-exact replica of the vendored `resample_data_or_seg` seg path (resize_segmentation per-label multihot, no anti-aliasing, integer dtype preserved, short-circuit) — `np.array_equal` vs vendored on 3 random uint8 regimes (short-circuit / plain / separate-z+map_coordinates); GPU one-hot `(seg==lbl).astype(fp32)` per foreground_labels — `np.array_equal` vs vendored `convert_labelmap_to_one_hot` (incl. the CuPy op itself); `cp.concatenate([image, one_hot], axis=0)` → (2,*new_shape) fp32 C-contiguous, one-hot never normalized, zero disk I/O; D-10 integer-dtype guard at the boundary (probabilities forbidden). `PostResampleOperator`: `emit_lowres_seg`/`emit_probabilities` flags (before super().__init__, Pitfall 7 port gating), `revert_crop_gpu` (0-fill + bbox insert + transpose_backward, Rule 1 fix: 3D perm has no channel +1), seg = `torch.argmax(softmax-probs, dim=0).to(uint8)` BEFORE revert (== reference argmax-of-resampled-logits, softmax monotone; NO CC — reference cascade input is pre-CC, D-09), 3D uint8 CUDA in original DICOM orientation = same array order as image.asnumpy() (the system-wide orientation contract for lowres_seg). Gates: 12-case unit suite exit 0 vs the REAL bundle + vendored nnunetv2 2.8.1; fullres-only E2E ×2 (post-Task 2, post-Task 3) exit 0 + pixel_diff **99.99986% byte-identity vs ref_fullres_only (3 documented fp16↔fp32 boundary voxels, same coordinates as Phase 1/Plan 02)**, SR exact. Plan-text deviations (see SUMMARY): the task-1 bullet 'standalone lowres is ensemblable' contradicts the replicated reference + the plan's own must-have → implemented/tested the reference ValueError; the revert_crop_gpu test's 'output shape == shape_before_cropping' is only true for identity tf → test asserts np.array_equal vs the numpy reference. Evidence: `.planning/phases/02-gpu-acceleration/plan03-gates/`. Commits 0b265e1 + c930280 + 1d5d340. See 2-gpu-acceleration-03-SUMMARY.md.
 - **2026-08-19 Phase 2 Plan 02 complete (RMM + memory budget):** `gpu_bootstrap.py` is the FIRST import in app.py (rmm before holoscan — the `undefined symbol: __cxa_call_terminate` hazard is live-pinned by `scripts/test_gpu_bootstrap.py` subprocesses: rmm-first → `pluggable`, holoscan-first → `undefined symbol`); compose() logs `memory_allocator_backend: pluggable` + asserts, then logs `memory_budget: {JSON}` from the new pure-Python `compute_memory_budget` (INFR-03: per-config preprocessed+logits+probabilities fp32 estimate × 1.15 vs free VRAM → `full_volume` | `defer_to_incremental`), and warms the RMM pool to `plan.total_bytes` at the end of compose (D-14). Ensemble gained `defer_strategy` (default False = byte-for-byte Phase 1 path; defer branch frees each consumed per-config tensor with IDENTICAL accumulation order + CuPy exact final division — D-19 bit-exactness; real OOM documented UNEXERCISED, D-15). INFR-02 explicitly DEFERRED to Phase 3 (D-17) — documented, not implemented. Headless unit tests (`test_mem_budget.py`) force the defer branch with synthetic (4,600,512,512) volumes. **Blocker found + fixed:** torch 2.13's cudnn benchmark search calls the pluggable allocator's unsupported `cacheInfo` (RuntimeError on the first conv, size-independent, reproduced outside holoscan) → `cudnn.benchmark` disabled when backend is `pluggable` (RMM wins over benchmark-mode reference parity); expandable_segments NOT shipped (Pitfall 6). Gates: fullres-only E2E exit 0 with `strategy: full_volume`; precautionary pixel diff after the benchmark change: SEG **99.99986% byte-identity vs ref_fullres_only (3 documented fp16↔fp32 boundary voxels)**, IoU 0.998714. Evidence: `.planning/phases/02-gpu-acceleration/plan02-gates/`. Commits 1a27e45 + 88773fa. See 2-gpu-acceleration-02-SUMMARY.md.
 - **2026-08-19 Phase 2 Plan 01 complete (CuPy preprocess port):** `preprocess_image` now runs transpose (PREP-01) + crop (PREP-04) + element-wise normalize (PREP-02) on CuPy in fp32 C-contiguous (D-12); one H2D of the raw volume via `cp.array` (not `cp.from_dlpack` — ownership), on-device int→fp32 cast; Z-score/CT mean-std reductions stay numpy (CuPy reductions not bit-identical — Pitfall 4); masked-assignment semantics preserved on GPU via boolean indexing (inactive for this bundle but config-generic); scipy `_resample_to_shape` byte-identical (PREP-03/D-13) with `C_CONTIGUOUS` fp32 assert + D-13 comments at both transfer sites; `preprocess_reference` kept as CPU fallback. Gates (D-11 final-gate-only, no per-op checks): fullres E2E exit 0 (SEG/SR/SC); pixel_diff vs `testdata/ref_fullres_only`: **99.99990% byte-identity, 2 differing voxels** (documented fp16↔fp32 argmax-boundary class; Phase 1 measured 99.99986%/3), IoU 0.999142; SR exact ("Airway Volume: 1 mL"); gpu_residency static + runtime + self-test all PASS — `ALLOWED_TRANSFER_FILES` deliberately gained `preprocess_operator.py` with a D-13 reason string (no existing entry weakened). Evidence: `.planning/phases/02-gpu-acceleration/plan01-gates/`. Commits 215b66a + 303a248. No deviations. See 2-gpu-acceleration-01-SUMMARY.md.
 
@@ -59,7 +60,7 @@ Done: app scaffold (examples/apps/cchmc-nnunet-fast, standard MAP layout, app.py
 
 ## Performance Metrics
 
-**Velocity:** 7 planned GSD plans executed (Phase 1, Plans 01–05): 57 min + ~105 min + ~228 min + ~40 min + ~95 min wall (subagent, 3–5 tasks / 2–4 commits each). Phase 1 gate passed. Phase 2 Plan 01 (CuPy port): ~40 min, 2 tasks / 2 commits — GPU E2E gate runs dominate; the D-11 final-gate-only strategy held (no per-op debugging needed). Phase 2 Plan 02 (RMM + budget): ~40 min, 2 tasks / 2 commits — the RMM↔cudnn-benchmark root-cause bisect dominates.
+**Velocity:** 8 planned GSD plans executed (Phase 1, Plans 01–05; Phase 2 Plans 01–03): 57 min + ~105 min + ~228 min + ~40 min + ~95 min + ~40 min + ~40 min + ~31 min wall (subagent, 3–5 tasks / 2–4 commits each). Phase 1 gate passed. Phase 2 Plan 03 (cascade plumbing): ~31 min, 3 tasks / 3 commits — interface-first plan, so gates were the 12-case unit suite (vs real bundle + vendored reference) + 2× fullres E2E regressions; no cascade E2E yet (Plan 04 assembles the DAG).
 
 **By Phase:**
 
@@ -67,7 +68,7 @@ Done: app scaffold (examples/apps/cchmc-nnunet-fast, standard MAP layout, app.py
 | ----- | ----- | --------- | -------- |
 | 0     | 0     | 0         | -        |
 | 1     | 5     | 525 min   | 105 min  |
-| 2     | 2/6   | 80 min    | 40 min   |
+| 2     | 3/6   | 111 min   | 37 min   |
 
 **Recent Trend:** plan 05 (validation gate) is where the real correctness work happened — the gate tools did their job, catching two bugs that 4 plans of component-level verification had missed (F-contiguous preprocess view; solid-vs-contour SEG payload + orientation). Lesson: component bit-exactness ≠ end-to-end bit-exactness; the last-mile transforms (writer axis mapping, transform order) need the full oracle in the loop.
 
@@ -77,6 +78,9 @@ Done: app scaffold (examples/apps/cchmc-nnunet-fast, standard MAP layout, app.py
 
 Logged in PROJECT.md Key Decisions table. Recent:
 
+- [Phase 2, Plan 03]: System-wide lowres_seg orientation contract: uint8 CUDA, 3D, same array order as image.asnumpy() — PostResample's revert_crop_gpu emits it (transpose_backward, 3D form with NO channel +1), Preprocess consumes it via the image's exact layout chain (so the image-derived bbox applies verbatim); the cascade 2-channel input is (image, one-hot) fp32 C-contiguous with the one-hot channel never normalized
+- [Phase 2, Plan 03]: Reference semantics control over plan text when they conflict: resolve_run_model_list(['3d_lowres']) raises the reference's exact ValueError (empty ensemble) — the plan's 'standalone lowres is ensemblable' bullet contradicted both the replicated reference and the plan's own must-haves; the auto-insertion step is data-driven off plans 'previous_stage' (D-02: zero config-name literals)
+- [Phase 2, Plan 03]: load_preprocess_params reads ALL per-config fields from the PlansManager-resolved configuration (the raw cascade entry carries only inherits_from + previous_stage — spacing/normalization/resampling kwargs are inherited); post-softmax argmax == reference argmax-of-resampled-logits (softmax monotone per voxel, D-09), no CC on the cascade input (reference KeepLargestCC runs only on the final output)
 - [Phase 2, Plan 02]: cudnn benchmark mode is INCOMPATIBLE with the RMM pluggable allocator on torch 2.13 (benchmark search calls unsupported `cacheInfo` → RuntimeError on the first conv, size-independent) — `cudnn.benchmark` is disabled in slidewindow setup when the backend is `pluggable`; RMM (INFR-01/D-14) wins over the reference's benchmark=True parity; pixel-exactness held (99.99986% SEG, 3 boundary voxels)
 - [Phase 2, Plan 02]: the setup-time budget estimate uses plans.json `median_image_size_in_voxels` as the preprocessed shape (study volume size is unknown at compose time; inherited configs fall back to the original median shape × spacing ratio); crop bounded by the resampled volume (crop ⊆ image)
 - [Phase 2, Plan 02]: the defer branch releases per-config tensors as consumed but keeps the exact accumulation order + CuPy final division (bit-identical to the full_volume path — D-19); the defer unit test uses 5 configs of the synthetic (4,600,512,512) shape because the plan's 3-config sketch totals only ~24.4 GB at 40 GB free under its own formula
@@ -121,8 +125,8 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-08-19 07:45 UTC
-Stopped at: Completed 2-gpu-acceleration-02-PLAN.md (RMM pool allocator + memory budget calculator; pluggable backend + full_volume strategy, E2E clean)
+Last session: 2026-08-19 08:15 UTC
+Stopped at: Completed 2-gpu-acceleration-03-PLAN.md (cascade operator plumbing + reference model-list semantics; PIPE-03/PIPE-04 operator level, 12-case unit suite, fullres E2E clean)
 Resume file: None
 
 ## Next — Phase 1 (Core Pipeline)

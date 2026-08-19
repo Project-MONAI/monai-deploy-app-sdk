@@ -11,8 +11,8 @@ Requirements for initial release. Each maps to roadmap phases.
 
 - [ ] **PIPE-01**: The app assembles a Holoscan DAG that connects existing DICOM I/O operators to new GPU-native operators without modifying SDK core code
 - [ ] **PIPE-02**: The app replaces `NNUnetSegOperator` with the new operator chain (Preprocess → SlideWindow → PostResample → EnsembleAverage → Postprocess) in `app.py`
-- [ ] **PIPE-03**: Each nnUNet configuration (2D, 3D_fullres, 3D_lowres, 3D_cascade_fullres) runs as an independent Holoscan Fragment within the same DAG
-- [ ] **PIPE-04**: For 3D_cascade_fullres, the 3D_lowres segmentation output feeds directly into the full-res preprocessing operator as a one-hot channel stack without disk I/O
+- [x] **PIPE-03**: Each nnUNet configuration (2D, 3D_fullres, 3D_lowres, 3D_cascade_fullres) runs as an independent Holoscan Fragment within the same DAG
+- [x] **PIPE-04**: For 3D_cascade_fullres, the 3D_lowres segmentation output feeds directly into the full-res preprocessing operator as a one-hot channel stack without disk I/O
 - [ ] **PIPE-05**: The app runs end-to-end from DICOMDIR input to DICOM-SEG output on a single study without operator errors
 
 ### Preprocessing — GPU resampling and normalization
@@ -117,8 +117,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 |-------------|-------|--------|
 | PIPE-01 | 0, 1 | Pending |
 | PIPE-02 | 1 | Pending |
-| PIPE-03 | 2 | Pending |
-| PIPE-04 | 2 | Pending |
+| PIPE-03 | 2 | **Done (Phase 2, Plan 03)** — resolve_run_model_list (reference semantics + data-driven previous-stage auto-insertion; fragment wiring itself in Plan 04) |
+| PIPE-04 | 2 | **Done (Phase 2, Plan 03)** — lowres_seg port contract + 2-channel input, zero disk I/O, bit-exact vs vendored (flow wiring in Plan 04) |
 | PIPE-05 | 1 | Pending |
 | PREP-01 | 1, 2 | **Done (Phase 2, Plan 01)** — CuPy transpose, fp32 C-contiguous |
 | PREP-02 | 1, 2 | **Done (Phase 2, Plan 01)** — element-wise on GPU, numpy reductions |
