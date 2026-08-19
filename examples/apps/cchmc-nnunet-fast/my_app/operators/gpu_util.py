@@ -51,9 +51,11 @@ _study_by_fragment: Dict[int, str] = {}
 def _root(fragment: Any) -> Any:
     """Top-level Application for a (sub-)fragment: in Phase 1 fragment == app;
     with real sub-Fragments, Fragment.application (verified present in 4.2)
-    resolves the root. Keying by the root keeps one per-study aggregate across
-    fragments (RESEARCH Pitfall 9)."""
-    return getattr(fragment, "application", None) or fragment
+    resolves the root; with Subgraphs (the 4.2 supported multi-fragment
+    mechanism), ``Subgraph.fragment`` is the owning (top-level) Application.
+    Keying by the root keeps one per-study aggregate across fragments
+    (RESEARCH Pitfall 9)."""
+    return getattr(fragment, "application", None) or getattr(fragment, "fragment", None) or fragment
 
 
 def set_study_id(fragment: Any, study_id: str) -> None:
