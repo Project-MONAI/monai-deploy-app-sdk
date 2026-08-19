@@ -1,0 +1,4 @@
+SR airway volume check (TEST-002: 0.1% tolerance)
+new (CuPy preprocess, /tmp/p2p1_e2e_fullres): ['Airway Volume: 1 mL']
+ref (testdata/ref_fullres_only):              ['Airway Volume: 1 mL']
+RESULT: MATCH (exact)

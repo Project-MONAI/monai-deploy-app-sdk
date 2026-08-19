@@ -1,0 +1,293 @@
+[info] [fragment.cpp:1142] Loading extensions from configs...
+========================================================================
+gpu_residency: RUNTIME E2E (3d_fullres, airway study)
+========================================================================
+  running E2E: input=/users/srv-mde/projects/monai-deploy-app-sdk/testdata/airway_input model=/users/srv-mde/projects/monai-deploy-app-sdk/examples/apps/cchmc_nnunet_fifteen_ckpt_app/models out=/tmp/p2p1_residency
+[2026-08-19 02:46:30,430] [INFO] (root) - Parsed args: Namespace(log_level=None, input=PosixPath('/users/srv-mde/projects/monai-deploy-app-sdk/testdata/airway_input'), output=PosixPath('/tmp/p2p1_residency'), model=PosixPath('/users/srv-mde/projects/monai-deploy-app-sdk/examples/apps/cchmc_nnunet_fifteen_ckpt_app/models'), workdir=None, triton_server_netloc=None, argv=['/tmp/monai-env/.venv/bin/python', '-i', '/users/srv-mde/projects/monai-deploy-app-sdk/testdata/airway_input', '-m', '/users/srv-mde/projects/monai-deploy-app-sdk/examples/apps/cchmc_nnunet_fifteen_ckpt_app/models', '-o', '/tmp/p2p1_residency'])
+[2026-08-19 02:46:30,432] [WARNING] (monai.deploy.core.models.named_model) - Model repository PosixPath('/users/srv-mde/projects/monai-deploy-app-sdk/examples/apps/cchmc_nnunet_fifteen_ckpt_app/models/3d_fullres') contains more than one model definition file or folder, and is not a Triton model repository, so not treated as NamedModel.
+[2026-08-19 02:46:30,432] [INFO] (root) - AppContext object: AppContext(input_path=/users/srv-mde/projects/monai-deploy-app-sdk/testdata/airway_input, output_path=/tmp/p2p1_residency, model_path=/users/srv-mde/projects/monai-deploy-app-sdk/examples/apps/cchmc_nnunet_fifteen_ckpt_app/models, workdir=), triton_server_netloc=
+[2026-08-19 02:46:30,433] [WARNING] (monai.deploy.operators.decoder_nvimgcodec) - Module nvidia.nvimgcodec is not available.
+[2026-08-19 02:46:30,433] [WARNING] (root) - The nvimgcodec decoder plugin did not register successfully.
+[2026-08-19 02:46:33,013] [INFO] (my_app.operators.slidewindow_operator.SlideWindowOperator) - model loaded ONCE in setup (load #1): {"operator": "model_load", "label": "model_load", "study": "unknown", "start": "2026-08-19T06:46:31.562857+00:00", "end": "2026-08-19T06:46:33.013249+00:00", "start_ns": 1787121991562856903, "end_ns": 1787121993013249256, "duration_ms": 1450.392353, "config": "3d_fullres", "trainer": "nnUNetTrainer", "folds": 5, "patch_size": [128, 128, 128], "mirror_axes": [0, 1, 2]}
+[2026-08-19 02:46:33,016] [INFO] (my_app.operators.postprocess_operator.PostprocessOperator) - Loaded 0 postprocessing rule(s) from postprocessing.pkl
+[2026-08-19 02:46:33,018] [INFO] (root) - End compose
+[info] [gxf_executor.cpp:566] Creating context
+[info] [gxf_executor.cpp:2780] Activating Graph...
+[info] [entity_pool.cpp:134] EntityPool::GetShared: created new shared pool for context 0x55a773f19370 with capacity 256
+[info] [gxf_executor.cpp:2921] Running Graph...
+[info] [gxf_executor.cpp:2923] Waiting for completion...
+[info] [greedy_scheduler.cpp:191] Scheduling 11 entities
+[2026-08-19 02:46:33,027] [INFO] (monai.deploy.operators.dicom_data_loader_operator.DICOMDataLoaderOperator) - No or invalid input path from the optional input port: None
+[2026-08-19 02:46:33,572] [WARNING] (root) - No selection rules given; select all series.
+[2026-08-19 02:46:33,573] [INFO] (root) - Working on study, instance UID: 2.25.250447264451981637974165848369641322606
+[2026-08-19 02:46:33,573] [INFO] (root) - Working on series, instance UID: 2.25.210339208396898336680494299146403744356
+[2026-08-19 02:46:33,573] [INFO] (root) - Series Selection finalized
+[2026-08-19 02:46:33,573] [INFO] (root) - Series Description of selected DICOM Series for inference: Converted from IM_0233.dcm
+[2026-08-19 02:46:33,573] [INFO] (root) - Series Instance UID of selected DICOM Series for inference: 2.25.210339208396898336680494299146403744356
+[2026-08-19 02:46:33,762] [INFO] (my_app.operators.preprocess_operator.PreprocessOperator) - Loaded preprocessing params for config 3d_fullres: spacing=[0.703125, 0.7031021118164062, 0.703125] transpose_forward=[1, 0, 2] normalization=['ZScoreNormalization']
+[2026-08-19 02:46:41,527] [INFO] (my_app.operators.preprocess_operator.PreprocessOperator) - timing: {"operator": "preprocess", "label": "preprocess", "study": "2.25.250447264451981637974165848369641322606", "start": "2026-08-19T06:46:33.759179+00:00", "end": "2026-08-19T06:46:41.527021+00:00", "start_ns": 1787121993759179362, "end_ns": 1787122001527020902, "duration_ms": 7767.84154, "bbox_used_for_cropping": [[0, 256], [0, 256], [0, 256]], "shape_before_cropping": [256, 256, 256], "new_shape": [255, 256, 255]}
+[2026-08-19 02:47:08,749] [INFO] (my_app.operators.slidewindow_operator.SlideWindowOperator) - timing: {"operator": "inference", "label": "inference", "study": "2.25.250447264451981637974165848369641322606", "start": "2026-08-19T06:46:41.528994+00:00", "end": "2026-08-19T06:47:08.749704+00:00", "start_ns": 1787122001528993571, "end_ns": 1787122028749704545, "duration_ms": 27220.710974}
+[2026-08-19 02:47:10,426] [INFO] (my_app.operators.postresample_operator.PostResampleOperator) - timing: {"operator": "postresample", "label": "postresample", "study": "2.25.250447264451981637974165848369641322606", "start": "2026-08-19T06:47:08.750576+00:00", "end": "2026-08-19T06:47:10.426538+00:00", "start_ns": 1787122028750575969, "end_ns": 1787122030426538324, "duration_ms": 1675.962355, "probabilities_shape": [2, 256, 256, 256]}
+[2026-08-19 02:47:10,435] [INFO] (my_app.operators.ensemble_average_operator.EnsembleAverageOperator) - timing: {"operator": "ensemble_average", "label": "ensemble_average", "study": "2.25.250447264451981637974165848369641322606", "start": "2026-08-19T06:47:10.426958+00:00", "end": "2026-08-19T06:47:10.435393+00:00", "start_ns": 1787122030426957801, "end_ns": 1787122030435392457, "duration_ms": 8.434656, "n_configs": 1, "averaged_shape": [2, 256, 256, 256]}
+[2026-08-19 02:47:12,968] [INFO] (my_app.operators.postprocess_operator.PostprocessOperator) - timing: {"operator": "postprocess", "label": "postprocess", "study": "2.25.250447264451981637974165848369641322606", "start": "2026-08-19T06:47:10.435726+00:00", "end": "2026-08-19T06:47:12.960356+00:00", "start_ns": 1787122030435725792, "end_ns": 1787122032960355464, "duration_ms": 2524.629672, "label_counts": {"0": 16773561, "1": 3655}, "contour_voxels": 2330, "voxel_volume_mm3": 0.3449649047850901}
+[2026-08-19 02:47:12,968] [INFO] (my_app.operators.postprocess_operator.PostprocessOperator) - result text: Airway Volume: 1 mL
+2026-08-19 02:47:17,142 INFO image_writer.py:197 - writing: /tmp/p2p1_residency/temp/Img_in_context_trans.dcm
+[2026-08-19 02:47:20,407] [INFO] (my_app.operators.sc_overlay) - Saved SC overlay DICOM: /tmp/p2p1_residency/temp/Img_in_context_trans.dcm
+[2026-08-19 02:47:20,796] [INFO] (highdicom.base) - copy Image-related attributes from dataset "2.25.230534376432931169522775728440901862782"
+[2026-08-19 02:47:20,796] [INFO] (highdicom.base) - copy attributes of module "Specimen"
+[2026-08-19 02:47:20,797] [INFO] (highdicom.base) - copy Patient-related attributes from dataset "2.25.230534376432931169522775728440901862782"
+[2026-08-19 02:47:20,797] [INFO] (highdicom.base) - copy attributes of module "Patient"
+[2026-08-19 02:47:20,797] [INFO] (highdicom.base) - copy attributes of module "Clinical Trial Subject"
+[2026-08-19 02:47:20,797] [INFO] (highdicom.base) - copy Study-related attributes from dataset "2.25.230534376432931169522775728440901862782"
+[2026-08-19 02:47:20,797] [INFO] (highdicom.base) - copy attributes of module "General Study"
+[2026-08-19 02:47:20,797] [INFO] (highdicom.base) - copy attributes of module "Patient Study"
+[2026-08-19 02:47:20,798] [INFO] (highdicom.base) - copy attributes of module "Clinical Trial Study"
+[2026-08-19 02:47:21,217] [INFO] (timed_TimedDICOMSegmentationWriterOperator) - timing: {"operator": "write_seg", "label": "write_seg", "study": "2.25.250447264451981637974165848369641322606", "start": "2026-08-19T06:47:20.408221+00:00", "end": "2026-08-19T06:47:21.217112+00:00", "start_ns": 1787122040408220935, "end_ns": 1787122041217111452, "duration_ms": 808.890517}
+[2026-08-19 02:47:21,221] [INFO] (root) - Finished writing DICOM instance to file /tmp/p2p1_residency/SR/1.2.826.0.1.3680043.8.498.41006729587404906394576254320410769395.dcm
+[2026-08-19 02:47:21,222] [INFO] (monai.deploy.operators.dicom_text_sr_writer_operator.TimedDICOMTextSRWriterOperator) - DICOM SOP instance saved in /tmp/p2p1_residency/SR/1.2.826.0.1.3680043.8.498.41006729587404906394576254320410769395.dcm
+[2026-08-19 02:47:21,222] [INFO] (monai.deploy.operators.dicom_text_sr_writer_operator.TimedDICOMTextSRWriterOperator) - timing: {"operator": "write_sr", "label": "write_sr", "study": "2.25.250447264451981637974165848369641322606", "start": "2026-08-19T06:47:21.217480+00:00", "end": "2026-08-19T06:47:21.222702+00:00", "start_ns": 1787122041217479993, "end_ns": 1787122041222701775, "duration_ms": 5.221782}
+[2026-08-19 02:47:21,222] [INFO] (my_app.operators.dicom_sc_writer_operator.TimedDICOMSCWriterOperator) - Received temporary DICOM SC path: /tmp/p2p1_residency/temp
+[2026-08-19 02:47:21,262] [INFO] (my_app.operators.dicom_sc_writer_operator.TimedDICOMSCWriterOperator) - Loaded temporary DICOM SC file: /tmp/p2p1_residency/temp/Img_in_context_trans.dcm
+[2026-08-19 02:47:21,368] [INFO] (my_app.operators.dicom_sc_writer_operator.TimedDICOMSCWriterOperator) - Saved updated DICOM SC file at: /tmp/p2p1_residency/SC/1.2.826.0.1.3680043.8.498.92129865105157302988936495162166008371.dcm
+[2026-08-19 02:47:21,379] [INFO] (my_app.operators.dicom_sc_writer_operator.TimedDICOMSCWriterOperator) - Removed temporary DICOM SC file: /tmp/p2p1_residency/temp/Img_in_context_trans.dcm
+[2026-08-19 02:47:21,379] [INFO] (my_app.operators.dicom_sc_writer_operator.TimedDICOMSCWriterOperator) - Removed temporary directory: /tmp/p2p1_residency/temp
+[2026-08-19 02:47:21,389] [INFO] (my_app.operators.dicom_sc_writer_operator.TimedDICOMSCWriterOperator) - timing: {"operator": "write_sc", "label": "write_sc", "study": "2.25.250447264451981637974165848369641322606", "start": "2026-08-19T06:47:21.222817+00:00", "end": "2026-08-19T06:47:21.388901+00:00", "start_ns": 1787122041222816731, "end_ns": 1787122041388901177, "duration_ms": 166.084446}
+[info] [greedy_scheduler.cpp:405] Scheduler stopped: Some entities are waiting for execution, but there are no periodic or async entities to get out of the deadlock.
+[info] [greedy_scheduler.cpp:435] Scheduler finished.
+[info] [gxf_executor.cpp:2930] Deactivating Graph...
+[info] [gxf_executor.cpp:2939] Graph execution finished.
+[2026-08-19 02:47:21,392] [INFO] (my_app.app.CCHMCNNUnetFastApp) - study_timing_summary: {"study": "2.25.250447264451981637974165848369641322606", "operators": {"preprocess": 7767.84154, "inference": 27220.710974, "postresample": 1675.962355, "ensemble_average": 8.434656, "postprocess": 2524.629672, "write_seg": 808.890517, "write_sr": 5.221782, "write_sc": 166.084446}, "total_ms": 40177.776, "n_records": 8}
+[2026-08-19 02:47:21,392] [INFO] (my_app.app.CCHMCNNUnetFastApp) - End run
+[info] [gxf_executor.cpp:601] Destroying context
+  app-attributed .cpu()/.numpy() calls: 227
+      .cpu() postresample_operator.py:325 in postresample (from cuda:0)  ->  ok
+      .numpy() postresample_operator.py:325 in postresample (from cpu)  ->  ok
+      .numpy() postresample_operator.py:224 in postresample_reference (from cpu)  ->  ok
+      .cpu() postprocess_operator.py:509 in compute (from cuda:0)  ->  ok
+      .numpy() postprocess_operator.py:509 in compute (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:94 in reference_label_to_contour (from cpu)  ->  ok
+      .numpy() sc_overlay.py:190 in save_sc_dicom (from cpu)  ->  ok
+      .numpy() sc_overlay.py:190 in save_sc_dicom (from cpu)  ->  ok
+      .numpy() sc_overlay.py:190 in save_sc_dicom (from cpu)  ->  ok
+      .numpy() sc_overlay.py:190 in save_sc_dicom (from cpu)  ->  ok
+      .numpy() sc_overlay.py:190 in save_sc_dicom (from cpu)  ->  ok
+      .numpy() sc_overlay.py:190 in save_sc_dicom (from cpu)  ->  ok
+      .numpy() sc_overlay.py:190 in save_sc_dicom (from cpu)  ->  ok
+      .numpy() sc_overlay.py:190 in save_sc_dicom (from cpu)  ->  ok
+      .numpy() sc_overlay.py:190 in save_sc_dicom (from cpu)  ->  ok
+      .numpy() sc_overlay.py:190 in save_sc_dicom (from cpu)  ->  ok
+      .numpy() sc_overlay.py:190 in save_sc_dicom (from cpu)  ->  ok
+      .numpy() sc_overlay.py:190 in save_sc_dicom (from cpu)  ->  ok
+  resample-path transfers: 3 (allowed, by design)
+  postprocess boundary .cpu() transfers: 1 (must be 1)
+  SEG written: 1 file(s)
+  RESULT: PASS

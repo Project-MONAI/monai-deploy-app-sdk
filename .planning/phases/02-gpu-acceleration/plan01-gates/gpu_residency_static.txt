@@ -1,0 +1,24 @@
+========================================================================
+gpu_residency: STATIC scan of the five GPU operators
+========================================================================
+  preprocess_operator.py: 0 .cpu()/.numpy() call(s)  [ALLOWED]
+      compute() assert_on_gpu guard: present
+  slidewindow_operator.py: 0 .cpu()/.numpy() call(s)  [ALLOWED]
+      compute() assert_on_gpu guard: present
+  postresample_operator.py: 5 .cpu()/.numpy() call(s)  [ALLOWED]
+      line 213  .numpy() in postresample_reference  ->  ok
+      line 213  .cpu() in postresample_reference  ->  ok
+      line 224  .numpy() in postresample_reference  ->  ok
+      line 325  .numpy() in postresample  ->  ok
+      line 325  .cpu() in postresample  ->  ok
+      compute() assert_on_gpu guard: present
+  ensemble_average_operator.py: 0 .cpu()/.numpy() call(s)  [ALLOWED]
+      compute() assert_on_gpu guard: present
+  postprocess_operator.py: 2 .cpu()/.numpy() call(s)  [ALLOWED]
+      line 509  .numpy() in compute  ->  ok
+      line 509  .cpu() in compute  ->  ok
+      compute() assert_on_gpu guard: present
+  sc_overlay.py: 0 .cpu()/.numpy() call(s)  [ALLOWED]
+  postprocess boundary .cpu() transfer count: 1 (ok)
+  transfer call sites scanned: 7
+  RESULT: PASS

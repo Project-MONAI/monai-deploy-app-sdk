@@ -86,6 +86,10 @@ ALLOWED_TRANSFER_FILES = {
     "sc_overlay.py": "final output stage: SC overlay math on the ALREADY-TRANSFERRED "
                      "CPU numpy seg (runs after the boundary transfer, never on a "
                      "pipeline tensor)",
+    "preprocess_operator.py": "D-13 accepted GPU<->CPU round-trip: one H2D of the raw "
+                              "volume, D2H of the uint8 nonzero mask, D2H fp32 for the "
+                              "Z-score reductions (numpy reference path) and for the "
+                              "scipy CPU resample; returns to CUDA in-operator",
 }
 
 TRANSFER_ATTRS = ("cpu", "numpy")

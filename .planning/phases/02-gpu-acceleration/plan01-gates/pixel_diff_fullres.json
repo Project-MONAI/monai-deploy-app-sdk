@@ -1,0 +1,49 @@
+{
+  "a": {
+    "name": "SEG",
+    "file": "/tmp/p2p1_e2e_fullres/SEG/1.2.826.0.1.3680043.10.511.3.92388959444276924628172533077883939.dcm",
+    "SOPInstanceUID": "1.2.826.0.1.3680043.10.511.3.92388959444276924628172533077883939",
+    "voxels": 2330
+  },
+  "b": {
+    "name": "SEG",
+    "file": "/users/srv-mde/projects/monai-deploy-app-sdk/testdata/ref_fullres_only/SEG/1.2.826.0.1.3680043.10.511.3.26461384464221890112329357325699713.dcm",
+    "SOPInstanceUID": "1.2.826.0.1.3680043.10.511.3.26461384464221890112329357325699713",
+    "voxels": 2330
+  },
+  "geometry": {
+    "match": true,
+    "differences": {}
+  },
+  "pixels": {
+    "total_voxels": 16777216,
+    "differing_voxels": 2,
+    "differing_voxel_pct": 1.1920928955078125e-05,
+    "iou": 0.9991419991419992,
+    "byte_identity_pct": 99.9999,
+    "diff_coords_zrc_ab": [
+      [
+        195,
+        108,
+        126,
+        0,
+        1
+      ],
+      [
+        195,
+        109,
+        127,
+        1,
+        0
+      ]
+    ],
+    "n_diff_coords_listed": 2
+  },
+  "tolerance": {
+    "min_identity_pct": 99.9,
+    "max_diff_voxels": 10000,
+    "exact": false
+  },
+  "pass": true,
+  "fail_reasons": []
+}
