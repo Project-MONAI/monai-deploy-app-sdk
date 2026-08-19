@@ -1,0 +1,11 @@
+  import pynvml
+{
+  "device": "NVIDIA A100-SXM4-40GB",
+  "cuda_visible_devices": "0",
+  "total_gib": 40.0,
+  "used_before_gib": 0.48468017578125,
+  "used_after_gib": 4.89959716796875,
+  "post_reinit_reservation_gib": 4.4149169921875,
+  "rmm_version": "26.02.00",
+  "initial_pool_size_in_call": true
+}

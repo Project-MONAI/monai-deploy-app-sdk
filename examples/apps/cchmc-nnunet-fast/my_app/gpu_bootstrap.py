@@ -29,9 +29,29 @@ and expandable_segments are alternative torch allocation strategies
 fallback only if instability appears.
 """
 
+import logging
+
 import rmm  # noqa: F401  (must precede any holoscan import)
 
-rmm.reinitialize(pool_allocator=True, managed_memory=False)
+# Open Q1 (Phase 3 research, live-re-verified 2026-08-19 in the live venv):
+# rmm 26.x's DEFAULT initial_pool_size is half of total GPU memory —
+# ~20.0 GiB on the A100-SXM4-40GB, reserved immediately at reinit (pynvml
+# probe: 19.97 GiB used before any torch allocation). The airway bundle's
+# memory_budget total is 1,038,502,513 bytes (~0.97 GiB — from a fresh
+# bundle run log, 2026-08-19), so pin the initial pool to 4 GiB: 4x
+# headroom over the budget total while removing the wasteful default
+# reservation. gpu_bootstrap.warm_pool(plan.total_bytes) at compose end
+# still grows the pool to the per-bundle budget per D-14, so the pin only
+# trims the default, never the warm-up. Evidence: .planning/profiles/phase3/
+# rmm_openq1.md (initial_pool_size: pinned 4 GiB).
+_INITIAL_POOL_SIZE = 4 * 1024**3
+rmm.reinitialize(
+    pool_allocator=True,
+    managed_memory=False,
+    initial_pool_size=_INITIAL_POOL_SIZE,
+)
+logging.info("rmm initial_pool_size: %d bytes (Open Q1 pin, see gpu_bootstrap docstring)",
+             _INITIAL_POOL_SIZE)
 from rmm.allocators.torch import rmm_torch_allocator  # noqa: E402
 
 
