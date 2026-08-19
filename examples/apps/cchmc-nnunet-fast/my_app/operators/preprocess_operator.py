@@ -9,18 +9,26 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""PreprocessOperator: reference CPU preprocessing path + GPU handoff.
+"""PreprocessOperator: GPU (CuPy) preprocessing path + GPU handoff.
 
 Reproduces the reference nnUNet ``DefaultPreprocessor.run_case_npy`` pipeline
-bit-exactly (PREP-03), in order:
+in order:
 
     astype(float32) -> transpose(transpose_forward) -> crop_to_nonzero
     -> per-channel normalize (before resample) -> resample to config spacing
 
-using the same scipy/scikit-image primitives the reference uses
-(``scipy.ndimage.binary_fill_holes`` / ``map_coordinates`` and
-``skimage.transform.resize``). Only the final float32 volume is moved to CUDA
-and emitted as a zero-copy GPU tensor for the downstream SlideWindowOperator.
+Phase 2 (CuPy port): the layout and element-wise stages — the raw-volume
+transpose (PREP-01), the crop-slice (PREP-04), and the element-wise per-channel
+normalization (PREP-02) — run on GPU via CuPy in fp32, C-contiguous (D-12).
+Two stages deliberately stay on the verified numpy/scipy CPU reference path:
+the Z-score/CT mean-std *reductions* (CuPy reductions are not bit-identical to
+numpy — reduction order differs) and the resample itself (PREP-03, D-13:
+scipy/scikit-image reference path; the resulting GPU->CPU->GPU round-trip is
+expected and accepted, ~64 MB fp32 per study). The module keeps
+``preprocess_reference`` as the documented pure-CPU fallback path.
+
+The final float32 volume is emitted as a zero-copy GPU tensor for the
+downstream SlideWindowOperator.
 
 Note on the handoff contract: holoscan-cu13 4.2's Python API exposes the
 zero-copy GPU buffer primitive as ``holoscan.core.Tensor`` (built via DLPack,
@@ -39,6 +47,7 @@ import logging
 from copy import deepcopy
 from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 
+import cupy as cp
 import numpy as np
 import torch
 from scipy.ndimage import binary_fill_holes, map_coordinates
@@ -451,7 +460,13 @@ class PreprocessOperator(Operator):
         return spacing_xyz
 
     def preprocess_image(self, image: Image) -> Tuple[np.ndarray, Dict[str, Any]]:
-        """Run the reference CPU preprocessing path on an in-memory Image.
+        """Run the CuPy preprocessing path on an in-memory Image.
+
+        Transpose (PREP-01), crop-slice (PREP-04) and element-wise normalize
+        (PREP-02) run on GPU (fp32, C-contiguous — D-12); the Z-score/CT
+        reductions and the scipy resample (PREP-03) stay on the numpy/scipy
+        CPU reference path (D-13). ``preprocess_reference`` (pure CPU) is kept
+        in this module as the documented fallback.
 
         Returns:
             ``(volume, properties)`` — the preprocessed CPU float32 volume
@@ -461,22 +476,122 @@ class PreprocessOperator(Operator):
         arr = np.asarray(image.asnumpy())
         if arr.ndim != 3:
             raise ValueError(f"expected a 3D volume (D, H, W), got shape {arr.shape}")
-
-        # Reference app chain: asnumpy() (DHW) -> .T (WHW->WDH) -> channel-first
-        # -> Transposed([0, 3, 2, 1]) -> (1, D, H, W)
-        data = np.ascontiguousarray(arr.T)[None, ...]
-        data = data.transpose(0, 3, 2, 1)
-        # Reference parity REQUIRES a C-contiguous input here: the reference
-        # wrapper passes x.cpu().numpy()[0, :] and nnUNet's astype(float32)
-        # materializes a fresh C-contiguous copy. numpy's astype preserves the
-        # input's memory order, so without this the (F-order) view would be
-        # resampled in F order — skimage.resize/map_coordinates are not
-        # layout-invariant at float32 (measured: 1-ulp diffs at ~16M voxels,
-        # ~1300-voxel seg divergence on the airway tube).
-        data = np.ascontiguousarray(data)
-
         spacing_xyz = self._derive_spacing_xyz(image)
-        return preprocess_reference(data, spacing_xyz, params)
+
+        # ------------------------------------------------------------------
+        # 1. ONE host->device transfer of the raw volume (D-13: the GPU<->CPU
+        #    round-trips around the scipy resample are expected and accepted).
+        #    Reference app chain: asnumpy() (DHW) -> .T (WHW->WDH) -> channel-
+        #    first -> Transposed([0, 3, 2, 1]) -> (1, D, H, W), cast to
+        #    float32. The C-contiguous raw buffer is handed to CuPy (a plain
+        #    copy via the CUDA array interface — deliberately NOT
+        #    cp.from_dlpack, which transfers buffer ownership) and the
+        #    integer->fp32 cast happens on-device (element-wise casts are
+        #    bit-identical to numpy).
+        # ------------------------------------------------------------------
+        raw = np.ascontiguousarray(arr.T, dtype=arr.dtype)
+        vol = cp.array(raw, dtype=cp.float32)
+        # PREP-01: channel-first + (0, 3, 2, 1) transpose, materialized —
+        # CuPy transpose returns a view; D-12 requires C-contiguous fp32
+        # (Phase 1 measured 1-ulp divergence from a single contiguity slip).
+        vol = cp.ascontiguousarray(vol[None, ...].transpose(0, 3, 2, 1))
+
+        tf = params.transpose_forward
+        # apply transpose_forward as a VIEW (mirrors preprocess_reference;
+        # this also needs to be applied to the spacing!)
+        vol_t = vol.transpose(0, *[i + 1 for i in tf])
+        # Reference stores properties["spacing"] in the reversed (z, y, x) order.
+        spacing = tuple(reversed(spacing_xyz))
+        original_spacing = [spacing[i] for i in tf]
+
+        # 2. crop, remember the size before cropping! (PREP-04)
+        properties: Dict[str, Any] = {}
+        properties["shape_before_cropping"] = tuple(int(s) for s in vol_t.shape[1:])
+
+        # The mask MATH stays on the scipy CPU reference path (binary_fill_
+        # holes is scipy); only the cheap per-channel OR runs on GPU, then
+        # the small uint8 mask round-trips to CPU.
+        mask = (vol_t[0] != 0).astype(cp.uint8)
+        for c in range(1, vol_t.shape[0]):
+            mask |= (vol_t[c] != 0).astype(cp.uint8)
+        mask_np = mask.get()
+        nonzero_mask = binary_fill_holes(mask_np.astype(bool))
+        bbox = _get_bbox_from_mask(nonzero_mask)
+        slicer = tuple(slice(*i) for i in bbox)
+        # CuPy transpose/slice return views — materialize (D-12).
+        vol_c = cp.ascontiguousarray(vol_t[(slice(None),) + slicer])
+        properties["bbox_used_for_cropping"] = bbox
+        properties["shape_after_cropping_and_before_resampling"] = tuple(
+            int(s) for s in vol_c.shape[1:]
+        )
+
+        # resample target shape
+        new_shape = _compute_new_shape(vol_c.shape[1:], original_spacing, params.spacing)
+        properties["new_shape"] = tuple(int(s) for s in new_shape)
+        properties["original_spacing"] = [float(s) for s in original_spacing]
+        properties["target_spacing"] = [float(s) for s in params.spacing]
+        properties["transpose_forward"] = [int(i) for i in tf]
+
+        # 3. per-channel normalization on GPU (PREP-02) — MUST happen before
+        #    resampling (reference order). The mean/std REDUCTIONS stay on the
+        #    numpy reference path: CuPy reductions are not bit-identical to
+        #    numpy (reduction order differs — RESEARCH Pitfall 4); the element-
+        #    wise subtract/divide (and clip) are bit-identical in fp32.
+        vol_np = vol_c.get()  # D2H fp32 (~64 MB) — D-13 accepted round-trip
+        eps = 1e-8
+        norm_mask = None
+        if any(params.use_mask_for_norm):
+            # synthetic seg mask cropped with the image bbox -> mask = seg >= 0
+            norm_mask = nonzero_mask[slicer]
+        for c in range(vol_c.shape[0]):
+            scheme = params.normalization_schemes[c]
+            ch = vol_c[c]
+            ch_np = vol_np[c]
+            if scheme == "ZScoreNormalization":
+                if params.use_mask_for_norm[c] and norm_mask is not None:
+                    # Reference: only the masked voxels are normalized.
+                    m = norm_mask
+                    mean = np.float32(ch_np[m].mean())
+                    std = np.float32(ch_np[m].std())
+                    m_gpu = cp.asarray(m)
+                    ch[m_gpu] = (
+                        ch[m_gpu] - cp.asarray(mean)
+                    ) / cp.asarray(np.float32(max(std, eps)))
+                else:
+                    mean = np.float32(ch_np.mean())
+                    std = np.float32(ch_np.std())
+                    vol_c[c] = (
+                        ch - cp.asarray(mean)
+                    ) / cp.asarray(np.float32(max(std, eps)))
+            elif scheme == "CTNormalization":
+                props = params.intensity_properties[str(c)]
+                # element-wise clip/sub/divide with the plan constants — the
+                # numpy path's weak-scalar casts match np.float32(x) exactly.
+                vol_c[c] = cp.clip(
+                    ch, props["percentile_00_5"], props["percentile_99_5"]
+                )
+                vol_c[c] = vol_c[c] - cp.asarray(np.float32(props["mean"]))
+                vol_c[c] = vol_c[c] / cp.asarray(np.float32(max(props["std"], eps)))
+            elif scheme == "NoNormalization":
+                pass
+            else:
+                raise ValueError(
+                    f"unsupported normalization scheme {scheme!r} for channel {c}"
+                )
+        # Materialize after per-channel writes (D-12) before leaving the GPU.
+        vol_c = cp.ascontiguousarray(vol_c)
+
+        # 4. resample (PREP-03) on the UNCHANGED scipy/skimage CPU reference
+        #    path (D-13): device->host of the normalized volume, then the
+        #    exact Phase 1 _resample_to_shape. Entering it requires a
+        #    C-contiguous fp32 buffer (skimage.resize/map_coordinates are not
+        #    layout-invariant at float32 — the Phase 1 1-ulp lesson).
+        vol_out = np.ascontiguousarray(vol_c.get())  # D2H fp32 — D-13 accepted
+        assert vol_out.dtype == np.float32 and vol_out.flags["C_CONTIGUOUS"]
+        vol_out = _resample_to_shape(
+            vol_out, new_shape, original_spacing, params.spacing, params
+        )
+        return vol_out, properties
 
     def compute(self, op_input: Any, op_output: Any, context: Any) -> None:
         """Main compute: preprocess on the CPU reference path, then GPU handoff."""
