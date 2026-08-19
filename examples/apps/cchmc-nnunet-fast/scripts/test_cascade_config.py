@@ -222,6 +222,52 @@ def test_one_hot_vs_reference():
     print("PASS test_one_hot_vs_reference (CPU + CuPy, np.array_equal vs vendored)")
 
 
+def test_revert_crop_gpu():
+    import numpy as np
+    import torch
+
+    from postresample_operator import revert_crop_gpu
+
+    rng = np.random.default_rng(2)
+    shape_before = (30, 40, 50)  # post-transpose order
+    tf = (1, 2, 0)  # non-identity transpose_forward
+    # bbox not touching any border, in post-transpose axis order
+    bbox = [[4, 24], [6, 34], [8, 42]]
+    crop_shape = tuple(hi - lo for lo, hi in bbox)
+    seg_crop_np = rng.integers(0, 2, size=crop_shape, dtype=np.uint8)
+    meta = {
+        "shape_before_cropping": shape_before,
+        "bbox_used_for_cropping": bbox,
+        "transpose_forward": list(tf),
+    }
+
+    got = revert_crop_gpu(torch.as_tensor(seg_crop_np), dict(meta)).cpu().numpy()
+
+    # Hand-rolled numpy reference of the same fill/insert/permute steps
+    # (reference export_prediction.py: zeros fill -> insert at bbox ->
+    # .transpose(transpose_backward)).
+    tb = [list(tf).index(i) for i in range(len(tf))]
+    full = np.zeros(shape_before, dtype=np.uint8)
+    slicer = tuple(slice(lo, hi) for lo, hi in bbox)
+    full[slicer] = seg_crop_np
+    # outside the bbox (pre-permute) is background; inside equals the crop
+    outside_mask = np.ones(shape_before, dtype=bool)
+    outside_mask[slicer] = False
+    assert int(full[outside_mask].sum()) == 0, "background fill must be 0 outside the bbox"
+    assert np.array_equal(full[slicer], seg_crop_np), "insert must place the crop at the bbox"
+    ref = full.transpose(tb)
+
+    # The revert returns the ORIGINAL (pre-transpose) array order — the same
+    # order as image.asnumpy() (Task 2's orientation contract) — so the
+    # output shape is shape_before_cropping permuted by transpose_backward
+    # (identical to the 4D probability revert's shape behavior; ==
+    # shape_before_cropping only for the identity transpose_forward).
+    assert got.shape == ref.shape, f"got {got.shape}, expected {ref.shape}"
+    assert got.dtype == np.uint8, f"got {got.dtype}"
+    assert np.array_equal(got, ref), "revert_crop_gpu != hand-rolled numpy reference"
+    print("PASS test_revert_crop_gpu (fill/insert/permute, np.array_equal)")
+
+
 if __name__ == "__main__":
     test_default_model_list()
     test_cascade_only_auto_inserts_previous_stage()
@@ -234,4 +280,5 @@ if __name__ == "__main__":
     test_inference_params_cascade_two_input_channels()
     test_seg_resample_replica()
     test_one_hot_vs_reference()
-    print("ALL PASS (plan 03: model-list semantics, cascade params, seg-resample replica, one-hot)")
+    test_revert_crop_gpu()
+    print("ALL PASS (plan 03: model-list, cascade params, seg-resample replica, one-hot, revert_crop_gpu)")

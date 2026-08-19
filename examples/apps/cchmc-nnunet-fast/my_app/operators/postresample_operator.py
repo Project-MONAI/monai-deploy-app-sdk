@@ -75,6 +75,7 @@ __all__ = [
     "PostResampleOperator",
     "postresample_reference",
     "revert_crop_and_transpose_gpu",
+    "revert_crop_gpu",
     "resample_probabilities_to_shape",
 ]
 
@@ -259,6 +260,44 @@ def revert_crop_and_transpose_gpu(
     return full.permute(0, *[i + 1 for i in tb])
 
 
+def revert_crop_gpu(
+    seg_crop: Union[np.ndarray, torch.Tensor], meta: Dict[str, Any], device: str = "cuda"
+) -> torch.Tensor:
+    """Revert crop + transpose on GPU for an INTEGER segmentation
+    (bit-exact: zeros fill + insert + permute only).
+
+    Mirrors the reference seg path of
+    ``convert_predicted_logits_to_segmentation_with_correct_shape``
+    (export_prediction.py): background-0 fill at the pre-crop shape, insert
+    the crop at ``bbox_used_for_cropping``, transpose with
+    ``transpose_backward``. The result is a 3D uint8 CUDA tensor in the
+    original DICOM orientation — the same array order as
+    ``image.asnumpy()`` — which is the orientation contract the cascade
+    PreprocessOperator consumes (Task 2).
+
+    NO connected-component cleanup: the reference cascade input is pre-CC
+    (the reference KeepLargestCC runs only on the final output, never on
+    the cascade input — verified in 02-CONTEXT D-09).
+    """
+    if isinstance(seg_crop, np.ndarray):
+        seg_crop = torch.as_tensor(seg_crop)
+    seg_crop = seg_crop.to(torch.device(device))
+    if seg_crop.dtype != torch.uint8:
+        seg_crop = seg_crop.to(torch.uint8)
+
+    original_shape = tuple(int(s) for s in meta["shape_before_cropping"])
+    tf = [int(i) for i in meta["transpose_forward"]]
+    tb = _inverse_permutation(tf)
+
+    full = torch.zeros(original_shape, dtype=torch.uint8, device=seg_crop.device)
+    slicer = tuple(slice(int(lo), int(hi)) for lo, hi in meta["bbox_used_for_cropping"])
+    full[slicer] = seg_crop
+    # Reference: .transpose(transpose_backward) — for the 3D seg there is
+    # no channel axis, so the permutation is ``transpose_backward`` as-is
+    # (the probability revert's [0] + [i + 1 for i in ...] is its 4D form).
+    return full.permute(*tb).contiguous()
+
+
 class PostResampleOperator(Operator):
     """Post-inference head: per-config GPU logits -> per-config probability
     volume in original DICOM orientation (POST-02).
@@ -273,24 +312,63 @@ class PostResampleOperator(Operator):
     Named Outputs:
         probabilities: zero-copy GPU tensor (``holoscan.core.Tensor``) with
             the per-config softmax probabilities ``(C, *original_shape)`` in
-            original DICOM orientation (FP32, CUDA).
+            original DICOM orientation (FP32, CUDA). Declared only when
+            ``emit_probabilities`` (default True).
+        lowres_seg: (optional, ``emit_lowres_seg=True`` for cascade producer
+            fragments) zero-copy GPU tensor with the post-softmax argmax
+            segmentation (uint8 CUDA, 3D, original DICOM orientation — the
+            same array order as ``image.asnumpy()``, no connected-component
+            cleanup) consumed by the cascade PreprocessOperator's
+            ``lowres_seg`` input (D-09/D-10, zero disk I/O).
     """
 
     INPUT_LOGITS = "logits"
     INPUT_META = "preprocessed_meta"
     OUTPUT_PROBABILITIES = "probabilities"
+    OUTPUT_LOWRES_SEG = "lowres_seg"
 
-    def __init__(self, fragment: Any, *args: Any, **kwargs: Any):
+    def __init__(
+        self,
+        fragment: Any,
+        *args: Any,
+        emit_lowres_seg: bool = False,
+        emit_probabilities: bool = True,
+        **kwargs: Any,
+    ):
+        """Create the operator.
+
+        Args:
+            fragment: the owning application (passed to ``Operator``).
+            emit_lowres_seg: declare/emit the extra ``lowres_seg`` output
+                (post-softmax argmax, uint8, original DICOM orientation,
+                no CC) for cascade producer fragments (3d_lowres). Plan 04
+                wires it to the cascade PreprocessOperator's ``lowres_seg``
+                input; defaults False = byte-for-byte Phase 1 behavior.
+            emit_probabilities: declare/emit the ``probabilities`` output.
+                Declared now (consumed by Plan 04's conditional wiring) so
+                Plan 04 doesn't re-edit this file's init pattern;
+                ``False`` simply omits the output declaration.
+        """
         # NOTE: holoscan 4.2's Operator.__init__ invokes self.setup(spec)
-        # before this constructor body finishes — initialize all state first.
+        # before this constructor body finishes — initialize all state first
+        # (same pattern as EnsembleAverageOperator.emit_averaged_probabilities).
         self._logger = logging.getLogger(f"{__name__}.{type(self).__name__}")
+        self._emit_lowres_seg = bool(emit_lowres_seg)
+        self._emit_probabilities = bool(emit_probabilities)
         super().__init__(fragment, *args, **kwargs)
 
     def setup(self, spec: OperatorSpec) -> None:
-        """Declare the operator's I/O: logits + meta in, probabilities out."""
+        """Declare the operator's I/O: logits + meta in; probabilities and
+        (optionally) lowres_seg out, gated on the constructor flags.
+        Port discipline (RESEARCH Pitfall 7): a declared output with no
+        receiver is a GXF rejection, so both outputs are declared only when
+        the owning fragment will wire them."""
         spec.input(self.INPUT_LOGITS)
         spec.input(self.INPUT_META)
-        spec.output(self.OUTPUT_PROBABILITIES)
+        if self._emit_probabilities:
+            spec.output(self.OUTPUT_PROBABILITIES)
+        if self._emit_lowres_seg:
+            spec.output(self.OUTPUT_LOWRES_SEG)
 
     @staticmethod
     def _to_4d(tensor: torch.Tensor) -> torch.Tensor:
@@ -307,7 +385,7 @@ class PostResampleOperator(Operator):
             f"expected a (C, X, Y, Z) or (1, C, X, Y, Z) logits tensor, got ndim={tensor.ndim}."
         )
 
-    def postresample(self, logits: torch.Tensor, meta: Dict[str, Any]) -> torch.Tensor:
+    def postresample(self, logits: torch.Tensor, meta: Dict[str, Any]):
         """Full post-resample: reference CPU resample+softmax, GPU revert.
 
         Args:
@@ -316,7 +394,11 @@ class PostResampleOperator(Operator):
 
         Returns:
             CUDA ``(C, *original_shape)`` float32 probabilities in original
-            DICOM orientation.
+            DICOM orientation, or the tuple
+            ``(probabilities_gpu, lowres_seg)`` when ``emit_lowres_seg`` is
+            set (``probabilities_gpu`` is ``None`` when
+            ``emit_probabilities`` is False; ``lowres_seg`` is the 3D uint8
+            CUDA argmax segmentation in original DICOM orientation).
         """
         # The resample runs on the reference CPU path (project decision:
         # resampling stays on the reference scipy/scikit-image path for
@@ -324,8 +406,21 @@ class PostResampleOperator(Operator):
         # GPU->CPU hop of this operator.
         logits_cpu = logits.detach().cpu().numpy()
         probabilities_cpu = postresample_reference(logits_cpu, meta)
-        probabilities_gpu = revert_crop_and_transpose_gpu(probabilities_cpu, meta)
-        return probabilities_gpu
+        if self._emit_lowres_seg:
+            # Post-softmax argmax == the reference argmax-of-resampled-logits:
+            # softmax is monotone per voxel, so argmax(softmax(p)) ==
+            # argmax(p) exactly (D-09: the cascade input is the argmax seg).
+            # NO connected-component cleanup — the reference cascade input is
+            # pre-CC (the reference KeepLargestCC runs only on the final
+            # output, verified).
+            seg_crop = torch.argmax(torch.from_numpy(probabilities_cpu), dim=0).to(torch.uint8)
+            seg_full = revert_crop_gpu(seg_crop, meta)
+            if self._emit_probabilities:
+                probabilities_gpu = revert_crop_and_transpose_gpu(probabilities_cpu, meta)
+            else:
+                probabilities_gpu = None
+            return probabilities_gpu, seg_full
+        return revert_crop_and_transpose_gpu(probabilities_cpu, meta)
 
     def compute(self, op_input: Any, op_output: Any, context: Any) -> None:
         """Resample probabilities + revert crop/transpose; emit GPU tensor."""
@@ -348,14 +443,26 @@ class PostResampleOperator(Operator):
             assert_on_gpu(tensor)
             data = self._to_4d(tensor.float())
 
-            probabilities = self.postresample(data, dict(meta))
+            if self._emit_lowres_seg:
+                probabilities, seg_full = self.postresample(data, dict(meta))
+            else:
+                probabilities = self.postresample(data, dict(meta))
 
-            # Exit guard: the emitted buffer must be CUDA-resident FP32.
-            assert_on_gpu(probabilities)
-            op_output.emit(to_holoscan_gpu_tensor(probabilities), self.OUTPUT_PROBABILITIES)
+            if probabilities is not None:
+                # Exit guard: the emitted buffer must be CUDA-resident FP32.
+                assert_on_gpu(probabilities)
+                op_output.emit(to_holoscan_gpu_tensor(probabilities), self.OUTPUT_PROBABILITIES)
+            if self._emit_lowres_seg:
+                # Exit guard: the cascade input must be CUDA-resident uint8.
+                assert_on_gpu(seg_full)
+                op_output.emit(to_holoscan_gpu_tensor(seg_full), self.OUTPUT_LOWRES_SEG)
 
             record = timing.stop()
             record["study"] = get_study_id(self.fragment)
-            record["probabilities_shape"] = list(probabilities.shape)
+            if probabilities is not None:
+                record["probabilities_shape"] = list(probabilities.shape)
+            if self._emit_lowres_seg:
+                record["lowres_seg_shape"] = list(seg_full.shape)
+                record["lowres_seg_dtype"] = "uint8"
             StudyTimingCollector.record(self.fragment, record)
             self._logger.info("timing: %s", json.dumps(record))

@@ -1,0 +1,16 @@
+========================================================================
+pixel_diff: SEG  vs  SEG
+========================================================================
+  A: /tmp/p2p3_e2e_b/SEG/1.2.826.0.1.3680043.10.511.3.89411370008745985109536560950019019.dcm  (voxels: 2331)
+  B: /users/srv-mde/projects/monai-deploy-app-sdk/testdata/ref_fullres_only/SEG/1.2.826.0.1.3680043.10.511.3.26461384464221890112329357325699713.dcm  (voxels: 2330)
+  geometry:            MATCH
+  byte-identity:       99.99986%  (2097149/2097152 bytes)
+  differing voxels:    3 / 16777216 (0.000018%)
+  IoU:                 0.998714
+  first 3 diffs (z, row, col, valA, valB):
+    [195, 108, 126, 0, 1]
+    [195, 109, 127, 1, 0]
+    [222, 93, 120, 1, 0]
+  tolerance:           min-identity 99.9%, max-diff-voxels 10000, exact=False
+  RESULT:              PASS
+exit=0
