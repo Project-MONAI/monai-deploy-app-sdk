@@ -49,16 +49,35 @@ INFR-02 (pre-allocated buffers reused ACROSS compute() calls / across
 studies) is DEFERRED to Phase 3 per D-17 — the single-study dev corpus
 cannot prove cross-study reuse. The RMM pool retains allocated memory
 process-wide, but no explicit buffer reuse is implemented or claimed here.
+
+INF-009 is met-with-deviation per D-19: the Phase 1 in-memory in-place
+accumulation with a single EXACT final division (CuPy ``_divide_refparity``)
+is kept instead of a literal running mean ``(acc*(k-1)+x)/k`` — a running
+mean is not bit-identical to the reference's sum/n and would break the
+segmentation-level identity gate (D-08). VRAM intent is satisfied: one
+accumulator + one streamed input, no N-copy stack; with defer_strategy
+(INFR-03) each consumed tensor is released as it is accumulated.
+
+Phase 2 (Plan 04, PIPE-03): the constructor accepts ``config_names`` — the
+ORDERED ensemble_model_list. When set (multi-config mode) the operator
+declares one input port per config (``prob_<cfg>``) with a
+``CountCondition(len(config_names))`` entry condition (it never runs on
+partial arrivals) and ``compute`` reconstructs the tensor list in
+``config_names`` ORDER — never in arrival order, which GXF does not
+guarantee — before the untouched Phase 1 averaging (bit-determinism of the
+mean depends on the list-order reconstruction). ``config_names=None``
+(legacy) keeps the Phase 1 single ``probabilities`` input for tests.
 """
 
 from __future__ import annotations
 
 import json
 import logging
-from typing import Any, List, Sequence, Union
+from typing import Any, List, Optional, Sequence, Union
 
 import torch
 
+from monai.deploy.conditions import CountCondition
 from monai.deploy.core import Operator, OperatorSpec
 
 try:  # package-style import (my_app.*)
@@ -279,6 +298,7 @@ class EnsembleAverageOperator(Operator):
         *args: Any,
         emit_averaged_probabilities: bool = True,
         defer_strategy: bool = False,
+        config_names: Optional[Sequence[str]] = None,
         **kwargs: Any,
     ):
         # NOTE: holoscan 4.2's Operator.__init__ invokes self.setup(spec)
@@ -289,17 +309,43 @@ class EnsembleAverageOperator(Operator):
         # Phase 1 behavior). Must be set BEFORE super().__init__ for the
         # same reason as _emit_averaged.
         self._defer_strategy = bool(defer_strategy)
-        super().__init__(fragment, *args, **kwargs)
+        # PIPE-03/D-19: the ORDERED ensemble list (Plan 04 multi-config
+        # mode). None = legacy single-``probabilities`` input (Phase 1
+        # behavior, kept for tests). Must be set BEFORE super().__init__
+        # (setup() runs during Operator.__init__ and reads it).
+        self._config_names: Optional[List[str]] = (
+            [str(c) for c in config_names] if config_names is not None else None
+        )
+        if self._config_names is not None:
+            # Multi-config entry condition: fire only when every per-config
+            # probability stream has arrived (never on partial arrivals).
+            # Conditions passed positionally are added to the operator's
+            # conditions by holoscan.core.OperatorBase (verified 4.2 docs).
+            super().__init__(
+                fragment, CountCondition(fragment, len(self._config_names)), *args, **kwargs
+            )
+        else:
+            super().__init__(fragment, *args, **kwargs)
 
     def setup(self, spec: OperatorSpec) -> None:
-        """Declare the operator's I/O: probabilities in, averaged + seg out.
+        """Declare the operator's I/O.
+
+        Multi-config mode (``config_names`` set): one input port per config —
+        ``prob_<cfg>`` — wired by the app from each fragment's
+        ``probabilities`` output (RESEARCH Pitfall 7: every declared port has
+        a flow in every configuration). Legacy mode: the single
+        ``probabilities`` input (Phase 1 behavior).
 
         ``averaged_probabilities`` is declared only when
         ``emit_averaged_probabilities`` is True: a declared output with no
         downstream receiver makes the GXF scheduler reject the entity (no
         receiver connected to the transmitter), so the DAG wires only ``seg``.
         """
-        spec.input(self.INPUT_PROBABILITIES)
+        if self._config_names is not None:
+            for cfg in self._config_names:
+                spec.input(f"prob_{cfg}")
+        else:
+            spec.input(self.INPUT_PROBABILITIES)
         if self._emit_averaged:
             spec.output(self.OUTPUT_AVERAGED)
         spec.output(self.OUTPUT_SEG)
@@ -313,15 +359,37 @@ class EnsembleAverageOperator(Operator):
             # Entry guard: the pipeline is GPU-resident by contract (INF-005).
             assert_cuda_available()
 
-            received = op_input.receive(self.INPUT_PROBABILITIES)
-            if received is None:
-                raise ValueError("EnsembleAverageOperator received no 'probabilities' input.")
+            if self._config_names is not None:
+                # Multi-config (PIPE-03): one named stream per ensemble
+                # config. GXF data arrival order is NOT guaranteed —
+                # reconstruct the tensor list in ``config_names`` ORDER
+                # (ensemble_model_list order: first volume is the base),
+                # never in arrival order (D-19 bit-determinism).
+                received = {}
+                for cfg in self._config_names:
+                    vol = op_input.receive(f"prob_{cfg}")
+                    if vol is None:
+                        raise ValueError(
+                            f"EnsembleAverageOperator received no 'prob_{cfg}' input."
+                        )
+                    received[cfg] = vol
+                volumes = [received[cfg] for cfg in self._config_names]
+            else:
+                # Legacy single-stream mode (Phase 1 behavior, tests).
+                vol = op_input.receive(self.INPUT_PROBABILITIES)
+                if vol is None:
+                    raise ValueError(
+                        "EnsembleAverageOperator received no 'probabilities' input."
+                    )
+                volumes = [vol]
 
-            tensors = _to_tensor_list(received)
-            for t in tensors:
-                # Device invariant at the boundary (INF-005): silent CPU
-                # averaging is not allowed.
-                assert_on_gpu(t)
+            tensors: List[torch.Tensor] = []
+            for vol in volumes:
+                for t in _to_tensor_list(vol):
+                    # Device invariant at the boundary (INF-005): silent CPU
+                    # averaging is not allowed.
+                    assert_on_gpu(t)
+                    tensors.append(t)
 
             if self._defer_strategy:
                 # Budget calculator said the full-volume plan exceeds free

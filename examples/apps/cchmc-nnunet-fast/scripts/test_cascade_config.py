@@ -78,26 +78,28 @@ def test_lowres_cascade_explicit():
     print("PASS test_lowres_cascade_explicit")
 
 
-def test_standalone_lowres_raises_reference_error():
+def test_standalone_lowres_runs_with_self_ensemble():
     plans = load_plans()
-    # Reference semantics (nnunet_seg_operator.py:96-98, replicated exactly
-    # per PIPE-03 / the plan's must-have "ensemble = run list minus
-    # 3d_lowres; error when ensemble empty"): a run list of ONLY the
-    # auxiliary lowres config yields an empty ensemble -> ValueError with
-    # the reference's exact message. (The plan's task-1 case list sketch
-    # suggested standalone lowres is ensemblable — that contradicts the
-    # reference being replicated; the reference is controlling. See SUMMARY
-    # deviations.)
+    # Documented fast-app extension (Phase 2 Plan 04): lowres-only must be
+    # RUNNABLE (HOLOSCAN_MODEL_LIST=3d_lowres -> run=[3d_lowres],
+    # ensemble=[3d_lowres], E2E exit 0 per the plan's 4-configuration table,
+    # D-07 standalone gate). The reference app raises ValueError here instead
+    # (nnunet_seg_operator.py:96-98 — it cannot read a lowres-only
+    # probability map back from disk); the fast app's in-memory DAG can.
+    # A truly empty list still raises the reference's exact error (below).
+    run, ensemble = resolve_run_model_list(["3d_lowres"], plans, MODEL_ROOT)
+    assert run == ("3d_lowres",), f"got {run}"
+    assert ensemble == ("3d_lowres",), f"got {ensemble}"
     try:
-        resolve_run_model_list(["3d_lowres"], plans, MODEL_ROOT)
+        resolve_run_model_list([], plans, MODEL_ROOT)
     except ValueError as e:
         assert str(e) == (
             "At least one non-auxiliary model configuration is required "
             "for ensemble inference."
         ), f"got {e!r}"
     else:
-        raise AssertionError("expected ValueError for lowres-only run list")
-    print("PASS test_standalone_lowres_raises_reference_error")
+        raise AssertionError("expected ValueError for empty run list")
+    print("PASS test_standalone_lowres_runs_with_self_ensemble (plan 04 extension; empty list still raises reference error)")
 
 
 def test_standalone_fullres():
@@ -268,11 +270,58 @@ def test_revert_crop_gpu():
     print("PASS test_revert_crop_gpu (fill/insert/permute, np.array_equal)")
 
 
+def test_ensemble_order():
+    """Phase 2 Plan 04 (INF-009/D-19): the ensemble mean is
+    bit-deterministic in ensemble_model_list ORDER — the Phase 1 code
+    path (in-place ``+=`` accumulation in list order + CuPy exact final
+    division) is UNCHANGED; this test pins the order semantics and the
+    list-order reconstruction compute() uses (arrival order is not
+    guaranteed by GXF).
+
+    IEEE float32 addition is commutative (a+b == b+a bitwise), so the
+    order observable here is: (1) the result is bit-identical to the
+    manual reference-order accumulation ``t0 + t1`` then CuPy ``/ 2``,
+    and (2) reconstructing the list from a dict of REVERSED arrival
+    positions in ensemble order yields the same bit-exact result.
+    """
+    import torch
+
+    from ensemble_average_operator import _divide_refparity, average_probabilities
+
+    assert torch.cuda.is_available(), "test_ensemble_order requires CUDA"
+    rng = torch.Generator(device="cuda").manual_seed(7)
+    t0 = torch.rand((2, 64, 64, 64), generator=rng, device="cuda", dtype=torch.float32)
+    t1 = torch.rand((2, 64, 64, 64), generator=rng, device="cuda", dtype=torch.float32)
+
+    # (1) list-order result == manual reference-order accumulation
+    #     (first volume is the base; += in order; CuPy exact final /2).
+    got = average_probabilities([t0.clone(), t1.clone()])
+    ref = t0.clone()
+    ref += t1
+    ref = _divide_refparity(ref, 2)
+    assert torch.equal(got, ref), "ensemble result != manual reference-order accumulation"
+
+    # (2) list-order reconstruction under a REVERSED arrival order: the
+    #     receive-mapping logic compute() uses (label by config, rebuild
+    #     in ensemble order) must produce the same bit-exact tensor.
+    ensemble_order = ["3d_fullres", "3d_cascade_fullres"]
+    received = {
+        "3d_fullres": t1.clone(),  # arrived first — WRONG position
+        "3d_cascade_fullres": t0.clone(),  # arrived second
+    }
+    tensors = [received[cfg] for cfg in ensemble_order]  # compute() reconstruction
+    got_reordered = average_probabilities([v.clone() for v in tensors])
+    assert torch.equal(got_reordered, got), (
+        "list-order reconstruction did not yield the ensemble-order result"
+    )
+    print("PASS test_ensemble_order (reference-order accumulation + list-order reconstruction, torch.equal)")
+
+
 if __name__ == "__main__":
     test_default_model_list()
     test_cascade_only_auto_inserts_previous_stage()
     test_lowres_cascade_explicit()
-    test_standalone_lowres_raises_reference_error()
+    test_standalone_lowres_runs_with_self_ensemble()
     test_standalone_fullres()
     test_reference_reorder_with_reversed_pair()
     test_preprocess_params_cascade()
@@ -281,4 +330,5 @@ if __name__ == "__main__":
     test_seg_resample_replica()
     test_one_hot_vs_reference()
     test_revert_crop_gpu()
-    print("ALL PASS (plan 03: model-list, cascade params, seg-resample replica, one-hot, revert_crop_gpu)")
+    test_ensemble_order()
+    print("ALL PASS (plan 03: model-list, cascade params, seg-resample replica, one-hot, revert_crop_gpu; plan 04: ensemble order)")
