@@ -208,6 +208,15 @@ This phase is where performance gains materialize. Preprocessing moves to CuPy, 
 
 This phase is **time-permitting** and **data-driven**. If Phase 2 already meets latency targets, this phase may be skipped or trimmed.
 
+**Plans (2026-08-19):** 5 plans across 5 waves in `.planning/phases/03-optimization/` — 01 (wave 1, D-21 EventBasedScheduler concurrency + RMM Open-Q1 re-verify/pin); 02 (wave 2, MEM-003 lowres weight release + pool/driver VRAM delta); 03 (wave 3, INFR-02 shape-keyed buffer reuse + D-24 (a)+(b) proof); 04 (wave 4, D-22 gated GPU-resample experiment — CuPy RawKernel scipy-faithful zoom behind HOLOSCAN_GPU_RESAMPLE, default OFF); 05 (wave 5, close-out: 2×2 benchmark + final gate suite + 03-BENCHMARK-REPORT.md). Locked scope (03-CONTEXT.md D-20..D-26): trimmed data-driven sweep — every plan ships behind a re-run of `phase2_gate.py` (D-25); TensorRT/torch.compile/MEM-01/MEM-02/ncu OUT of scope; ≥5-CT corpus, ncu admin, INFR-02 user examples = blocked-on-external non-blocking (D-26, recorded in the close-out report for VERIFICATION.md).
+
+Plans:
+- [ ] 3-optimization-01-PLAN.md — concurrent independent fragments (D-21) + RMM initial-pool re-verification (Open Q1)
+- [ ] 3-optimization-02-PLAN.md — MEM-003: free 3d_lowres weights after the aux fragment + pool/driver VRAM measurement
+- [ ] 3-optimization-03-PLAN.md — INFR-02: shape-keyed GPU buffer reuse (D-24 a+b proof)
+- [ ] 3-optimization-04-PLAN.md — D-22: gated GPU-resample experiment (byte-identity vs scipy; default OFF)
+- [ ] 3-optimization-05-PLAN.md — close-out: 2×2 benchmark (D-18 two bars) + final gate + 03-BENCHMARK-REPORT.md
+
 ### Success Criteria
 
 - All optimizations are motivated by Phase 2 profiling data (no speculation).
