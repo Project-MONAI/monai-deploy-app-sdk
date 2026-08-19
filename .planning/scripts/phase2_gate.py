@@ -111,11 +111,11 @@ SR_VOLUME_RE = re.compile(rb"Airway Volume:\s*([0-9.eE+-]+)\s*mL")
 
 def run_subprocess(cmd, cwd, env, log_path):
     """Run a command, tee output to a log file, return (rc, stdout)."""
+    proc = subprocess.run(
+        cmd, cwd=str(cwd), env=env, stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT, text=True)
     with open(log_path, "w") as log:
-        proc = subprocess.run(
-            cmd, cwd=str(cwd), env=env, stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT, text=True)
-    log.write(proc.stdout)
+        log.write(proc.stdout)
     return proc.returncode, proc.stdout
 
 
