@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: completed
-stopped_at: Completed 1-core-pipeline-04-PLAN.md (DAG assembly in app.py; NVTX trace + structured timing verified; E2E airway run exit 0 with SC/SEG/SR)
-last_updated: "2026-08-18T22:04:34.592Z"
+stopped_at: Phase 2 context gathered (02-CONTEXT.md: 3×3D-config gate, per-config reference oracles, cascade argmax one-hot, final-gate-only CuPy fidelity, RMM/budget/stream-pool strictness, INFR-02 → Phase 3)
+last_updated: "2026-08-19T02:53:01.840Z"
 last_activity: 2026-08-18
 progress:
   total_phases: 4
@@ -33,6 +33,8 @@ Last activity: 2026-08-18
 Progress: [██████████] 100% (Phase 1 plans complete; Phase 2 pending)
 
 ## Transition Log
+
+- **2026-08-19 Phase 2 context gathered:** `02-CONTEXT.md` locked: gate on 3×3D configs (2D blocked-on-model, generic wiring, no dummy model); per-config fresh references (ref_lowres_only, ref_cascade_only) + final bundle gate vs testdata/current_output; cascade = lowres argmax → one-hot float → cascade_fullres channels (zero disk I/O); CuPy port validated by final pixel-exact gates only (fp32/C-contiguous, scipy resample stays CPU with accepted GPU↔CPU round-trip); RMM + budget calculator (synthetic-size unit tests) required, CudaStreamPool best-effort, latency bar = any positive E2E vs 61.8 s with per-operator deltas; INFR-02 cross-study buffer reuse deferred to Phase 3 (user adding reference examples then).
 
 - **2026-08-17 Phase 0 → Phase 1:** gate passed (VERIFICATION passed, 5/5 acceptance, TEST-01 corpus deviation documented). PROJECT.md updated: Phase 0 requirements moved to Validated (TEST-006/TEST-007), cu13/resampling/Docker-deferral/baseline decisions logged. Phase 1 is now active and ready for planning (inputs staged in "Next — Phase 1").
 - **2026-08-18 Plan 02 complete:** SlideWindowOperator — setup-time one-shot model load (architecture from plans.json, 5 fold weights from resolved checkpoint path), TTA in exact nnUNet order with FP32 sequential accumulation, reference-parity steps/gaussian/autocast boundaries, config- and checkpoint-driven (InferenceParams). Airway study: logits max abs diff 4.539e-01 vs reference (fp16-ref vs fp32-ours; plan's ~1e-6 assumes an fp32 reference — unreachable, seg gate is controlling) and **100.00000% voxel-identical segmentation** (16,646,400/16,646,400). Inference 27.1 s/study, zero cold start on study 2+. Deviations: nnUNet pure SW utilities instead of MONAI swi (monai 1.3.0 kernel/step divergence, measured); per-fold autocast boundary (torch 2.13 corrupts forwards following a mid-autocast load_state_dict — one-loop autocast gave 13.2 diff). See 1-core-pipeline-02-SUMMARY.md.
