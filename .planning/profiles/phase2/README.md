@@ -52,7 +52,8 @@ lowres inference is in flight), but never between the heavy inference spans.
    round-trips; `postresample_*` likewise (1.7–3.2 s, 0 ms kernels).
 2. **postprocess** — 9.9 s wall NVTX (GPU 5 ms; includes the documented
    exactly-once D2H boundary + two-pass CC).
-3. **Setup** (DICOM load + model load + RMM warm) ≈ 11 s of the 129.5 s E2E.
+3. **Setup/bootstrap** (DICOM load + model load + RMM warm) ≈ 20.8 s of the
+   129.5 s E2E (wall − in-study operator sum).
 4. **Inference spans** are GPU-saturated (91–96% kernel-busy); further
    inference speedups need Phase 3 kernel-level work (blocked on ncu
    admin access for counter metrics).
