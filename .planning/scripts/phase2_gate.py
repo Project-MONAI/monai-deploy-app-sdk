@@ -206,84 +206,6 @@ def main(argv=None) -> int:
             print(f"    - {fr}")
 
 
-def _run_gate_row(row, scratch: Path) -> dict:
-    out_dir = scratch / row["row"]
-    r = {}
-
-    # 1. fast app E2E
-    rc, _, run_list, ensemble_list, log_path = run_fast_app(
-        row["model_list_env"], out_dir)
-    r["fast_exit"] = rc
-    r["fast_log"] = log_path
-    r["logged_run_model_list"] = run_list
-    r["logged_ensemble_model_list"] = ensemble_list
-    r["lists_match"] = (run_list == row["expected_run"]
-                        and ensemble_list == row["expected_ensemble"])
-    if rc != 0:
-        r.update({"pass": False, "fail_reasons": ["fast app exit "
-                                                  f"{rc} (see {log_path})"]})
-        print(f"  fast app exit {rc} — FAIL (log: {log_path})")
-        return r
-    if not r["lists_match"]:
-        print(f"  LIST MISMATCH: run={run_list} ensemble={ensemble_list} "
-              f"(expected {row['expected_run']} / "
-              f"{row['expected_ensemble']})")
-
-    # 2. pixel diff
-    json_path = scratch / f"{row['row']}.pixel_diff.json"
-    pd_rc, pd = pixel_diff(out_dir, row["oracle"], json_path)
-    r["pixel_diff"] = {
-        "byte_identity_pct": pd["pixels"]["byte_identity_pct"],
-        "differing_voxels": pd["pixels"]["differing_voxels"],
-        "iou": pd["pixels"]["iou"],
-        "fast_voxels": pd["a"]["voxels"],
-        "oracle_voxels": pd["b"]["voxels"],
-        "geometry_match": pd["geometry"]["match"],
-        "pass": pd["pass"],
-        "fail_reasons": pd["fail_reasons"],
-    }
-    # provenance: checksum of the oracle SEG (the oracle bytes are
-    # gitignored per repo convention — the JSON is their record)
-    oracle_segs = sorted((Path(row["oracle"]) / "SEG").glob("*.dcm"))
-    r["oracle_seg_sha256"] = (hashlib.sha256(
-        oracle_segs[0].read_bytes()).hexdigest()
-        if oracle_segs else None)
-    r["oracle_seg_file"] = str(oracle_segs[0]) if oracle_segs else None
-    print(f"  pixel_diff: {pd['pixels']['byte_identity_pct']:.5f}% "
-          f"byte-identity, {pd['pixels']['differing_voxels']} differing "
-          f"voxels, fast={pd['a']['voxels']} oracle={pd['b']['voxels']} "
-          f"voxels -> {'PASS' if pd['pass'] else 'FAIL'}")
-
-    # 3. SR airway volume
-    try:
-        sr_fast = sr_airway_volume_mL(out_dir / "SR")
-        sr_oracle = sr_airway_volume_mL(Path(row["oracle"]) / "SR")
-        sr_delta = (100.0 * abs(sr_fast - sr_oracle) / sr_oracle
-                    if sr_oracle else (0.0 if sr_fast == sr_oracle
-                                       else float("inf")))
-        sr_ok = sr_delta <= 0.1
-    except Exception as e:  # noqa: BLE001
-        sr_fast = sr_oracle = sr_delta = None
-        sr_ok = False
-        print(f"  SR compare error: {e}")
-    r["sr_fast"] = sr_fast
-    r["sr_oracle"] = sr_oracle
-    r["sr_delta_pct"] = sr_delta
-    r["sr_ok"] = sr_ok
-    print(f"  SR airway volume: fast={sr_fast} mL oracle={sr_oracle} mL "
-          f"delta={sr_delta}% -> {'PASS' if sr_ok else 'FAIL'}")
-
-    fail = []
-    if not r["lists_match"]:
-        fail.append("logged run/ensemble model lists do not match the "
-                    "expected pair for this gate row")
-    if not pd["pass"]:
-        fail.extend(pd["fail_reasons"])
-    if not sr_ok:
-        fail.append(f"SR airway volume delta {sr_delta}% > 0.1%")
-    r["pass"] = not fail
-    r["fail_reasons"] = fail
-    return r
 
     # sanity: the bundle must actually ENSEMBLE (its SEG differs from the
     # fullres-only SEG — different configurations; D-06 class ~2447 vs
@@ -380,6 +302,86 @@ def _run_gate_row(row, scratch: Path) -> dict:
     print(f"report: {args.report}")
     print(f"ALL GATES: {'PASS' if all_pass else 'FAIL'}")
     return 0 if all_pass else 1
+
+
+def _run_gate_row(row, scratch: Path) -> dict:
+    out_dir = scratch / row["row"]
+    r = {}
+
+    # 1. fast app E2E
+    rc, _, run_list, ensemble_list, log_path = run_fast_app(
+        row["model_list_env"], out_dir)
+    r["fast_exit"] = rc
+    r["fast_log"] = log_path
+    r["logged_run_model_list"] = run_list
+    r["logged_ensemble_model_list"] = ensemble_list
+    r["lists_match"] = (run_list == row["expected_run"]
+                        and ensemble_list == row["expected_ensemble"])
+    if rc != 0:
+        r.update({"pass": False, "fail_reasons": ["fast app exit "
+                                                  f"{rc} (see {log_path})"]})
+        print(f"  fast app exit {rc} — FAIL (log: {log_path})")
+        return r
+    if not r["lists_match"]:
+        print(f"  LIST MISMATCH: run={run_list} ensemble={ensemble_list} "
+              f"(expected {row['expected_run']} / "
+              f"{row['expected_ensemble']})")
+
+    # 2. pixel diff
+    json_path = scratch / f"{row['row']}.pixel_diff.json"
+    pd_rc, pd = pixel_diff(out_dir, row["oracle"], json_path)
+    r["pixel_diff"] = {
+        "byte_identity_pct": pd["pixels"]["byte_identity_pct"],
+        "differing_voxels": pd["pixels"]["differing_voxels"],
+        "iou": pd["pixels"]["iou"],
+        "fast_voxels": pd["a"]["voxels"],
+        "oracle_voxels": pd["b"]["voxels"],
+        "geometry_match": pd["geometry"]["match"],
+        "pass": pd["pass"],
+        "fail_reasons": pd["fail_reasons"],
+    }
+    # provenance: checksum of the oracle SEG (the oracle bytes are
+    # gitignored per repo convention — the JSON is their record)
+    oracle_segs = sorted((Path(row["oracle"]) / "SEG").glob("*.dcm"))
+    r["oracle_seg_sha256"] = (hashlib.sha256(
+        oracle_segs[0].read_bytes()).hexdigest()
+        if oracle_segs else None)
+    r["oracle_seg_file"] = str(oracle_segs[0]) if oracle_segs else None
+    print(f"  pixel_diff: {pd['pixels']['byte_identity_pct']:.5f}% "
+          f"byte-identity, {pd['pixels']['differing_voxels']} differing "
+          f"voxels, fast={pd['a']['voxels']} oracle={pd['b']['voxels']} "
+          f"voxels -> {'PASS' if pd['pass'] else 'FAIL'}")
+
+    # 3. SR airway volume
+    try:
+        sr_fast = sr_airway_volume_mL(out_dir / "SR")
+        sr_oracle = sr_airway_volume_mL(Path(row["oracle"]) / "SR")
+        sr_delta = (100.0 * abs(sr_fast - sr_oracle) / sr_oracle
+                    if sr_oracle else (0.0 if sr_fast == sr_oracle
+                                       else float("inf")))
+        sr_ok = sr_delta <= 0.1
+    except Exception as e:  # noqa: BLE001
+        sr_fast = sr_oracle = sr_delta = None
+        sr_ok = False
+        print(f"  SR compare error: {e}")
+    r["sr_fast"] = sr_fast
+    r["sr_oracle"] = sr_oracle
+    r["sr_delta_pct"] = sr_delta
+    r["sr_ok"] = sr_ok
+    print(f"  SR airway volume: fast={sr_fast} mL oracle={sr_oracle} mL "
+          f"delta={sr_delta}% -> {'PASS' if sr_ok else 'FAIL'}")
+
+    fail = []
+    if not r["lists_match"]:
+        fail.append("logged run/ensemble model lists do not match the "
+                    "expected pair for this gate row")
+    if not pd["pass"]:
+        fail.extend(pd["fail_reasons"])
+    if not sr_ok:
+        fail.append(f"SR airway volume delta {sr_delta}% > 0.1%")
+    r["pass"] = not fail
+    r["fail_reasons"] = fail
+    return r
 
 
 if __name__ == "__main__":
