@@ -284,6 +284,146 @@ def _resample_to_shape(
         return data
 
 
+def _resize_segmentation(segmentation: np.ndarray, new_shape: Sequence[int], order: int) -> np.ndarray:
+    """Segmentation resizer — bit-exact replica of the vendored
+    ``batchgenerators.augmentations.utils.resize_segmentation`` (2.8.1 era).
+
+    This is the ``resize_fn`` of the SEGMENTATION path (``is_seg=True``) of
+    ``nnunetv2...default_resampling.resample_data_or_seg`` — NOT the
+    ``skimage.transform.resize`` of the data path: per-label multihot
+    resize (skimage ``resize``, mode='edge', ``clip=True``,
+    ``anti_aliasing=False``) with a >= 0.5 threshold, so interpolation
+    cannot invent intermediate labels. ``np.unique`` on the raveled volume
+    is exactly ``np.sort(pd.unique(...))`` for numeric arrays.
+    """
+    tpe = segmentation.dtype
+    if order == 0:
+        return resize(segmentation.astype(float), new_shape, order, mode="edge", clip=True, anti_aliasing=False).astype(tpe)
+    reshaped = np.zeros(new_shape, dtype=tpe)
+    for c in np.unique(segmentation.ravel()):
+        mask = segmentation == c
+        reshaped_multihot = resize(mask.astype(float), new_shape, order, mode="edge", clip=True, anti_aliasing=False)
+        reshaped[reshaped_multihot >= 0.5] = c
+    return reshaped
+
+
+def _resample_seg_to_shape(
+    data: np.ndarray,
+    new_shape: Union[Sequence[int], np.ndarray],
+    current_spacing: Sequence[float],
+    new_spacing: Sequence[float],
+    params: PreprocessParams,
+) -> np.ndarray:
+    """Resample ``(C, X, Y, Z)`` segmentation to a target shape (bit-exact
+    replica of the SEGMENTATION path (``is_seg=True``) of the vendored
+    ``nnunetv2 2.8.1 default_resampling.resample_data_or_seg_to_shape`` /
+    ``resample_data_or_seg``).
+
+    Mirrors the vendored branch structure exactly, with the seg semantics
+    (``default_resampling.py``):
+
+    * ``resize_fn = resize_segmentation`` (see above), ``kwargs = {}`` —
+      no ``mode='edge'``/``anti_aliasing=False`` kwargs at the call site:
+      for ``is_seg`` anti-aliasing is disabled (it lives inside
+      ``resize_segmentation``), unlike the data-path replica
+      ``_resample_to_shape``;
+    * ``order = params.resample_seg_order`` (1),
+      ``order_z = params.resample_seg_order_z`` (0),
+      ``force_separate_z = params.resample_seg_force_separate_z`` (None);
+    * the intermediate cast to float before resize and the final cast back
+      to the input dtype on assignment (the input stays integer — uint8
+      in/uint8 out, as the reference does);
+    * the same "no resampling necessary -> return input unchanged"
+      short-circuit as the reference.
+
+    Unit-tested ``np.array_equal`` against the vendored function on random
+    uint8 volumes (scripts/test_cascade_config.py::test_seg_resample_replica).
+    """
+    do_separate_z, axis = _determine_do_sep_z_and_axis(
+        params.resample_seg_force_separate_z, current_spacing, new_spacing
+    )
+
+    shape = np.array(data[0].shape)
+    new_shape = np.array(new_shape)
+
+    if np.any(shape != new_shape):
+        dtype_out = data.dtype
+        data = data.astype(float, copy=False)
+        reshaped_final = np.zeros((data.shape[0], *new_shape), dtype=dtype_out)
+        order = params.resample_seg_order
+        order_z = params.resample_seg_order_z
+
+        if do_separate_z:
+            assert axis is not None, "if do_separate_z, we need to know what axis is anisotropic"
+            if axis == 0:
+                new_shape_2d = new_shape[1:]
+            elif axis == 1:
+                new_shape_2d = new_shape[[0, 2]]
+            else:
+                new_shape_2d = new_shape[:-1]
+
+            for c in range(data.shape[0]):
+                tmp = deepcopy(new_shape)
+                tmp[axis] = shape[axis]
+                reshaped_here = np.zeros(tmp)
+                for slice_id in range(shape[axis]):
+                    if axis == 0:
+                        reshaped_here[slice_id] = _resize_segmentation(
+                            data[c, slice_id], new_shape_2d, order
+                        )
+                    elif axis == 1:
+                        reshaped_here[:, slice_id] = _resize_segmentation(
+                            data[c, :, slice_id], new_shape_2d, order
+                        )
+                    else:
+                        reshaped_here[:, :, slice_id] = _resize_segmentation(
+                            data[c, :, :, slice_id], new_shape_2d, order
+                        )
+                if shape[axis] != new_shape[axis]:
+                    # align_corners=False coordinate map (reference replica)
+                    rows, cols, dim = int(new_shape[0]), int(new_shape[1]), int(new_shape[2])
+                    orig_rows, orig_cols, orig_dim = reshaped_here.shape
+                    row_scale = float(orig_rows) / rows
+                    col_scale = float(orig_cols) / cols
+                    dim_scale = float(orig_dim) / dim
+                    map_rows, map_cols, map_dims = np.mgrid[:rows, :cols, :dim]
+                    map_rows = row_scale * (map_rows + 0.5) - 0.5
+                    map_cols = col_scale * (map_cols + 0.5) - 0.5
+                    map_dims = dim_scale * (map_dims + 0.5) - 0.5
+                    coord_map = np.array([map_rows, map_cols, map_dims])
+                    if order_z == 0:
+                        # Reference: is_seg with order_z == 0 takes the same
+                        # direct map_coordinates path as the data path.
+                        reshaped_final[c] = map_coordinates(
+                            reshaped_here, coord_map, order=order_z, mode="nearest"
+                        )[None]
+                    else:
+                        # Not exercised by this bundle (order_z=0); kept for
+                        # branch fidelity with the vendored function
+                        # (np.unique == np.sort(pd.unique(...)) numerically).
+                        for cl in np.unique(reshaped_here.ravel()):
+                            reshaped_final[c][
+                                np.round(
+                                    map_coordinates(
+                                        (reshaped_here == cl).astype(float),
+                                        coord_map,
+                                        order=order_z,
+                                        mode="nearest",
+                                    )
+                                )
+                                > 0.5
+                            ] = cl
+                else:
+                    reshaped_final[c] = reshaped_here
+        else:
+            for c in range(data.shape[0]):
+                reshaped_final[c] = _resize_segmentation(data[c], new_shape, order)
+        return reshaped_final
+    else:
+        # No resampling necessary — the reference returns the input unchanged.
+        return data
+
+
 def preprocess_reference(
     data: np.ndarray,
     spacing_xyz: Sequence[float],
@@ -394,6 +534,7 @@ class PreprocessOperator(Operator):
     """
 
     INPUT_IMAGE = "image"
+    INPUT_LOWRES_SEG = "lowres_seg"
     OUTPUT_PREPROCESSED = "preprocessed"
     OUTPUT_META = "preprocessed_meta"
 
@@ -413,15 +554,28 @@ class PreprocessOperator(Operator):
                 ``models/`` folder that does).
             config_name: plans.json configuration key (default ``3d_fullres``).
         """
-        super().__init__(fragment, *args, **kwargs)
+        # NOTE: holoscan 4.2's Operator.__init__ invokes self.setup(spec)
+        # before this constructor body finishes — initialize all state first.
         self._logger = logging.getLogger(f"{__name__}.{type(self).__name__}")
         self.model_path = model_path
         self.config_name = config_name
         self._params: Optional[PreprocessParams] = None
+        super().__init__(fragment, *args, **kwargs)
 
     def setup(self, spec: OperatorSpec) -> None:
-        """Declare the operator's I/O: Image in, GPU tensor + meta out."""
+        """Declare the operator's I/O: Image in (plus lowres_seg for cascade
+        configs), GPU tensor + meta out."""
         spec.input(self.INPUT_IMAGE)
+        if self.model_path is not None:
+            # Load params eagerly: the optional cascade input is declared
+            # ONLY for cascade configs (plans.json ``previous_stage``).
+            # Port discipline (RESEARCH Pitfall 7): a declared input with no
+            # flow is a silent hang and a declared output with no receiver
+            # is a GXF rejection — for non-cascade configs the lowres_seg
+            # port simply does not exist.
+            self._load_params()
+            if self._params.previous_stage is not None:
+                spec.input(self.INPUT_LOWRES_SEG)
         spec.output(self.OUTPUT_PREPROCESSED)
         spec.output(self.OUTPUT_META)
 
@@ -459,7 +613,11 @@ class PreprocessOperator(Operator):
         spacing_xyz = tuple(float(np.sqrt(np.sum(affine[:3, i] ** 2))) for i in range(3))
         return spacing_xyz
 
-    def preprocess_image(self, image: Image) -> Tuple[np.ndarray, Dict[str, Any]]:
+    def preprocess_image(
+        self,
+        image: Image,
+        lowres_seg: Optional[torch.Tensor] = None,
+    ) -> Tuple[Union[np.ndarray, "cp.ndarray"], Dict[str, Any]]:
         """Run the CuPy preprocessing path on an in-memory Image.
 
         Transpose (PREP-01), crop-slice (PREP-04) and element-wise normalize
@@ -468,9 +626,22 @@ class PreprocessOperator(Operator):
         CPU reference path (D-13). ``preprocess_reference`` (pure CPU) is kept
         in this module as the documented fallback.
 
+        Cascade (PIPE-04, D-09/D-10): when ``lowres_seg`` (a CUDA uint8 3D
+        tensor in the SAME array order as ``image.asnumpy()`` — the
+        orientation contract set by PostResampleOperator's ``lowres_seg``
+        output) is provided, it is cropped with the IMAGE-derived bbox,
+        resampled on the CPU reference seg path (``_resample_seg_to_shape``,
+        PREP-03/D-13), one-hotted on GPU, and concatenated as extra
+        channel(s) AFTER the image channel (reference
+        ``np.vstack((data, seg_onehot))`` order) — zero disk I/O. The
+        one-hot channel is NEVER normalized. The 1-channel path is
+        byte-for-byte the Plan 01 flow.
+
         Returns:
-            ``(volume, properties)`` — the preprocessed CPU float32 volume
-            (shape ``(C, H, D, W)`` post-transpose) and the recorded properties.
+            ``(volume, properties)`` — the preprocessed volume (CPU float32
+            ``(C, H, D, W)`` post-transpose for the 1-channel path; GPU
+            float32 ``(1 + n_labels, H, D, W)`` for the cascade path) and
+            the recorded properties.
         """
         params = self._load_params()
         arr = np.asarray(image.asnumpy())
@@ -524,6 +695,25 @@ class PreprocessOperator(Operator):
         properties["shape_after_cropping_and_before_resampling"] = tuple(
             int(s) for s in vol_c.shape[1:]
         )
+
+        # Cascade (PIPE-04): the lowres seg arrives in the same array order
+        # as image.asnumpy() (orientation contract), so it takes the EXACT
+        # same layout chain as the image raw upload (same orientation =>
+        # the image-derived bbox applies to it verbatim).
+        seg_c: Optional[Union[np.ndarray, "cp.ndarray"]] = None
+        if lowres_seg is not None:
+            seg4 = cp.array(lowres_seg)  # uint8 G2G copy via __cuda_array_interface__ (NOT cp.from_dlpack — ownership pitfall)
+            seg4 = cp.ascontiguousarray(seg4.transpose(2, 1, 0))
+            seg4 = cp.ascontiguousarray(seg4[None, ...].transpose(0, 3, 2, 1))
+            seg4_t = seg4.transpose(0, *[i + 1 for i in tf])
+            # Crop with the IMAGE-derived bbox (reference
+            # DefaultPreprocessor.run_case_npy crops the seg with the
+            # image's crop_to_nonzero box; identical image => identical box)
+            # — GPU, layout-only, bit-exact on 0/1 labels.
+            seg_c = cp.ascontiguousarray(seg4_t[(slice(None),) + slicer])
+            # D2H (~16 MB uint8 — D-13 accepted): the seg resample runs on
+            # the CPU reference path (PREP-03/D-13).
+            seg_c = seg_c.get()
 
         # resample target shape
         new_shape = _compute_new_shape(vol_c.shape[1:], original_spacing, params.spacing)
@@ -591,7 +781,31 @@ class PreprocessOperator(Operator):
         vol_out = _resample_to_shape(
             vol_out, new_shape, original_spacing, params.spacing, params
         )
-        return vol_out, properties
+        if lowres_seg is None:
+            return vol_out, properties
+
+        # ------------------------------------------------------------------
+        # 5. cascade 2-channel input (PIPE-04, D-09): seg resample on the
+        #    CPU reference path with the cascade seg kwargs, one-hot on
+        #    GPU, channel concat with the image volume FIRST (reference
+        #    np.vstack((data, seg_onehot)) order). The one-hot channel is
+        #    NEVER normalized (the image channel was normalized in step 3
+        #    only). Zero disk I/O between the configs.
+        # ------------------------------------------------------------------
+        seg_r = _resample_seg_to_shape(
+            seg_c, new_shape, original_spacing, params.spacing, params
+        )
+        # One-hot on GPU (bit-exact vs the vendored
+        # convert_labelmap_to_one_hot — unit-tested in
+        # scripts/test_cascade_config.py::test_one_hot_vs_reference),
+        # channels in foreground_labels order.
+        one_hot = cp.stack(
+            [(cp.array(seg_r) == int(lbl)).astype(cp.float32) for lbl in params.foreground_labels],
+            axis=0,
+        )
+        vol_gpu = cp.array(vol_out)  # image channel(s), already resampled
+        vol2 = cp.ascontiguousarray(cp.concatenate([vol_gpu, one_hot], axis=0))
+        return vol2, properties
 
     def compute(self, op_input: Any, op_output: Any, context: Any) -> None:
         """Main compute: preprocess on the CPU reference path, then GPU handoff."""
@@ -614,10 +828,37 @@ class PreprocessOperator(Operator):
             study = str(_meta.get("StudyInstanceUID") or _meta.get("SeriesInstanceUID") or "unknown")
             set_study_id(self.fragment, study)
 
-            volume, properties = self.preprocess_image(image)
+            # Cascade (PIPE-04): the optional lowres_seg input is declared
+            # only for cascade configs (setup() gates it on
+            # params.previous_stage), so it is received only when the port
+            # exists — a declared-but-unwired input would hang silently.
+            lowres_seg: Optional[torch.Tensor] = None
+            params = self._load_params()
+            if params.previous_stage is not None:
+                seg_ht = op_input.receive(self.INPUT_LOWRES_SEG)
+                if seg_ht is None:
+                    raise ValueError("PreprocessOperator received no 'lowres_seg' input.")
+                seg_tensor = torch.utils.dlpack.from_dlpack(seg_ht)
+                # Device invariant at the boundary (INF-005).
+                assert_on_gpu(seg_tensor)
+                # D-10 (locked anti-decision): the cascade input must be the
+                # post-softmax argmax segmentation, NEVER raw probabilities
+                # — enforce an integer dtype at the boundary.
+                if seg_tensor.is_floating_point():
+                    raise ValueError(
+                        f"D-10: 'lowres_seg' must be an integer (argmax) segmentation, "
+                        f"got floating dtype {seg_tensor.dtype} (probabilities are forbidden)."
+                    )
+                lowres_seg = seg_tensor
 
-            # Move the final float32 tensor to CUDA (channel count preserved:
-            # C=1 for 3D_fullres; C=2 one-hot reserved for cascade in Phase 2).
+            volume, properties = self.preprocess_image(image, lowres_seg)
+
+            # Move the final float32 tensor to CUDA (1 channel for the
+            # non-cascade path — byte-for-byte the Plan 01 flow; 2 channels
+            # image+one-hot for cascade configs; SlideWindow is already
+            # config-driven off load_inference_params.num_input_channels).
+            if isinstance(volume, cp.ndarray):
+                volume = volume.get()  # D2H fp32 (cascade 2-channel volume)
             tensor = torch.as_tensor(volume, dtype=torch.float32).to(torch.device("cuda"))
 
             # Exit guard: the emitted buffer must be CUDA-resident.
@@ -632,5 +873,8 @@ class PreprocessOperator(Operator):
             record["bbox_used_for_cropping"] = properties["bbox_used_for_cropping"]
             record["shape_before_cropping"] = list(properties["shape_before_cropping"])
             record["new_shape"] = list(properties["new_shape"])
+            if lowres_seg is not None:
+                record["lowres_seg"] = True
+                record["lowres_seg_shape"] = list(lowres_seg.shape)
             StudyTimingCollector.record(self.fragment, record)
             self._logger.info("timing: %s", json.dumps(record))

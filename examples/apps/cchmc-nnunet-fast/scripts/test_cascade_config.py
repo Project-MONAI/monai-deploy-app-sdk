@@ -27,6 +27,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "my_app"))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "my_app" / "operators"))
 
 from config import (  # noqa: E402
     load_inference_params,
@@ -151,6 +152,76 @@ def test_inference_params_cascade_two_input_channels():
     print("PASS test_inference_params_cascade_two_input_channels")
 
 
+# ---------------------------------------------------------------------------
+# Task 2: CPU seg-resample replica vs the VENDORED nnunetv2 2.8.1 reference,
+# and the GPU one-hot vs the vendored convert_labelmap_to_one_hot.
+# (CPU-reference replicas are validated against the vendored reference here;
+# D-11's final-gate-only rule applies to the CuPy port as a whole.)
+# ---------------------------------------------------------------------------
+
+
+def test_seg_resample_replica():
+    import numpy as np
+
+    from nnunetv2.preprocessing.resampling.default_resampling import (
+        compute_new_shape,
+        resample_data_or_seg_to_shape,
+    )
+
+    from preprocess_operator import _resample_seg_to_shape
+
+    params = load_preprocess_params(MODEL_ROOT, "3d_cascade_fullres")
+    assert (params.resample_seg_order, params.resample_seg_order_z, params.resample_seg_force_separate_z) == (
+        1,
+        0,
+        None,
+    )
+
+    rng = np.random.default_rng(0)
+    cases = [
+        # (shape, current_spacing, new_spacing, note)
+        # 1) new_shape == shape -> the "no resampling necessary" short-circuit
+        ((64, 64, 64), (1.0, 1.0, 1.0), (1.0, 1.0, 1.0), "short-circuit"),
+        # 2) plain anisotropy-free resize (no separate-z branch)
+        ((48, 96, 128), (1.0, 1.0, 1.0), (1.0, 1.0, 1.5), "plain resize"),
+        # 3) current spacing anisotropy 1.2/0.3 = 4 > 3 -> separate-z branch,
+        #    axis 2 only (1.2/1.2 == 1), and new_shape[axis] != shape[axis]
+        #    (107 != 64) -> also exercises the map_coordinates order_z=0 pass
+        ((100, 64, 64), (0.3, 1.0, 1.2), (1.0, 1.0, 2.0), "separate-z + map_coordinates"),
+    ]
+    for i, (shape, cur, new, note) in enumerate(cases):
+        seg = np.ascontiguousarray(rng.integers(0, 2, size=(1, *shape), dtype=np.uint8))
+        new_shape = compute_new_shape(shape, cur, new)
+        got = _resample_seg_to_shape(seg, new_shape, cur, new, params)
+        ref = resample_data_or_seg_to_shape(
+            seg, new_shape, cur, new, is_seg=True, order=1, order_z=0, force_separate_z=None
+        )
+        assert got.dtype == np.uint8, f"case {i} ({note}): dtype {got.dtype}"
+        assert np.array_equal(got, ref), f"case {i} ({note}): replica != vendored reference"
+    print("PASS test_seg_resample_replica (3 shape regimes, np.array_equal vs vendored nnunetv2)")
+
+
+def test_one_hot_vs_reference():
+    import cupy as cp
+    import numpy as np
+
+    from nnunetv2.utilities.label_handling.label_handling import convert_labelmap_to_one_hot
+
+    rng = np.random.default_rng(1)
+    seg = rng.integers(0, 2, size=(16, 40, 48), dtype=np.uint8)
+    ref = convert_labelmap_to_one_hot(seg, [1], np.float32)
+    assert ref.shape == (1, *seg.shape)
+
+    # CPU twin of the GPU op: (seg == 1).astype(float32), channel axis 0.
+    got_np = (seg == 1).astype(np.float32)[None, ...]
+    assert np.array_equal(got_np, ref), "CPU one-hot != vendored convert_labelmap_to_one_hot"
+
+    # The GPU op itself: same expression in CuPy, round-tripped.
+    got_cp = ((cp.array(seg) == 1).astype(cp.float32)).get()[None, ...]
+    assert np.array_equal(got_cp, ref), "CuPy one-hot != vendored convert_labelmap_to_one_hot"
+    print("PASS test_one_hot_vs_reference (CPU + CuPy, np.array_equal vs vendored)")
+
+
 if __name__ == "__main__":
     test_default_model_list()
     test_cascade_only_auto_inserts_previous_stage()
@@ -161,4 +232,6 @@ if __name__ == "__main__":
     test_preprocess_params_cascade()
     test_preprocess_params_fullres_not_cascade()
     test_inference_params_cascade_two_input_channels()
-    print("ALL PASS (task 1: model-list semantics + cascade PreprocessParams)")
+    test_seg_resample_replica()
+    test_one_hot_vs_reference()
+    print("ALL PASS (plan 03: model-list semantics, cascade params, seg-resample replica, one-hot)")
