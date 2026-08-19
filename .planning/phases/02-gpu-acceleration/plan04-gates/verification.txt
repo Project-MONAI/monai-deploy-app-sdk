@@ -1,0 +1,39 @@
+Phase 2 Plan 04 — 4-configuration E2E verification (airway study, A100-40GB)
+=============================================================================
+All four model-list configurations: exit 0, SEG/SR/SC written, exactly one
+study_timing_summary per run, each fragment's operators fired exactly once.
+
+| HOLOSCAN_MODEL_LIST   | run list                                  | ensemble list                      | E2E |
+|-----------------------|-------------------------------------------|------------------------------------|-----|
+| (unset, default)      | 3d_fullres, 3d_lowres, 3d_cascade_fullres | 3d_fullres, 3d_cascade_fullres     | exit 0, SEG/SR/SC, summary n_records=14 |
+| 3d_fullres            | 3d_fullres                                | 3d_fullres                         | exit 0, SEG/SR/SC, summary n_records=8 |
+| 3d_lowres             | 3d_lowres                                 | 3d_lowres (plan-04 self-ensemble)  | exit 0, SEG/SR/SC, summary n_records=8 |
+| 3d_cascade_fullres    | 3d_lowres, 3d_cascade_fullres (auto-ins.) | 3d_cascade_fullres                 | exit 0, SEG/SR/SC |
+
+Per-config "config" values in study_timing_summary (grep -o '"config":' | sort -u):
+- bundle: 3d_fullres, 3d_lowres, 3d_cascade_fullres (3 distinct)
+- cascade-only: 3d_lowres, 3d_cascade_fullres (2 distinct)
+- fullres-only / lowres-only: 1 each
+
+Sanity: lowres-only SEG md5 != fullres-only SEG md5 (different config,
+different segmentation — pixel-exactness per config is Plan 05's gate).
+
+Bundle run per-operator (single study aggregate, 14 records — app-keyed
+across all sub-Fragments, Pitfall 9): preprocess 7.6/5.0/9.3 s,
+inference 26.1/25.1/25.4 s (fullres/lowres/cascade), postresample
+1.7/3.2/1.7 s, ensemble 0.012 s, postprocess 2.4 s, writers ~1.1 s.
+
+Unit suite: scripts/test_cascade_config.py — 14 cases, all PASS
+(includes plan-04 test_ensemble_order + test_preprocess_image_cascade_two_channel).
+
+Fixes found during this plan's E2E (documented in SUMMARY deviations):
+1. app_driver (holoscan-cu13 4.2) rejects app graphs mixing C++ Fragment and
+   app-level operators -> per-config chains assembled as Subgraphs with
+   interface ports (the 4.2 supported multi-fragment mechanism).
+2. Rule 1 bug (latent from plan 03, first exercised by the real cascade
+   DAG): the cascade one-hot stacked the 4D (1,*spatial) resampled seg to
+   5D -> cp.concatenate ndim error. Fixed: one-hot seg[0] (3D), matching
+   the reference. Regression test added.
+3. lowres-only run list: reference raises ValueError; plan 04's table
+   requires it runnable -> documented fast-app self-ensemble fallback in
+   resolve_run_model_list (empty ensemble + non-empty run => ensemble=run).

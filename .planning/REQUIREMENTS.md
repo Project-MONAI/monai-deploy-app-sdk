@@ -33,7 +33,7 @@ Requirements for initial release. Each maps to roadmap phases.
 - [ ] **INF-006**: The system runs all nnUNet model configurations (2D, 3D_fullres, 3D_lowres, 3D_cascade_fullres) through the same inference operator with configuration-driven parameters
 - [ ] **INF-007**: The system supports custom nnUNet trainer variants by loading model weights from checkpoint paths without hard-coded trainer assumptions
 - [ ] **INF-008**: The system loads all model weights and architecture during `setup()` or `on_insert()`, not during `compute()`, to avoid cold-start latency per study
-- [ ] **INF-009**: Ensemble averaging computes element-wise mean of probability maps (post-softmax) in GPU memory using incremental in-place averaging, not disk-based `.npz` I/O
+- [x] **INF-009**: Ensemble averaging computes element-wise mean of probability maps (post-softmax) in GPU memory using in-place accumulation in ensemble_model_list order, not disk-based `.npz` I/O (met-with-deviation per D-19: Phase 1 in-place accumulation + CuPy exact final division instead of a literal running mean — bit-exactness over literal wording)
 - [ ] **INF-010**: Ensemble averaging applies `argmax` after probability averaging (not before), matching nnUNet's `average_probabilities` reference path
 - [ ] **INF-011**: The system keeps autocast scope at the outermost inference boundary and does not split FP16/FP32 regions across operator boundaries
 
@@ -48,8 +48,8 @@ Requirements for initial release. Each maps to roadmap phases.
 - [ ] **INFR-01**: The system uses RMM (RAPIDS Memory Manager) as the CUDA memory allocator with pool allocation to reduce heap fragmentation across sequential studies
 - [ ] **INFR-02**: The system pre-allocates GPU buffers during operator `setup()` and reuses them across `compute()` calls instead of allocating per-tile or per-study
 - [ ] **INFR-03**: The system computes a memory budget before allocating full-volume logits or probability buffers and defers to incremental strategies when the budget would exceed available VRAM
-- [ ] **INFR-004**: The system uses Holoscan `CudaStreamPool` for concurrent kernel launches across operators
-- [ ] **INFR-005**: The system emits NVTX markers (via `torch.cuda.nvtx`) at the start and end of each operator's `compute()` method for correlation with Nsight Systems traces
+- [x] **INFR-004**: The system uses Holoscan `CudaStreamPool` for concurrent kernel launches across operators (one per model-config subgraph — NonBlocking, reserved_size=1, per-config nvtx_identifier; overlap visibility is Plan 06's nsys trace, best-effort per D-16)
+- [x] **INFR-005**: The system emits NVTX markers (via `torch.cuda.nvtx`) at the start and end of each operator's `compute()` method for correlation with Nsight Systems traces (per-config range names `preprocess_<cfg>`/`inference_<cfg>`/`postresample_<cfg>` + `"config"` timing record fields; per-study aggregate keyed by the top-level application)
 - [ ] **INFR-006**: The system provides structured operator-level timing logs (start, end, duration in ms) for each operator in the pipeline for per-study latency reporting
 
 ### Testing — equivalence validation and benchmarks
@@ -117,8 +117,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 |-------------|-------|--------|
 | PIPE-01 | 0, 1 | Pending |
 | PIPE-02 | 1 | Pending |
-| PIPE-03 | 2 | **Done (Phase 2, Plan 03)** — resolve_run_model_list (reference semantics + data-driven previous-stage auto-insertion; fragment wiring itself in Plan 04) |
-| PIPE-04 | 2 | **Done (Phase 2, Plan 03)** — lowres_seg port contract + 2-channel input, zero disk I/O, bit-exact vs vendored (flow wiring in Plan 04) |
+| PIPE-03 | 2 | **Done (Phase 2, Plans 03–04)** — resolve_run_model_list reference semantics (Plan 03) + one Subgraph per config in one DAG, config-generic factory, HOLOSCAN_MODEL_LIST selection, 4/4 configurations E2E (Plan 04) |
+| PIPE-04 | 2 | **Done (Phase 2, Plans 03–04)** — lowres_seg port contract + 2-channel input (Plan 03) + cross-fragment flow with zero disk I/O, end-to-end in cascade-only and bundle runs (Plan 04) |
 | PIPE-05 | 1 | Pending |
 | PREP-01 | 1, 2 | **Done (Phase 2, Plan 01)** — CuPy transpose, fp32 C-contiguous |
 | PREP-02 | 1, 2 | **Done (Phase 2, Plan 01)** — element-wise on GPU, numpy reductions |
@@ -133,7 +133,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | INF-006 | 1 | Pending |
 | INF-007 | 1 | Pending |
 | INF-008 | 1 | Pending |
-| INF-009 | 1, 2 | Pending |
+| INF-009 | 1, 2 | **Done (Phase 2, Plan 04)** met-with-deviation per D-19 — ordered per-config `prob_<cfg>` inputs + list-order reconstruction over Phase 1 in-place accumulation + CuPy exact final division (bit-exact; deviation documented at source) |
 | INF-010 | 1 | Pending |
 | INF-011 | 1 | Pending |
 | POST-01 | 1 | Pending |
@@ -142,8 +142,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | INFR-01 | 0, 2 | Pending |
 | INFR-02 | 2 | Pending |
 | INFR-03 | 2 | Pending |
-| INFR-004 | 2 | Pending |
-| INFR-005 | 0, 1 | Pending |
+| INFR-004 | 2 | **Done (Phase 2, Plan 04)** — CudaStreamPool per model-config subgraph (NonBlocking, reserved_size=1, streams_<cfg>) |
+| INFR-005 | 0, 1 | **Done (Phase 2, Plan 04)** — per-config NVTX range names + `"config"` timing fields + app-keyed per-study aggregate (sub-Fragment-safe via gpu_util._root) |
 | INFR-006 | 1 | Pending |
 | TEST-01 | 1, 2 | Pending (deviation: single-MR-study dev corpus, 2026-08-17) |
 | TEST-002 | 1, 2 | Pending |
