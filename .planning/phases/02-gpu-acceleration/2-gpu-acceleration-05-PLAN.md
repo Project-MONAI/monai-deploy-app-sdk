@@ -9,7 +9,7 @@ files_modified:
   - ".planning/scripts/phase2_gate.py"
   - "testdata/ref_lowres_only"
   - "testdata/ref_cascade_only"
-  - ".planning/phases/2-gpu-acceleration/gates/"
+  - ".planning/phases/02-gpu-acceleration/gates/"
 autonomous: true
 requirements: [TEST-01, TEST-005]
 must_haves:
@@ -30,7 +30,7 @@ must_haves:
       contains: "split(',')"
     - path: ".planning/scripts/phase2_gate.py"
       provides: "runs all 4 fast-app gate configurations + pixel_diff + SR compare + residency, writes a combined JSON"
-    - path: ".planning/phases/2-gpu-acceleration/gates/02-GATE-RESULTS.json"
+    - path: ".planning/phases/02-gpu-acceleration/gates/02-GATE-RESULTS.json"
       provides: "machine-readable gate evidence (4 pixel gates, 4 SR checks, residency, deviations)"
   key_links:
     - from: "fast HOLOSCAN_MODEL_LIST=3d_cascade_fullres"
@@ -81,8 +81,8 @@ must_haves:
 
 ## Context
 
-@.planning/phases/2-gpu-acceleration/02-CONTEXT.md (D-05..D-08, D-01/D-03)
-@.planning/phases/2-gpu-acceleration/02-RESEARCH.md (Pattern 5 — with the correction below)
+@.planning/phases/02-gpu-acceleration/02-CONTEXT.md (D-05..D-08, D-01/D-03)
+@.planning/phases/02-gpu-acceleration/02-RESEARCH.md (Pattern 5 — with the correction below)
 @.planning/scripts/REFERENCE_RUN_GUIDE.md
 @.planning/scripts/reference_fullres_run.py
 
@@ -141,7 +141,7 @@ Phase 1).
 3. Record provenance: for each new oracle, the model_list used, wall time, and the
    post-CC segment voxel count (decode the SEG 1-bit pixels with the REFERENCE_RUN_GUIDE
    "Quick SEG parity check" snippet), written into
-   `.planning/phases/2-gpu-acceleration/gates/oracle_provenance.md`.
+   `.planning/phases/02-gpu-acceleration/gates/oracle_provenance.md`.
    Sanity expectations (characterize any surprise, don't force-fit): lowres-only and
    cascade-only voxel counts will DIFFER from each other and from fullres (different
    configurations); cascade-only should be in the same ballpark as the bundle's 2447.
@@ -152,7 +152,7 @@ Phase 1).
     - `grep -n "split(',')" .planning/scripts/reference_fullres_run.py` returns 1 line; the default value of `--config` is still `"3d_fullres"` (grep `default="3d_fullres"`).
     - `ls testdata/ref_lowres_only/{SEG,SR,SC}` and `ls testdata/ref_cascade_only/{SEG,SR,SC}` each list at least one file.
     - `grep -rn "3d_lowres,3d_cascade_fullres" .planning/scripts/reference_fullres_run.py` shows the cascade-only invocation documented in the docstring (with a comment explaining WHY lowres must be in the list — the crash from the Context correction).
-    - `.planning/phases/2-gpu-acceleration/gates/oracle_provenance.md` exists with both model_lists, wall times, and voxel counts.
+    - `.planning/phases/02-gpu-acceleration/gates/oracle_provenance.md` exists with both model_lists, wall times, and voxel counts.
     - The reference app itself is UNMODIFIED: `git status examples/apps/cchmc_nnunet_fifteen_ckpt_app` shows no changes.
   </acceptance_criteria>
   <verify>cd /users/srv-mde/projects/monai-deploy-app-sdk && ls testdata/ref_lowres_only/SEG testdata/ref_cascade_only/SEG && grep -n "split(',')" .planning/scripts/reference_fullres_run.py</verify>
@@ -161,12 +161,12 @@ Phase 1).
 
 <task type="auto">
   <name>Task 2: phase2_gate.py — run all 4 gates + SR + residency, write 02-GATE-RESULTS.json</name>
-  <files>.planning/scripts/phase2_gate.py, .planning/phases/2-gpu-acceleration/gates/02-GATE-RESULTS.json</files>
+  <files>.planning/scripts/phase2_gate.py, .planning/phases/02-gpu-acceleration/gates/02-GATE-RESULTS.json</files>
   <read_first>
     - examples/apps/cchmc-nnunet-fast/scripts/pixel_diff.py (CLI: two positional SEG dirs + `--json`; exit codes; the identity/voxel-count JSON fields it emits)
     - examples/apps/cchmc-nnunet-fast/scripts/gpu_residency.py (static/runtime/self-test modes and their exit codes; `ALLOWED_TRANSFER_FILES` — must already contain the Plan 01 `preprocess_operator.py` D-13 entry)
-    - .planning/phases/2-gpu-acceleration/2-gpu-acceleration-04-PLAN.md (the four HOLOSCAN_MODEL_LIST configurations + expected run/ensemble lists)
-    - .planning/phases/2-gpu-acceleration/02-CONTEXT.md (D-06 bundle gate; D-01/D-03 2d deviation)
+    - .planning/phases/02-gpu-acceleration/2-gpu-acceleration-04-PLAN.md (the four HOLOSCAN_MODEL_LIST configurations + expected run/ensemble lists)
+    - .planning/phases/02-gpu-acceleration/02-CONTEXT.md (D-06 bundle gate; D-01/D-03 2d deviation)
   </read_first>
   <action>
 Create `.planning/scripts/phase2_gate.py` — a deterministic gate runner (subprocesses,
@@ -190,7 +190,7 @@ After the 4 rows:
     CLI against the bundle configuration (the multi-fragment DAG); capture status.
     `preprocess_operator.py` must appear ALLOWED (Plan 01's deliberate D-13 entry) and
     `postprocess_operator.py` remains the only exactly-once final boundary.
- 6. Write `.planning/phases/2-gpu-acceleration/gates/02-GATE-RESULTS.json` with:
+ 6. Write `.planning/phases/02-gpu-acceleration/gates/02-GATE-RESULTS.json` with:
     per row: {row, model_list, fast_voxels, oracle_voxels, byte_identity_pct,
     diff_voxels, sr_fast, sr_oracle, sr_delta_pct, pass}; plus:
     residency: {static: "PASS", runtime: "PASS"};
@@ -213,12 +213,12 @@ re-run, and note the fix in the JSON's "fixes" array.
   <acceptance_criteria>
     - `.planning/scripts/phase2_gate.py` exists; `grep -n "ref_lowres_only\|ref_cascade_only\|ref_fullres_only\|current_output" .planning/scripts/phase2_gate.py` shows all four oracle targets; `grep -n "HOLOSCAN_MODEL_LIST" .planning/scripts/phase2_gate.py` >= 1 line.
     - `/tmp/monai-env/.venv/bin/python .planning/scripts/phase2_gate.py` exits 0 and prints a summary table with 4 PASS rows.
-    - `02-GATE-RESULTS.json` exists, is valid JSON (`/tmp/monai-env/.venv/bin/python -c "import json; json.load(open('.planning/phases/2-gpu-acceleration/gates/02-GATE-RESULTS.json'))"`), has `all_gates_pass: true`, per-row `byte_identity_pct` >= 99.9 (expected ~99.999%+), `sr_delta_pct` <= 0.1 for every row, and both deviation entries (grep `2d` and `TEST-01-corpus`).
+    - `02-GATE-RESULTS.json` exists, is valid JSON (`/tmp/monai-env/.venv/bin/python -c "import json; json.load(open('.planning/phases/02-gpu-acceleration/gates/02-GATE-RESULTS.json'))"`), has `all_gates_pass: true`, per-row `byte_identity_pct` >= 99.9 (expected ~99.999%+), `sr_delta_pct` <= 0.1 for every row, and both deviation entries (grep `2d` and `TEST-01-corpus`).
     - Residency static + runtime PASS for the bundle configuration is recorded in the JSON; `grep -n "preprocess_operator.py" examples/apps/cchmc-nnunet-fast/scripts/gpu_residency.py` still shows the D-13 ALLOWED entry (untouched by this plan).
     - The bundle row's fast SEG differs from the fullres-only SEG (different configs — sanity that the bundle actually ensembles; voxel count in the JSON) while matching `testdata/current_output` within tolerance (D-06: ~2447-voxel class).
     - Commits made for the gate script, the results JSON, and any fast-app fixes found by the gates.
   </acceptance_criteria>
-  <verify>cd /users/srv-mde/projects/monai-deploy-app-sdk && /tmp/monai-env/.venv/bin/python .planning/scripts/phase2_gate.py; echo "GATE_EXIT=$?"; /tmp/monai-env/.venv/bin/python -c "import json; d=json.load(open('.planning/phases/2-gpu-acceleration/gates/02-GATE-RESULTS.json')); print(d['all_gates_pass'])"</verify>
+  <verify>cd /users/srv-mde/projects/monai-deploy-app-sdk && /tmp/monai-env/.venv/bin/python .planning/scripts/phase2_gate.py; echo "GATE_EXIT=$?"; /tmp/monai-env/.venv/bin/python -c "import json; d=json.load(open('.planning/phases/02-gpu-acceleration/gates/02-GATE-RESULTS.json')); print(d['all_gates_pass'])"</verify>
   <done>All four pixel-exact gates pass at the D-08 controlling level (per-config + bundle vs current_output, D-06), SR within 0.1% everywhere, residency green in the multi-fragment DAG, and the 2d/corpus deviations are recorded for VERIFICATION.md — TEST-01 and TEST-005 (met-with-deviation) satisfied on the dev corpus.</done>
 </task>
 

@@ -78,8 +78,8 @@ must_haves:
 
 ## Context
 
-@.planning/phases/2-gpu-acceleration/02-CONTEXT.md
-@.planning/phases/2-gpu-acceleration/02-RESEARCH.md
+@.planning/phases/02-gpu-acceleration/02-CONTEXT.md
+@.planning/phases/02-gpu-acceleration/02-RESEARCH.md
 @examples/apps/cchmc-nnunet-fast/my_app/config/__init__.py
 @examples/apps/cchmc-nnunet-fast/my_app/operators/preprocess_operator.py
 @examples/apps/cchmc-nnunet-fast/my_app/operators/postresample_operator.py
@@ -222,7 +222,7 @@ must_haves:
     - nnUNet/nnunetv2/inference/data_iterators.py (`PreprocessAdapterFromNpy.generate_train_batch` — one-hot + `np.vstack((data, seg_onehot))` order)
     - nnUNet/nnunetv2/utilities/label_handling/label_handling.py (`convert_labelmap_to_one_hot`, line 259)
     - nnUNet/nnunetv2/preprocessing/preprocessors/default_preprocessor.py (`run_case_npy` — seg transpose with same transpose_forward, crop with image-derived bbox via crop_to_nonzero, then resampling_fn_seg)
-    - .planning/phases/2-gpu-acceleration/02-RESEARCH.md (Pattern 4 "Cascade wiring" implementation steps + Code Examples "Cascade reference chain")
+    - .planning/phases/02-gpu-acceleration/02-RESEARCH.md (Pattern 4 "Cascade wiring" implementation steps + Code Examples "Cascade reference chain")
   </read_first>
   <action>
 1. New CPU helper `_resample_seg_to_shape(data, new_shape, current_spacing, new_spacing, params)`
@@ -326,7 +326,7 @@ must_haves:
   <files>examples/apps/cchmc-nnunet-fast/my_app/operators/postresample_operator.py, examples/apps/cchmc-nnunet-fast/scripts/test_cascade_config.py</files>
   <read_first>
     - examples/apps/cchmc-nnunet-fast/my_app/operators/postresample_operator.py (full file: `postresample_reference` (resample logits then softmax, pre-revert), `revert_crop_and_transpose_gpu` (zeros + bg=1 fill + inverse-permute), `postresample()`, `compute()`, and the NOTE that holoscan 4.2 calls setup() during Operator.__init__ — flags must be initialized BEFORE super().__init__, as ensemble_average_operator.py does with emit_averaged_probabilities)
-    - .planning/phases/2-gpu-acceleration/02-RESEARCH.md (Pattern 4 implementation bullets: "Lowres fragment emits an extra port lowres_seg = argmax(...) as uint8 CUDA tensor (original DICOM orientation)... NO connected-component cleanup")
+    - .planning/phases/02-gpu-acceleration/02-RESEARCH.md (Pattern 4 implementation bullets: "Lowres fragment emits an extra port lowres_seg = argmax(...) as uint8 CUDA tensor (original DICOM orientation)... NO connected-component cleanup")
   </read_first>
   <action>
 1. `PostResampleOperator` constructor: add `emit_lowres_seg: bool = False` and

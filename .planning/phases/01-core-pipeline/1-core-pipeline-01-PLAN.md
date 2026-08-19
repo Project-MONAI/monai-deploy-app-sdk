@@ -41,7 +41,7 @@ must_haves:
 @.planning/PROJECT.md
 @.planning/ROADMAP.md
 @.planning/STATE.md
-@.planning/phases/1-core-pipeline/1-core-pipeline-VERIFICATION.md (if exists)
+@.planning/phases/01-core-pipeline/1-core-pipeline-VERIFICATION.md (if exists)
 
 Reference ground truth (from analysis of `cchmc_nnunet_fifteen_ckpt_app`): the reference
 `ModelnnUNetWrapper.forward` force-converts input to CPU numpy and `DefaultPreprocessor.run_case_npy`

@@ -69,8 +69,8 @@ must_haves:
 
 @.planning/PROJECT.md
 @.planning/STATE.md
-@.planning/phases/2-gpu-acceleration/02-CONTEXT.md
-@.planning/phases/2-gpu-acceleration/02-RESEARCH.md
+@.planning/phases/02-gpu-acceleration/02-CONTEXT.md
+@.planning/phases/02-gpu-acceleration/02-RESEARCH.md
 @examples/apps/cchmc-nnunet-fast/my_app/operators/preprocess_operator.py
 @examples/apps/cchmc-nnunet-fast/scripts/gpu_residency.py
 
@@ -93,7 +93,7 @@ plan) — the fullres-only E2E run here is just that DAG with the new CuPy prepr
   <files>examples/apps/cchmc-nnunet-fast/my_app/operators/preprocess_operator.py</files>
   <read_first>
     - examples/apps/cchmc-nnunet-fast/my_app/operators/preprocess_operator.py (current CPU path; the functions `_create_nonzero_mask`, `_get_bbox_from_mask`, `_compute_new_shape`, `_determine_do_sep_z_and_axis`, `_normalize_channel`, `_resample_to_shape`, `preprocess_reference`, `preprocess_image`, `compute` — keep their public signatures and the `properties` dict keys)
-    - .planning/phases/2-gpu-acceleration/02-RESEARCH.md (Pattern 2 "CuPort of transpose/crop/normalize" — the exact data flow; "bit-exact rules" 1–4; Code Examples "Verified bit-exact CuPy element-wise ops")
+    - .planning/phases/02-gpu-acceleration/02-RESEARCH.md (Pattern 2 "CuPort of transpose/crop/normalize" — the exact data flow; "bit-exact rules" 1–4; Code Examples "Verified bit-exact CuPy element-wise ops")
   </read_first>
   <action>
 Rewrite the compute path of `preprocess_image` (and the helpers it needs) so the data flow
@@ -167,10 +167,10 @@ must be C-contiguous (D-12). Add an explanatory comment at the H2D/D2H sites cit
 
 <task type="auto">
   <name>Task 2: Update gpu_residency.py allow-list deliberately + run the pixel-exact and residency gates</name>
-  <files>examples/apps/cchmc-nnunet-fast/scripts/gpu_residency.py, .planning/phases/2-gpu-acceleration/ (gate evidence)</files>
+  <files>examples/apps/cchmc-nnunet-fast/scripts/gpu_residency.py, .planning/phases/02-gpu-acceleration/ (gate evidence)</files>
   <read_first>
     - examples/apps/cchmc-nnunet-fast/scripts/gpu_residency.py (the `ALLOWED_TRANSFER_FILES` dict at line ~81, `run_static`, `run_runtime`, `run_self_test`, and `main` — use the script's own CLI as written there)
-    - .planning/phases/2-gpu-acceleration/02-CONTEXT.md (code_context: "the test's allow-list must be updated deliberately, not silenced")
+    - .planning/phases/02-gpu-acceleration/02-CONTEXT.md (code_context: "the test's allow-list must be updated deliberately, not silenced")
   </read_first>
   <action>
 1. Add ONE entry to `ALLOWED_TRANSFER_FILES` in gpu_residency.py:
@@ -192,7 +192,7 @@ must be C-contiguous (D-12). Add an explanatory comment at the H2D/D2H sites cit
 5. Compare SR: the airway-volume SR text must still read "Airway Volume: 1 mL" (0.1%
    tolerance per TEST-002).
 6. Save the gate evidence (pixel_diff JSON via `--json`, residency output, SR value) into
-   `.planning/phases/2-gpu-acceleration/plan01-gates/` and commit with an imperative
+   `.planning/phases/02-gpu-acceleration/plan01-gates/` and commit with an imperative
    message.
   </action>
   <acceptance_criteria>
@@ -201,7 +201,7 @@ must be C-contiguous (D-12). Add an explanatory comment at the H2D/D2H sites cit
     - `--static` run exits 0 and its output classifies `preprocess_operator.py` as `ALLOWED` (not `VIOLATION`).
     - `pixel_diff.py` exits 0: reported identity >= 99.99% (Phase 1 measured 99.99986%; differing voxels only in the documented fp16↔fp32 argmax-boundary class, <= a handful of voxels, far under `--max-diff-voxels 10000`).
     - SR airway volume matches the reference within 0.1% ("Airway Volume: 1 mL").
-    - Evidence files exist under `.planning/phases/2-gpu-acceleration/plan01-gates/` and the commit exists in `git log --oneline -3`.
+    - Evidence files exist under `.planning/phases/02-gpu-acceleration/plan01-gates/` and the commit exists in `git log --oneline -3`.
   </acceptance_criteria>
   <verify>cd examples/apps/cchmc-nnunet-fast && /tmp/monai-env/.venv/bin/python scripts/gpu_residency.py --static && /tmp/monai-env/.venv/bin/python scripts/pixel_diff.py /tmp/p2p1_e2e_fullres/SEG testdata/ref_fullres_only/SEG; echo "PIXEL_DIFF_EXIT=$?"</verify>
   <done>Residency allow-list deliberately extended for D-13; static + runtime residency pass; fullres SEG is pixel-exact vs the existing fullres-only reference (D-11 final gate) — the CuPy port is proven without per-op checks.</done>

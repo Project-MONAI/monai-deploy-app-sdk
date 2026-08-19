@@ -8,7 +8,7 @@ files_modified:
   - ".planning/scripts/phase2_benchmark.py"
   - ".planning/benchmarks/phase2_results.csv"
   - ".planning/profiles/phase2/"
-  - ".planning/phases/2-gpu-acceleration/02-BENCHMARK-REPORT.md"
+  - ".planning/phases/02-gpu-acceleration/02-BENCHMARK-REPORT.md"
 autonomous: true
 requirements: [TEST-006, TEST-007, INFR-005]
 must_haves:
@@ -28,7 +28,7 @@ must_haves:
       provides: "the roadmap-required benchmark CSV (scope, rep, per-operator ms, speedups)"
     - path: ".planning/profiles/phase2/"
       provides: "nsys .nsys-rep + .sqlite + stats exports (cuda_api_sum, nvtx ranges, kernel timeline) for the bundle run"
-    - path: ".planning/phases/2-gpu-acceleration/02-BENCHMARK-REPORT.md"
+    - path: ".planning/phases/02-gpu-acceleration/02-BENCHMARK-REPORT.md"
       provides: "the two-bar report with per-operator deltas, the D-18 deviation, and profiling findings for Phase 3 scoping"
   key_links:
     - from: "fast app `timing: {...}` / `study_timing_summary:` JSON logs"
@@ -76,7 +76,7 @@ must_haves:
 ## Context
 
 @.planning/ROADMAP.md (Phase 2 tasks 2.12–2.14 + Acceptance Criteria)
-@.planning/phases/2-gpu-acceleration/02-RESEARCH.md (Pattern 7 "Benchmarking & profiling"; Open Question 1 — the D-18 resolution this plan implements; Pitfall 9)
+@.planning/phases/02-gpu-acceleration/02-RESEARCH.md (Pattern 7 "Benchmarking & profiling"; Open Question 1 — the D-18 resolution this plan implements; Pitfall 9)
 @.planning/scripts/baseline_benchmark.py (the subprocess + warmups + CSV spine to extend)
 @.planning/scripts/nsight_profile.sh (the working nsys harness)
 @.planning/benchmarks/baseline-2026-08-18.csv (Phase 1 per-operator numbers)
@@ -162,7 +162,7 @@ print('rows:', len(rows), 'OK')
   <files>.planning/profiles/phase2/, .planning/scripts/nsight_profile.sh (extend or add a phase2 wrapper)</files>
   <read_first>
     - .planning/scripts/nsight_profile.sh (the working nsys 2025.6.3 harness: flag set, capture range)
-    - .planning/phases/2-gpu-acceleration/02-RESEARCH.md (Pattern 7 nsys section; Environment Availability table — ncu blocked `ERR_NVGPUCTRPERM`)
+    - .planning/phases/02-gpu-acceleration/02-RESEARCH.md (Pattern 7 nsys section; Environment Availability table — ncu blocked `ERR_NVGPUCTRPERM`)
     - .planning/profiles/ (Phase 0/1 trace naming convention: `<trace-name>_<timestamp>.nsys-rep`)
   </read_first>
   <action>
@@ -217,16 +217,16 @@ print('rows:', len(rows), 'OK')
 
 <task type="auto">
   <name>Task 3: 02-BENCHMARK-REPORT.md — the two-bar report with per-operator deltas and the D-18 deviation</name>
-  <files>.planning/phases/2-gpu-acceleration/02-BENCHMARK-REPORT.md</files>
+  <files>.planning/phases/02-gpu-acceleration/02-BENCHMARK-REPORT.md</files>
   <read_first>
     - .planning/benchmarks/phase2_results.csv (Task 1 output — the numbers)
     - .planning/benchmarks/baseline-2026-08-18.csv (Phase 1 per-operator: in-study 42.1 s, inference 27.2 s, etc.)
     - .planning/baseline_results.csv (reference 169,747 ± 7,274 ms + per-stage)
     - .planning/profiles/phase2/ (Task 2 findings to cite)
-    - .planning/phases/2-gpu-acceleration/02-RESEARCH.md (Open Question 1 — the documented resolution to quote)
+    - .planning/phases/02-gpu-acceleration/02-RESEARCH.md (Open Question 1 — the documented resolution to quote)
   </read_first>
   <action>
-Write `.planning/phases/2-gpu-acceleration/02-BENCHMARK-REPORT.md` with EXACTLY these
+Write `.planning/phases/02-gpu-acceleration/02-BENCHMARK-REPORT.md` with EXACTLY these
 sections (fill with the measured numbers):
 1. **Scope & method** — fresh-process reps, 1 warmup + 3 measured, A100-SXM4-40GB,
    airway study, venv/date; both `HOLOSCAN_MODEL_LIST` scopes.
@@ -253,13 +253,13 @@ sections (fill with the measured numbers):
 Commit the report.
   </action>
   <acceptance_criteria>
-    - `.planning/phases/2-gpu-acceleration/02-BENCHMARK-REPORT.md` exists with all six numbered sections (grep each section heading).
+    - `.planning/phases/02-gpu-acceleration/02-BENCHMARK-REPORT.md` exists with all six numbered sections (grep each section heading).
     - §2 contains a delta column vs Phase 1 AND an explicit MET/NOT-MET sentence for the same-scope bar; §3 contains the `169.7`/`169,747` baseline and a speedup ratio number; §4 contains the string `D-18` and `70` (the 70–80 s serial estimate) and the measured bundle total.
     - §5 cites the exact artifact filenames from `.planning/profiles/phase2/` and contains `ERR_NVGPUCTRPERM`; §6 contains `INFR-02`.
     - Every number in the report is traceable to `phase2_results.csv` or a profiling export (no unmeasured claims).
     - Commit exists.
   </acceptance_criteria>
-  <verify>cd /users/srv-mde/projects/monai-deploy-app-sdk && grep -n "D-18\|169,747\|ERR_NVGPUCTRPERM\|INFR-02" .planning/phases/2-gpu-acceleration/02-BENCHMARK-REPORT.md</verify>
+  <verify>cd /users/srv-mde/projects/monai-deploy-app-sdk && grep -n "D-18\|169,747\|ERR_NVGPUCTRPERM\|INFR-02" .planning/phases/02-gpu-acceleration/02-BENCHMARK-REPORT.md</verify>
   <done>TEST-007 is complete: absolute latency + speedup ratios vs BOTH baselines, quantified improvement statement, per-operator deltas, and the Phase 3 scoping input (bottleneck ranking with trace citations) — with the D-18 scope deviation documented rather than hidden.</done>
 </task>
 

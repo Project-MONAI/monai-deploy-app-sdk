@@ -77,8 +77,8 @@ must_haves:
 ## Context
 
 @.planning/STATE.md
-@.planning/phases/2-gpu-acceleration/02-CONTEXT.md
-@.planning/phases/2-gpu-acceleration/02-RESEARCH.md
+@.planning/phases/02-gpu-acceleration/02-CONTEXT.md
+@.planning/phases/02-gpu-acceleration/02-RESEARCH.md
 @examples/apps/cchmc-nnunet-fast/my_app/app.py
 @examples/apps/cchmc-nnunet-fast/my_app/operators/ensemble_average_operator.py
 @.planning/scripts/test_rmm.py
@@ -110,7 +110,7 @@ keep them).
   <read_first>
     - examples/apps/cchmc-nnunet-fast/my_app/app.py (current import block — `from monai.deploy...` lines; where `compose()` and `run()` are; the existing `from my_app.operators import (...)` / flat-import fallback pattern to mirror)
     - .planning/scripts/test_rmm.py (Phase 0 RMM smoke test — the verified rmm→torch sequence)
-    - .planning/phases/2-gpu-acceleration/02-RESEARCH.md (Pattern 6 "RMM wiring that works in this venv" code block; Pitfalls 1 and 6)
+    - .planning/phases/02-gpu-acceleration/02-RESEARCH.md (Pattern 6 "RMM wiring that works in this venv" code block; Pitfalls 1 and 6)
   </read_first>
   <action>
 1. Create `my_app/gpu_bootstrap.py` (no holoscan/monai.deploy imports anywhere in it):
@@ -196,7 +196,7 @@ keep them).
   <read_first>
     - examples/apps/cchmc-nnunet-fast/my_app/operators/ensemble_average_operator.py (the Phase 1 `average_probabilities` in-place `+=` accumulation + `_divide_refparity` CuPy final division — MUST stay byte-for-byte for the full_volume path; constructor + `setup()`/`compute()` to see where the defer flag plugs in)
     - examples/apps/cchmc-nnunet-fast/my_app/config/__init__.py (`InferenceParams` — num_input_channels / num_segmentation_heads / patch_size; `load_inference_params` used to build the budget inputs)
-    - .planning/phases/2-gpu-acceleration/02-RESEARCH.md (Pattern 7 memory-budget design; D-15)
+    - .planning/phases/02-gpu-acceleration/02-RESEARCH.md (Pattern 7 memory-budget design; D-15)
     - examples/apps/cchmc-nnunet-fast/my_app/app.py (post-Task-1 state: compose() with the backend assertion)
   </read_first>
   <action>

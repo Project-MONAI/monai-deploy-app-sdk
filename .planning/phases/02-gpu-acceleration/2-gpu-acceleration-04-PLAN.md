@@ -80,8 +80,8 @@ must_haves:
 
 ## Context
 
-@.planning/phases/2-gpu-acceleration/02-CONTEXT.md
-@.planning/phases/2-gpu-acceleration/02-RESEARCH.md
+@.planning/phases/02-gpu-acceleration/02-CONTEXT.md
+@.planning/phases/02-gpu-acceleration/02-RESEARCH.md
 @examples/apps/cchmc-nnunet-fast/my_app/app.py
 @examples/apps/cchmc-nnunet-fast/my_app/operators/gpu_util.py
 @examples/apps/cchmc-nnunet-fast/my_app/operators/ensemble_average_operator.py
@@ -140,7 +140,7 @@ D-19 (keep Phase 1 averaging; document the INF-009 deviation).
   <read_first>
     - examples/apps/cchmc-nnunet-fast/my_app/operators/gpu_util.py (`nvtx_range`, `set_study_id`/`get_study_id` (keyed by `id(fragment)`), `StudyTimingCollector` (records keyed by `id(fragment)`), `GpuTiming`)
     - examples/apps/cchmc-nnunet-fast/my_app/app.py (`_log_study_timing_summaries` — iterates `StudyTimingCollector.studies(self)` where self is the Application)
-    - .planning/phases/2-gpu-acceleration/02-RESEARCH.md (Pitfall 9: "StudyTimingCollector ... keyed by operator.fragment, which in Phase 1 == the app. With sub-Fragments the per-study aggregate silently fragments")
+    - .planning/phases/02-gpu-acceleration/02-RESEARCH.md (Pitfall 9: "StudyTimingCollector ... keyed by operator.fragment, which in Phase 1 == the app. With sub-Fragments the per-study aggregate silently fragments")
   </read_first>
   <action>
 1. `gpu_util.py`: add a helper
@@ -184,7 +184,7 @@ D-19 (keep Phase 1 averaging; document the INF-009 deviation).
   <files>examples/apps/cchmc-nnunet-fast/my_app/operators/ensemble_average_operator.py</files>
   <read_first>
     - examples/apps/cchmc-nnunet-fast/my_app/operators/ensemble_average_operator.py (full file: `average_probabilities`, `_divide_refparity` (CuPy in-place division — torch CUDA `/= n` is 1-ulp off, Phase 1 measurement), `_to_tensor_list`, `argmax_to_segmentation`, `__init__` (emit_averaged_probabilities flag BEFORE super()), `setup()` (conditional output), `compute()` (receives `probabilities` stream, CountCondition? — check how the current single input is conditioned), the Plan 02 `defer_strategy` flag)
-    - .planning/phases/2-gpu-acceleration/02-RESEARCH.md (Pattern 6: "feed it the list of per-config probability tensors in ensemble_model_list order (order matters: first volume is the base)")
+    - .planning/phases/02-gpu-acceleration/02-RESEARCH.md (Pattern 6: "feed it the list of per-config probability tensors in ensemble_model_list order (order matters: first volume is the base)")
   </read_first>
   <action>
 1. `EnsembleAverageOperator.__init__` gains `config_names: Optional[Sequence[str]] = None`
@@ -239,8 +239,8 @@ D-19 (keep Phase 1 averaging; document the INF-009 deviation).
   <read_first>
     - examples/apps/cchmc-nnunet-fast/my_app/app.py (post-Plan-02 state: gpu_bootstrap first import, backend assertion, memory_budget call, warm_pool at end of compose(); the current single-config flow table; the timed writer subclasses — keep them)
     - examples/apps/cchmc-nnunet-fast/my_app/operators/__init__.py (what's exported — add Fragment/CudaStreamPool where appropriate or import directly in app.py)
-    - .planning/phases/2-gpu-acceleration/02-RESEARCH.md (Pattern 1 "Multi-fragment DAG" — the verified API block, DAG sketch, ordering/deadlock mitigation; Open Question 2 — env var selection)
-    - .planning/phases/2-gpu-acceleration/2-gpu-acceleration-03-PLAN.md (the conditional port table + expected resolved lists — implement exactly that table)
+    - .planning/phases/02-gpu-acceleration/02-RESEARCH.md (Pattern 1 "Multi-fragment DAG" — the verified API block, DAG sketch, ordering/deadlock mitigation; Open Question 2 — env var selection)
+    - .planning/phases/02-gpu-acceleration/2-gpu-acceleration-03-PLAN.md (the conditional port table + expected resolved lists — implement exactly that table)
   </read_first>
   <action>
 Rewrite `compose()`'s operator-chain section (keep DICOM I/O, writers, custom tags, and

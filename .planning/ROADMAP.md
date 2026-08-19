@@ -146,7 +146,7 @@ This is the **minimum viable replacement** for `NNUnetSegOperator`. Preprocessin
 
 This phase is where performance gains materialize. Preprocessing moves to CuPy, all four configs run, and the cascade path is wired.
 
-**Plans (2026-08-19):** 6 plans across 5 waves in `.planning/phases/2-gpu-acceleration/` — 01 (wave 1, CuPy preprocess port) ∥ 02 (wave 1, RMM + budget calculator); 03 (wave 2, cascade operator support + model-list semantics); 04 (wave 3, multi-fragment DAG); 05 (wave 4, per-config oracles + pixel-exact gates); 06 (wave 5, two-bar benchmark + nsys profiling). Locked deviations carried into the plans: 2d blocked-on-model (D-01/D-03), INFR-02 → Phase 3 (D-17), D-18 reported as same-scope-vs-61.8s + bundle-vs-169.7s, ncu permission-blocked (nsys-only), cascade-only reference oracle requires `model_list=[3d_lowres, 3d_cascade_fullres]` (live-probed 2026-08-19 — reference crashes on cascade-only pin).
+**Plans (2026-08-19):** 6 plans across 5 waves in `.planning/phases/02-gpu-acceleration/` — 01 (wave 1, CuPy preprocess port) ∥ 02 (wave 1, RMM + budget calculator); 03 (wave 2, cascade operator support + model-list semantics); 04 (wave 3, multi-fragment DAG); 05 (wave 4, per-config oracles + pixel-exact gates); 06 (wave 5, two-bar benchmark + nsys profiling). Locked deviations carried into the plans: 2d blocked-on-model (D-01/D-03), INFR-02 → Phase 3 (D-17), D-18 reported as same-scope-vs-61.8s + bundle-vs-169.7s, ncu permission-blocked (nsys-only), cascade-only reference oracle requires `model_list=[3d_lowres, 3d_cascade_fullres]` (live-probed 2026-08-19 — reference crashes on cascade-only pin).
 
 ### Success Criteria
 
