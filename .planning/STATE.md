@@ -4,7 +4,7 @@ milestone: v1.0
 milestone_name: milestone
 status: executing
 stopped_at: Completed 1-core-pipeline-04-PLAN.md (DAG assembly in app.py; NVTX trace + structured timing verified; E2E airway run exit 0 with SC/SEG/SR)
-last_updated: "2026-08-19T06:32:44.419Z"
+last_updated: "2026-08-19T06:33:07.026Z"
 last_activity: 2026-08-18
 progress:
   total_phases: 4
