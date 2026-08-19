@@ -89,7 +89,7 @@ Deferred to future release. Tracked but not in current roadmap.
 
 - **MEM-01**: The system shares model architecture weights across the 15-checkpoint ensemble, loading weights once and switching via tensor views
 - **MEM-02**: The system runs the full pipeline on a target GPU with 8 GB VRAM without OOM for standard chest CT volumes (512×512×300)
-- **MEM-003**: The system frees low-res network weights immediately after 3D_lowres inference in cascade configurations to reduce peak memory
+- [x] **MEM-003**: The system frees low-res network weights immediately after 3D_lowres inference in cascade configurations to reduce peak memory
 
 ### GPU Preprocessing
 
@@ -164,4 +164,4 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 ---
 *Requirements defined: 2025-08-13*
-*Last updated: 2026-08-19 — TEST-002 + TEST-003 marked complete (Phase 3 Plan 01: gate suite re-run serial + concurrent, SR 0.0% ×8 rows, pixel_diff.py in every row); TEST-01 re-verified both scheduler modes*
+*Last updated: 2026-08-19 — MEM-003 marked complete (Phase 3 Plan 02: release hook frees the 3d_lowres bundle exactly once after the aux fragment's terminal lowres_seg emit; pool −0.8 GB derived / driver flat measured — Open Q2 answered; D-25 gate re-run green with the hook active)*
