@@ -255,13 +255,13 @@ Updated at phase transition boundaries.
 |-------------|-------|--------|
 | PIPE-01 | 0, 1 | Complete |
 | PIPE-02 | 1 | Complete |
-| PIPE-03 | 2 | Pending |
-| PIPE-04 | 2 | Pending |
+| PIPE-03 | 2 | Complete |
+| PIPE-04 | 2 | Complete |
 | PIPE-05 | 1 | Complete |
-| PREP-01 | 1, 2 | In Progress |
-| PREP-02 | 1, 2 | In Progress |
+| PREP-01 | 1, 2 | Complete |
+| PREP-02 | 1, 2 | Complete |
 | PREP-03 | 1 | Complete |
-| PREP-04 | 1, 2 | In Progress |
+| PREP-04 | 1, 2 | Complete |
 | PREP-05 | 1 | Complete |
 | INF-001 | 1 | Complete |
 | INF-002 | 1 | Complete |
@@ -271,23 +271,23 @@ Updated at phase transition boundaries.
 | INF-006 | 1 | Complete |
 | INF-007 | 1 | Complete |
 | INF-008 | 1 | Complete |
-| INF-009 | 1, 2 | In Progress |
+| INF-009 | 1, 2 | Complete |
 | INF-010 | 1 | Complete |
 | INF-011 | 1 | Complete |
 | POST-01 | 1 | Complete |
 | POST-02 | 1 | Complete |
 | POST-03 | 1 | Complete |
-| INFR-01 | 0, 2 | In Progress |
-| INFR-02 | 2 | Pending |
-| INFR-03 | 2 | Pending |
-| INFR-004 | 2 | Pending |
+| INFR-01 | 0, 2 | Complete |
+| INFR-02 | 2 | Complete |
+| INFR-03 | 2 | Complete |
+| INFR-004 | 2 | Complete |
 | INFR-005 | 0, 1 | Complete |
 | INFR-006 | 1 | Complete |
-| TEST-01 | 1, 2 | In Progress |
-| TEST-002 | 1, 2 | In Progress |
+| TEST-01 | 1, 2 | Complete |
+| TEST-002 | 1, 2 | Complete |
 | TEST-003 | 1 | Complete |
 | TEST-004 | 1 | Complete |
-| TEST-005 | 2 | Pending |
+| TEST-005 | 2 | Complete |
 | TEST-006 | 0, 1, 2, 3 | Complete |
 | TEST-007 | 0, 2, 3 | Complete |
 
