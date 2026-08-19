@@ -57,8 +57,10 @@ Requirements for initial release. Each maps to roadmap phases.
 - [x] **TEST-01**: The system produces DICOM-SEG output with pixel values that are bit-for-bit identical to the current `cchmc_nnunet_fifteen_ckpt_app` on a validated reference corpus of at least 5 representative CT studies
   - **Deviation (2026-08-17):** the working corpus is the single airway MR series in `testdata/airway_input` (256 slices, 256×256) with complete SC/SEG/SR ground truth in `testdata/airway_output` (airway model `MRI_NICU-Airway_TRAINv2`; models at `examples/apps/cchmc_nnunet_fifteen_ckpt_app/models`). The ≥5-CT-study bar is deferred to the final Phase 1 acceptance gate. **RESOLVED 2026-08-17 (20:40 UTC):** the earlier concern that the fresh reference app differs from historical GT (~45 mm world-COM, 0 overlap) was a **decoding artifact** — a fresh run (`testdata/current_output`) is **99.902% byte-identical** to historical GT (segment voxel counts 2430 vs 2447, Δ0.7%), so a freshly regenerated reference is a valid pixel-exact gate target.
   - **Satisfied (Phase 2, Plan 05, 2026-08-19, met-with-deviation):** all 3D configs + the final bundle are pixel-exact on the dev corpus vs fresh per-config reference oracles — fullres 99.99986% (3 differing voxels = the documented fp16↔fp32 argmax boundary, D-08 controlling level), lowres 100.00000%/0, cascade 100.00000%/0, **bundle 100.00000%/0 vs `testdata/current_output` (2447=2447)**; SR 0.0% delta everywhere; evidence `.planning/phases/02-gpu-acceleration/gates/02-GATE-RESULTS.json` (the ≥5-CT-study re-run remains the deferred final gate — deviation recorded in the JSON).
-- [ ] **TEST-002**: The system produces DICOM-SR measurements that match the current app to within 0.1% tolerance on the same reference corpus
-- [ ] **TEST-003**: The test suite includes an automated pixel-level diff tool that compares new app output against reference output and fails on any divergence
+- [x] **TEST-002**: The system produces DICOM-SR measurements that match the current app to within 0.1% tolerance on the same reference corpus
+  - **Satisfied (Phase 3, Plan 01, 2026-08-19; first established Phase 2 Plan 05):** SR airway-volume delta **0.0% on all 4 gate rows** (bar 0.1%) in BOTH the serial regression and the concurrency-enabled gate suite → `.planning/phases/03-optimization/gates/03-GATE-serial.json` + `03-GATE-concurrent.json` (Phase 2 evidence: `02-GATE-RESULTS.json`).
+- [x] **TEST-003**: The test suite includes an automated pixel-level diff tool that compares new app output against reference output and fails on any divergence
+  - **Satisfied (Phase 3, Plan 01, 2026-08-19; tool established Phase 1 Plan 05):** `pixel_diff.py` (byte-identity + decoded-voxel compare, exit-code-fails-on-divergence) re-run as the pixel gate of every row in the Phase 3 gate suite (serial + concurrent), and as the bundle-vs-fullres sanity check (382 differing voxels = rc 1, expected) → `.planning/phases/03-optimization/gates/03-GATE-{serial,concurrent}.json`.
 - [ ] **TEST-004**: The test suite verifies that all intermediate tensors remain on GPU (`device == 'cuda'`) throughout the pipeline and flags any `.cpu()` or `.numpy()` calls before the final output stage
 - [x] **TEST-005**: The test suite covers all four nnUNet configurations (2D, 3D_fullres, 3D_lowres, 3D_cascade_fullres) with at least one test case each
   - **Satisfied (Phase 2, Plan 05, 2026-08-19, met-with-deviation):** per-config pixel-exact gate runs with a fresh reference oracle per config — 3d_fullres (ref_fullres_only, 99.99986%/3), 3d_lowres (ref_lowres_only, 100.00000%/0), 3d_cascade_fullres (ref_cascade_only, 100.00000%/0), plus the final bundle gate vs current_output (100.00000%/0); `phase2_gate.py` is the repeatable suite. **2d is blocked-on-model (D-01/D-03)** — the bundle has no 2d model; fragment wiring is config-generic (D-02) so a real 2d model is a test, not a code change (D-04); deviation recorded in `02-GATE-RESULTS.json` for VERIFICATION.md.
@@ -148,8 +150,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | INFR-005 | 0, 1 | **Done (Phase 2, Plan 04)** — per-config NVTX range names + `"config"` timing fields + app-keyed per-study aggregate (sub-Fragment-safe via gpu_util._root) |
 | INFR-006 | 1 | Pending |
 | TEST-01 | 1, 2 | **Done (Phase 2, Plan 05, met-with-deviation)** — all 4 gate configs pixel-exact on the dev corpus (bundle 100.00000% vs current_output); ≥5-CT re-run deferred |
-| TEST-002 | 1, 2 | Pending |
-| TEST-003 | 1 | Pending |
+| TEST-002 | 1, 2 | **Done (Phase 3, Plan 01)** — SR 0.0% delta on all 4 gate rows, serial + concurrent suites |
+| TEST-003 | 1 | **Done (Phase 3, Plan 01)** — pixel_diff.py re-run in every Phase 3 gate row (fails on divergence; sanity check exercises the rc-1 path) |
 | TEST-004 | 1 | Pending |
 | TEST-005 | 2 | **Done (Phase 2, Plan 05, met-with-deviation)** — per-config oracle gates for the three 3D configs + bundle; 2d blocked-on-model (D-01/D-03) |
 | TEST-006 | 0, 1, 2, 3 | **Done (Phase 0 + Phase 2 Plan 06)** — baseline_benchmark.py + baseline_results.csv; fast-app per-rep/per-config harness `phase2_benchmark.py` + `phase2_results.csv` (fresh process, warmup excluded, mean±std, both scopes) |
@@ -162,4 +164,4 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 ---
 *Requirements defined: 2025-08-13*
-*Last updated: 2026-08-19 — TEST-01 + TEST-005 marked complete (Phase 2 Plan 05 gates, met-with-deviation: dev corpus + 2d blocked-on-model)*
+*Last updated: 2026-08-19 — TEST-002 + TEST-003 marked complete (Phase 3 Plan 01: gate suite re-run serial + concurrent, SR 0.0% ×8 rows, pixel_diff.py in every row); TEST-01 re-verified both scheduler modes*
