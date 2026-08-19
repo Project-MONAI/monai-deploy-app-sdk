@@ -317,6 +317,52 @@ def test_ensemble_order():
     print("PASS test_ensemble_order (reference-order accumulation + list-order reconstruction, torch.equal)")
 
 
+def test_preprocess_image_cascade_two_channel():
+    """Phase 2 Plan 04 (PIPE-04): the cascade 2-channel path of
+    ``preprocess_image`` — regression guard for the 5D one-hot bug
+    (the resampled seg is 4D (1, *spatial); one-hotting it directly
+    stacked to 5D and broke the channel concatenate with the image)."""
+    import numpy as np
+    import torch
+
+    from preprocess_operator import PreprocessOperator
+
+    class FakeImage:
+        def __init__(self, arr):
+            self._arr = arr
+
+        def asnumpy(self):
+            return self._arr
+
+        def metadata(self):
+            aff = np.eye(4, dtype=np.float64)
+            return {"nifti_affine_transform": aff}
+
+    from monai.deploy.core import Application
+
+    app = Application(["prog"])
+    op = PreprocessOperator(
+        app,
+        model_path=MODEL_ROOT,
+        config_name="3d_cascade_fullres",
+    )
+    rng = np.random.default_rng(3)
+    img = rng.integers(0, 300, size=(40, 48, 56)).astype(np.uint8)
+    seg = rng.integers(0, 2, size=img.shape).astype(np.uint8)  # same array order as the image (orientation contract)
+    vol, props = op.preprocess_image(FakeImage(img), torch.as_tensor(seg).to("cuda"))
+
+    assert vol.ndim == 4, f"expected 4D (2, *spatial) cascade input, got ndim {vol.ndim}"
+    assert vol.shape[0] == 2, f"expected 2 channels (image + one-hot), got {vol.shape[0]}"
+    assert tuple(vol.shape[1:]) == tuple(int(s) for s in props["new_shape"]), (
+        f"spatial shape {vol.shape[1:]} != new_shape {props['new_shape']}"
+    )
+    one_hot = vol[1]
+    oh_np = one_hot.get()
+    assert oh_np.dtype == np.float32, f"one-hot dtype {oh_np.dtype}"
+    assert set(np.unique(oh_np).tolist()) <= {0.0, 1.0}, "one-hot must be 0/1"
+    print("PASS test_preprocess_image_cascade_two_channel (2-channel (image, one-hot) fp32, 4D)")
+
+
 if __name__ == "__main__":
     test_default_model_list()
     test_cascade_only_auto_inserts_previous_stage()
@@ -331,4 +377,5 @@ if __name__ == "__main__":
     test_one_hot_vs_reference()
     test_revert_crop_gpu()
     test_ensemble_order()
+    test_preprocess_image_cascade_two_channel()
     print("ALL PASS (plan 03: model-list, cascade params, seg-resample replica, one-hot, revert_crop_gpu; plan 04: ensemble order)")

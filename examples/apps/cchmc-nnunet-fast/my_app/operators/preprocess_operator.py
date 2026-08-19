@@ -798,9 +798,12 @@ class PreprocessOperator(Operator):
         # One-hot on GPU (bit-exact vs the vendored
         # convert_labelmap_to_one_hot — unit-tested in
         # scripts/test_cascade_config.py::test_one_hot_vs_reference),
-        # channels in foreground_labels order.
+        # channels in foreground_labels order. The reference one-hots
+        # ``seg[0]`` (the 3D volume — ``seg`` is (1, *spatial)); one-hotting
+        # the 4D array would stack to 5D and mismatch the image channels.
+        seg3 = cp.array(seg_r)[0]
         one_hot = cp.stack(
-            [(cp.array(seg_r) == int(lbl)).astype(cp.float32) for lbl in params.foreground_labels],
+            [(seg3 == int(lbl)).astype(cp.float32) for lbl in params.foreground_labels],
             axis=0,
         )
         vol_gpu = cp.array(vol_out)  # image channel(s), already resampled

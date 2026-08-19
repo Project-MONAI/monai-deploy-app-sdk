@@ -196,9 +196,15 @@ def resolve_run_model_list(
     * reference reorder (``nnunet_seg_operator.py:92-95``): if BOTH
       ``3d_lowres`` and ``3d_cascade_fullres`` are present, ``3d_lowres`` is
       removed and re-inserted immediately before ``3d_cascade_fullres``;
-    * ``ensemble = run list minus ``3d_lowres```` (reference lines 96-98),
-      raising ``ValueError`` with the reference's exact message when the
-      ensemble is empty.
+    * ``ensemble = run list minus ``3d_lowres```` (reference lines 96-98).
+      Documented fast-app extension (Phase 2 Plan 04): when that leaves the
+      ensemble empty but the run list is NOT (run == auxiliary stage only,
+      e.g. ``['3d_lowres']``), the ensemble falls back to the run list —
+      the reference raises ``ValueError`` there (it cannot read a lowres-only
+      probability map back from disk) while the fast app's in-memory DAG can
+      ensemble it (D-07: lowres runs standalone and is gated against its
+      per-config reference). A truly empty run list still raises the
+      reference's exact ``ValueError``.
 
     One fast-app extension (documented divergence from the reference): for
     each config whose RAW plans entry has ``previous_stage`` = ``p`` where
@@ -272,10 +278,21 @@ def resolve_run_model_list(
 
     ensemble = tuple(m for m in run if m != "3d_lowres")
     if not ensemble:
-        # Reference's exact error message (nnunet_seg_operator.py:97-98).
-        raise ValueError(
-            "At least one non-auxiliary model configuration is required for ensemble inference."
-        )
+        if run:
+            # Documented fast-app extension (Phase 2 Plan 04): a run list
+            # that contains ONLY the auxiliary stage (e.g.
+            # HOLOSCAN_MODEL_LIST=3d_lowres) would leave the ensemble empty.
+            # The reference app raises here (nnunet_seg_operator.py:97-98 —
+            # it cannot ensemble a stage whose probability maps it cannot
+            # read back from disk); the fast app's in-memory DAG CAN, so the
+            # ensemble falls back to the run list (D-07: lowres runs
+            # standalone, gated against its per-config reference).
+            ensemble = tuple(run)
+        else:
+            # Reference's exact error message (nnunet_seg_operator.py:97-98).
+            raise ValueError(
+                "At least one non-auxiliary model configuration is required for ensemble inference."
+            )
     return tuple(run), ensemble
 
 
