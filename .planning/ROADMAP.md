@@ -241,7 +241,7 @@ This phase is **time-permitting** and **data-driven**. If Phase 2 already meets 
 
 ### Acceptance Criteria
 
-- [ ] Each optimization task has a Phase 2 profiling trace citation justifying it
+- [x] Each optimization task has a Phase 2 profiling trace citation justifying it (completed 2026-08-19)
 - [ ] Pixel-exact validation passes for all configs after optimizations
 - [ ] Final benchmark report shows improvement over Phase 2
 - [ ] Final benchmark report saved to `.planning/benchmarks/phase3_results.csv`
