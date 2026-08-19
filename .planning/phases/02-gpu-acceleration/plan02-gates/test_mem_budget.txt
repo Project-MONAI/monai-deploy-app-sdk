@@ -1,0 +1,5 @@
+PASS test_full_volume_airway_like (total 0.850 GB < 40 GB)
+PASS test_defer_forced_synthetic (total 40.60 GB > 40 GB -> defer_to_incremental)
+PASS test_boundary (total == free -> full_volume; total-1 -> defer)
+PASS test_per_config_mb_keys (['3d_cascade_fullres', '3d_fullres', '3d_lowres'])
+RESULT: PASS (all mem_budget tests)

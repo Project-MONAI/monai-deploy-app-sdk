@@ -1,0 +1,4 @@
+[2026-08-19 03:29:06,667] [INFO] (app.CCHMCNNUnetFastApp) - memory_allocator_backend: pluggable
+[2026-08-19 03:29:06,771] [INFO] (app.CCHMCNNUnetFastApp) - memory_budget: {"per_config_mb": {"3d_fullres": 335.54432}, "total_bytes": 385875968, "free_vram_bytes": 20991246336, "safety_factor": 1.15, "strategy": "full_volume"}
+[2026-08-19 03:29:55,416] [INFO] (app.CCHMCNNUnetFastApp) - study_timing_summary: {"study": "2.25.250447264451981637974165848369641322606", "operators": {"preprocess": 7575.195927, "inference": 26341.523717, "postresample": 1673.364224, "ensemble_average": 8.091272, "postprocess": 2505.552279, "write_seg": 815.31779, "write_sr": 4.797286, "write_sc": 168.549859}, "total_ms": 39092.392, "n_records": 8}
+[2026-08-19 03:29:55,416] [INFO] (app.CCHMCNNUnetFastApp) - End run

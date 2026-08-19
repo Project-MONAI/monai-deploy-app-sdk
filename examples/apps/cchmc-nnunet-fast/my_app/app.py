@@ -43,6 +43,7 @@ gpu_bootstrap.install_torch_allocator()
 
 import json
 import logging
+from dataclasses import asdict
 from pathlib import Path
 
 # torch before holoscan is fine — only rmm-after-holoscan trips the hazard.
@@ -63,6 +64,8 @@ from monai.deploy.operators.dicom_text_sr_writer_operator import (
 )
 
 try:  # package-style import (my_app.*)
+    from my_app.config import find_jsonpkls_dir, load_inference_params
+    from my_app.mem_budget import compute_memory_budget
     from my_app.operators import (
         DICOMSCWriterOperator,
         DICOMSeriesSelectorOperator,
@@ -77,6 +80,8 @@ try:  # package-style import (my_app.*)
         nvtx_range,
     )
 except ImportError:  # flat import (my_app dir on sys.path, as the app runner provides)
+    from config import find_jsonpkls_dir, load_inference_params
+    from mem_budget import compute_memory_budget
     from operators import (
         DICOMSCWriterOperator,
         DICOMSeriesSelectorOperator,
@@ -193,6 +198,45 @@ class CCHMCNNUnetFastApp(Application):
             }
             self._logger.info("study_timing_summary: %s", json.dumps(aggregate))
 
+    def _compute_budget_plan(self, model_path):
+        """Setup-time VRAM budget for the current config (INFR-03).
+
+        The preprocessed volume shape is study-dependent and unknown at
+        compose time, so the per-dataset ``median_image_size_in_voxels`` from
+        plans.json is used as the estimate (inherited configs that lack the
+        key fall back to the original median shape scaled by the spacing
+        ratio, matching the resample); the crop shape is bounded above by
+        the same volume (crop ⊆ image). The plan is a safety net, not an
+        exact prediction.
+        """
+        params = load_inference_params(model_path, CONFIG_NAME)
+        jsonpkls = find_jsonpkls_dir(model_path)
+        plans = json.loads((jsonpkls / "plans.json").read_text())
+        cfg = plans["configurations"][CONFIG_NAME]
+
+        median = cfg.get("median_image_size_in_voxels")
+        if median is None:
+            orig_shape = plans["original_median_shape_after_transp"]
+            orig_spacing = plans["original_median_spacing_after_transp"]
+            spacing = cfg["spacing"]
+            median = [
+                int(round(float(s) * float(o) / float(t)))
+                for s, o, t in zip(orig_shape, orig_spacing, spacing)
+            ]
+        volume_shape = (params.num_input_channels, *[int(round(float(s))) for s in median])
+
+        cfgs = [
+            {
+                "config_name": CONFIG_NAME,
+                "num_input_channels": params.num_input_channels,
+                "num_segmentation_heads": params.num_segmentation_heads,
+                "preprocessed_shape": volume_shape,
+                # upper bound: the crop is always ⊆ the (resampled) image
+                "cropped_shape": volume_shape,
+            }
+        ]
+        return compute_memory_budget(cfgs)
+
     def compose(self):
         """Creates the app-specific operators and chains them into the
         processing DAG."""
@@ -224,6 +268,13 @@ class CCHMCNNUnetFastApp(Application):
             "gpu_bootstrap must be imported before holoscan (INFR-01)"
         )
 
+        # --- Memory budget (INFR-03, D-15) ---
+        # Setup-time estimate of the per-config full-volume VRAM footprint
+        # vs free VRAM. Drives the ensemble defer flag; the real OOM path is
+        # UNEXERCISED on the A100-40GB airway study (documented, not faked).
+        plan = self._compute_budget_plan(model_path)
+        self._logger.info("memory_budget: %s", json.dumps(asdict(plan)))
+
         # --- DICOM I/O (SDK, unchanged) ---
         study_loader_op = DICOMDataLoaderOperator(
             self, CountCondition(self, 1), input_folder=app_input_path, name="study_loader_op"
@@ -250,7 +301,10 @@ class CCHMCNNUnetFastApp(Application):
         # consumes the uint8 seg) — disable that output or the GXF scheduler
         # rejects the entity (declared output with no downstream receiver).
         ensemble_op = EnsembleAverageOperator(
-            self, emit_averaged_probabilities=False, name="ensemble_average_op"
+            self,
+            emit_averaged_probabilities=False,
+            defer_strategy=(plan.strategy == "defer_to_incremental"),
+            name="ensemble_average_op",
         )
         postprocess_op = PostprocessOperator(
             self,
@@ -373,6 +427,11 @@ class CCHMCNNUnetFastApp(Application):
             {("study_selected_series_list", "study_selected_series_list")},
         )
         self.add_flow(postprocess_op, dicom_sc_writer, {("dicom_sc_dir", "dicom_sc_dir")})
+
+        # --- Pool pre-allocation (INFR-01/D-14) ---
+        # Warm the RMM pool to the budget total at setup time so study 1's
+        # per-tile allocations draw from the pool instead of cudaMalloc.
+        gpu_bootstrap.warm_pool(plan.total_bytes)
 
         logging.info(f"End {self.compose.__name__}")
 

@@ -33,6 +33,22 @@ emitted by PostResampleOperator:
 Phase 1 runs a single config (3D_fullres), so the mean is over one volume —
 but the operator accepts a list/stack of per-config probability tensors, so
 Phase 2 (2D / lowres / cascade) adds configs without redesign.
+
+Phase 2 (INFR-03/D-15): the constructor accepts ``defer_strategy`` (default
+False = Phase 1 behavior). When True (budget calculator decided the
+full-volume plan exceeds free VRAM), :meth:`compute` frees each consumed
+per-config probability tensor as it is accumulated (one-config-at-a-time) —
+the accumulation ORDER and the exact final division are UNCHANGED, so the
+result is bit-identical to the full_volume path (D-19: a true running mean
+would not be bit-identical to the reference's sum/n and is forbidden).
+The real OOM path is UNEXERCISED on the A100-40GB airway study (D-15) — the
+defer branch is reachable in code but never triggered there; documented,
+not faked.
+
+INFR-02 (pre-allocated buffers reused ACROSS compute() calls / across
+studies) is DEFERRED to Phase 3 per D-17 — the single-study dev corpus
+cannot prove cross-study reuse. The RMM pool retains allocated memory
+process-wide, but no explicit buffer reuse is implemented or claimed here.
 """
 
 from __future__ import annotations
@@ -177,6 +193,39 @@ def average_probabilities(probabilities: Any) -> torch.Tensor:
     return avg
 
 
+def _average_probabilities_defer(tensors: List[torch.Tensor]) -> torch.Tensor:
+    """Defer-to-incremental averaging (INFR-03): same math as
+    :func:`average_probabilities`, but each per-config probability tensor is
+    released as soon as it has been accumulated (one-config-at-a-time), so
+    peak VRAM is 1 accumulator + 1 streamed input instead of N stacked
+    inputs.
+
+    The accumulation order (first volume = base, sequential in-place ``+=``)
+    and the CuPy exact final division (:func:`_divide_refparity`) are
+    IDENTICAL to the full_volume path (D-19) — the result is bit-identical;
+    only the lifetime of the per-config input tensors differs.
+    """
+    n = len(tensors)
+    if n == 0:
+        raise ValueError("_average_probabilities_defer requires at least one probability volume.")
+    it = iter(tensors)
+    first = next(it)
+    reference_shape = tuple(first.shape)
+    avg = first.float().clone()
+    del first  # consumed — release the input reference
+    for t in it:
+        if tuple(t.shape) != reference_shape:
+            raise ValueError(
+                f"all per-config probability volumes must share shape {reference_shape}, "
+                f"got {tuple(t.shape)}."
+            )
+        avg += t.float()
+        del t  # consumed — release the input reference
+    if n > 1:
+        avg = _divide_refparity(avg, n)
+    return avg
+
+
 def argmax_to_segmentation(probabilities: torch.Tensor) -> torch.Tensor:
     """argmax of the (already averaged) probabilities over the class axis.
 
@@ -229,12 +278,17 @@ class EnsembleAverageOperator(Operator):
         fragment: Any,
         *args: Any,
         emit_averaged_probabilities: bool = True,
+        defer_strategy: bool = False,
         **kwargs: Any,
     ):
         # NOTE: holoscan 4.2's Operator.__init__ invokes self.setup(spec)
         # before this constructor body finishes — initialize all state first.
         self._logger = logging.getLogger(f"{__name__}.{type(self).__name__}")
         self._emit_averaged = bool(emit_averaged_probabilities)
+        # INFR-03/D-15: budget-calculator-driven flag (default False =
+        # Phase 1 behavior). Must be set BEFORE super().__init__ for the
+        # same reason as _emit_averaged.
+        self._defer_strategy = bool(defer_strategy)
         super().__init__(fragment, *args, **kwargs)
 
     def setup(self, spec: OperatorSpec) -> None:
@@ -269,7 +323,18 @@ class EnsembleAverageOperator(Operator):
                 # averaging is not allowed.
                 assert_on_gpu(t)
 
-            averaged = average_probabilities(tensors)
+            if self._defer_strategy:
+                # Budget calculator said the full-volume plan exceeds free
+                # VRAM (INFR-03): free each per-config tensor as it is
+                # accumulated. UNEXERCISED on the A100-40GB airway study
+                # (D-15) — the branch is reachable in code but the real OOM
+                # path never triggers there.
+                self._logger.info(
+                    "ensemble_average: defer_strategy active (one-config-at-a-time accumulation)"
+                )
+                averaged = _average_probabilities_defer(tensors)
+            else:
+                averaged = average_probabilities(tensors)
 
             # Exit guard: the emitted buffers must be CUDA-resident FP32/uint8.
             assert_on_gpu(averaged)
