@@ -55,6 +55,9 @@ import torch
 
 # INFR-004: per-fragment CUDA stream pools (best-effort overlap, D-16).
 from holoscan.resources import CudaStreamPool
+# D-21: concurrent independent-fragment execution (research-verified on
+# holoscan-cu13 4.2 — worker-thread pool, GIL released at the C++ boundary).
+from holoscan.schedulers import EventBasedScheduler
 
 # pydicom SR coded dictionary — direct import (not part of the App SDK package)
 from pydicom.sr.codedict import codes
@@ -615,6 +618,20 @@ class CCHMCNNUnetFastApp(Application):
         # Warm the RMM pool to the budget total at setup time so study 1's
         # per-tile allocations draw from the pool instead of cudaMalloc.
         gpu_bootstrap.warm_pool(plan.total_bytes)
+
+        # --- Scheduler (D-21) ---
+        # D-21: concurrent independent-fragment execution, ON by default
+        # (flipped after the full gate suite passed with concurrency enabled —
+        # .planning/phases/03-optimization/gates/03-GATE-concurrent.json,
+        # all 4 pixel gates + SR + residency green; overlap evidence in
+        # .planning/profiles/phase3/overlap.md). Explicit
+        # HOLOSCAN_CONCURRENT_FRAGMENTS=0 restores the Phase 2 GreedyScheduler
+        # serial behavior (byte-for-byte; verified by 03-GATE-serial.json).
+        if os.environ.get("HOLOSCAN_CONCURRENT_FRAGMENTS", "1") != "0":
+            self.scheduler(EventBasedScheduler(self, worker_thread_number=5, name="concurrent"))
+            self._logger.info("scheduler: EventBasedScheduler worker_thread_number=5 (D-21)")
+        else:
+            self._logger.info("scheduler: default GreedyScheduler (serial, Phase 2 behavior)")
 
         logging.info(f"End {self.compose.__name__}")
 

@@ -1,0 +1,139 @@
+Time (%),Total Time (ns),Instances,Avg (ns),Med (ns),Min (ns),Max (ns),StdDev (ns),Style,Range
+63.4,880880700238,17,51816511778.7,58753906542.0,421560,107989965924,45464605032.1,StartEnd,GXF:entity state update: GXF_ENTITY_STATUS_STARTED
+12.2,169487585779,17,9969857987.0,2108135124.0,609212,51067784520,16527349844.7,StartEnd,GXF:entity state update: GXF_ENTITY_STATUS_TICKING
+3.7,51067713237,1,51067713237.0,51067713237.0,51067713237,51067713237,0.0,StartEnd,GXF:tick codelet: nnunet_3d_lowres_slidewindow_3d_lowres
+3.7,51067521106,1,51067521106.0,51067521106.0,51067521106,51067521106,0.0,PushPop,:inference_3d_lowres
+3.6,49812891261,1,49812891261.0,49812891261.0,49812891261,49812891261,0.0,StartEnd,GXF:tick codelet: nnunet_3d_fullres_slidewindow_3d_fullres
+3.6,49812695874,1,49812695874.0,49812695874.0,49812695874,49812695874,0.0,PushPop,:inference_3d_fullres
+1.9,25727380584,1,25727380584.0,25727380584.0,25727380584,25727380584,0.0,StartEnd,GXF:tick codelet: nnunet_3d_cascade_fullres_slidewindow_3d_cascade_fullres
+1.9,25727193724,1,25727193724.0,25727193724.0,25727193724,25727193724,0.0,PushPop,:inference_3d_cascade_fullres
+0.7,10393459983,1,10393459983.0,10393459983.0,10393459983,10393459983,0.0,StartEnd,GXF:tick codelet: postprocess_op
+0.7,10393014357,1,10393014357.0,10393014357.0,10393014357,10393014357,0.0,PushPop,:postprocess
+0.7,9376683443,1,9376683443.0,9376683443.0,9376683443,9376683443,0.0,StartEnd,GXF:tick codelet: nnunet_3d_cascade_fullres_preprocess_3d_cascade_fullres
+0.7,9376018316,1,9376018316.0,9376018316.0,9376018316,9376018316,0.0,PushPop,:preprocess_3d_cascade_fullres
+0.6,7977374509,1,7977374509.0,7977374509.0,7977374509,7977374509,0.0,StartEnd,GXF:tick codelet: nnunet_3d_fullres_preprocess_3d_fullres
+0.6,7976860236,1,7976860236.0,7976860236.0,7976860236,7976860236,0.0,PushPop,:preprocess_3d_fullres
+0.4,5361791194,1,5361791194.0,5361791194.0,5361791194,5361791194,0.0,StartEnd,GXF:tick codelet: nnunet_3d_lowres_preprocess_3d_lowres
+0.4,5360599881,1,5360599881.0,5360599881.0,5360599881,5360599881,0.0,PushPop,:preprocess_3d_lowres
+0.2,3397341946,1,3397341946.0,3397341946.0,3397341946,3397341946,0.0,StartEnd,GXF:tick codelet: nnunet_3d_lowres_postresample_3d_lowres
+0.2,3397120912,1,3397120912.0,3397120912.0,3397120912,3397120912,0.0,PushPop,:postresample_3d_lowres
+0.2,2108091221,1,2108091221.0,2108091221.0,2108091221,2108091221,0.0,StartEnd,GXF:tick codelet: nnunet_3d_fullres_postresample_3d_fullres
+0.2,2107958362,1,2107958362.0,2107958362.0,2107958362,2107958362,0.0,PushPop,:postresample_3d_fullres
+0.1,1686527047,1,1686527047.0,1686527047.0,1686527047,1686527047,0.0,StartEnd,GXF:tick codelet: nnunet_3d_cascade_fullres_postresample_3d_cascade_fullres
+0.1,1686370583,1,1686370583.0,1686370583.0,1686370583,1686370583,0.0,PushPop,:postresample_3d_cascade_fullres
+0.1,889351115,1,889351115.0,889351115.0,889351115,889351115,0.0,StartEnd,GXF:tick codelet: dicom_seg_writer
+0.1,888691097,1,888691097.0,888691097.0,888691097,888691097,0.0,PushPop,:write_seg
+0.1,768657564,1,768657564.0,768657564.0,768657564,768657564,0.0,StartEnd,GXF:tick codelet: study_loader_op
+0.1,697247038,1,697247038.0,697247038.0,697247038,697247038,0.0,StartEnd,GXF:tick codelet: dicom_sc_writer
+0.1,697067671,1,697067671.0,697067671.0,697067671,697067671,0.0,PushPop,:write_sc
+0.0,194015953,1,194015953.0,194015953.0,194015953,194015953,0.0,StartEnd,GXF:tick codelet: series_to_vol_op
+0.0,50210994,2,25105497.0,25105497.0,25105497,25105497,0.0,PushPop,CCCL:thrust::stable_sort
+0.0,14849055,1,14849055.0,14849055.0,14849055,14849055,0.0,StartEnd,GXF:tick codelet: dicom_sr_writer
+0.0,14421262,1,14421262.0,14421262.0,14421262,14421262,0.0,PushPop,:write_sr
+0.0,13005438,1,13005438.0,13005438.0,13005438,13005438,0.0,StartEnd,GXF:tick codelet: ensemble_average_op
+0.0,12884431,1,12884431.0,12884431.0,12884431,12884431,0.0,PushPop,:ensemble_average
+0.0,888383,17,52257.8,4959.0,3817,275466,88011.7,StartEnd,GXF:entity state update: GXF_ENTITY_STATUS_START_PENDING
+0.0,593392,1,593392.0,593392.0,593392,593392,0.0,StartEnd,GXF:tick codelet: series_selector_op
+0.0,456804,17,26870.8,13084.0,7794,244679,56291.4,StartEnd,GXF:entity state update: GXF_ENTITY_STATUS_STOP_PENDING
+0.0,284554,4,71138.5,71138.5,23815,118462,54644.5,PushPop,CCCL:cub::DeviceSelect::Flagged
+0.0,278602,4,69650.5,69650.5,35767,103534,39125.3,PushPop,CCCL:cub::DeviceReduce::Sum
+0.0,274636,2,137318.0,137318.0,137318,137318,0.0,PushPop,CCCL:cub::DeviceRadixSort
+0.0,272251,1,272251.0,272251.0,272251,272251,0.0,StartEnd,GXF:codelet start: study_loader_op
+0.0,241803,1,241803.0,241803.0,241803,241803,0.0,StartEnd,GXF:codelet stop: study_loader_op
+0.0,234209,1,234209.0,234209.0,234209,234209,0.0,StartEnd,GXF:codelet start: series_to_vol_op
+0.0,185355,7,26479.3,22281.0,7874,63749,19408.3,StartEnd,GXF:entity check: nnunet_3d_cascade_fullres_preprocess_3d_cascade_fullres
+0.0,170099,1,170099.0,170099.0,170099,170099,0.0,StartEnd,GXF:codelet start: series_selector_op
+0.0,161220,17,9483.5,7033.0,1502,17934,5617.3,StartEnd,GXF:scheduling term onExecute calls
+0.0,154621,17,9095.4,7905.0,1854,18374,4873.3,StartEnd,GXF:entity state update: GXF_ENTITY_STATUS_TICK_PENDING
+0.0,130525,8,16315.6,13159.5,6111,32792,9648.5,StartEnd,GXF:entity check: postprocess_op
+0.0,112702,6,18783.7,19862.5,6923,28524,9254.5,StartEnd,GXF:entity check: nnunet_3d_fullres_postresample_3d_fullres
+0.0,108363,6,18060.5,14827.5,8065,35537,10527.4,StartEnd,GXF:entity check: ensemble_average_op
+0.0,92466,96,963.2,681.5,201,6122,899.9,StartEnd,GXF:term check: _internal_async_condition
+0.0,89798,6,14966.3,13746.0,6152,25898,9169.9,StartEnd,GXF:entity check: nnunet_3d_cascade_fullres_postresample_3d_cascade_fullres
+0.0,86762,6,14460.3,16415.5,4588,22452,7556.1,StartEnd,GXF:entity check: nnunet_3d_lowres_postresample_3d_lowres
+0.0,73660,5,14732.0,14828.0,5871,24386,8335.6,StartEnd,GXF:entity check: nnunet_3d_lowres_slidewindow_3d_lowres
+0.0,64362,4,16090.5,13806.5,6662,30087,9920.6,StartEnd,GXF:entity check: nnunet_3d_fullres_preprocess_3d_fullres
+0.0,60592,8,7574.0,5249.5,3296,16741,4796.7,StartEnd,GXF:entity check: series_selector_op
+0.0,58670,1,58670.0,58670.0,58670,58670,0.0,StartEnd,GXF:codelet start: nnunet_3d_fullres_preprocess_3d_fullres
+0.0,57114,8,7139.3,5550.5,4067,12844,3495.6,StartEnd,GXF:entity check: series_to_vol_op
+0.0,57047,5,11409.4,6773.0,5921,19958,6948.3,StartEnd,GXF:entity check: dicom_sc_writer
+0.0,51366,5,10273.2,7543.0,3417,21560,7007.2,StartEnd,GXF:entity check: dicom_seg_writer
+0.0,51116,5,10223.2,10339.0,6122,15209,3825.9,StartEnd,GXF:entity check: nnunet_3d_fullres_slidewindow_3d_fullres
+0.0,50695,1,50695.0,50695.0,50695,50695,0.0,StartEnd,GXF:codelet start: nnunet_3d_lowres_preprocess_3d_lowres
+0.0,47088,5,9417.6,6722.0,4328,20829,6580.3,StartEnd,GXF:entity check: nnunet_3d_cascade_fullres_slidewindow_3d_cascade_fullres
+0.0,41777,5,8355.4,5811.0,3787,17893,5772.9,StartEnd,GXF:entity check: dicom_sr_writer
+0.0,41638,4,10409.5,10560.0,5811,14707,4345.7,StartEnd,GXF:entity check: nnunet_3d_lowres_preprocess_3d_lowres
+0.0,37922,1,37922.0,37922.0,37922,37922,0.0,StartEnd,GXF:codelet start: nnunet_3d_fullres_postresample_3d_fullres
+0.0,24136,7,3448.0,1783.0,701,8216,3391.0,StartEnd,GXF:term check: __nnunet_3d_cascade_fullres_preprocess_3d_cascade_fullres_lowres_seg_message_available1
+0.0,24135,1,24135.0,24135.0,24135,24135,0.0,StartEnd,GXF:codelet stop: nnunet_3d_cascade_fullres_postresample_3d_cascade_fullres
+0.0,22042,6,3673.7,2550.5,681,7674,2909.2,StartEnd,GXF:term check: __nnunet_3d_fullres_postresample_3d_fullres_preprocessed_meta_message_available1
+0.0,17924,6,2987.3,2955.5,651,5180,1963.4,StartEnd,GXF:term check: __nnunet_3d_fullres_postresample_3d_fullres_probabilities_cond_1
+0.0,17373,3,5791.0,5711.0,5671,5991,174.4,StartEnd,GXF:entity check: study_loader_op
+0.0,16781,7,2397.3,1052.0,280,8656,2949.2,StartEnd,GXF:term check: nnunet_3d_cascade_fullres_count_condition
+0.0,15970,1,15970.0,15970.0,15970,15970,0.0,StartEnd,GXF:codelet stop: nnunet_3d_cascade_fullres_slidewindow_3d_cascade_fullres
+0.0,15758,6,2626.3,2309.0,581,5631,2122.4,StartEnd,GXF:term check: __nnunet_3d_fullres_postresample_3d_fullres_logits_message_available1
+0.0,15519,8,1939.9,977.0,772,4138,1495.5,StartEnd,GXF:term check: __series_to_vol_op_study_selected_series_list_message_available1
+0.0,15391,6,2565.2,1262.0,371,6693,2729.3,StartEnd,GXF:term check: __nnunet_3d_cascade_fullres_postresample_3d_cascade_fullres_preprocessed_meta_message_available1
+0.0,15138,7,2162.6,1694.0,521,7002,2331.7,StartEnd,GXF:term check: __nnunet_3d_cascade_fullres_preprocess_3d_cascade_fullres_preprocessed_meta_cond_1
+0.0,14598,6,2433.0,2319.5,481,4729,1759.0,StartEnd,GXF:term check: __nnunet_3d_lowres_postresample_3d_lowres_preprocessed_meta_message_available1
+0.0,14466,6,2411.0,1677.5,481,5670,2066.8,StartEnd,GXF:term check: __nnunet_3d_lowres_postresample_3d_lowres_lowres_seg_cond_1
+0.0,14438,8,1804.8,1077.5,411,4449,1551.2,StartEnd,GXF:term check: __series_selector_op_dicom_study_list_message_available1
+0.0,14298,8,1787.3,967.5,411,4228,1571.4,StartEnd,GXF:term check: __postprocess_op_image_message_available1
+0.0,13956,8,1744.5,916.5,281,4398,1614.7,StartEnd,GXF:term check: __postprocess_op_result_text_cond_1
+0.0,13476,1,13476.0,13476.0,13476,13476,0.0,StartEnd,GXF:codelet stop: nnunet_3d_lowres_postresample_3d_lowres
+0.0,13293,6,2215.5,1502.5,360,4919,1900.4,StartEnd,GXF:term check: __ensemble_average_op_seg_cond_1
+0.0,13116,7,1873.7,1403.0,381,5831,1951.0,StartEnd,GXF:term check: __nnunet_3d_cascade_fullres_preprocess_3d_cascade_fullres_image_message_available1
+0.0,12603,5,2520.6,1923.0,982,5170,1660.8,StartEnd,GXF:term check: __nnunet_3d_lowres_slidewindow_3d_lowres_preprocessed_message_available1
+0.0,12403,5,2480.6,1152.0,871,4789,2074.0,StartEnd,GXF:term check: __dicom_sc_writer_study_selected_series_list_message_available1
+0.0,11863,5,2372.6,1573.0,612,5751,2106.3,StartEnd,GXF:term check: __dicom_seg_writer_study_selected_series_list_message_available1
+0.0,11732,1,11732.0,11732.0,11732,11732,0.0,StartEnd,GXF:codelet stop: nnunet_3d_fullres_postresample_3d_fullres
+0.0,11711,6,1951.8,716.0,571,6663,2416.2,StartEnd,GXF:term check: __ensemble_average_op_prob_3d_fullres_message_available1
+0.0,11281,1,11281.0,11281.0,11281,11281,0.0,StartEnd,GXF:codelet stop: nnunet_3d_lowres_slidewindow_3d_lowres
+0.0,11181,1,11181.0,11181.0,11181,11181,0.0,StartEnd,GXF:codelet stop: ensemble_average_op
+0.0,11131,1,11131.0,11131.0,11131,11131,0.0,StartEnd,GXF:codelet stop: nnunet_3d_lowres_preprocess_3d_lowres
+0.0,10901,6,1816.8,846.5,551,5851,2068.8,StartEnd,GXF:term check: __ensemble_average_op_prob_3d_cascade_fullres_message_available1
+0.0,10900,1,10900.0,10900.0,10900,10900,0.0,StartEnd,GXF:codelet stop: series_selector_op
+0.0,10840,1,10840.0,10840.0,10840,10840,0.0,StartEnd,GXF:codelet stop: nnunet_3d_fullres_preprocess_3d_fullres
+0.0,10799,6,1799.8,1447.5,411,4568,1554.3,StartEnd,GXF:term check: __nnunet_3d_cascade_fullres_postresample_3d_cascade_fullres_logits_message_available1
+0.0,10559,7,1508.4,741.0,381,5169,1693.5,StartEnd,GXF:term check: __nnunet_3d_cascade_fullres_preprocess_3d_cascade_fullres_preprocessed_cond_1
+0.0,9809,1,9809.0,9809.0,9809,9809,0.0,StartEnd,GXF:codelet stop: nnunet_3d_cascade_fullres_preprocess_3d_cascade_fullres
+0.0,9449,9,1049.9,631.0,461,2394,717.5,StartEnd,GXF:term check: count_condition
+0.0,9219,5,1843.8,1233.0,541,3517,1302.7,StartEnd,GXF:term check: __nnunet_3d_lowres_slidewindow_3d_lowres_logits_cond_1
+0.0,9105,8,1138.1,686.0,281,3216,1082.9,StartEnd,GXF:term check: __postprocess_op_seg_cond_1
+0.0,8916,1,8916.0,8916.0,8916,8916,0.0,StartEnd,GXF:codelet stop: series_to_vol_op
+0.0,8633,5,1726.6,891.0,731,3947,1380.5,StartEnd,GXF:term check: __nnunet_3d_fullres_slidewindow_3d_fullres_logits_cond_1
+0.0,8417,4,2104.3,2294.5,742,3086,1109.0,StartEnd,GXF:term check: __nnunet_3d_fullres_preprocess_3d_fullres_preprocessed_meta_cond_1
+0.0,8357,6,1392.8,1027.0,492,3767,1224.5,StartEnd,GXF:term check: __nnunet_3d_cascade_fullres_postresample_3d_cascade_fullres_probabilities_cond_1
+0.0,8336,1,8336.0,8336.0,8336,8336,0.0,StartEnd,GXF:codelet stop: nnunet_3d_fullres_slidewindow_3d_fullres
+0.0,8243,5,1648.6,1552.0,641,2735,927.7,StartEnd,GXF:term check: __nnunet_3d_fullres_slidewindow_3d_fullres_preprocessed_message_available1
+0.0,8146,8,1018.3,586.5,301,3837,1168.1,StartEnd,GXF:term check: __postprocess_op_dicom_sc_dir_cond_1
+0.0,8086,5,1617.2,1093.0,751,3176,1020.7,StartEnd,GXF:term check: __dicom_sc_writer_dicom_sc_dir_message_available1
+0.0,7854,1,7854.0,7854.0,7854,7854,0.0,StartEnd,GXF:codelet stop: dicom_sc_writer
+0.0,7696,4,1924.0,1563.5,762,3807,1328.1,StartEnd,GXF:term check: __nnunet_3d_fullres_preprocess_3d_fullres_image_message_available1
+0.0,7653,8,956.6,501.0,340,3747,1146.0,StartEnd,GXF:term check: __postprocess_op_seg_message_available1
+0.0,7425,5,1485.0,772.0,571,3657,1326.0,StartEnd,GXF:term check: __nnunet_3d_cascade_fullres_slidewindow_3d_cascade_fullres_preprocessed_message_available1
+0.0,7244,1,7244.0,7244.0,7244,7244,0.0,StartEnd,GXF:codelet stop: dicom_sr_writer
+0.0,6792,1,6792.0,6792.0,6792,6792,0.0,StartEnd,GXF:codelet stop: postprocess_op
+0.0,6621,6,1103.5,921.0,351,2034,734.1,StartEnd,GXF:term check: __nnunet_3d_lowres_postresample_3d_lowres_logits_message_available1
+0.0,6533,1,6533.0,6533.0,6533,6533,0.0,StartEnd,GXF:codelet stop: dicom_seg_writer
+0.0,6023,5,1204.6,742.0,391,2325,880.3,StartEnd,GXF:term check: __nnunet_3d_cascade_fullres_slidewindow_3d_cascade_fullres_logits_cond_1
+0.0,5541,4,1385.3,1277.5,742,2244,759.1,StartEnd,GXF:term check: __nnunet_3d_lowres_preprocess_3d_lowres_preprocessed_meta_cond_1
+0.0,5441,4,1360.3,1533.0,571,1804,565.5,StartEnd,GXF:term check: __nnunet_3d_lowres_preprocess_3d_lowres_preprocessed_cond_1
+0.0,5159,5,1031.8,932.0,751,1703,385.0,StartEnd,GXF:term check: __dicom_sr_writer_text_message_available1
+0.0,4628,4,1157.0,977.0,721,1953,569.6,StartEnd,GXF:term check: __nnunet_3d_lowres_preprocess_3d_lowres_image_message_available1
+0.0,4568,5,913.6,952.0,430,1553,474.8,StartEnd,GXF:term check: __dicom_seg_writer_seg_image_message_available1
+0.0,4519,4,1129.8,1152.5,541,1673,499.7,StartEnd,GXF:term check: __nnunet_3d_fullres_preprocess_3d_fullres_preprocessed_cond_1
+0.0,4127,1,4127.0,4127.0,4127,4127,0.0,StartEnd,GXF:codelet start: nnunet_3d_cascade_fullres_slidewindow_3d_cascade_fullres
+0.0,3718,1,3718.0,3718.0,3718,3718,0.0,StartEnd,GXF:codelet start: nnunet_3d_lowres_slidewindow_3d_lowres
+0.0,3657,1,3657.0,3657.0,3657,3657,0.0,StartEnd,GXF:codelet start: ensemble_average_op
+0.0,3556,1,3556.0,3556.0,3556,3556,0.0,StartEnd,GXF:codelet start: nnunet_3d_fullres_slidewindow_3d_fullres
+0.0,3276,1,3276.0,3276.0,3276,3276,0.0,StartEnd,GXF:codelet start: nnunet_3d_lowres_postresample_3d_lowres
+0.0,3207,3,1069.0,1163.0,862,1182,179.5,StartEnd,GXF:term check: __study_loader_op_dicom_study_list_cond_1
+0.0,3166,1,3166.0,3166.0,3166,3166,0.0,StartEnd,GXF:codelet start: nnunet_3d_cascade_fullres_postresample_3d_cascade_fullres
+0.0,3115,1,3115.0,3115.0,3115,3115,0.0,StartEnd,GXF:codelet start: dicom_sr_writer
+0.0,3085,1,3085.0,3085.0,3085,3085,0.0,StartEnd,GXF:codelet start: nnunet_3d_cascade_fullres_preprocess_3d_cascade_fullres
+0.0,2866,1,2866.0,2866.0,2866,2866,0.0,StartEnd,GXF:codelet start: postprocess_op
+0.0,2845,1,2845.0,2845.0,2845,2845,0.0,StartEnd,GXF:codelet start: dicom_sc_writer
+0.0,2836,4,709.0,701.5,682,751,30.5,StartEnd,GXF:term check: nnunet_3d_fullres_count_condition
+0.0,2805,4,701.3,651.0,391,1112,327.2,StartEnd,GXF:term check: nnunet_3d_lowres_count_condition
+0.0,2765,1,2765.0,2765.0,2765,2765,0.0,StartEnd,GXF:codelet start: dicom_seg_writer
