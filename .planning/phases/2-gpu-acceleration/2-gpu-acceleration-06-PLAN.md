@@ -82,6 +82,8 @@ must_haves:
 @.planning/benchmarks/baseline-2026-08-18.csv (Phase 1 per-operator numbers)
 
 **The resolved D-18 latency bar (orchestrator + RESEARCH Open Question 1):**
+
+> **CONFIRMED by user 2026-08-19:** the two-bar report (same-scope fullres-only vs 61.8 s + headline bundle vs 169.7 s, with the scope asymmetry documented as a D-18 deviation) is the APPROVED approach. Do not collapse to a single literal bar.
 Phase 1's 61.8 s was a SINGLE-CONFIG fullres run; the Phase 2 bundle does ~2x the
 inference work (serial estimate 70–80 s). The report therefore carries TWO primary bars:
 (a) **same-scope**: fast fullres-only (HOLOSCAN_MODEL_LIST=3d_fullres, the CuPy-ported
