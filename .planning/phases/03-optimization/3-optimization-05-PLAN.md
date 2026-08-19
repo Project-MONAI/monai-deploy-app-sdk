@@ -18,7 +18,7 @@ must_haves:
     - "03-BENCHMARK-REPORT.md carries the D-18 two-bar convention: same-scope fullres vs 61.8 s (Phase 1) AND vs 57.14 s (Phase 2) + bundle headline vs 169.7 s reference, with per-operator deltas vs phase2_results.csv (the Phase 3 'before')"
     - "The full gate suite (phase2_gate.py: 4 config pixel gates + SR 0.1% + residency) re-run in the final shipping configuration, every row green, -> 03-GATE-RESULTS.json (completes the TEST-02/TEST-003 deliverables — automated pixel-diff tool + SR tolerance check — as part of every Phase 3 gate run)"
     - "The three external-dependency items are recorded as blocked-on-external, non-blocking (D-26): >=5-CT corpus re-run (TEST-01 final), ncu admin access (ERR_NVGPUCTRPERM), INFR-02 user reference examples — in the report AND flagged for VERIFICATION.md"
-    - "Deferred-with-reason decisions documented in the report: ACCEL-01/02/03 (ncu admin-blocked), MEM-01 (not a measured bottleneck — models load once), MEM-02 (8 GB target hardware-unverifiable on A100-40GB)"
+    - "Deferred-with-reason decisions documented in the report: ACCEL-01/02/03 (ncu admin-blocked), MEM-01 (not a measured bottleneck — models load once), MEM-02 (8 GB target hardware-unverifiable on A100-40GB), pylibraft CC (evaluated, not taken — CuPy path adequate under D-20 trim)"
     - "TEST-01/TEST-006/TEST-007 met on the dev corpus with deviations recorded (D-26)"
   artifacts:
     - path: ".planning/scripts/phase3_benchmark.py"
@@ -37,7 +37,7 @@ must_haves:
       to: "VERIFICATION.md (written after this phase)"
       via: "the D-26 external-dependency section is written to be lifted verbatim"
     - from: "03-GATE-RESULTS.json"
-      to: "phase2_gate.py --json-out"
+      to: "phase2_gate.py --report (existing arg)"
       via: "final shipping-configuration run (all four plan flags in their shipped states)"
 
 user_setup: []
@@ -133,13 +133,13 @@ print('csv ok')
   <name>Task 2: Final gate suite (shipping config) + 03-BENCHMARK-REPORT.md + close-out</name>
   <files>.planning/phases/03-optimization/03-GATE-RESULTS.json, .planning/phases/03-optimization/03-BENCHMARK-REPORT.md</files>
   <read_first>
-    - .planning/scripts/phase2_gate.py (final invocation with --json-out to 03-GATE-RESULTS.json)
+    - .planning/scripts/phase2_gate.py (final invocation with the existing --report arg targeting 03-GATE-RESULTS.json)
     - .planning/benchmarks/phase3_results.csv + .planning/benchmarks/phase2_results.csv (the delta tables' inputs)
     - .planning/phases/02-gpu-acceleration/02-BENCHMARK-REPORT.md (mirror the structure: two bars, per-operator deltas, honest deviations)
     - All four 3-optimization-*-SUMMARY.md + the evidence files (.planning/profiles/phase3/overlap.md, rmm_openq1.md; evidence/mem003_vram.md; evidence/infr02_proof.md; evidence/gpu_resample_verdict.md)
   </read_first>
   <action>
-    1. Final gate suite in the SHIPPING configuration (all four plan flags in their shipped states — concurrency default per Plan 01, release hook active per Plan 02, caches active per Plan 03, resample flag at its shipped default per Plan 04; pinned GPU, device recorded): `/tmp/monai-env/.venv/bin/python .planning/scripts/phase2_gate.py --json-out .planning/phases/03-optimization/03-GATE-RESULTS.json` — every row must be green (fullres 99.99986%/3 documented fp16<->fp32 boundary class, lowres/cascade/bundle 100.00000%/0, SR 0.0% vs the 0.1% bar, residency PASS). If the shipping concurrency default is ON, the JSON note records it. This run also stands as the TEST-02 (SR 0.1%) and TEST-003 (automated pixel-diff fails on divergence) deliverable for the phase.
+    1. Final gate suite in the SHIPPING configuration (all four plan flags in their shipped states — concurrency default per Plan 01, release hook active per Plan 02, caches active per Plan 03, resample flag at its shipped default per Plan 04; pinned GPU, device recorded): `/tmp/monai-env/.venv/bin/python .planning/scripts/phase2_gate.py --report .planning/phases/03-optimization/03-GATE-RESULTS.json` — every row must be green (fullres 99.99986%/3 documented fp16<->fp32 boundary class, lowres/cascade/bundle 100.00000%/0, SR 0.0% vs the 0.1% bar, residency PASS). If the shipping concurrency default is ON, the JSON note records it. This run also stands as the TEST-02 (SR 0.1%) and TEST-003 (automated pixel-diff fails on divergence) deliverable for the phase.
     2. Write `03-BENCHMARK-REPORT.md` (sections, mirroring 02-BENCHMARK-REPORT.md):
        §1 Scope & method (2x2 matrix, D-18 convention, device, corpus = single airway dev study, flags shipped).
        §2 Same-scope bar: best shipping cell fullres E2E mean±std vs 61.8 s (Phase 1) AND vs 57.14 s (Phase 2) — speedup ratios both ways; per-operator delta table vs phase2_results.csv columns.
@@ -147,7 +147,7 @@ print('csv ok')
        §4 The 2x2 matrix in full (all cells, incl. NA rows with reasons) — the concurrency effect (vs Phase 2's serial baseline = the Phase 2 numbers) and the resample-flag effect (if ON ran) isolated per cell.
        §5 Optimization evidence rollup, each vs its §6-Phase-2 bottleneck item: D-21 (overlap.md citation + measured E2E effect), MEM-003 (pool/driver delta from mem003_vram.md — memory deliverable, no speed claim), INFR-02 (proof summary from infr02_proof.md — allocator-traffic deliverable, no speed claim), GPU resample (verdict + if ON: the resample-span collapse measured in the matrix).
        §6 Deviations & honesty: any regressed cell, the RMM Open-Q1 outcome, the driver-level-flat MEM-003 result if that is what measured, the resample fallback if taken.
-       §7 Deferred-with-reason (for VERIFICATION.md, verbatim-liftable): ACCEL-01/02/03 — ncu admin-blocked (ERR_NVGPUCTRPERM) + hostile compile env; MEM-01 — not a measured bottleneck (models load once, bootstrap amortized); MEM-02 — 8 GB target hardware-unverifiable on A100-40GB.
+       §7 Deferred-with-reason (for VERIFICATION.md, verbatim-liftable): ACCEL-01/02/03 — ncu admin-blocked (ERR_NVGPUCTRPERM) + hostile compile env; MEM-01 — not a measured bottleneck (models load once, bootstrap amortized); MEM-02 — 8 GB target hardware-unverifiable on A100-40GB; pylibraft CC (ROADMAP 3.5) — evaluated, not taken: postprocess 9.9 s ≈ 7.6% of bundle; CuPy CC path adequate, pylibraft not warranted under D-20 trim.
        §8 External dependencies (blocked-on-external, non-blocking, D-26 — verbatim-liftable for VERIFICATION.md): (1) >=5-CT corpus re-run (TEST-01 final gate) — blocked on CT data; (2) ncu kernel profiling — blocked on admin access; (3) INFR-02 user reference examples — user adding during Phase 3. Each states: re-opens as a gap plan if the dependency lands.
        Requirement status line: TEST-01/TEST-002/TEST-003/TEST-006/TEST-007 met on the dev corpus with the §7/§8 deviations; TEST-01's >=5-CT half = external dependency (1).
     3. Close-out commit: report + final gate JSON + CSV (if not already committed).
@@ -156,7 +156,7 @@ print('csv ok')
     <automated>test -f .planning/phases/03-optimization/03-BENCHMARK-REPORT.md && test -f .planning/phases/03-optimization/03-GATE-RESULTS.json && /tmp/monai-env/.venv/bin/python -c "
 import json
 d = json.load(open('.planning/phases/03-optimization/03-GATE-RESULTS.json'))
-assert all((g.get('ok') or g.get('status')=='PASS') for g in d['gates'] if isinstance(g, dict)), 'final gate not green'
+assert d.get('all_gates_pass') is True, 'final gate not green (schema: top-level all_gates_pass; per-gate pass)'
 t = open('.planning/phases/03-optimization/03-BENCHMARK-REPORT.md').read()
 for s in ['169,747\|169.7', '61.8', '57.14', 'ACCEL-01', 'MEM-01', 'MEM-02', 'ncu', 'corpus', 'reference examples']:
     assert any(x in t for x in s.split('|')), f'report missing section content: {s}'

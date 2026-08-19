@@ -5,6 +5,7 @@ type: execute
 wave: 2
 depends_on: ["3-optimization-01"]
 files_modified:
+  - examples/apps/cchmc-nnunet-fast/my_app/app.py
   - examples/apps/cchmc-nnunet-fast/my_app/operators/slidewindow_operator.py
   - examples/apps/cchmc-nnunet-fast/my_app/operators/postresample_operator.py
   - examples/apps/cchmc-nnunet-fast/scripts/test_weight_release.py
@@ -30,9 +31,9 @@ must_haves:
     - path: ".planning/phases/03-optimization/gates/03-GATE-mem003.json"
       provides: "D-25 gate suite re-run with the release hook active"
   key_links:
-    - from: "NnUnetConfigSubgraph.compose() (app.py — NO change needed there)"
+    - from: "NnUnetConfigSubgraph.compose() (app.py — exactly ONE line: the `release_fn=` injection)"
       to: "PostResampleOperator"
-      via: "release_fn=sw.release passed at construction when self._emit_lowres_seg is True"
+      via: "`release_fn=sw.release if self._emit_lowres_seg else None` added to the PostResampleOperator construction when self._emit_lowres_seg is True"
     - from: "PostResampleOperator.compute() tail"
       to: "release callback"
       via: "self._release_fn() after the final op_output.emit block in compute()"
@@ -72,7 +73,7 @@ suite.
 # Files under change:
 @examples/apps/cchmc-nnunet-fast/my_app/operators/slidewindow_operator.py (ModelBundle dataclass ~line 130–145; SlideWindowOperator __init__ ~line 416; compute(); predict_logits ~line 355)
 @examples/apps/cchmc-nnunet-fast/my_app/operators/postresample_operator.py (__init__ ~line 330–380 with the emit_lowres_seg/emit_probabilities flags processed BEFORE super().__init__ — Pitfall 7 port gating; compute() emit block ~lines 456–480)
-@examples/apps/cchmc-nnunet-fast/my_app/app.py (READ ONLY — NnUnetConfigSubgraph.compose() at lines ~235–280 builds `sw` and `post`; the release_fn is injected INSIDE this compose, not in the app-level compose)
+@examples/apps/cchmc-nnunet-fast/my_app/app.py (NnUnetConfigSubgraph.compose() at lines ~235–280 builds `sw` and `post`; Task 1 injects the single `release_fn=` line INSIDE this compose — the ONLY app.py change in this plan)
 
 <interfaces>
 <!-- Extracted from the codebase — use directly. -->
@@ -190,7 +191,7 @@ deltas + the budget math, and the report says which level was directly measured.
   <files>.planning/scripts/vram_sampler.py, .planning/phases/03-optimization/evidence/, .planning/phases/03-optimization/gates/</files>
   <read_first>
     - .planning/phases/03-optimization/03-RESEARCH.md — §D-23 "What free means under RMM" (pool level vs driver level; RMM pools do not auto-return to the driver; empty_cache unverified = Open Q2) + Open Q2 + Pitfall 2 + Pitfall 7
-    - .planning/scripts/phase2_gate.py (the D-25 invocation; use --json-out from Plan 01)
+    - .planning/scripts/phase2_gate.py (the D-25 invocation; use the existing --report arg with the Phase 3 JSON path)
     - .planning/phases/03-optimization/3-optimization-01-SUMMARY.md (which scheduler flag state ships — replicate it for the measurement run)
   </read_first>
   <action>
@@ -200,11 +201,11 @@ deltas + the budget math, and the report says which level was directly measured.
        - Run one full bundle rep; capture the app log (it must contain `weights released: 3d_lowres ... (MEM-003)`).
        - Also record the RMM pool-level view if rmm 26.2.0 exposes pool stats (probe dir(rmm) as in the interfaces note); if not, state that explicitly and derive the pool-level delta from budget math (0.8 GB returned to pool) + the driver sampling.
     3. `.planning/phases/03-optimization/evidence/mem003_vram.md`: table with (a) driver used-VRAM at 3 moments — pre-lowres-inference, at the release log line (±1 s window), post-cascade-complete; (b) the peak driver VRAM with release ON vs a comparison rep with the hook DISABLED (run the same bundle with `release_fn` bypassed — easiest: a one-line env opt-out `HOLOSCAN_KEEP_LOWRES_WEIGHTS=1` checked at the injection site in app.py, added for this measurement only and KEPT (harmless, documented); if you prefer not to add the env var, re-derive the comparison from git stash — choose one, keep the diff minimal); (c) which level moved (pool and/or driver) and the honest conclusion (research expectation: pool level down ~0.8 GB; driver level may be flat because RMM does not return to the driver and the peak may be dominated by the pool reservation anyway — a flat driver delta is a VALID, reportable result).
-    4. D-25 gate re-run (release hook ACTIVE — the shipping state): `HOLOSCAN_CONCURRENT_FRAGMENTS=<Plan-01 shipping default or explicit 1> /tmp/monai-env/.venv/bin/python .planning/scripts/phase2_gate.py --json-out .planning/phases/03-optimization/gates/03-GATE-mem003.json` — all 4 pixel gates + SR + residency must pass (same expected values as Plan 01: fullres 99.99986%/3 boundary class, others 100.00000%/0, SR 0.0%).
+    4. D-25 gate re-run (release hook ACTIVE — the shipping state): `HOLOSCAN_CONCURRENT_FRAGMENTS=<Plan-01 shipping default or explicit 1> /tmp/monai-env/.venv/bin/python .planning/scripts/phase2_gate.py --report .planning/phases/03-optimization/gates/03-GATE-mem003.json` — all 4 pixel gates + SR + residency must pass (same expected values as Plan 01: fullres 99.99986%/3 boundary class, others 100.00000%/0, SR 0.0%).
     Commit after this task.
   </action>
   <verify>
-    <automated>test -f .planning/scripts/vram_sampler.py && test -f .planning/phases/03-optimization/evidence/mem003_vram.md && test -f .planning/phases/03-optimization/gates/03-GATE-mem003.json && grep -rL "memory_stats\|memory_allocated" .planning/scripts/vram_sampler.py >/dev/null && /tmp/monai-env/.venv/bin/python -c "import json; d=json.load(open('.planning/phases/03-optimization/gates/03-GATE-mem003.json')); print('gate ok' if all((g.get('ok') or g.get('status')=='PASS') for g in d['gates'] if isinstance(g, dict)) else 'GATE FAIL')"</automated>
+    <automated>test -f .planning/scripts/vram_sampler.py && test -f .planning/phases/03-optimization/evidence/mem003_vram.md && test -f .planning/phases/03-optimization/gates/03-GATE-mem003.json && grep -rL "memory_stats\|memory_allocated" .planning/scripts/vram_sampler.py >/dev/null && /tmp/monai-env/.venv/bin/python -c "import json; d=json.load(open('.planning/phases/03-optimization/gates/03-GATE-mem003.json')); print('gate ok' if d.get('all_gates_pass') is True else 'GATE FAIL')"</automated>
   </verify>
   <acceptance_criteria>
     - `mem003_vram.md` contains: device id, the 3-moment driver table, the peak ON-vs-OFF comparison, the pool-level delta (measured or derived — labeled as such), and an explicit conclusion per level.

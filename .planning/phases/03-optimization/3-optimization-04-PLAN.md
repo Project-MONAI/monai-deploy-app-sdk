@@ -156,7 +156,7 @@ Default OFF = the skimage resize / scipy paths run exactly as today (byte-for-by
     - examples/apps/cchmc-nnunet-fast/my_app/operators/preprocess_operator.py — the three scipy sites: _resample_to_shape non-sep-z branch (~254–280), _resize_segmentation (~287–309), the separate-z branch (leave scipy)
     - examples/apps/cchmc-nnunet-fast/my_app/operators/postresample_operator.py — resample_probabilities_to_shape non-sep-z branch (~144–170)
     - .planning/phases/03-optimization/03-RESEARCH.md — §D-22 "Flag placement" + Pattern 2 (the exact if/else shape)
-    - .planning/scripts/phase2_gate.py (--json-out from Plan 01; env pass-through verified in Plan 01 Task 2)
+    - .planning/scripts/phase2_gate.py (use the existing --report arg for the Phase 3 JSON paths; env pass-through confirmed in Plan 01 Task 2)
   </read_first>
   <action>
     1. Wire `gpu_resample_enabled()` (from gpu_zoom.py) at the three non-separate-z call sites, research Pattern 2 shape:
@@ -165,22 +165,22 @@ Default OFF = the skimage resize / scipy paths run exactly as today (byte-for-by
        - `resample_probabilities_to_shape` non-sep-z branch: flag ON → per-channel gpu_zoom at the existing order; OFF unchanged.
        - The separate-z `map_coordinates` branches: NO flag (inactive in this bundle; scipy stays — documented in a one-line comment).
        - Interaction with Plan 03's buffer cache: the flag-ON path keeps buffers on GPU end-to-end (GPUP-02 for the span) — use the cache for the output buffer where the site already caches it; the flag-OFF path is byte-for-byte the current code (the D2H/H2D round trip stays).
-       - GPUP-02 residual (record in the verdict): numpy mean/std reductions stay CPU (Phase 1 bit-exactness decision) + the ~8 MB mask round trip — GPUP-02 is met for the resample span only; the full requirement wording (zero transfers in ALL preprocessing) is met-with-this-residual and the verdict says so.
+       - GPUP-02 residual (record in the verdict): numpy mean/std reductions stay CPU (Phase 1 bit-exactness decision, locked D-12/D-13) + the ~8 MB mask round trip — GPUP-02 is met for the resample span ONLY. The verdict wording must state this exactly (it lifts verbatim into VERIFICATION.md): "GPUP-02: met for the resample span only; numpy reductions + ~8 MB mask round trip stay CPU per locked D-12/D-13" — never a bare "met".
     2. Gate suite BOTH ways (D-25; pinned GPU, device recorded; all prior plans in shipping state):
-       - OFF: `/tmp/monai-env/.venv/bin/python .planning/scripts/phase2_gate.py --json-out .planning/phases/03-optimization/gates/03-GATE-resample-off.json` — must equal Phase 2/3 results exactly (fullres 99.99986%/3 boundary class, others 100.00000%/0, SR 0.0%, residency PASS) — this proves the plumbing changed nothing by default.
-       - ON (ONLY if Task 1 was byte-identical): `HOLOSCAN_GPU_RESAMPLE=1 .../phase2_gate.py --json-out .planning/phases/03-optimization/gates/03-GATE-resample-on.json` — all 4 pixel gates + SR + residency must pass. Any divergence here (even with unit tests green) → flag stays OFF, divergence documented (end-to-end ≠ unit: the Phase 1 lesson).
+       - OFF: `/tmp/monai-env/.venv/bin/python .planning/scripts/phase2_gate.py --report .planning/phases/03-optimization/gates/03-GATE-resample-off.json` — must equal Phase 2/3 results exactly (fullres 99.99986%/3 boundary class, others 100.00000%/0, SR 0.0%, residency PASS) — this proves the plumbing changed nothing by default.
+       - ON (ONLY if Task 1 was byte-identical): `HOLOSCAN_GPU_RESAMPLE=1 .../phase2_gate.py --report .planning/phases/03-optimization/gates/03-GATE-resample-on.json` — all 4 pixel gates + SR + residency must pass. Any divergence here (even with unit tests green) → flag stays OFF, divergence documented (end-to-end ≠ unit: the Phase 1 lesson).
     3. `.planning/phases/03-optimization/evidence/gpu_resample_verdict.md`: verdict (SHIPPED-ON as opt-in flag / OFF-with-divergence), the per-tensor identity table from Task 1, both gate JSON summaries, the GPUP-02 residual paragraph, and the expected-latency note for Plan 05's 2×2 matrix (if ON: expect the ~22.2 s resample spans to collapse to seconds — the matrix will measure it; if OFF: the matrix's ON column is recorded as N/A-not-byte-identical).
     4. The flag DEFAULT STAYS OFF in both outcomes (D-22: "default OFF = scipy"). Plan 05's 2×2 matrix exercises ON as the experimental cell.
     Commit after this task.
   </action>
   <verify>
-    <automated>grep -q "gpu_resample_enabled" examples/apps/cchmc-nnunet-fast/my_app/operators/preprocess_operator.py && grep -q "gpu_resample_enabled" examples/apps/cchmc-nnunet-fast/my_app/operators/postresample_operator.py && test -f .planning/phases/03-optimization/gates/03-GATE-resample-off.json && test -f .planning/phases/03-optimization/evidence/gpu_resample_verdict.md && /tmp/monai-env/.venv/bin/python -c "import json; d=json.load(open('.planning/phases/03-optimization/gates/03-GATE-resample-off.json')); print('off-gate ok' if all((g.get('ok') or g.get('status')=='PASS') for g in d['gates'] if isinstance(g, dict)) else 'GATE FAIL')"</automated>
+    <automated>grep -q "gpu_resample_enabled" examples/apps/cchmc-nnunet-fast/my_app/operators/preprocess_operator.py && grep -q "gpu_resample_enabled" examples/apps/cchmc-nnunet-fast/my_app/operators/postresample_operator.py && test -f .planning/phases/03-optimization/gates/03-GATE-resample-off.json && test -f .planning/phases/03-optimization/evidence/gpu_resample_verdict.md && /tmp/monai-env/.venv/bin/python -c "import json; d=json.load(open('.planning/phases/03-optimization/gates/03-GATE-resample-off.json')); print('off-gate ok' if d.get('all_gates_pass') is True else 'GATE FAIL')"</automated>
   </verify>
   <acceptance_criteria>
     - Exactly 3 flag sites (grep `gpu_resample_enabled` call sites: preprocess 2 — image + seg — and postresample 1; the helper definition itself is in gpu_zoom.py); every OFF branch is the verbatim existing code.
     - `03-GATE-resample-off.json` fully green (plumbing regression-proof).
     - `03-GATE-resample-on.json` exists AND fully green (byte-identity path) — or the verdict file records the fallback with the measured divergence and no ON gate JSON is claimed.
-    - `gpu_resample_verdict.md` contains the verdict line, identity table, GPUP-02 residual, and the Plan-05 matrix note.
+    - `gpu_resample_verdict.md` contains the verdict line, identity table, and the Plan-05 matrix note — and the GPUP-02 line uses the exact deviation wording "met for the resample span only; numpy reductions + ~8 MB mask round trip stay CPU per locked D-12/D-13" (not a bare "met").
   </acceptance_criteria>
   <done>GPUP-01 is delivered as the D-22 gated experiment in its final state: byte-identical opt-in flag (ON provable at the pixel level), or documented divergence with the flag safely OFF — either way the phase ships and the OFF path is regression-proof.</done>
 </task>

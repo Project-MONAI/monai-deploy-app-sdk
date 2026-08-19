@@ -32,7 +32,7 @@ must_haves:
       via: "self.scheduler(EventBasedScheduler(self, worker_thread_number=5, name=\"concurrent\")) set before run()"
     - from: ".planning/scripts/phase2_gate.py"
       to: "subprocess app runs"
-      via: "env pass-through of HOLOSCAN_CONCURRENT_FRAGMENTS / HOLOSCAN_GPU_RESAMPLE + new --json-out arg"
+      via: "env pass-through of HOLOSCAN_CONCURRENT_FRAGMENTS / HOLOSCAN_GPU_RESAMPLE (already satisfied: run_fast_app copies os.environ and only manages HOLOSCAN_MODEL_LIST) + reuse of the existing --report arg for the Phase 3 JSON path"
 
 user_setup: []
 ---
@@ -96,8 +96,9 @@ def run_fast_app(model_list_env, out_dir: Path):  # builds env from os.environ, 
 def pixel_diff(fast_dir: Path, oracle: str, json_path: Path):
 def main(argv=None) -> int:   # writes combined JSON (02-GATE-RESULTS.json today)
 ```
-`main()` currently hard-codes the output JSON path under the Phase 2 gates dir — add a
-`--json-out` CLI arg (default = current path, so Phase 2 invocation is unchanged).
+`main()` already accepts `--report PATH` (default = the Phase 2 output path under the
+Phase 2 gates dir — the Phase 2 invocation is unchanged). Pass the Phase 3 JSON paths
+there; do NOT add a new argument.
 
 Research-verified scheduler API (holoscan-cu13 4.2.0, live-probed):
 ```python
@@ -129,11 +130,11 @@ explicitly not recommended for Phase 3).
        - If S is small (Phase 2-like, ≲3 GiB): NO code change — record the finding (env did not drift for RMM purposes) + the re-run churn counts (cudaMalloc/cudaFree vs kernel launches) as the correct INFR-02 baseline for Plan 03.
        - If S ≥ 10 GiB (the 20 GiB reservation is real): pin it in `gpu_bootstrap.py` — change the reinitialize call to pass `initial_pool_size=4 * 1024**3` (4 GiB: covers the airway bundle budget total, which compose logs as `memory_budget: {"total_bytes": ...}` — read the value from a fresh run's log and cite it in a comment; the existing `warm_pool(plan.total_bytes)` at compose end still grows the pool per D-14, so the pin only removes the wasteful default reservation). Add a `self._logger`-style log line (module-level `logging.info("rmm initial_pool_size: ...")`) at the reinitialize site. Keep the import-order invariant untouched (rmm BEFORE any holoscan/torch CUDA init — Pitfall 2).
        - After any pin: re-run the single bundle rep under nsys and re-export cuda_api_sum to confirm the churn baseline (pool expansions only, never per-tile).
-    4. `.planning/profiles/phase3/` must end with: the two nsys rep+sqlite pairs, cuda_api_sum exports, and `rmm_openq1.md` containing: measured S, the decision (pinned value or no-change), device id, and the before/after cudaMalloc counts.
+    4. `.planning/profiles/phase3/` must end with: the two nsys rep+sqlite pairs, cuda_api_sum exports, and `rmm_openq1.md` containing: measured S, the decision (pinned value or no-change), device id, and the before/after cudaMalloc counts. The decision line MUST use the literal token `initial_pool_size: pinned <value>` or `initial_pool_size: no-change` (the automated verify greps for it, so it passes in both branches).
     Commit after this task (short imperative message).
   </action>
   <verify>
-    <automated>test -f .planning/profiles/phase3/rmm_openq1.md && test -d .planning/profiles/phase3 && ls .planning/profiles/phase3/*.sqlite | wc -l | grep -qE '^[2-9]'; grep -c "initial_pool_size" examples/apps/cchmc-nnunet-fast/my_app/gpu_bootstrap.py  # ≥1 iff pinned; 0 otherwise (record which in rmm_openq1.md)</automated>
+    <automated>c=$(grep -c "initial_pool_size" examples/apps/cchmc-nnunet-fast/my_app/gpu_bootstrap.py || true); grep -q "initial_pool_size: \(pinned\|no-change\)" .planning/profiles/phase3/rmm_openq1.md && test -d .planning/profiles/phase3 && test $(ls .planning/profiles/phase3/*.sqlite | wc -l) -ge 1 && echo "pin-state=$c"  # branch-aware: passes BOTH the pinned branch (c>=1) and the no-change branch (c=0); rmm_openq1.md must record which branch, with the literal 'initial_pool_size: pinned' or 'initial_pool_size: no-change' token</automated>
   </verify>
   <acceptance_criteria>
     - `rmm_openq1.md` exists with the measured post-reinit reservation size (GiB), the decision with reasoning, the pinned `initial_pool_size` value (or explicit no-change), the CUDA device id, and before/after cudaMalloc counts.
@@ -153,7 +154,7 @@ explicitly not recommended for Phase 3).
     - .planning/phases/02-gpu-acceleration/02-BENCHMARK-REPORT.md — §5 (Phase 2 single-stream back-to-back finding = the contrast baseline for the overlap note)
   </read_first>
   <action>
-    1. **Gate script (backward-compatible extension):** in `.planning/scripts/phase2_gate.py` add a `--json-out PATH` argument to `main()` (default = the existing Phase 2 output path, so the Phase 2 invocation is unchanged) and ensure `run_fast_app`/`run_subprocess` forward `HOLOSCAN_CONCURRENT_FRAGMENTS` and `HOLOSCAN_GPU_RESAMPLE` from the parent environment to the app subprocesses (check the existing env construction; env is built from os.environ so pop/copy behavior must preserve these — verify explicitly).
+    1. **Gate script (reuse, no new args):** `.planning/scripts/phase2_gate.py` already has a `--report PATH` argument in `main()` (default = the Phase 2 output path — the Phase 2 invocation is unchanged); pass the Phase 3 JSON paths there. Env pass-through is ALREADY satisfied: `run_fast_app` builds `env = os.environ.copy()` and only manages `HOLOSCAN_MODEL_LIST` (plus `PYTHONUNBUFFERED`), so `HOLOSCAN_CONCURRENT_FRAGMENTS` / `HOLOSCAN_GPU_RESAMPLE` reach the app subprocesses unchanged — this step is a CONFIRMATION (read the env construction and state it in the summary), not new work.
     2. **Scheduler swap in app.py:** add `from holoscan.schedulers import EventBasedScheduler` to the imports, and at the END of `compose()` (after `gpu_bootstrap.warm_pool(plan.total_bytes)`, before the `End {compose}` log):
        ```python
        # D-21: concurrent independent-fragment execution. Default OFF = the
@@ -168,21 +169,21 @@ explicitly not recommended for Phase 3).
        ```
        Do NOT touch the per-config CudaStreamPools (INFR-004 as-is), do NOT introduce per-fragment non-blocking streams or green contexts (research anti-patterns — measured ≈0 GPU-overlap gain).
     3. **Gate suite, both ways (D-25 anchor; the pixel-exact suite is the correctness gate):** pin a free GPU (`export CUDA_VISIBLE_DEVICES=<id>`; record the device id in the JSON note/summary) and run:
-       - OFF regression: `/tmp/monai-env/.venv/bin/python .planning/scripts/phase2_gate.py --json-out .planning/phases/03-optimization/gates/03-GATE-serial.json` (flag unset — must reproduce the Phase 2 pass: fullres 99.99986%/3 documented fp16↔fp32 boundary class, lowres/cascade/bundle 100.00000%/0, SR 0.0%, residency PASS).
-       - ON: `HOLOSCAN_CONCURRENT_FRAGMENTS=1 /tmp/monai-env/.venv/bin/python .planning/scripts/phase2_gate.py --json-out .planning/phases/03-optimization/gates/03-GATE-concurrent.json` — all 4 pixel gates + SR ≤0.1% + residency must PASS.
+       - OFF regression: `/tmp/monai-env/.venv/bin/python .planning/scripts/phase2_gate.py --report .planning/phases/03-optimization/gates/03-GATE-serial.json` (flag unset — must reproduce the Phase 2 pass: fullres 99.99986%/3 documented fp16↔fp32 boundary class, lowres/cascade/bundle 100.00000%/0, SR 0.0%, residency PASS).
+       - ON: `HOLOSCAN_CONCURRENT_FRAGMENTS=1 /tmp/monai-env/.venv/bin/python .planning/scripts/phase2_gate.py --report .planning/phases/03-optimization/gates/03-GATE-concurrent.json` — all 4 pixel gates + SR ≤0.1% + residency must PASS.
        Expected concurrency hazards from the research thread-safety audit: timing record order in `study_timing_summary` becomes nondeterministic (sort by start_ns if you assert anything about it); the fullres 3-voxel boundary is the sensitive gate (set_num_threads interleaving) — if ONLY that gate flips by 1–3 voxels in the documented fp16↔fp32 boundary class, record it in the JSON note; anything else is a regression.
     4. **nsys overlap evidence:** one bundle rep with `HOLOSCAN_CONCURRENT_FRAGMENTS=1` under full-process nsys capture → `.planning/profiles/phase3/` (rep + sqlite + `nvtx_sum` + `nvtx_kern_sum` exports). Write `.planning/profiles/phase3/overlap.md`: query the sqlite NVTX ranges for `preprocess_3d_*` / `inference_3d_*` / `postresample_3d_*` and show the time-window overlap table (which spans of which configs overlap, with start/end timestamps) against the Phase 2 §5 contrast (single stream id 7, back-to-back, 0.2 ms gap). This file is the trace citation for D-21 (and the fallback evidence if step 5 takes the fallback).
     5. **Flag default decision (D-21 fallback clause):** if the ON gate run is fully green → flip the default: change the condition to `os.environ.get("HOLOSCAN_CONCURRENT_FRAGMENTS", "1") != "0"` (concurrency ON by default; explicit `=0` restores the serial fallback) and commit. If any gate fails → keep the default OFF, write the measured ceiling (what overlap the trace achieved, which gate regressed and by how much) into `overlap.md` under a "## Measured ceiling (fallback shipped)" heading, and commit.
     Commit after this task.
   </action>
   <verify>
-    <automated>grep -q "EventBasedScheduler" examples/apps/cchmc-nnunet-fast/my_app/app.py && grep -q "HOLOSCAN_CONCURRENT_FRAGMENTS" examples/apps/cchmc-nnunet-fast/my_app/app.py && grep -q "json-out" .planning/scripts/phase2_gate.py && test -f .planning/phases/03-optimization/gates/03-GATE-concurrent.json && test -f .planning/phases/03-optimization/gates/03-GATE-serial.json && test -f .planning/profiles/phase3/overlap.md && /tmp/monai-env/.venv/bin/python -c "import json; d=json.load(open('.planning/phases/03-optimization/gates/03-GATE-concurrent.json')); assert all(g.get('ok') or g.get('status')=='PASS' for g in d['gates'] if isinstance(g, dict)), 'gate not green'; print('concurrent gates green')"</automated>
+    <automated>grep -q "EventBasedScheduler" examples/apps/cchmc-nnunet-fast/my_app/app.py && grep -q "HOLOSCAN_CONCURRENT_FRAGMENTS" examples/apps/cchmc-nnunet-fast/my_app/app.py && grep -q -- "--report" .planning/scripts/phase2_gate.py && test -f .planning/phases/03-optimization/gates/03-GATE-concurrent.json && test -f .planning/phases/03-optimization/gates/03-GATE-serial.json && test -f .planning/profiles/phase3/overlap.md && /tmp/monai-env/.venv/bin/python -c "import json; d=json.load(open('.planning/phases/03-optimization/gates/03-GATE-concurrent.json')); assert d.get('all_gates_pass') is True, 'gate not green (schema: top-level all_gates_pass; per-gate pass)'; print('concurrent gates green')"</automated>
   </verify>
   <acceptance_criteria>
     - `grep -c "EventBasedScheduler" my_app/app.py` ≥ 1 and the wiring matches the research snippet (worker_thread_number=5, set at compose tail, flag-gated).
     - Both gate JSONs exist; the serial one reproduces Phase 2 (fullres 99.99986%/3 boundary class, others 100.00000%/0, SR 0.0%, residency PASS); the concurrent one is fully green (or the fallback note exists with the trace citation and the flag default is OFF).
     - `overlap.md` contains the per-config NVTX overlap table with timestamps and names the worker threads (distinct tids) vs Phase 2's single thread.
-    - `phase2_gate.py --json-out` is backward compatible: invoking without the flag still targets the Phase 2 JSON path.
+    - `phase2_gate.py` gained NO new argument: Phase 3 JSON paths are written via the existing `--report` arg, and the default invocation still targets the Phase 2 JSON path.
     - The final flag default state (ON or OFF) is explicit in the commit message and `overlap.md`.
   </acceptance_criteria>
   <done>D-21 is shipped (concurrent-by-default behind a serial fallback flag, or the measured ceiling documented with the serial default per the fallback clause), the D-25 gate suite passes in the shipping configuration, and the nsys overlap citation exists in .planning/profiles/phase3/.</done>
