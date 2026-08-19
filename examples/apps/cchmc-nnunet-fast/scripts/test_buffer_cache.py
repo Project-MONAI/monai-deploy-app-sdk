@@ -20,6 +20,18 @@ Cases (each named in a print):
                                justify every zero=False call)
   5. clear()                 — empties and reallocates (new ptr after clear)
   6. cupy family invariants  — (cases 1-5 exercised with family="cupy")
+  7. torch-site semantics    — SlideWindowOperator site patterns:
+                               zero-on-borrow for the predicted_logits /
+                               n_predictions accumulators (borrow -> write
+                               garbage -> reborrow with zero=True -> all
+                               zeros, 3 fake folds), gaussian-once (compute
+                               in a fake setup, 3 fake folds reuse the same
+                               data_ptr, read-only in the loop), and the
+                               multi-fold accumulation aliasing regression
+                               (the running sum must not alias the per-fold
+                               cached buffer: fold-1 clone == fresh-alloc
+                               reference; without the clone the sum is
+                               corrupted — the Rule 1 bug this plan caught)
 
 Run:  /tmp/monai-env/.venv/bin/python scripts/test_buffer_cache.py
 Exit: 0 on success, 1 on any failure.
@@ -170,6 +182,89 @@ def main():
     cview = cbuf[8:16, 8:16, :]
     check("cupy: shares_storage base + offset view",
           sc.shares_storage(cbuf) and sc.shares_storage(cview))
+
+    # ------------------------------------------------------------------
+    print("== case 7: torch-site semantics (SlideWindowOperator site patterns) ==")
+    # 7a. zero-on-borrow for the predicted_logits / n_predictions pattern:
+    # the reference allocates fresh torch.zeros per fold; with the cache
+    # each fold BORROWS with zero=True — so any garbage the previous fold
+    # left in the buffer must be gone at the next borrow.
+    swc = _ShapeCache("cuda", family="torch")
+    logit_shape = (1, *S_A)  # (heads, x, y, z)
+    prev_ptr = None
+    for fold in range(3):  # 3 fake folds
+        logits = swc.get(logit_shape, torch.float32, zero=True)
+        counts = swc.get(S_A, torch.float32, zero=True)
+        if prev_ptr is not None:
+            check(f"fold {fold + 1}: predicted_logits reuses study buffer "
+                  f"(same data_ptr)", logits.data_ptr() == prev_ptr)
+        check(f"fold {fold + 1}: zero-on-borrow -> all zeros after prior "
+              f"fold's garbage", bool(torch.all(logits == 0)) and bool(torch.all(counts == 0)))
+        prev_ptr = logits.data_ptr()
+        # simulate the fold's sliding-window accumulation (garbage for the
+        # NEXT borrow's zero=True to remove):
+        logits += 1.5
+        counts += 0.25
+    # 7b. gaussian-once: computed in a fake setup(), identical every fold —
+    # all 3 fake folds must see the SAME tensor (same data_ptr), and the
+    # loop uses it read-only.
+    patch = (16, 16, 8)
+    gaussian = torch.randn(patch, device="cuda", dtype=torch.float32)  # fake setup() compute
+    fold_ptrs = []
+    for fold in range(3):
+        g = gaussian  # per-fold loop reuses the stored tensor (read-only)
+        workon = swc.get((1, 1, *patch), torch.float32)  # per-patch borrow, zero=False
+        workon.copy_(torch.randn(1, 1, *patch, device="cuda"))
+        prediction = workon[0] * g  # read of g (mirrors prediction * gaussian)
+        n_pred = swc.get(patch, torch.float32)
+        n_pred.add_(g)  # read of g (mirrors n_predictions += gaussian)
+        fold_ptrs.append(g.data_ptr())
+        check(f"fold {fold + 1}: gaussian tensor UNMODIFIED by the loop "
+              f"(read-only reuse)", bool(torch.equal(g, gaussian)))
+    check("gaussian-once: 3 fake folds reused one tensor (identical data_ptr)",
+          len(set(fold_ptrs)) == 1, f"ptrs={fold_ptrs}")
+    # 7c. multi-fold accumulation aliasing regression (the predict_logits
+    # pattern — Rule 1 bug caught during plan execution): sliding_window_
+    # predict returns a VIEW of the per-fold cached predicted_logits buffer;
+    # the NEXT fold re-borrows the same buffer with zero=True, which would
+    # wipe a running sum that aliases it (and fold k would add the buffer to
+    # itself). The shipped fix clones the fold-1 result before accumulating;
+    # this case pins that the with-cache accumulation is exactly the
+    # fresh-allocation reference — and documents that WITHOUT the clone the
+    # sum is corrupted.
+    n_folds = 3
+    fold_vals = [torch.full(S_A, float(k + 1), device="cuda") * (0.5 ** k)
+                 for k in range(n_folds)]
+    ref = fold_vals[0].clone()[None]
+    for fv in fold_vals[1:]:
+        ref += fv[None]
+    ref = ref / n_folds
+    acc = None
+    for k in range(n_folds):
+        fl = swc.get(logit_shape, torch.float32, zero=True)
+        fl[0] = fold_vals[k]  # the fold fills its per-fold buffer
+        fold_logits = fl[(slice(None),)]  # view of the cached buffer (the
+        # exact shape sliding_window_predict's return value has)
+        if acc is None:
+            acc = fold_logits.clone()  # the shipped predict_logits fix
+        else:
+            acc += fold_logits
+    acc = acc / n_folds
+    check("multi-fold accumulation (cache + fold-1 clone) == fresh-allocation "
+          "reference", bool(torch.equal(acc, ref)))
+    acc_buggy = None
+    for k in range(n_folds):
+        fl = swc.get(logit_shape, torch.float32, zero=True)
+        fl[0] = fold_vals[k]
+        fold_logits = fl[(slice(None),)]
+        if acc_buggy is None:
+            acc_buggy = fold_logits  # NO clone — aliases the re-borrowed buffer
+        else:
+            acc_buggy += fold_logits
+    acc_buggy = acc_buggy / n_folds
+    check("regression guard: WITHOUT the fold-1 clone the sum IS corrupted "
+          "(the caught bug, for the record)",
+          not bool(torch.equal(acc_buggy, ref)))
 
     print()
     if FAILURES:

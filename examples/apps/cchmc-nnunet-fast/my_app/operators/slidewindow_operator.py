@@ -74,6 +74,7 @@ from monai.deploy.core import Operator, OperatorSpec
 
 try:  # package-style import (my_app.*)
     from my_app.config import InferenceParams, detect_available_folds, load_inference_params, resolve_checkpoint_name
+    from my_app.operators.buffer_cache import _ShapeCache
     from my_app.operators.gpu_util import (
         GpuTiming,
         StudyTimingCollector,
@@ -85,6 +86,7 @@ try:  # package-style import (my_app.*)
     from my_app.operators.preprocess_operator import to_holoscan_gpu_tensor
 except ImportError:  # flat import (my_app dir on sys.path, as the app runner provides)
     from config import InferenceParams, detect_available_folds, load_inference_params, resolve_checkpoint_name
+    from buffer_cache import _ShapeCache
     from gpu_util import (
         GpuTiming,
         StudyTimingCollector,
@@ -291,12 +293,26 @@ def _sliding_window_slicers(
     return slicers
 
 
-def sliding_window_predict(bundle: ModelBundle, data: torch.Tensor) -> torch.Tensor:
+def sliding_window_predict(
+    bundle: ModelBundle,
+    data: torch.Tensor,
+    buf_cache: Optional[_ShapeCache] = None,
+    gaussian: Optional[torch.Tensor] = None,
+) -> torch.Tensor:
     """One fold's sliding-window inference with TTA, on GPU, FP32 accumulators.
 
     ``data``: ``(C, X, Y, Z)`` CUDA tensor (4D, no batch dim — the reference
     ``predict_sliding_window_return_logits`` contract). Returns logits
     ``(heads, X, Y, Z)`` FP32 on CUDA with the same spatial shape.
+
+    INFR-02/D-24 (both optional, default None = original fresh-allocation
+    behavior, kept for standalone use/tests):
+      ``buf_cache`` — shape-keyed torch-family ``_ShapeCache``; the big
+      fixed-shape accumulators and the per-patch ``workon`` are borrowed
+      from it instead of allocated fresh;
+      ``gaussian``  — a precomputed blending kernel (identical every fold —
+      see ``SlideWindowOperator.setup``); when None it is computed here as
+      before.
     """
     from acvl_utils.cropping_and_padding.padding import pad_nd_image
     from nnunetv2.inference.sliding_window_prediction import compute_gaussian
@@ -307,25 +323,40 @@ def sliding_window_predict(bundle: ModelBundle, data: torch.Tensor) -> torch.Ten
     ), f"expected data on {bundle.device}, got {data.device}"
 
     patch_size = tuple(bundle.patch_size)
+    # INFR-02 EXPLICIT NON-DECISION: ``padded`` (the F.pad result, ~64 MB)
+    # is NOT cached — the extra copy_ into a cache buffer would cost about
+    # as much as the allocation it saves at 16 MB/patch scale under RMM
+    # (pool expansions only, never per-tile); the hot per-patch allocation
+    # (``workon`` below) IS cached.
     padded, slicer_revert_padding = pad_nd_image(data, patch_size, "constant", {"value": 0}, True, None)
     slicers = _sliding_window_slicers(padded.shape[1:], patch_size, bundle.tile_step_size)
 
-    # FP32 accumulators (INF-004) — deliberately not nnUNet 2.8.1's FP16.
-    predicted_logits = torch.zeros(
-        (bundle.num_segmentation_heads, *padded.shape[1:]), dtype=torch.float32, device=bundle.device
-    )
-    n_predictions = torch.zeros(padded.shape[1:], dtype=torch.float32, device=bundle.device)
-
-    if bundle.use_gaussian:
-        gaussian = compute_gaussian(
-            tuple(patch_size),
-            sigma_scale=GAUSSIAN_SIGMA_SCALE,
-            value_scaling_factor=GAUSSIAN_VALUE_SCALING_FACTOR,
-            dtype=torch.float32,
-            device=bundle.device,
+    if buf_cache is None:
+        # FP32 accumulators (INF-004) — deliberately not nnUNet 2.8.1's FP16.
+        predicted_logits = torch.zeros(
+            (bundle.num_segmentation_heads, *padded.shape[1:]), dtype=torch.float32, device=bundle.device
         )
+        n_predictions = torch.zeros(padded.shape[1:], dtype=torch.float32, device=bundle.device)
     else:
-        gaussian = None
+        # INFR-02: borrow with zero=True — the reference allocates FRESH
+        # torch.zeros at both sites, so the borrow must re-zero (the cached
+        # buffer holds the previous study's logits/counts).
+        predicted_logits = buf_cache.get(
+            (bundle.num_segmentation_heads, *padded.shape[1:]), torch.float32, zero=True
+        )
+        n_predictions = buf_cache.get(padded.shape[1:], torch.float32, zero=True)
+
+    if gaussian is None:
+        if bundle.use_gaussian:
+            gaussian = compute_gaussian(
+                tuple(patch_size),
+                sigma_scale=GAUSSIAN_SIGMA_SCALE,
+                value_scaling_factor=GAUSSIAN_VALUE_SCALING_FACTOR,
+                dtype=torch.float32,
+                device=bundle.device,
+            )
+        else:
+            gaussian = None
 
     mirror_combinations = (
         build_mirror_axis_combinations(bundle.mirror_axes, 5)
@@ -334,7 +365,15 @@ def sliding_window_predict(bundle: ModelBundle, data: torch.Tensor) -> torch.Ten
     )
 
     for sl in slicers:
-        workon = padded[sl][None].contiguous()
+        if buf_cache is None:
+            workon = padded[sl][None].contiguous()
+        else:
+            # INFR-02: the hottest allocation (16 MB x ~150 patches x 5
+            # folds) — one cache entry borrowed per patch. copy_ fully
+            # overwrites before the forward reads it (zero=False; a fresh
+            # .contiguous() copy has no zeroed semantics to preserve).
+            workon = buf_cache.get(padded[sl][None].shape, torch.float32)
+            workon.copy_(padded[sl][None])
         prediction = mirror_and_predict(bundle.network, workon, mirror_combinations)[0]
         if gaussian is not None:
             prediction = prediction * gaussian
@@ -352,7 +391,12 @@ def sliding_window_predict(bundle: ModelBundle, data: torch.Tensor) -> torch.Ten
     return predicted_logits[(slice(None), *slicer_revert_padding[1:])]
 
 
-def predict_logits(bundle: ModelBundle, data: torch.Tensor) -> torch.Tensor:
+def predict_logits(
+    bundle: ModelBundle,
+    data: torch.Tensor,
+    buf_cache: Optional[_ShapeCache] = None,
+    gaussian: Optional[torch.Tensor] = None,
+) -> torch.Tensor:
     """Per-study logits: sequential per-fold accumulation (FP32, on GPU) then
     per-fold average — the reference ``predict_logits_from_preprocessed_data``
     order, minus the CPU round-trip (INF-001).
@@ -375,10 +419,18 @@ def predict_logits(bundle: ModelBundle, data: torch.Tensor) -> torch.Tensor:
         for params in bundle.fold_state_dicts:
             bundle.network.load_state_dict(params)
             with torch.autocast(device_type="cuda", enabled=True):
-                fold_logits = sliding_window_predict(bundle, data)
+                fold_logits = sliding_window_predict(
+                    bundle, data, buf_cache=buf_cache, gaussian=gaussian
+                )
             # Reference order: first fold assigns, later folds sequential +=.
             if prediction is None:
-                prediction = fold_logits
+                # INFR-02 aliasing rule: with the shape cache, fold_logits is a
+                # VIEW of the per-fold cached predicted_logits buffer, which the
+                # NEXT fold re-borrows with zero=True. Accumulating in place on
+                # that view would be wiped by the next fold's zero_() (and fold
+                # k would add the buffer to itself) — so the running sum must
+                # live on a FRESH tensor the cache never touches.
+                prediction = fold_logits.clone() if buf_cache is not None else fold_logits
             else:
                 prediction += fold_logits
         if len(bundle.fold_state_dicts) > 1:
@@ -455,6 +507,34 @@ class SlideWindowOperator(Operator):
         self._bundle: Optional[ModelBundle] = None
         self._released = False
         self.model_load_count = 0
+        # INFR-02/D-24: shape-keyed torch-family buffer cache (created
+        # BEFORE super().__init__ — Pitfall 7 discipline). Per-site table:
+        #   predicted_logits (512 MB)  CACHED zero=True  (reference = fresh torch.zeros).
+        #                                   ALIASING RULE: sliding_window_predict
+        #                                   returns a VIEW of this per-fold buffer;
+        #                                   predict_logits clones the fold-1 result
+        #                                   when a cache is active, because the
+        #                                   running sum must not alias a buffer the
+        #                                   next fold re-borrows with zero=True
+        #                                   (otherwise the zero_() wipes the partial
+        #                                   sum mid-accumulation).
+        #   n_predictions    (64 MB)   CACHED zero=True  (reference = fresh torch.zeros)
+        #   gaussian         (1 MB)    computed ONCE in setup() — identical
+        #                                   every fold; read-only in the loop
+        #                                   (prediction * gaussian, n_predictions +=
+        #                                   gaussian — never written)
+        #   per-patch workon (16 MB x ~150 patches x 5 folds) CACHED zero=False
+        #                                   (copy_ overwrites; the hottest site)
+        #   padded (F.pad result)      NOT CACHED (explicit non-decision in
+        #                                   sliding_window_predict — copy_ cost
+        #                                   ~= the RMM-pooled alloc it saves)
+        # Emit boundary: logits cross to PostResample via DLPack — if a
+        # cached buffer (or a view of one) ends up as the emitted tensor,
+        # compute() emits a copy (Phase 1 DLPack ownership lesson).
+        self._buf_cache = _ShapeCache(self.device, family="torch")
+        # INFR-02: setup()-time gaussian (None = not computed, e.g.
+        # use_gaussian=False or model not yet loaded).
+        self._gaussian: Optional[torch.Tensor] = None
         super().__init__(fragment, *args, **kwargs)
 
     def setup(self, spec: OperatorSpec) -> None:
@@ -467,6 +547,21 @@ class SlideWindowOperator(Operator):
         spec.input(self.INPUT_PREPROCESSED)
         spec.output(self.OUTPUT_LOGITS)
         self._load_model()
+        # INFR-02/D-24: the gaussian blending kernel depends only on the
+        # patch size + sigma/value-scaling constants — identical for every
+        # fold of every study — so compute it ONCE here instead of once per
+        # fold per study (RESEARCH §D-24 inventory: "gaussian 1 MB —
+        # identical every fold: computable once in setup").
+        bundle = self._bundle
+        if bundle is not None and bundle.use_gaussian:
+            from nnunetv2.inference.sliding_window_prediction import compute_gaussian
+            self._gaussian = compute_gaussian(
+                tuple(bundle.patch_size),
+                sigma_scale=GAUSSIAN_SIGMA_SCALE,
+                value_scaling_factor=GAUSSIAN_VALUE_SCALING_FACTOR,
+                dtype=torch.float32,
+                device=bundle.device,
+            )
 
     def _load_model(self) -> ModelBundle:
         if self._bundle is not None:
@@ -523,6 +618,9 @@ class SlideWindowOperator(Operator):
         self._bundle = None
         self._released = True
         del bundle.network, bundle.fold_state_dicts
+        if self._gaussian is not None:
+            del self._gaussian
+            self._gaussian = None
         torch.cuda.empty_cache()  # RMM: may be a driver-level no-op (Open Q2)
         self._logger.info(
             "weights released: %s (folds=%d) (MEM-003)", self.config_name, n_folds
@@ -586,7 +684,18 @@ class SlideWindowOperator(Operator):
             # handler anywhere in this path — a RuntimeError/OOM propagates
             # (INF-001/INF-005).
             with torch.no_grad():
-                logits = predict_logits(bundle, data)
+                logits = predict_logits(
+                    bundle, data, buf_cache=self._buf_cache, gaussian=self._gaussian
+                )
+
+            # INFR-02 emit-boundary rule (Phase 1 DLPack ownership lesson):
+            # a cached buffer must never cross the operator boundary via
+            # DLPack. Multi-fold bundles emit the fresh fold-average tensor;
+            # a single-fold bundle would emit a VIEW of the cached
+            # predicted_logits — in that case emit a copy. shares_storage
+            # compares storage-base pointers, so offset views are caught.
+            if self._buf_cache.shares_storage(logits):
+                logits = logits.clone()
 
             # Exit guard: the emitted buffer must be CUDA-resident FP32
             # (INF-001/INF-005); to_holoscan_gpu_tensor asserts again at emit.
