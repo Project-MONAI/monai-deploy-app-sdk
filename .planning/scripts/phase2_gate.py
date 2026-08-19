@@ -45,6 +45,7 @@ Usage (from anywhere; venv python recommended):
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import re
@@ -224,6 +225,13 @@ def main(argv=None) -> int:
             "pass": pd["pass"],
             "fail_reasons": pd["fail_reasons"],
         }
+        # provenance: checksum of the oracle SEG (the oracle bytes are
+        # gitignored per repo convention — the JSON is their record)
+        oracle_segs = sorted((Path(row["oracle"]) / "SEG").glob("*.dcm"))
+        r["oracle_seg_sha256"] = (hashlib.sha256(
+            oracle_segs[0].read_bytes()).hexdigest()
+            if oracle_segs else None)
+        r["oracle_seg_file"] = str(oracle_segs[0]) if oracle_segs else None
         print(f"  pixel_diff: {pd['pixels']['byte_identity_pct']:.5f}% "
               f"byte-identity, {pd['pixels']['differing_voxels']} differing "
               f"voxels, fast={pd['a']['voxels']} oracle={pd['b']['voxels']} "
