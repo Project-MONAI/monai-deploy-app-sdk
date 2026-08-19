@@ -41,7 +41,7 @@ from __future__ import annotations
 
 import json
 import logging
-from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import torch
@@ -334,6 +334,7 @@ class PostResampleOperator(Operator):
         emit_lowres_seg: bool = False,
         emit_probabilities: bool = True,
         config_name: Optional[str] = None,
+        release_fn: Optional[Callable[[], None]] = None,
         **kwargs: Any,
     ):
         """Create the operator.
@@ -353,14 +354,22 @@ class PostResampleOperator(Operator):
                 name and timing record so per-config observability survives
                 sub-Fragments (INFR-005). ``None`` (default) keeps the bare
                 ``"postresample"`` name.
+            release_fn: MEM-003/D-23 — zero-arg callback invoked after the
+                LAST emit of ``compute()`` (all emits done; nothing
+                downstream touches the released bundle). The aux (lowres)
+                subgraph wires it to its SlideWindowOperator.release();
+                ``None`` (default) = no release, byte-for-byte prior
+                behavior.
         """
         # NOTE: holoscan 4.2's Operator.__init__ invokes self.setup(spec)
         # before this constructor body finishes — initialize all state first
-        # (same pattern as EnsembleAverageOperator.emit_averaged_probabilities).
+        # (same pattern as EnsembleAverageOperator.emit_averaged_probabilities
+        # and the emit flags above, RESEARCH Pitfall 7 discipline).
         self._logger = logging.getLogger(f"{__name__}.{type(self).__name__}")
         self._emit_lowres_seg = bool(emit_lowres_seg)
         self._emit_probabilities = bool(emit_probabilities)
         self.config_name = config_name
+        self._release_fn = release_fn
         super().__init__(fragment, *args, **kwargs)
 
     def setup(self, spec: OperatorSpec) -> None:
@@ -477,3 +486,10 @@ class PostResampleOperator(Operator):
                 record["lowres_seg_dtype"] = "uint8"
             StudyTimingCollector.record(self.fragment, record)
             self._logger.info("timing: %s", json.dumps(record))
+
+            # MEM-003/D-23: release callback at the very end of compute() —
+            # after ALL emits. The cascade consumes only the emitted
+            # lowres_seg tensor, so nothing downstream touches the released
+            # bundle (the aux SlideWindowOperator is never scheduled again).
+            if self._release_fn is not None:
+                self._release_fn()

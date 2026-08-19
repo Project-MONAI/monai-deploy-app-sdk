@@ -453,6 +453,7 @@ class SlideWindowOperator(Operator):
         self.use_mirroring = use_mirroring
         self.device = device
         self._bundle: Optional[ModelBundle] = None
+        self._released = False
         self.model_load_count = 0
         super().__init__(fragment, *args, **kwargs)
 
@@ -503,6 +504,30 @@ class SlideWindowOperator(Operator):
         )
         return self._bundle
 
+    def release(self) -> None:
+        """MEM-003/D-23: free this config's weights after the auxiliary
+        fragment's terminal emit (wired by ``NnUnetConfigSubgraph.compose``
+        through the PostResampleOperator ``release_fn`` callback — exactly
+        once, exactly for the lowres_seg-emitting configuration).
+
+        Safe no-op if already released or never loaded. Under the RMM
+        pluggable allocator ``torch.cuda.empty_cache()`` may be a
+        driver-level no-op (Open Q2 — measured in Phase 3 Plan 02 Task 2),
+        but the pool-level handback of the weights is deterministic either
+        way.
+        """
+        if self._bundle is None:
+            return
+        bundle = self._bundle
+        n_folds = len(bundle.fold_state_dicts)
+        self._bundle = None
+        self._released = True
+        del bundle.network, bundle.fold_state_dicts
+        torch.cuda.empty_cache()  # RMM: may be a driver-level no-op (Open Q2)
+        self._logger.info(
+            "weights released: %s (folds=%d) (MEM-003)", self.config_name, n_folds
+        )
+
     @staticmethod
     def _to_preprocessed_4d(tensor: torch.Tensor) -> torch.Tensor:
         """Normalize the incoming tensor to the reference ``(C, X, Y, Z)``."""
@@ -521,6 +546,14 @@ class SlideWindowOperator(Operator):
     def compute(self, op_input: Any, op_output: Any, context: Any) -> None:
         """Inference only — the model was already loaded in setup()."""
         if self._bundle is None:
+            if self._released:
+                # Defensive: the DAG never schedules this (release fires
+                # after the aux fragment's terminal emit). A hit means a DAG
+                # ordering violation (MEM-003).
+                raise RuntimeError(
+                    f"compute() after release() — DAG ordering violation for "
+                    f"{self.config_name} (MEM-003)."
+                )
             raise RuntimeError(
                 "SlideWindowOperator: model not loaded. setup() must run before compute(); "
                 "per-study model loading is not allowed (INF-008)."

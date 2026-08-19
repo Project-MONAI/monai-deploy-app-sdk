@@ -254,6 +254,16 @@ class NnUnetConfigSubgraph(Subgraph):
             config_name=cfg,
             emit_probabilities=self._emit_probabilities,
             emit_lowres_seg=self._emit_lowres_seg,
+            # MEM-003/D-23: free the aux fragment's 3d_lowres weights (~0.8 GB)
+            # after the terminal lowres_seg emit — the cascade consumes only
+            # the emitted tensor, so nothing downstream touches the released
+            # bundle. Non-aux configs get release_fn=None (no behavior change).
+            # HOLOSCAN_KEEP_LOWRES_WEIGHTS=1 bypasses the hook (measurement
+            # opt-out for the ON-vs-OFF peak-VRAM comparison, D-23/Task 2).
+            # Note: the bound method sw.release keeps sw alive via post.
+            release_fn=sw.release
+            if (self._emit_lowres_seg and os.environ.get("HOLOSCAN_KEEP_LOWRES_WEIGHTS") != "1")
+            else None,
             name=f"postresample_{cfg}",
         )
         self.add_flow(pre, sw, {("preprocessed", "preprocessed")})
