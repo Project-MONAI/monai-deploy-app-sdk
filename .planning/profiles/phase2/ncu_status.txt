@@ -1,0 +1,6 @@
+ncu (Nsight Compute 2026.1.0) is installed but BLOCKED on this host:
+ERR_NVGPUCTRPERM (verified 2026-08-19 live probe). Kernel-level counter profiling
+requires admin (NVreg_RestrictProfilingToAdminUsers=0 or sudo). nsys
+(cuda_api_sum + NVTX + kernel timeline) is the profiling basis for Phase 2/3.
+
+No kernel-metric numbers from ncu appear anywhere in .planning/profiles/phase2/.
