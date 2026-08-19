@@ -11,29 +11,31 @@
 
 """cchmc-nnunet-fast application: GPU-resident nnU-Net pipeline.
 
-DAG (Phase 1, single config ``3d_fullres``):
+DAG (Phase 2, multi-fragment — one ``Fragment`` per resolved nnUNet config,
+PIPE-03/D-02; DICOM I/O, ensemble, postprocess and writers stay app-level):
 
-    DICOMDataLoaderOperator
-      -> DICOMSeriesSelectorOperator
-        -> DICOMSeriesToVolumeOperator
-          -> PreprocessOperator -> SlideWindowOperator
-             -> PostResampleOperator -> EnsembleAverageOperator
-                -> PostprocessOperator
-                  -> DICOMSegmentationWriterOperator (SEG)
-                  -> DICOMTextSRWriterOperator       (SR)
-                  -> DICOMSCWriterOperator           (SC)
+    DICOMDataLoaderOperator -> DICOMSeriesSelectorOperator
+      -> DICOMSeriesToVolumeOperator
+        ├─ (image) -> [Fragment nnunet_<cfg>] for each cfg in run_list:
+        │    Preprocess -> SlideWindow -> PostResample; the auxiliary
+        │    fragment also emits lowres_seg (argmax uint8), crossed to the
+        │    cascade fragment with zero disk I/O (PIPE-04)
+        ├─ (probabilities) -> EnsembleAverageOperator (prob_<cfg> ports,
+        │    ensemble_model_list order) -> PostprocessOperator
+        │       -> DICOMSegmentationWriterOperator (SEG)
+        │       -> DICOMTextSRWriterOperator       (SR)
+        │       -> DICOMSCWriterOperator           (SC)
 
-The monolithic ``NNUnetSegOperator`` of the reference app is replaced by the
-five-operator chain ``Preprocess -> SlideWindow -> PostResample ->
-EnsembleAverage -> Postprocess``; the SDK DICOM I/O operators are unchanged
-(no SDK core edits — the writers are only subclassed here for structured
-timing/NVTX observability).
+The reference's monolithic ``NNUnetSegOperator`` is replaced by
+config-generic fragment instantiation over ``resolve_run_model_list``
+(``HOLOSCAN_MODEL_LIST`` selects the list; default = reference default).
+The SDK DICOM I/O operators are unchanged (no SDK core edits — the writers
+are only subclassed here for timing/NVTX observability).
 """
 
-# INFR-01/D-14: RMM must be imported before holoscan (undefined-symbol hazard:
-# `import rmm` after `import holoscan` raises ImportError: undefined symbol
-# __cxa_call_terminate — live-reproduced 2026-08-19, pinned by
-# scripts/test_gpu_bootstrap.py). This MUST stay the FIRST import.
+# INFR-01/D-14: RMM must be the FIRST import (importing rmm after holoscan
+# raises ImportError: undefined symbol __cxa_call_terminate — live-reproduced
+# 2026-08-19, pinned by scripts/test_gpu_bootstrap.py).
 try:
     from my_app import gpu_bootstrap
 except ImportError:  # flat import (my_app dir on sys.path, as the app runner provides)
@@ -43,17 +45,22 @@ gpu_bootstrap.install_torch_allocator()
 
 import json
 import logging
+import os
 from dataclasses import asdict
 from pathlib import Path
+from typing import Any, List, Optional, Tuple
 
 # torch before holoscan is fine — only rmm-after-holoscan trips the hazard.
 import torch
+
+# INFR-004: per-fragment CUDA stream pools (best-effort overlap, D-16).
+from holoscan.resources import CudaStreamPool
 
 # pydicom SR coded dictionary — direct import (not part of the App SDK package)
 from pydicom.sr.codedict import codes
 
 from monai.deploy.conditions import CountCondition
-from monai.deploy.core import Application
+from monai.deploy.core import Application, Subgraph
 from monai.deploy.operators.dicom_data_loader_operator import DICOMDataLoaderOperator
 from monai.deploy.operators.dicom_seg_writer_operator import DICOMSegmentationWriterOperator, SegmentDescription
 from monai.deploy.operators.dicom_series_to_volume_operator import DICOMSeriesToVolumeOperator
@@ -64,7 +71,7 @@ from monai.deploy.operators.dicom_text_sr_writer_operator import (
 )
 
 try:  # package-style import (my_app.*)
-    from my_app.config import find_jsonpkls_dir, load_inference_params
+    from my_app.config import find_jsonpkls_dir, load_inference_params, resolve_run_model_list
     from my_app.mem_budget import compute_memory_budget
     from my_app.operators import (
         DICOMSCWriterOperator,
@@ -80,7 +87,7 @@ try:  # package-style import (my_app.*)
         nvtx_range,
     )
 except ImportError:  # flat import (my_app dir on sys.path, as the app runner provides)
-    from config import find_jsonpkls_dir, load_inference_params
+    from config import find_jsonpkls_dir, load_inference_params, resolve_run_model_list
     from mem_budget import compute_memory_budget
     from operators import (
         DICOMSCWriterOperator,
@@ -96,9 +103,6 @@ except ImportError:  # flat import (my_app dir on sys.path, as the app runner pr
         nvtx_range,
     )
 
-# nnU-Net plans.json configuration (Phase 1: single config)
-CONFIG_NAME = "3d_fullres"
-
 # output_labels: which segmentations are desired in the DICOM SEG / SR / SC
 # outputs — 1 = airway
 OUTPUT_LABELS = [1]
@@ -110,6 +114,33 @@ _ALGORITHM_VERSION = "1.0.0"
 _MAP_UID = "1.0.0"
 
 _DEFAULT_LABEL_NAMES = {0: "background", 1: "airway"}
+
+
+def _previous_stage_of(cfg: str, plans: Any) -> Optional[str]:
+    """The RAW plans.json ``previous_stage`` of ``cfg`` (plans-driven, D-02).
+
+    ``None`` for non-cascade configs. Reading the raw entry (not the
+    PlansManager-resolved one) is fine here: ``previous_stage`` is the one
+    field a cascading entry carries directly (inherited fields are resolved
+    from ``inherits_from``)."""
+    cfgs = plans.get("configurations", {}) or {}
+    entry = cfgs.get(cfg, {}) or {}
+    return entry.get("previous_stage")
+
+
+def _auxiliary_prev_stage(run_list: List[str], plans: Any) -> Optional[str]:
+    """The (unique) config in ``run_list`` that is the previous stage of some
+    other config in ``run_list`` — i.e. ``3d_lowres`` when the cascade is in
+    the list, ``None`` otherwise. Plans-driven (D-02): no config-name
+    literals. This is the ONLY fragment that emits ``lowres_seg`` (D-07:
+    the auxiliary stage never feeds the ensemble, so its ``probabilities``
+    output is simply not declared — conditional port table, RESEARCH
+    Pitfall 7)."""
+    consumers = {
+        _previous_stage_of(c, plans) for c in run_list
+    }
+    prevs = [c for c in run_list if c in consumers]
+    return prevs[0] if len(prevs) == 1 else None
 
 
 def timed_writer_compute(operator, base_class, name, op_input, op_output, context):
@@ -160,6 +191,84 @@ class TimedDICOMSCWriterOperator(DICOMSCWriterOperator):
         )
 
 
+class NnUnetConfigSubgraph(Subgraph):
+    """One nnUNet config's model chain as a subgraph (PIPE-03, D-02).
+
+    Contains ``preprocess_<cfg> -> slidewindow_<cfg> -> postresample_<cfg>``
+    and exposes interface ports so the app wires it config-generically:
+
+    * input  ``image``          — always (the DICOM volume);
+    * input  ``lowres_seg``     — cascade configs only (the previous stage's
+      post-softmax argmax; zero disk I/O — PIPE-04/D-09/D-10);
+    * output ``probabilities``  — ensemble members only (D-07: the auxiliary
+      lowres never feeds the ensemble — its port is simply absent);
+    * output ``lowres_seg``     — the auxiliary previous stage only.
+
+    Subgraph is the holoscan-cu13 4.2 supported multi-fragment mechanism
+    (interface ports + ``add_flow`` between subgraphs/operators): 4.2's
+    app_driver rejects an app graph mixing C++ ``Fragment``s and
+    app-level operators ("Both fragments and operators are added to the
+    application graph"), and its fragment-to-fragment flow API has no
+    operator-port addressing — Subgraph interface ports do.
+    """
+
+    def __init__(
+        self,
+        parent: Any,
+        name: str,
+        model_path: Any,
+        config_name: str,
+        n_entry_inputs: int,
+        emit_probabilities: bool,
+        emit_lowres_seg: bool,
+    ):
+        # Subgraph.__init__ runs compose() during construction — all state
+        # touched by compose must exist first (holoscan 4.2 quirk, same
+        # pattern as the operators' flags-before-super()).
+        self._model_path = model_path
+        self._config_name = config_name
+        self._n_entry_inputs = n_entry_inputs
+        self._emit_probabilities = bool(emit_probabilities)
+        self._emit_lowres_seg = bool(emit_lowres_seg)
+        super().__init__(parent, name)
+
+    def compose(self) -> None:
+        cfg = self._config_name
+        pre = PreprocessOperator(
+            self,
+            # Entry condition (RESEARCH Pattern 1): the cascade preprocess
+            # must fire once, after BOTH inputs — never on the image alone.
+            CountCondition(self, self._n_entry_inputs),
+            model_path=self._model_path,
+            config_name=cfg,
+            name=f"preprocess_{cfg}",
+        )
+        sw = SlideWindowOperator(
+            self, model_path=self._model_path, config_name=cfg, name=f"slidewindow_{cfg}"
+        )
+        post = PostResampleOperator(
+            self,
+            config_name=cfg,
+            emit_probabilities=self._emit_probabilities,
+            emit_lowres_seg=self._emit_lowres_seg,
+            name=f"postresample_{cfg}",
+        )
+        self.add_flow(pre, sw, {("preprocessed", "preprocessed")})
+        self.add_flow(pre, post, {("preprocessed_meta", "preprocessed_meta")})
+        self.add_flow(sw, post, {("logits", "logits")})
+
+        # Interface ports — the ONLY ports crossing the subgraph boundary.
+        # Conditional declarations implement the plan's port table (D-07,
+        # RESEARCH Pitfall 7: no declared port left without a flow/receiver).
+        self.add_input_interface_port("image", pre, "image")
+        if self._n_entry_inputs > 1:
+            self.add_input_interface_port("lowres_seg", pre, "lowres_seg")
+        if self._emit_probabilities:
+            self.add_output_interface_port("probabilities", post, "probabilities")
+        if self._emit_lowres_seg:
+            self.add_output_interface_port("lowres_seg", post, "lowres_seg")
+
+
 class CCHMCNNUnetFastApp(Application):
     """Fast-track nnU-Net segmentation app for CCHMC models.
 
@@ -198,43 +307,51 @@ class CCHMCNNUnetFastApp(Application):
             }
             self._logger.info("study_timing_summary: %s", json.dumps(aggregate))
 
-    def _compute_budget_plan(self, model_path):
-        """Setup-time VRAM budget for the current config (INFR-03).
+    def _compute_budget_plan(self, model_path, run_list):
+        """Setup-time VRAM budget for the FULL resolved run list (INFR-03).
 
-        The preprocessed volume shape is study-dependent and unknown at
-        compose time, so the per-dataset ``median_image_size_in_voxels`` from
-        plans.json is used as the estimate (inherited configs that lack the
-        key fall back to the original median shape scaled by the spacing
-        ratio, matching the resample); the crop shape is bounded above by
-        the same volume (crop ⊆ image). The plan is a safety net, not an
-        exact prediction.
+        Phase 2 Plan 04: extended from the single-config estimate to ALL
+        configs in the run list — the fragments coexist in one DAG, so their
+        full-volume footprints add. The preprocessed volume shape is
+        study-dependent and unknown at compose time, so the per-dataset
+        ``median_image_size_in_voxels`` (read from the PlansManager-RESOLVED
+        configuration — inherited configs like the cascade carry the field
+        via ``inherits_from``) is used as the estimate; the crop shape is
+        bounded above by the same volume (crop ⊆ image). The plan is a
+        safety net, not an exact prediction.
         """
-        params = load_inference_params(model_path, CONFIG_NAME)
+        from nnunetv2.utilities.plans_handling.plans_handler import PlansManager
+
         jsonpkls = find_jsonpkls_dir(model_path)
         plans = json.loads((jsonpkls / "plans.json").read_text())
-        cfg = plans["configurations"][CONFIG_NAME]
+        manager = PlansManager(plans)
 
-        median = cfg.get("median_image_size_in_voxels")
-        if median is None:
-            orig_shape = plans["original_median_shape_after_transp"]
-            orig_spacing = plans["original_median_spacing_after_transp"]
-            spacing = cfg["spacing"]
-            median = [
-                int(round(float(s) * float(o) / float(t)))
-                for s, o, t in zip(orig_shape, orig_spacing, spacing)
-            ]
-        volume_shape = (params.num_input_channels, *[int(round(float(s))) for s in median])
+        cfgs = []
+        for cfg in run_list:
+            params = load_inference_params(model_path, cfg)
+            resolved = manager.get_configuration(cfg).configuration
 
-        cfgs = [
-            {
-                "config_name": CONFIG_NAME,
-                "num_input_channels": params.num_input_channels,
-                "num_segmentation_heads": params.num_segmentation_heads,
-                "preprocessed_shape": volume_shape,
-                # upper bound: the crop is always ⊆ the (resampled) image
-                "cropped_shape": volume_shape,
-            }
-        ]
+            median = resolved.get("median_image_size_in_voxels")
+            if median is None:
+                orig_shape = plans["original_median_shape_after_transp"]
+                orig_spacing = plans["original_median_spacing_after_transp"]
+                spacing = resolved["spacing"]
+                median = [
+                    int(round(float(s) * float(o) / float(t)))
+                    for s, o, t in zip(orig_shape, orig_spacing, spacing)
+                ]
+            volume_shape = (params.num_input_channels, *[int(round(float(s))) for s in median])
+
+            cfgs.append(
+                {
+                    "config_name": cfg,
+                    "num_input_channels": params.num_input_channels,
+                    "num_segmentation_heads": params.num_segmentation_heads,
+                    "preprocessed_shape": volume_shape,
+                    # upper bound: the crop is always ⊆ the (resampled) image
+                    "cropped_shape": volume_shape,
+                }
+            )
         return compute_memory_budget(cfgs)
 
     def compose(self):
@@ -268,11 +385,29 @@ class CCHMCNNUnetFastApp(Application):
             "gpu_bootstrap must be imported before holoscan (INFR-01)"
         )
 
+        # --- Model list (PIPE-03, D-02) ---
+        # HOLOSCAN_MODEL_LIST selects the run list (comma-separated configs);
+        # unset = the reference default (plans.json order filtered to existing
+        # model dirs). Reference semantics + data-driven previous-stage
+        # auto-insertion live in config.resolve_run_model_list.
+        model_list_arg = os.environ.get("HOLOSCAN_MODEL_LIST")
+        model_list_arg = (
+            [s.strip() for s in model_list_arg.split(",") if s.strip()]
+            if model_list_arg
+            else None
+        )
+        plans = json.loads((find_jsonpkls_dir(model_path) / "plans.json").read_text())
+        run_list, ensemble_list = resolve_run_model_list(model_list_arg, plans, model_path)
+        self._logger.info(
+            "run_model_list=%s ensemble_model_list=%s", list(run_list), list(ensemble_list)
+        )
+
         # --- Memory budget (INFR-03, D-15) ---
-        # Setup-time estimate of the per-config full-volume VRAM footprint
-        # vs free VRAM. Drives the ensemble defer flag; the real OOM path is
-        # UNEXERCISED on the A100-40GB airway study (documented, not faked).
-        plan = self._compute_budget_plan(model_path)
+        # Setup-time estimate of the per-config full-volume VRAM footprint of
+        # ALL configs in the run list vs free VRAM. Drives the ensemble defer
+        # flag; the real OOM path is UNEXERCISED on the A100-40GB airway
+        # study (documented, not faked).
+        plan = self._compute_budget_plan(model_path, list(run_list))
         self._logger.info("memory_budget: %s", json.dumps(asdict(plan)))
 
         # --- DICOM I/O (SDK, unchanged) ---
@@ -289,23 +424,8 @@ class CCHMCNNUnetFastApp(Application):
 
         series_to_vol_op = DICOMSeriesToVolumeOperator(self, name="series_to_vol_op")
 
-        # --- New GPU operator chain (replaces NNUnetSegOperator) ---
-        preprocess_op = PreprocessOperator(
-            self, model_path=model_path, config_name=CONFIG_NAME, name="preprocess_op"
-        )
-        slidewindow_op = SlideWindowOperator(
-            self, model_path=model_path, config_name=CONFIG_NAME, name="slidewindow_op"
-        )
-        postresample_op = PostResampleOperator(self, name="postresample_op")
-        # averaged_probabilities has no consumer in the DAG (postprocess
-        # consumes the uint8 seg) — disable that output or the GXF scheduler
-        # rejects the entity (declared output with no downstream receiver).
-        ensemble_op = EnsembleAverageOperator(
-            self,
-            emit_averaged_probabilities=False,
-            defer_strategy=(plan.strategy == "defer_to_incremental"),
-            name="ensemble_average_op",
-        )
+        # App-level postprocess (CC on GPU, SR/SC data) — sits OUTSIDE the
+        # per-config fragments (Phase 2: only the model chain is fragmented).
         postprocess_op = PostprocessOperator(
             self,
             model_path=model_path,
@@ -315,6 +435,75 @@ class CCHMCNNUnetFastApp(Application):
             output_folder=app_output_path,
             name="postprocess_op",
         )
+
+        # --- One subgraph per resolved config (PIPE-03, D-02) ---
+        # The loop iterates the resolved run list — NO config-name literals
+        # in this block (D-02: a future 2d model drops in with zero code
+        # changes). Port discipline (RESEARCH Pitfall 7): every declared
+        # port has a flow / every declared output has a receiver in each
+        # configuration (the conditional interface ports in
+        # NnUnetConfigSubgraph implement the plan's port table).
+        aux_prev = _auxiliary_prev_stage(list(run_list), plans)
+        subgraphs: dict = {}
+        for cfg in run_list:
+            # Entry inputs: the image always; lowres_seg for cascade configs
+            # (resolve_run_model_list auto-inserts the previous stage, so the
+            # producer subgraph is guaranteed present).
+            n_entry_inputs = 2 if _previous_stage_of(cfg, plans) is not None else 1
+            sg = NnUnetConfigSubgraph(
+                self,
+                name=f"nnunet_{cfg}",
+                model_path=model_path,
+                config_name=cfg,
+                n_entry_inputs=n_entry_inputs,
+                # D-07 + conditional port table: probabilities are declared
+                # ONLY for ensemble members (the auxiliary lowres never feeds
+                # the ensemble — its port is simply absent); lowres_seg is
+                # declared ONLY by the auxiliary previous stage (consumed by
+                # the cascade subgraph below).
+                emit_probabilities=(cfg in ensemble_list),
+                emit_lowres_seg=(cfg == aux_prev),
+            )
+            # INFR-004: one CudaStreamPool per fragment (NonBlocking stream,
+            # reserved_size=1, named for the nsys trace). Best-effort overlap
+            # (D-16): a plus, not a gate.
+            CudaStreamPool(
+                sg,
+                dev_id=0,
+                stream_flags=1,
+                reserved_size=1,
+                nvtx_identifier=f"streams_{cfg}",
+                name=f"cuda_stream_pool_{cfg}",
+            )
+            # App-level entry edge: the DICOM volume feeds every config.
+            self.add_flow(series_to_vol_op, sg, {("image", "image")})
+            subgraphs[cfg] = sg
+
+        # --- Cascade edge (PIPE-04, D-09/D-10) ---
+        # The auxiliary stage's post-softmax argmax (uint8, original DICOM
+        # orientation) crosses the fragment boundary with ZERO disk I/O and
+        # ZERO copy — it is consumed as the second channel of the cascade
+        # preprocess input. Only present when the auxiliary stage is in the
+        # run list (port table: no declared port left unwired).
+        if aux_prev is not None:
+            for cfg in run_list:
+                if _previous_stage_of(cfg, plans) == aux_prev:
+                    self.add_flow(subgraphs[aux_prev], subgraphs[cfg], {("lowres_seg", "lowres_seg")})
+
+        # --- App-level ensemble (INF-009, ensemble_model_list order) ---
+        # One named probability stream per ensemble config; CountCondition
+        # inside the operator guarantees it runs on FULL arrival only. The
+        # same code path covers the single-config lists (one port, count 1).
+        ensemble_op = EnsembleAverageOperator(
+            self,
+            config_names=list(ensemble_list),
+            emit_averaged_probabilities=False,  # no receiver — port discipline
+            defer_strategy=(plan.strategy == "defer_to_incremental"),
+            name="ensemble_average_op",
+        )
+        for cfg in ensemble_list:
+            self.add_flow(subgraphs[cfg], ensemble_op, {("probabilities", f"prob_{cfg}")})
+        self.add_flow(ensemble_op, postprocess_op, {("seg", "seg")})
 
         # --- Writers (subclassed for timing; SDK behavior unmodified) ---
         # SEG writer: segment description for the airway segment
@@ -393,15 +582,9 @@ class CCHMCNNUnetFastApp(Application):
             {("study_selected_series_list", "study_selected_series_list")},
         )
 
-        # volume -> preprocess -> slidewindow -> postresample -> ensemble -> postprocess
-        self.add_flow(series_to_vol_op, preprocess_op, {("image", "image")})
-        self.add_flow(preprocess_op, slidewindow_op, {("preprocessed", "preprocessed")})
-        self.add_flow(preprocess_op, postresample_op, {("preprocessed_meta", "preprocessed_meta")})
-        self.add_flow(slidewindow_op, postresample_op, {("logits", "logits")})
-        self.add_flow(postresample_op, ensemble_op, {("probabilities", "probabilities")})
-        self.add_flow(ensemble_op, postprocess_op, {("seg", "seg")})
-        # the original image is also needed by postprocess (SR voxel volume +
-        # SC overlay)
+        # volume -> per-config fragments (entry edges wired in the factory
+        # above) -> ensemble -> postprocess (wired above); the original image
+        # is also needed by postprocess (SR voxel volume + SC overlay)
         self.add_flow(series_to_vol_op, postprocess_op, {("image", "image")})
 
         # DICOM SEG: selected series + final segmentation
