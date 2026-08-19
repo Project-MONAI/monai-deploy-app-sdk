@@ -46,7 +46,7 @@ Requirements for initial release. Each maps to roadmap phases.
 ### Infrastructure — GPU memory management and profiling
 
 - [x] **INFR-01**: The system uses RMM (RAPIDS Memory Manager) as the CUDA memory allocator with pool allocation to reduce heap fragmentation across sequential studies (Phase 2, Plan 02 — `gpu_bootstrap` first-import before holoscan, pluggable backend asserted, pool warm-up to budget total)
-- [ ] **INFR-02**: The system pre-allocates GPU buffers during operator `setup()` and reuses them across `compute()` calls instead of allocating per-tile or per-study — **Deferred to Phase 3 (D-17, 2026-08-19):** cross-study buffer reuse explicitly parked after RMM (INFR-01) covered in-run allocation; re-open with the ≥5-CT corpus and reference examples
+- [x] **INFR-02**: The system pre-allocates GPU buffers during operator `setup()` and reuses them across `compute()` calls instead of allocating per-tile or per-study — **Done (Phase 3, Plan 03, D-24):** `_ShapeCache` (shape, dtype) → device buffer for torch+cupy families at the study-sized sites (preprocess vol/vol_c/mask/one_hot/vol2; slidewindow predicted_logits/n_predictions/workon; gaussian once in setup); proven by (a) headless unit suite + (b) one-process 3× same-study replay (data_ptr stable, cudaMalloc 0/0 on studies 2/3, byte-identical repeats); user's reference examples = D-26 external dependency (recorded)
 - [x] **INFR-03**: The system computes a memory budget before allocating full-volume logits or probability buffers and defers to incremental strategies when the budget would exceed available VRAM (Phase 2, Plan 02 — `mem_budget.py` BudgetPlan + `memory_budget` log + `defer_strategy` wiring; real-OOM path documented unexercised)
 - [x] **INFR-004**: The system uses Holoscan `CudaStreamPool` for concurrent kernel launches across operators (one per model-config subgraph — NonBlocking, reserved_size=1, per-config nvtx_identifier; overlap visibility is Plan 06's nsys trace, best-effort per D-16)
 - [x] **INFR-005**: The system emits NVTX markers (via `torch.cuda.nvtx`) at the start and end of each operator's `compute()` method for correlation with Nsight Systems traces (per-config range names `preprocess_<cfg>`/`inference_<cfg>`/`postresample_<cfg>` + `"config"` timing record fields; per-study aggregate keyed by the top-level application)
@@ -144,7 +144,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | POST-02 | 1 | Pending |
 | POST-03 | 1 | Pending |
 | INFR-01 | 0, 2 | **Done (Phase 2, Plan 02)** — RMM pluggable allocator (rmm first-import, import-order self-test) + pool warm-up |
-| INFR-02 | 2 | **Deferred to Phase 3 (D-17)** — cross-study buffer reuse parked with RMM in place; needs ≥5-CT corpus |
+| INFR-02 | 2 | **Done (Phase 3, Plan 03, D-24)** — shape-keyed buffer reuse proven by (a) unit suite + (b) 3× replay (address stability, cudaMalloc flat on studies 2/3); user reference examples = D-26 external dependency |
 | INFR-03 | 2 | **Done (Phase 2, Plan 02)** — BudgetPlan calculator + defer-strategy wiring; real OOM documented unexercised |
 | INFR-004 | 2 | **Done (Phase 2, Plan 04)** — CudaStreamPool per model-config subgraph (NonBlocking, reserved_size=1, streams_<cfg>) |
 | INFR-005 | 0, 1 | **Done (Phase 2, Plan 04)** — per-config NVTX range names + `"config"` timing fields + app-keyed per-study aggregate (sub-Fragment-safe via gpu_util._root) |
