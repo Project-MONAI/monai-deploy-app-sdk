@@ -809,8 +809,10 @@ class PreprocessOperator(Operator):
 
     def compute(self, op_input: Any, op_output: Any, context: Any) -> None:
         """Main compute: preprocess on the CPU reference path, then GPU handoff."""
-        with nvtx_range("preprocess"):
-            timing = GpuTiming("preprocess")
+        # INFR-005: the NVTX range + timing label carry the config so
+        # multi-fragment traces/records stay unambiguous (RESEARCH Pitfall 9).
+        with nvtx_range(f"preprocess_{self.config_name}"):
+            timing = GpuTiming(f"preprocess_{self.config_name}")
             timing.start()
 
             # Entry guard: the pipeline is GPU-resident by contract — never
@@ -870,6 +872,7 @@ class PreprocessOperator(Operator):
 
             record = timing.stop()
             record["study"] = study
+            record["config"] = self.config_name
             record["bbox_used_for_cropping"] = properties["bbox_used_for_cropping"]
             record["shape_before_cropping"] = list(properties["shape_before_cropping"])
             record["new_shape"] = list(properties["new_shape"])

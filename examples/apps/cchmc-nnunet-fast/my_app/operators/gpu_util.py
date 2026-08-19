@@ -48,14 +48,26 @@ __all__ = [
 _study_by_fragment: Dict[int, str] = {}
 
 
+def _root(fragment: Any) -> Any:
+    """Top-level Application for a (sub-)fragment: in Phase 1 fragment == app;
+    with real sub-Fragments, Fragment.application (verified present in 4.2)
+    resolves the root. Keying by the root keeps one per-study aggregate across
+    fragments (RESEARCH Pitfall 9)."""
+    return getattr(fragment, "application", None) or fragment
+
+
 def set_study_id(fragment: Any, study_id: str) -> None:
-    """Register the current study identifier for a fragment (see module note)."""
-    _study_by_fragment[id(fragment)] = str(study_id)
+    """Register the current study identifier for a fragment (see module note).
+
+    Keyed by the TOP-LEVEL application (``_root``) so sub-fragment operators
+    share the study identity (RESEARCH Pitfall 9)."""
+    _study_by_fragment[id(_root(fragment))] = str(study_id)
 
 
 def get_study_id(fragment: Any, default: str = "unknown") -> str:
-    """Return the study identifier registered for ``fragment`` (or ``default``)."""
-    return _study_by_fragment.get(id(fragment), default)
+    """Return the study identifier registered for ``fragment`` (or ``default``),
+    looking up the top-level application key (see :func:`_root`)."""
+    return _study_by_fragment.get(id(_root(fragment)), default)
 
 
 def assert_cuda_available() -> None:
@@ -169,25 +181,28 @@ class GpuTiming:
 
 
 class StudyTimingCollector:
-    """Accumulates per-operator timing records per fragment for the
-    end-of-run per-study latency aggregate (INFR-006).
+    """Accumulates per-operator timing records per TOP-LEVEL application for
+    the end-of-run per-study latency aggregate (INFR-006).
 
     Records are JSON-serializable dicts (``GpuTiming.stop()`` output plus an
-    ``operator``/``study`` field). The Application logs one aggregate per
-    study after the run completes.
+    ``operator``/``study`` field). Records are keyed by ``_root(fragment)`` —
+    the top-level Application — so operators in sub-Fragments of Phase 2's
+    multi-fragment DAG land in the same per-study aggregate instead of
+    silently fragmenting it (RESEARCH Pitfall 9). The Application logs one
+    aggregate per study after the run completes.
     """
 
     _records: Dict[int, List[Dict[str, Any]]] = {}
 
     @classmethod
     def record(cls, fragment: Any, record: Dict[str, Any]) -> None:
-        cls._records.setdefault(id(fragment), []).append(dict(record))
+        cls._records.setdefault(id(_root(fragment)), []).append(dict(record))
 
     @classmethod
     def studies(cls, fragment: Any) -> Dict[str, List[Dict[str, Any]]]:
-        """Group the fragment's records by their ``study`` field."""
+        """Group the root application's records by their ``study`` field."""
         grouped: Dict[str, List[Dict[str, Any]]] = {}
-        for r in cls._records.get(id(fragment), []):
+        for r in cls._records.get(id(_root(fragment)), []):
             grouped.setdefault(r.get("study", "unknown"), []).append(r)
         return grouped
 
@@ -196,4 +211,4 @@ class StudyTimingCollector:
         if fragment is None:
             cls._records.clear()
         else:
-            cls._records.pop(id(fragment), None)
+            cls._records.pop(id(_root(fragment)), None)

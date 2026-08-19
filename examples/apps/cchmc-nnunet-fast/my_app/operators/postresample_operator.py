@@ -333,6 +333,7 @@ class PostResampleOperator(Operator):
         *args: Any,
         emit_lowres_seg: bool = False,
         emit_probabilities: bool = True,
+        config_name: Optional[str] = None,
         **kwargs: Any,
     ):
         """Create the operator.
@@ -348,6 +349,10 @@ class PostResampleOperator(Operator):
                 Declared now (consumed by Plan 04's conditional wiring) so
                 Plan 04 doesn't re-edit this file's init pattern;
                 ``False`` simply omits the output declaration.
+            config_name: plans.json configuration key — tags the NVTX range
+                name and timing record so per-config observability survives
+                sub-Fragments (INFR-005). ``None`` (default) keeps the bare
+                ``"postresample"`` name.
         """
         # NOTE: holoscan 4.2's Operator.__init__ invokes self.setup(spec)
         # before this constructor body finishes — initialize all state first
@@ -355,6 +360,7 @@ class PostResampleOperator(Operator):
         self._logger = logging.getLogger(f"{__name__}.{type(self).__name__}")
         self._emit_lowres_seg = bool(emit_lowres_seg)
         self._emit_probabilities = bool(emit_probabilities)
+        self.config_name = config_name
         super().__init__(fragment, *args, **kwargs)
 
     def setup(self, spec: OperatorSpec) -> None:
@@ -424,8 +430,12 @@ class PostResampleOperator(Operator):
 
     def compute(self, op_input: Any, op_output: Any, context: Any) -> None:
         """Resample probabilities + revert crop/transpose; emit GPU tensor."""
-        with nvtx_range("postresample"):
-            timing = GpuTiming("postresample")
+        # INFR-005: the NVTX range + timing label carry the config when set,
+        # so multi-fragment traces/records stay unambiguous (RESEARCH Pitfall
+        # 9); None keeps the bare Phase 1 name.
+        _range_name = f"postresample_{self.config_name}" if self.config_name else "postresample"
+        with nvtx_range(_range_name):
+            timing = GpuTiming(_range_name)
             timing.start()
 
             # Entry guard: the pipeline is GPU-resident by contract (INF-005).
@@ -459,6 +469,7 @@ class PostResampleOperator(Operator):
 
             record = timing.stop()
             record["study"] = get_study_id(self.fragment)
+            record["config"] = self.config_name
             if probabilities is not None:
                 record["probabilities_shape"] = list(probabilities.shape)
             if self._emit_lowres_seg:

@@ -527,8 +527,10 @@ class SlideWindowOperator(Operator):
             )
         bundle = self._bundle
 
-        with nvtx_range("inference"):
-            timing = GpuTiming("inference")
+        # INFR-005: the NVTX range + timing label carry the config so
+        # multi-fragment traces/records stay unambiguous (RESEARCH Pitfall 9).
+        with nvtx_range(f"inference_{self.config_name}"):
+            timing = GpuTiming(f"inference_{self.config_name}")
             timing.start()
 
             # Entry guard: the pipeline is GPU-resident by contract (INF-005).
@@ -560,5 +562,6 @@ class SlideWindowOperator(Operator):
 
             record = timing.stop()
             record["study"] = get_study_id(self.fragment)
+            record["config"] = self.config_name
             StudyTimingCollector.record(self.fragment, record)
             self._logger.info("timing: %s", json.dumps(record))
