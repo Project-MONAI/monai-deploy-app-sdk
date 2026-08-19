@@ -120,26 +120,38 @@ def main(argv=None) -> int:
                 default_out = getattr(
                     op_mod, "DEFAULT_OUTPUT_FOLDER",
                     Path.cwd() / "output")
+                # Pop the named params of the original __init__ so the
+                # parent (holoscan Operator) call below receives exactly
+                # what the original code's super().__init__ received (the
+                # original consumed these named kwargs before its super()
+                # call; only the leftovers — e.g. name= — are forwarded).
+                kw = dict(kwargs)
+                app_context = kw.pop("app_context", None)
+                model_path = kw.pop("model_path", None)
+                output_folder = kw.pop("output_folder", None)
+                output_labels = kw.pop("output_labels", None)
+                kw.pop("model_list", None)
+                model_name = kw.pop("model_name", None)
+                save_probabilities = kw.pop("save_probabilities", False)
+                save_files = kw.pop("save_files", False)
                 self.ensemble_model_list = list(self.run_model_list)
                 self.model_list = self.run_model_list
-                self.model_name = kwargs.get("model_name")
-                self.save_probabilities = kwargs.get("save_probabilities", False)
-                self.save_files = kwargs.get("save_files", False)
+                self.model_name = model_name
+                self.save_probabilities = save_probabilities
+                self.save_files = save_files
                 self.prediction_keys = [f"pred_{m}" for m in
                                         self.ensemble_model_list]
-                output_folder = kwargs.get("output_folder")
                 self.output_folder = (output_folder if output_folder is not None
                                       else default_out)
                 self.output_folder.mkdir(parents=True, exist_ok=True)
-                self.output_labels = (kwargs.get("output_labels")
-                                      if kwargs.get("output_labels") is not None
-                                      else [1])
-                self.app_context = kwargs.get("app_context")
+                self.output_labels = (output_labels
+                                      if output_labels is not None else [1])
+                self.app_context = app_context
                 self.input_name_image = "image"
                 self.output_name_seg = "seg_image"
                 self.output_name_text = "result_text"
                 self.output_name_sc_path = "dicom_sc_dir"
-                super(OrigOperator, self).__init__(*a, **kwargs)
+                super(OrigOperator, self).__init__(*a, **kw)
 
     mod.NNUnetSegOperator = PinnedOperator
 
