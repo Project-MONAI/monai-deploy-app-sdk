@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 2-gpu-acceleration-01-PLAN.md (CuPy port of preprocess transpose/crop/normalize; pixel-exact 99.9999% + residency gates PASS)
-last_updated: "2026-08-19T07:05:00.000Z"
+stopped_at: Completed 2-gpu-acceleration-02-PLAN.md (RMM pool allocator + memory budget calculator; pluggable backend + full_volume strategy, E2E clean)
+last_updated: "2026-08-19T07:45:00.000Z"
 last_activity: 2026-08-19
 progress:
   total_phases: 4
   completed_phases: 2
   total_plans: 12
-  completed_plans: 7
-  percent: 58
+  completed_plans: 8
+  percent: 67
 ---
 
 # Project State
@@ -26,14 +26,15 @@ See: .planning/PROJECT.md (updated 2026-08-14)
 ## Current Position
 
 Phase: 02 of 3 (gpu acceleration)
-Plan: 2 of 6
-Status: Executing Phase 02 (plan 01 complete)
+Plan: 3 of 6
+Status: Executing Phase 02 (plans 01–02 complete)
 Last activity: 2026-08-19
 
-Progress: [██████░░░░░] 58% (Phase 1 complete; Phase 2 plan 01 done, plans 02–06 pending)
+Progress: [███████░░░░] 67% (Phase 1 complete; Phase 2 plans 01–02 done, plans 03–06 pending)
 
 ## Transition Log
 
+- **2026-08-19 Phase 2 Plan 02 complete (RMM + memory budget):** `gpu_bootstrap.py` is the FIRST import in app.py (rmm before holoscan — the `undefined symbol: __cxa_call_terminate` hazard is live-pinned by `scripts/test_gpu_bootstrap.py` subprocesses: rmm-first → `pluggable`, holoscan-first → `undefined symbol`); compose() logs `memory_allocator_backend: pluggable` + asserts, then logs `memory_budget: {JSON}` from the new pure-Python `compute_memory_budget` (INFR-03: per-config preprocessed+logits+probabilities fp32 estimate × 1.15 vs free VRAM → `full_volume` | `defer_to_incremental`), and warms the RMM pool to `plan.total_bytes` at the end of compose (D-14). Ensemble gained `defer_strategy` (default False = byte-for-byte Phase 1 path; defer branch frees each consumed per-config tensor with IDENTICAL accumulation order + CuPy exact final division — D-19 bit-exactness; real OOM documented UNEXERCISED, D-15). INFR-02 explicitly DEFERRED to Phase 3 (D-17) — documented, not implemented. Headless unit tests (`test_mem_budget.py`) force the defer branch with synthetic (4,600,512,512) volumes. **Blocker found + fixed:** torch 2.13's cudnn benchmark search calls the pluggable allocator's unsupported `cacheInfo` (RuntimeError on the first conv, size-independent, reproduced outside holoscan) → `cudnn.benchmark` disabled when backend is `pluggable` (RMM wins over benchmark-mode reference parity); expandable_segments NOT shipped (Pitfall 6). Gates: fullres-only E2E exit 0 with `strategy: full_volume`; precautionary pixel diff after the benchmark change: SEG **99.99986% byte-identity vs ref_fullres_only (3 documented fp16↔fp32 boundary voxels)**, IoU 0.998714. Evidence: `.planning/phases/02-gpu-acceleration/plan02-gates/`. Commits 1a27e45 + 88773fa. See 2-gpu-acceleration-02-SUMMARY.md.
 - **2026-08-19 Phase 2 Plan 01 complete (CuPy preprocess port):** `preprocess_image` now runs transpose (PREP-01) + crop (PREP-04) + element-wise normalize (PREP-02) on CuPy in fp32 C-contiguous (D-12); one H2D of the raw volume via `cp.array` (not `cp.from_dlpack` — ownership), on-device int→fp32 cast; Z-score/CT mean-std reductions stay numpy (CuPy reductions not bit-identical — Pitfall 4); masked-assignment semantics preserved on GPU via boolean indexing (inactive for this bundle but config-generic); scipy `_resample_to_shape` byte-identical (PREP-03/D-13) with `C_CONTIGUOUS` fp32 assert + D-13 comments at both transfer sites; `preprocess_reference` kept as CPU fallback. Gates (D-11 final-gate-only, no per-op checks): fullres E2E exit 0 (SEG/SR/SC); pixel_diff vs `testdata/ref_fullres_only`: **99.99990% byte-identity, 2 differing voxels** (documented fp16↔fp32 argmax-boundary class; Phase 1 measured 99.99986%/3), IoU 0.999142; SR exact ("Airway Volume: 1 mL"); gpu_residency static + runtime + self-test all PASS — `ALLOWED_TRANSFER_FILES` deliberately gained `preprocess_operator.py` with a D-13 reason string (no existing entry weakened). Evidence: `.planning/phases/02-gpu-acceleration/plan01-gates/`. Commits 215b66a + 303a248. No deviations. See 2-gpu-acceleration-01-SUMMARY.md.
 
 - **2026-08-19 Phase 2 context gathered:** `02-CONTEXT.md` locked: gate on 3×3D configs (2D blocked-on-model, generic wiring, no dummy model); per-config fresh references (ref_lowres_only, ref_cascade_only) + final bundle gate vs testdata/current_output; cascade = lowres argmax → one-hot float → cascade_fullres channels (zero disk I/O); CuPy port validated by final pixel-exact gates only (fp32/C-contiguous, scipy resample stays CPU with accepted GPU↔CPU round-trip); RMM + budget calculator (synthetic-size unit tests) required, CudaStreamPool best-effort, latency bar = any positive E2E vs 61.8 s with per-operator deltas; INFR-02 cross-study buffer reuse deferred to Phase 3 (user adding reference examples then).
@@ -58,7 +59,7 @@ Done: app scaffold (examples/apps/cchmc-nnunet-fast, standard MAP layout, app.py
 
 ## Performance Metrics
 
-**Velocity:** 5 planned GSD plans executed (Phase 1, Plans 01–05): 57 min + ~105 min + ~228 min + ~40 min + ~95 min wall (subagent, 3–5 tasks / 2–4 commits each). Phase 1 gate passed. Phase 2 Plan 01 (CuPy port): ~40 min, 2 tasks / 2 commits — GPU E2E gate runs dominate; the D-11 final-gate-only strategy held (no per-op debugging needed).
+**Velocity:** 7 planned GSD plans executed (Phase 1, Plans 01–05): 57 min + ~105 min + ~228 min + ~40 min + ~95 min wall (subagent, 3–5 tasks / 2–4 commits each). Phase 1 gate passed. Phase 2 Plan 01 (CuPy port): ~40 min, 2 tasks / 2 commits — GPU E2E gate runs dominate; the D-11 final-gate-only strategy held (no per-op debugging needed). Phase 2 Plan 02 (RMM + budget): ~40 min, 2 tasks / 2 commits — the RMM↔cudnn-benchmark root-cause bisect dominates.
 
 **By Phase:**
 
@@ -66,7 +67,7 @@ Done: app scaffold (examples/apps/cchmc-nnunet-fast, standard MAP layout, app.py
 | ----- | ----- | --------- | -------- |
 | 0     | 0     | 0         | -        |
 | 1     | 5     | 525 min   | 105 min  |
-| 2     | 1/6   | 40 min    | 40 min   |
+| 2     | 2/6   | 80 min    | 40 min   |
 
 **Recent Trend:** plan 05 (validation gate) is where the real correctness work happened — the gate tools did their job, catching two bugs that 4 plans of component-level verification had missed (F-contiguous preprocess view; solid-vs-contour SEG payload + orientation). Lesson: component bit-exactness ≠ end-to-end bit-exactness; the last-mile transforms (writer axis mapping, transform order) need the full oracle in the loop.
 
@@ -76,6 +77,9 @@ Done: app scaffold (examples/apps/cchmc-nnunet-fast, standard MAP layout, app.py
 
 Logged in PROJECT.md Key Decisions table. Recent:
 
+- [Phase 2, Plan 02]: cudnn benchmark mode is INCOMPATIBLE with the RMM pluggable allocator on torch 2.13 (benchmark search calls unsupported `cacheInfo` → RuntimeError on the first conv, size-independent) — `cudnn.benchmark` is disabled in slidewindow setup when the backend is `pluggable`; RMM (INFR-01/D-14) wins over the reference's benchmark=True parity; pixel-exactness held (99.99986% SEG, 3 boundary voxels)
+- [Phase 2, Plan 02]: the setup-time budget estimate uses plans.json `median_image_size_in_voxels` as the preprocessed shape (study volume size is unknown at compose time; inherited configs fall back to the original median shape × spacing ratio); crop bounded by the resampled volume (crop ⊆ image)
+- [Phase 2, Plan 02]: the defer branch releases per-config tensors as consumed but keeps the exact accumulation order + CuPy final division (bit-identical to the full_volume path — D-19); the defer unit test uses 5 configs of the synthetic (4,600,512,512) shape because the plan's 3-config sketch totals only ~24.4 GB at 40 GB free under its own formula
 - [Phase 2, Plan 01]: CuPy port keeps every *reduction* on numpy (CuPy reduction order ≠ numpy — bit-exactness verified empirically in 02-RESEARCH) and materializes every transpose/slice with `cp.ascontiguousarray` (D-12); H2D uses plain `cp.array` (CUDA array interface copy), deliberately not `cp.from_dlpack` (ownership-transfer pitfall from Phase 1)
 - [Phase 2, Plan 01]: Masked Z-score normalization (inactive for this bundle, `use_mask_for_norm=[False]`) implemented with the reference's masked-assignment semantics via GPU boolean indexing — config-generic for future bundles
 - [Phase 2, Plan 01]: `gpu_residency.py` allow-list extended deliberately (not silenced) — `preprocess_operator.py` entry carries the D-13 reason string; the exactly-once postprocess boundary `.cpu()` remains the only final-stage transfer
@@ -117,8 +121,8 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-08-19 07:05 UTC
-Stopped at: Completed 2-gpu-acceleration-01-PLAN.md (CuPy port of preprocess transpose/crop/normalize; pixel-exact + residency gates PASS)
+Last session: 2026-08-19 07:45 UTC
+Stopped at: Completed 2-gpu-acceleration-02-PLAN.md (RMM pool allocator + memory budget calculator; pluggable backend + full_volume strategy, E2E clean)
 Resume file: None
 
 ## Next — Phase 1 (Core Pipeline)
