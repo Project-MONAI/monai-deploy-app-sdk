@@ -30,9 +30,23 @@ EnsembleAverage -> Postprocess``; the SDK DICOM I/O operators are unchanged
 timing/NVTX observability).
 """
 
+# INFR-01/D-14: RMM must be imported before holoscan (undefined-symbol hazard:
+# `import rmm` after `import holoscan` raises ImportError: undefined symbol
+# __cxa_call_terminate — live-reproduced 2026-08-19, pinned by
+# scripts/test_gpu_bootstrap.py). This MUST stay the FIRST import.
+try:
+    from my_app import gpu_bootstrap
+except ImportError:  # flat import (my_app dir on sys.path, as the app runner provides)
+    import gpu_bootstrap
+
+gpu_bootstrap.install_torch_allocator()
+
 import json
 import logging
 from pathlib import Path
+
+# torch before holoscan is fine — only rmm-after-holoscan trips the hazard.
+import torch
 
 # pydicom SR coded dictionary — direct import (not part of the App SDK package)
 from pydicom.sr.codedict import codes
@@ -197,6 +211,18 @@ class CCHMCNNUnetFastApp(Application):
         if models_subfolder.exists() and models_subfolder.is_dir():
             self._logger.info(f"Found 'models' subfolder in {model_path}. Setting model_path to {models_subfolder}")
             model_path = models_subfolder
+
+        # --- RMM allocator check (INFR-01/D-14) ---
+        # The gpu_bootstrap import at the top of this module installed RMM as
+        # torch's CUDA allocator; if this fails, rmm was imported after
+        # holoscan (the undefined-symbol hazard) or the bootstrap import was
+        # lost.
+        backend = torch.cuda.memory.get_allocator_backend()
+        self._logger.info("memory_allocator_backend: %s", backend)
+        assert backend == "pluggable", (
+            f"RMM torch allocator not active (backend={backend!r}); "
+            "gpu_bootstrap must be imported before holoscan (INFR-01)"
+        )
 
         # --- DICOM I/O (SDK, unchanged) ---
         study_loader_op = DICOMDataLoaderOperator(

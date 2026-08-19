@@ -202,6 +202,14 @@ def load_model_bundle(
     network, fold_state_dicts = build_network_from_params(params, device)
     # Parity with nnUNetPredictor: it enables cudnn benchmark on cuda devices.
     torch.backends.cudnn.benchmark = True
+    if torch.cuda.is_available() and torch.cuda.memory.get_allocator_backend() == "pluggable":
+        # RMM is active (INFR-01/D-14). torch 2.13's cudnn benchmark search
+        # calls the pluggable allocator's unsupported cacheInfo() and raises
+        # RuntimeError: "CUDAPluggableAllocator does not yet support
+        # cacheInfo" on the first conv (reproduced 2026-08-19, independent of
+        # tensor size). RMM wins over benchmark-mode parity with the
+        # reference; cudnn falls back to its default algorithm selection.
+        torch.backends.cudnn.benchmark = False
 
     return ModelBundle(
         config_name=params.config_name,
