@@ -1,0 +1,11 @@
+scope,study,rep,warmup,total_ms,preprocess_ms_3d_fullres,inference_ms_3d_fullres,postresample_ms_3d_fullres,preprocess_ms_3d_lowres,inference_ms_3d_lowres,postresample_ms_3d_lowres,preprocess_ms_3d_cascade_fullres,inference_ms_3d_cascade_fullres,postresample_ms_3d_cascade_fullres,ensemble_ms,postprocess_ms,write_ms,speedup_vs_61.8s,speedup_vs_169.7s,ok
+fullres,airway_input,1,true,57425.2,7738.7,26162.7,1680.6,,,,,,,7.7,2476.1,988.1,1.076,2.956,true
+fullres,airway_input,2,false,56949.2,7686.4,26145.5,1675.4,,,,,,,8.1,2529.3,981.0,1.085,2.981,true
+fullres,airway_input,3,false,57423.8,7571.3,26173.6,1690.3,,,,,,,7.8,2677.7,1073.4,1.076,2.956,true
+fullres,airway_input,4,false,57047.9,7628.7,26169.7,1675.4,,,,,,,8.0,2384.3,1095.5,1.083,2.976,true
+fullres,airway_input,mean±std,summary,"57,140.3±250.4","7,628.8±57.6","26,162.9±15.2","1,680.4±8.6",,,,,,,8.0±0.2,"2,530.4±146.7","1,050.0±60.7",1.1±0.0,3.0±0.0,true
+bundle,airway_input,1,true,128925.4,7640.5,26179.2,1680.1,4962.5,25146.4,3208.5,9312.7,25436.9,1695.5,16.3,2374.7,1002.9,0.479,1.317,true
+bundle,airway_input,2,false,130453.7,7843.9,26175.3,1679.0,5204.1,25149.9,3192.2,9571.9,25448.2,1685.2,11.8,2357.4,982.9,0.474,1.301,true
+bundle,airway_input,3,false,128661.6,7638.6,26164.2,1698.7,4978.0,25126.8,3216.0,9251.7,25419.4,1692.3,14.6,1479.3,1310.9,0.480,1.319,true
+bundle,airway_input,4,false,129513.3,7736.5,26152.7,1680.7,5070.5,25133.4,3263.9,9324.9,25423.1,1693.1,14.7,2431.2,987.2,0.477,1.311,true
+bundle,airway_input,mean±std,summary,"129,542.9±896.4","7,739.7±102.7","26,164.1±11.3","1,686.1±10.9","5,084.2±113.7","25,136.7±11.9","3,224.0±36.5","9,382.8±167.8","25,430.2±15.7","1,690.2±4.3",13.7±1.6,"2,089.3±529.6","1,093.7±188.1",0.5±0.0,1.3±0.0,true
