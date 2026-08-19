@@ -23,6 +23,14 @@ list so the pin can carry more than one config:
   # 3d_lowres-only oracle:
   python .planning/scripts/reference_fullres_run.py \
       --config 3d_lowres --output testdata/ref_lowres_only
+  # NOTE: the reference app RAISES on model_list=['3d_lowres'] ("At least one
+  # non-auxiliary model configuration is required for ensemble inference")
+  # — with lowres as the only config the ensemble would be empty. The fast
+  # app documents a self-ensemble fallback for exactly this case (Phase 2
+  # Plan 04); this harness reproduces that SAME documented semantics for the
+  # lowres-only reference oracle (ensemble = run) so the gate compares like
+  # for like. The rest of the reference pipeline (inference, ensemble
+  # post-processing, KeepLargestCC, SEG/SR/SC writing) is untouched.
   # cascade-only oracle:
   python .planning/scripts/reference_fullres_run.py \
       --config 3d_lowres,3d_cascade_fullres --output testdata/ref_cascade_only
@@ -88,14 +96,52 @@ def main(argv=None) -> int:
     sys.modules["ref_airway_app"] = mod
     spec.loader.exec_module(mod)
 
-    # Pin the model list BEFORE compose() instantiates the operator.
+    # Pin the model list BEFORE compose() instantiates the operator. A
+    # subclass keeps the reference app unmodified: for auxiliary-only lists
+    # (lowres-only) it reproduces the fast app's documented self-ensemble
+    # fallback instead of the reference's ValueError (see module docstring).
     OrigOperator = mod.NNUnetSegOperator
+    op_mod = sys.modules.get("nnunet_seg_operator")
 
-    def pinned_operator(*a, **kwargs):
-        kwargs["model_list"] = model_list
-        return OrigOperator(*a, **kwargs)
+    class PinnedOperator(OrigOperator):
+        def __init__(self, *a, **kwargs):
+            kwargs["model_list"] = model_list
+            try:
+                super().__init__(*a, **kwargs)
+            except ValueError as e:
+                if "non-auxiliary" not in str(e):
+                    raise
+                # Reference raises for auxiliary-only lists (lowres-only).
+                # Self-ensemble fallback (ensemble = run) — the same
+                # documented fast-app divergence the gate compares against.
+                # Replay the plain tail of the original __init__ (mirrors
+                # nnunet_seg_operator.py; the raise fires after
+                # run_model_list is set).
+                default_out = getattr(
+                    op_mod, "DEFAULT_OUTPUT_FOLDER",
+                    Path.cwd() / "output")
+                self.ensemble_model_list = list(self.run_model_list)
+                self.model_list = self.run_model_list
+                self.model_name = kwargs.get("model_name")
+                self.save_probabilities = kwargs.get("save_probabilities", False)
+                self.save_files = kwargs.get("save_files", False)
+                self.prediction_keys = [f"pred_{m}" for m in
+                                        self.ensemble_model_list]
+                output_folder = kwargs.get("output_folder")
+                self.output_folder = (output_folder if output_folder is not None
+                                      else default_out)
+                self.output_folder.mkdir(parents=True, exist_ok=True)
+                self.output_labels = (kwargs.get("output_labels")
+                                      if kwargs.get("output_labels") is not None
+                                      else [1])
+                self.app_context = kwargs.get("app_context")
+                self.input_name_image = "image"
+                self.output_name_seg = "seg_image"
+                self.output_name_text = "result_text"
+                self.output_name_sc_path = "dicom_sc_dir"
+                super(OrigOperator, self).__init__(*a, **kwargs)
 
-    mod.NNUnetSegOperator = pinned_operator
+    mod.NNUnetSegOperator = PinnedOperator
 
     output_dir = Path(args.output)
     print(f"reference_fullres_run: model_list={model_list!r} "
