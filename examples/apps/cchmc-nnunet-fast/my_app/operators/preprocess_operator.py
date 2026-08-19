@@ -57,6 +57,7 @@ from monai.deploy.core import Image, Operator, OperatorSpec
 
 try:  # package-style import (my_app.*)
     from my_app.config import PreprocessParams, load_preprocess_params
+    from my_app.operators.buffer_cache import _ShapeCache
     from my_app.operators.gpu_util import (
         GpuTiming,
         StudyTimingCollector,
@@ -67,6 +68,7 @@ try:  # package-style import (my_app.*)
     )
 except ImportError:  # flat import (my_app dir on sys.path, as the app runner provides)
     from config import PreprocessParams, load_preprocess_params
+    from buffer_cache import _ShapeCache
     from gpu_util import (
         GpuTiming,
         StudyTimingCollector,
@@ -560,6 +562,28 @@ class PreprocessOperator(Operator):
         self.model_path = model_path
         self.config_name = config_name
         self._params: Optional[PreprocessParams] = None
+        # INFR-02/D-24: shape-keyed CuPy buffer cache (closes the CuPy-side
+        # gap — CuPy's LRU pool is INDEPENDENT of RMM, so its blocks bypass
+        # the RMM pool entirely). Created BEFORE super().__init__ (Pitfall 7
+        # discipline). Per-site cache decision table:
+        #   vol upload (cp.array(raw))           UNTOUCHED — pure H2D input transfer
+        #   vol transpose materialization (64 MB) CACHED    zero=False (copy overwrites)
+        #   mask (uint8, 16 MB)                 CACHED    zero=False (comparison overwrites)
+        #   vol_c crop materialization (64 MB)  CACHED    zero=False (copy overwrites)
+        #   seg4 G2D copy + cascade seg layout   UNTOUCHED — input transfer; not in D-24 inventory
+        #   per-channel normalize temporaries    UNTOUCHED — outside the D-24 inventory (the
+        #                                              element-wise writes land in the cached
+        #                                              vol_c; the temps ride CuPy's own LRU pool)
+        #   one_hot channels (64 MB x labels)    CACHED    zero=False (cp.equal fills each channel)
+        #   vol_gpu = cp.array(vol_out)          UNTOUCHED — pure H2D input transfer
+        #   vol2 channel concat (128 MB)         CACHED    zero=False (channel copies overwrite)
+        # Emit boundary: compute() builds the emitted tensor FRESH from the
+        # D2H numpy (torch.as_tensor(...).to(cuda)) — no cached CuPy buffer
+        # ever crosses the operator boundary, so no extra boundary copy is
+        # needed (DLPack retention rule satisfied by construction).
+        # D-13: the scipy CPU resample round-trips are UNTOUCHED (GPUP-01
+        # belongs to Phase 3 Plan 04; the OFF path stays Phase 2 behavior).
+        self._buf_cache = _ShapeCache("cuda", family="cupy")
         super().__init__(fragment, *args, **kwargs)
 
     def setup(self, spec: OperatorSpec) -> None:
@@ -661,11 +685,17 @@ class PreprocessOperator(Operator):
         #    bit-identical to numpy).
         # ------------------------------------------------------------------
         raw = np.ascontiguousarray(arr.T, dtype=arr.dtype)
-        vol = cp.array(raw, dtype=cp.float32)
+        # INFR-02 site "vol upload": UNTOUCHED — pure H2D input transfer
+        # (see the per-site decision table at the cache creation).
+        vol_upload = cp.array(raw, dtype=cp.float32)
         # PREP-01: channel-first + (0, 3, 2, 1) transpose, materialized —
         # CuPy transpose returns a view; D-12 requires C-contiguous fp32
         # (Phase 1 measured 1-ulp divergence from a single contiguity slip).
-        vol = cp.ascontiguousarray(vol[None, ...].transpose(0, 3, 2, 1))
+        # INFR-02 site "vol transpose materialization": CACHED, zero=False
+        # (the copy fully overwrites the buffer before any read).
+        vol_t_shape = (1, *reversed(raw.shape))  # (1, D, H, W) -> (1, W, H, D)
+        vol = self._buf_cache.get(vol_t_shape, cp.float32)
+        vol[...] = vol_upload[None, ...].transpose(0, 3, 2, 1)
 
         tf = params.transpose_forward
         # apply transpose_forward as a VIEW (mirrors preprocess_reference;
@@ -682,7 +712,11 @@ class PreprocessOperator(Operator):
         # The mask MATH stays on the scipy CPU reference path (binary_fill_
         # holes is scipy); only the cheap per-channel OR runs on GPU, then
         # the small uint8 mask round-trips to CPU.
-        mask = (vol_t[0] != 0).astype(cp.uint8)
+        # INFR-02 site "mask": CACHED, zero=False (the initial comparison
+        # fully overwrites the buffer before any read; multi-channel ORs
+        # only modify it in place afterwards).
+        mask = self._buf_cache.get(vol_t[0].shape, cp.uint8)
+        cp.not_equal(vol_t[0], 0, out=mask)
         for c in range(1, vol_t.shape[0]):
             mask |= (vol_t[c] != 0).astype(cp.uint8)
         mask_np = mask.get()
@@ -690,7 +724,11 @@ class PreprocessOperator(Operator):
         bbox = _get_bbox_from_mask(nonzero_mask)
         slicer = tuple(slice(*i) for i in bbox)
         # CuPy transpose/slice return views — materialize (D-12).
-        vol_c = cp.ascontiguousarray(vol_t[(slice(None),) + slicer])
+        # INFR-02 site "vol_c crop materialization": CACHED, zero=False
+        # (the crop copy fully overwrites the buffer before any read).
+        vol_c_src = vol_t[(slice(None),) + slicer]
+        vol_c = self._buf_cache.get(vol_c_src.shape, cp.float32)
+        vol_c[...] = vol_c_src
         properties["bbox_used_for_cropping"] = bbox
         properties["shape_after_cropping_and_before_resampling"] = tuple(
             int(s) for s in vol_c.shape[1:]
@@ -802,12 +840,26 @@ class PreprocessOperator(Operator):
         # ``seg[0]`` (the 3D volume — ``seg`` is (1, *spatial)); one-hotting
         # the 4D array would stack to 5D and mismatch the image channels.
         seg3 = cp.array(seg_r)[0]
-        one_hot = cp.stack(
-            [(seg3 == int(lbl)).astype(cp.float32) for lbl in params.foreground_labels],
-            axis=0,
+        # INFR-02 site "one_hot channels": CACHED, zero=False (cp.equal
+        # fills every channel before any read). The bool->fp32 out-cast is
+        # exact (0/1), so the channel values are identical to the previous
+        # (seg3 == lbl).astype(cp.float32) elements; the stack result buffer
+        # (64 MB per label set) is the cached one, no per-label temps.
+        one_hot = self._buf_cache.get(
+            (len(params.foreground_labels), *seg3.shape), cp.float32
         )
+        for _i, lbl in enumerate(params.foreground_labels):
+            cp.equal(seg3, int(lbl), out=one_hot[_i])
         vol_gpu = cp.array(vol_out)  # image channel(s), already resampled
-        vol2 = cp.ascontiguousarray(cp.concatenate([vol_gpu, one_hot], axis=0))
+        # INFR-02 site "vol2 channel concat": CACHED, zero=False (both
+        # channel-block copies fully overwrite the buffer before any read;
+        # filling the blocks directly also avoids the 128 MB concatenate
+        # temporary the previous code allocated).
+        vol2 = self._buf_cache.get(
+            (vol_gpu.shape[0] + one_hot.shape[0], *seg3.shape), cp.float32
+        )
+        vol2[: vol_gpu.shape[0]] = vol_gpu
+        vol2[vol_gpu.shape[0]:] = one_hot
         return vol2, properties
 
     def compute(self, op_input: Any, op_output: Any, context: Any) -> None:
