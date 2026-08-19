@@ -23,11 +23,12 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List, Mapping, Optional, Tuple, Union
+from typing import Any, Dict, List, Mapping, Optional, Sequence, Tuple, Union
 
 __all__ = [
     "PreprocessParams",
     "load_preprocess_params",
+    "resolve_run_model_list",
     "find_jsonpkls_dir",
     "InferenceParams",
     "load_inference_params",
@@ -57,6 +58,18 @@ class PreprocessParams:
             (``None`` = auto from anisotropy, matching the reference default).
         resample_is_seg: whether the resampling kwargs describe a segmentation.
         labels: dataset.json label table (for downstream revert/metadata).
+        previous_stage: raw plans.json ``previous_stage`` of this config (the
+            cascade producer, e.g. ``3d_lowres``); ``None`` for non-cascade
+            configs. Drives the optional ``lowres_seg`` preprocess input.
+        resample_seg_order: ``resampling_fn_seg_kwargs.order`` — the order of
+            the cascade seg resample (1).
+        resample_seg_order_z: ``resampling_fn_seg_kwargs.order_z`` (0).
+        resample_seg_force_separate_z: ``resampling_fn_seg_kwargs.
+            force_separate_z`` (``None`` = auto from anisotropy).
+        foreground_labels: sorted non-zero dataset.json label values — the
+            one-hot channel order for the cascade input (mirrors the
+            reference ``label_manager.foreground_labels`` used by
+            ``convert_labelmap_to_one_hot``).
     """
 
     config_name: str
@@ -70,6 +83,11 @@ class PreprocessParams:
     resample_force_separate_z: Optional[bool]
     resample_is_seg: bool
     labels: Mapping[str, int] = field(default_factory=dict)
+    previous_stage: Optional[str] = None
+    resample_seg_order: int = 1
+    resample_seg_order_z: int = 0
+    resample_seg_force_separate_z: Optional[bool] = None
+    foreground_labels: Tuple[int, ...] = ()
 
 
 def find_jsonpkls_dir(model_path: ModelPath) -> Path:
@@ -114,7 +132,16 @@ def load_preprocess_params(
             f"configuration {config_name!r} not found in {jsonpkls / 'plans.json'} "
             f"(available: {sorted(configurations)})."
         )
-    cfg = configurations[config_name]
+
+    # Read every field from the PlansManager-RESOLVED configuration: the raw
+    # entry of a cascading config carries only ``inherits_from`` +
+    # ``previous_stage`` (spacing/normalization/resampling kwargs are
+    # inherited), so the resolved configuration is the single venv-verified
+    # source. ``previous_stage`` is present there too (verified on the real
+    # bundle).
+    from nnunetv2.utilities.plans_handling.plans_handler import PlansManager
+
+    cfg = PlansManager(plans).get_configuration(config_name).configuration
     resampling_kwargs = cfg.get("resampling_fn_data_kwargs", {}) or {}
 
     force_separate_z = resampling_kwargs.get("force_separate_z", None)
@@ -123,6 +150,14 @@ def load_preprocess_params(
     dataset_json_path = jsonpkls / "dataset.json"
     if dataset_json_path.is_file():
         labels = json.loads(dataset_json_path.read_text()).get("labels", {}) or {}
+
+    # Cascade (PIPE-04): the previous stage drives the optional lowres_seg
+    # preprocess input; the seg resample kwargs (is_seg=True, order=1,
+    # order_z=0, force_separate_z=None for the airway bundle) come from the
+    # same resolved configuration.
+    previous_stage = cfg.get("previous_stage")
+    seg_kwargs = cfg.get("resampling_fn_seg_kwargs") or {}
+    seg_force = seg_kwargs.get("force_separate_z", None)
 
     return PreprocessParams(
         config_name=config_name,
@@ -136,7 +171,112 @@ def load_preprocess_params(
         resample_force_separate_z=None if force_separate_z is None else bool(force_separate_z),
         resample_is_seg=bool(resampling_kwargs.get("is_seg", False)),
         labels=labels,
+        previous_stage=previous_stage,
+        resample_seg_order=int(seg_kwargs.get("order", 1)),
+        resample_seg_order_z=int(seg_kwargs.get("order_z", 0)),
+        resample_seg_force_separate_z=None if seg_force is None else bool(seg_force),
+        foreground_labels=tuple(sorted(int(v) for v in labels.values() if v != 0)),
     )
+
+
+def resolve_run_model_list(
+    model_list_arg: Optional[Sequence[str]],
+    plans: Mapping[str, Any],
+    model_root: ModelPath,
+) -> Tuple[Tuple[str, ...], Tuple[str, ...]]:
+    """Resolve ``(run_model_list, ensemble_model_list)`` — reference semantics.
+
+    Replicates the reference app's model-list logic
+    (``nnunet_seg_operator.py:91-99``):
+
+    * ``model_list_arg is None`` → the plans.json ``configurations`` dict
+      order, filtered to configs with an existing model dir under
+      ``model_root`` (reference ``_get_model_list_from_plans``);
+    * an explicit ``model_list_arg`` is used as given (no filtering);
+    * reference reorder (``nnunet_seg_operator.py:92-95``): if BOTH
+      ``3d_lowres`` and ``3d_cascade_fullres`` are present, ``3d_lowres`` is
+      removed and re-inserted immediately before ``3d_cascade_fullres``;
+    * ``ensemble = run list minus ``3d_lowres```` (reference lines 96-98),
+      raising ``ValueError`` with the reference's exact message when the
+      ensemble is empty.
+
+    One fast-app extension (documented divergence from the reference): for
+    each config whose RAW plans entry has ``previous_stage`` = ``p`` where
+    ``p`` is not already in the list and HAS a model dir under
+    ``model_root``, ``p`` is auto-inserted immediately before it. The
+    reference app CRASHES when a cascade config is requested without its
+    previous stage (it reads the previous stage's exported .nii.gz, which
+    only exists if that stage actually ran — the reference list logic only
+    reorders, it never auto-inserts). The in-memory cascade DAG requires the
+    previous stage to be present, and the insertion is data-driven off
+    plans.json ``previous_stage`` — a future 2d or other cascade stage needs
+    no code change (D-02 config-genericity: no config names are hard-coded
+    in this step; the only literals are the reference's own
+    ``3d_lowres``/``3d_cascade_fullres`` in the reference-reorder step).
+
+    Args:
+        model_list_arg: explicit config list, or ``None`` for the default
+            (plans.json order, filtered to existing model dirs).
+        plans: the parsed ``jsonpkls/plans.json`` mapping.
+        model_root: bundle model root containing the per-config dirs.
+
+    Returns:
+        ``(run, ensemble)`` tuples of config names.
+
+    Raises:
+        ValueError: when plans.json has no configurations.
+        FileNotFoundError: when no config has a model dir under ``model_root``
+            (default path only), mirroring the reference message.
+    """
+    configurations = plans.get("configurations", {}) or {}
+    model_root = Path(model_root)
+
+    if model_list_arg is None:
+        configs = list(configurations.keys())
+        if not configs:
+            raise ValueError("No configurations found in plans.json.")
+        run = [c for c in configs if (model_root / c).is_dir()]
+        if not run:
+            raise FileNotFoundError(
+                f"No configured nnU-Net model directories were found under {model_root}. "
+                f"Configured in plans.json: {configs}"
+            )
+    else:
+        run = list(model_list_arg)
+
+    # Fast-app extension: auto-insert each previous stage that a config in
+    # the run list needs but is missing (data-driven off the raw plans
+    # ``previous_stage`` field — no config names hard-coded here, D-02).
+    extended: List[str] = []
+    inserted: set = set()
+    for c in run:
+        cfg = configurations.get(c, {}) or {}
+        previous = cfg.get("previous_stage")
+        if (
+            previous is not None
+            and previous not in run
+            and previous not in inserted
+            and (model_root / previous).is_dir()
+        ):
+            extended.append(previous)
+            inserted.add(previous)
+        extended.append(c)
+    run = extended
+
+    # Reference reorder (nnunet_seg_operator.py:92-95): the reference app's
+    # own semantics — 3d_lowres must run immediately before its cascade
+    # consumer 3d_cascade_fullres in run order.
+    if "3d_lowres" in run and "3d_cascade_fullres" in run:
+        run.remove("3d_lowres")
+        run.insert(run.index("3d_cascade_fullres"), "3d_lowres")
+
+    ensemble = tuple(m for m in run if m != "3d_lowres")
+    if not ensemble:
+        # Reference's exact error message (nnunet_seg_operator.py:97-98).
+        raise ValueError(
+            "At least one non-auxiliary model configuration is required for ensemble inference."
+        )
+    return tuple(run), ensemble
 
 
 # ---------------------------------------------------------------------------
