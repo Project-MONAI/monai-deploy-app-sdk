@@ -114,6 +114,10 @@ class _ShapeCache:
     def keys(self) -> List[Tuple[Tuple[int, ...], str]]:
         return list(self._d)
 
+    def items(self):
+        """((shape, dtype_str), buffer) pairs (proof-record helper, D-24)."""
+        return list(self._d.items())
+
     def total_bytes(self) -> int:
         """Total device bytes currently held by the cache (proof record)."""
         return int(sum(buf.nbytes for buf in self._d.values()))
