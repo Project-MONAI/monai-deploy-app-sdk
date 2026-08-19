@@ -17,10 +17,10 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Preprocessing — GPU resampling and normalization
 
-- [ ] **PREP-01**: The system transposes input volume to match nnUNet training orientation using GPU-accelerated operations
-- [ ] **PREP-02**: The system applies nnUNet normalization (per-channel mean/std from training plans) on GPU before any resampling step
-- [ ] **PREP-03**: The system uses the reference nnUNet resampling path (scipy/scikit-image) to guarantee pixel-exact equivalence with the current app
-- [ ] **PREP-04**: The system crops and pads the volume to match nnUNet's expected input shape using GPU operations
+- [x] **PREP-01**: The system transposes input volume to match nnUNet training orientation using GPU-accelerated operations
+- [x] **PREP-02**: The system applies nnUNet normalization (per-channel mean/std from training plans) on GPU before any resampling step
+- [x] **PREP-03**: The system uses the reference nnUNet resampling path (scipy/scikit-image) to guarantee pixel-exact equivalence with the current app
+- [x] **PREP-04**: The system crops and pads the volume to match nnUNet's expected input shape using GPU operations
 - [ ] **PREP-05**: The preprocessing operator emits a `MemoryData` buffer with `DeviceType::GPU` for zero-copy handoff to the inference operator
 
 ### Inference — tile-based model execution and ensemble
@@ -120,10 +120,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | PIPE-03 | 2 | Pending |
 | PIPE-04 | 2 | Pending |
 | PIPE-05 | 1 | Pending |
-| PREP-01 | 1, 2 | Pending |
-| PREP-02 | 1, 2 | Pending |
-| PREP-03 | 1 | Pending |
-| PREP-04 | 1, 2 | Pending |
+| PREP-01 | 1, 2 | **Done (Phase 2, Plan 01)** — CuPy transpose, fp32 C-contiguous |
+| PREP-02 | 1, 2 | **Done (Phase 2, Plan 01)** — element-wise on GPU, numpy reductions |
+| PREP-03 | 1 | **Done (Phase 2, Plan 01)** — unchanged scipy/skimage path (D-13) |
+| PREP-04 | 1, 2 | **Done (Phase 2, Plan 01)** — CuPy crop-slice, materialized |
 | PREP-05 | 1 | Pending |
 | INF-001 | 1 | Pending |
 | INF-002 | 1 | Pending |

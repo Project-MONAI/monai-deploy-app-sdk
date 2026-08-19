@@ -148,6 +148,8 @@ This phase is where performance gains materialize. Preprocessing moves to CuPy, 
 
 **Plans (2026-08-19):** 6 plans across 5 waves in `.planning/phases/02-gpu-acceleration/` — 01 (wave 1, CuPy preprocess port) ∥ 02 (wave 1, RMM + budget calculator); 03 (wave 2, cascade operator support + model-list semantics); 04 (wave 3, multi-fragment DAG); 05 (wave 4, per-config oracles + pixel-exact gates); 06 (wave 5, two-bar benchmark + nsys profiling). Locked deviations carried into the plans: 2d blocked-on-model (D-01/D-03), INFR-02 → Phase 3 (D-17), D-18 reported as same-scope-vs-61.8s + bundle-vs-169.7s, ncu permission-blocked (nsys-only), cascade-only reference oracle requires `model_list=[3d_lowres, 3d_cascade_fullres]` (live-probed 2026-08-19 — reference crashes on cascade-only pin).
 
+**Status (2026-08-19):** 1/6 plans complete. **Plan 01 (CuPy preprocess port) DONE** (215b66a, 303a248): transpose/crop/element-wise-normalize on CuPy (fp32, C-contiguous, D-12), Z-score/CT reductions stay numpy (CuPy reductions not bit-exact), scipy resample unchanged (D-13, C_CONTIGUOUS assert at the transfer), `preprocess_reference` CPU fallback kept. Gates (D-11 final-gate-only): fullres E2E exit 0, SEG **99.99990% byte-identity vs ref_fullres_only (2 documented fp16↔fp32 boundary voxels)**, SR exact ("Airway Volume: 1 mL"); gpu_residency static + runtime + self-test all PASS with `preprocess_operator.py` deliberately allow-listed (D-13 reason string). Evidence: `.planning/phases/02-gpu-acceleration/plan01-gates/`. See 2-gpu-acceleration-01-SUMMARY.md.
+
 ### Success Criteria
 
 - All four nnUNet configurations run as independent Holoscan Fragments within the same DAG.
@@ -160,9 +162,9 @@ This phase is where performance gains materialize. Preprocessing moves to CuPy, 
 
 | # | Task | REQ-ID(s) | Notes |
 |---|------|-----------|-------|
-| 2.1 | Port transpose and crop to CuPy (GPU-accelerated) | PREP-01, PREP-04 | These are simple index operations — easy GPU wins |
-| 2.2 | Port normalization (mean/std per channel) to CuPy | PREP-02 | Element-wise ops — straightforward GPU |
-| 2.3 | Keep resampling on reference CPU path (scipy) — defer GPU resampling to v2 | PREP-03 | Explicit deferral; resampling is hard to replicate exactly |
+| 2.1 ✓ | Port transpose and crop to CuPy (GPU-accelerated) | PREP-01, PREP-04 | Done in plan 01 (215b66a) |
+| 2.2 ✓ | Port normalization (mean/std per channel) to CuPy | PREP-02 | Done in plan 01 — element-wise on GPU, reductions on numpy (bit-exact) |
+| 2.3 ✓ | Keep resampling on reference CPU path (scipy) — defer GPU resampling to v2 | PREP-03 | Done in plan 01 — unchanged, C_CONTIGUOUS assert, D-13 round-trip documented |
 | 2.4 | Assemble multi-fragment DAG: each config (2D, 3D_fullres, 3D_lowres, 3D_cascade_fullres) as independent Fragment | PIPE-03 | Configuration-driven Fragment instantiation |
 | 2.5 | Wire cascade path: 3D_lowres segmentation → one-hot channel stack → 3D_cascade_fullres input | PIPE-04 | Zero-copy GPU buffer; no `.nii.gz` I/O |
 | 2.6 | Verify all configs produce pixel-exact output independently | TEST-005 | At least one test case per config |

@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 1-core-pipeline-04-PLAN.md (DAG assembly in app.py; NVTX trace + structured timing verified; E2E airway run exit 0 with SC/SEG/SR)
-last_updated: "2026-08-19T06:33:07.026Z"
-last_activity: 2026-08-18
+stopped_at: Completed 2-gpu-acceleration-01-PLAN.md (CuPy port of preprocess transpose/crop/normalize; pixel-exact 99.9999% + residency gates PASS)
+last_updated: "2026-08-19T07:05:00.000Z"
+last_activity: 2026-08-19
 progress:
   total_phases: 4
   completed_phases: 2
   total_plans: 12
-  completed_plans: 6
-  percent: 100
+  completed_plans: 7
+  percent: 58
 ---
 
 # Project State
@@ -26,13 +26,15 @@ See: .planning/PROJECT.md (updated 2026-08-14)
 ## Current Position
 
 Phase: 02 of 3 (gpu acceleration)
-Plan: 1 of 6
-Status: Executing Phase 02
-Last activity: 2026-08-18
+Plan: 2 of 6
+Status: Executing Phase 02 (plan 01 complete)
+Last activity: 2026-08-19
 
-Progress: [██████████] 100% (Phase 1 plans complete; Phase 2 pending)
+Progress: [██████░░░░░] 58% (Phase 1 complete; Phase 2 plan 01 done, plans 02–06 pending)
 
 ## Transition Log
+
+- **2026-08-19 Phase 2 Plan 01 complete (CuPy preprocess port):** `preprocess_image` now runs transpose (PREP-01) + crop (PREP-04) + element-wise normalize (PREP-02) on CuPy in fp32 C-contiguous (D-12); one H2D of the raw volume via `cp.array` (not `cp.from_dlpack` — ownership), on-device int→fp32 cast; Z-score/CT mean-std reductions stay numpy (CuPy reductions not bit-identical — Pitfall 4); masked-assignment semantics preserved on GPU via boolean indexing (inactive for this bundle but config-generic); scipy `_resample_to_shape` byte-identical (PREP-03/D-13) with `C_CONTIGUOUS` fp32 assert + D-13 comments at both transfer sites; `preprocess_reference` kept as CPU fallback. Gates (D-11 final-gate-only, no per-op checks): fullres E2E exit 0 (SEG/SR/SC); pixel_diff vs `testdata/ref_fullres_only`: **99.99990% byte-identity, 2 differing voxels** (documented fp16↔fp32 argmax-boundary class; Phase 1 measured 99.99986%/3), IoU 0.999142; SR exact ("Airway Volume: 1 mL"); gpu_residency static + runtime + self-test all PASS — `ALLOWED_TRANSFER_FILES` deliberately gained `preprocess_operator.py` with a D-13 reason string (no existing entry weakened). Evidence: `.planning/phases/02-gpu-acceleration/plan01-gates/`. Commits 215b66a + 303a248. No deviations. See 2-gpu-acceleration-01-SUMMARY.md.
 
 - **2026-08-19 Phase 2 context gathered:** `02-CONTEXT.md` locked: gate on 3×3D configs (2D blocked-on-model, generic wiring, no dummy model); per-config fresh references (ref_lowres_only, ref_cascade_only) + final bundle gate vs testdata/current_output; cascade = lowres argmax → one-hot float → cascade_fullres channels (zero disk I/O); CuPy port validated by final pixel-exact gates only (fp32/C-contiguous, scipy resample stays CPU with accepted GPU↔CPU round-trip); RMM + budget calculator (synthetic-size unit tests) required, CudaStreamPool best-effort, latency bar = any positive E2E vs 61.8 s with per-operator deltas; INFR-02 cross-study buffer reuse deferred to Phase 3 (user adding reference examples then).
 
@@ -56,7 +58,7 @@ Done: app scaffold (examples/apps/cchmc-nnunet-fast, standard MAP layout, app.py
 
 ## Performance Metrics
 
-**Velocity:** 5 planned GSD plans executed (Phase 1, Plans 01–05): 57 min + ~105 min + ~228 min + ~40 min + ~95 min wall (subagent, 3–5 tasks / 2–4 commits each). Phase 1 gate passed.
+**Velocity:** 5 planned GSD plans executed (Phase 1, Plans 01–05): 57 min + ~105 min + ~228 min + ~40 min + ~95 min wall (subagent, 3–5 tasks / 2–4 commits each). Phase 1 gate passed. Phase 2 Plan 01 (CuPy port): ~40 min, 2 tasks / 2 commits — GPU E2E gate runs dominate; the D-11 final-gate-only strategy held (no per-op debugging needed).
 
 **By Phase:**
 
@@ -64,6 +66,7 @@ Done: app scaffold (examples/apps/cchmc-nnunet-fast, standard MAP layout, app.py
 | ----- | ----- | --------- | -------- |
 | 0     | 0     | 0         | -        |
 | 1     | 5     | 525 min   | 105 min  |
+| 2     | 1/6   | 40 min    | 40 min   |
 
 **Recent Trend:** plan 05 (validation gate) is where the real correctness work happened — the gate tools did their job, catching two bugs that 4 plans of component-level verification had missed (F-contiguous preprocess view; solid-vs-contour SEG payload + orientation). Lesson: component bit-exactness ≠ end-to-end bit-exactness; the last-mile transforms (writer axis mapping, transform order) need the full oracle in the loop.
 
@@ -72,6 +75,10 @@ Done: app scaffold (examples/apps/cchmc-nnunet-fast, standard MAP layout, app.py
 ### Decisions
 
 Logged in PROJECT.md Key Decisions table. Recent:
+
+- [Phase 2, Plan 01]: CuPy port keeps every *reduction* on numpy (CuPy reduction order ≠ numpy — bit-exactness verified empirically in 02-RESEARCH) and materializes every transpose/slice with `cp.ascontiguousarray` (D-12); H2D uses plain `cp.array` (CUDA array interface copy), deliberately not `cp.from_dlpack` (ownership-transfer pitfall from Phase 1)
+- [Phase 2, Plan 01]: Masked Z-score normalization (inactive for this bundle, `use_mask_for_norm=[False]`) implemented with the reference's masked-assignment semantics via GPU boolean indexing — config-generic for future bundles
+- [Phase 2, Plan 01]: `gpu_residency.py` allow-list extended deliberately (not silenced) — `preprocess_operator.py` entry carries the D-13 reason string; the exactly-once postprocess boundary `.cpu()` remains the only final-stage transfer
 
 - [Init]: New example app, not SDK core modification (lower risk, prove concept first)
 - [Init]: Latency first, throughput later (single-study clinical workflow)
@@ -110,8 +117,8 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-08-18 17:16 UTC
-Stopped at: Completed 1-core-pipeline-04-PLAN.md (DAG assembly in app.py; NVTX trace + structured timing verified; E2E airway run exit 0 with SC/SEG/SR)
+Last session: 2026-08-19 07:05 UTC
+Stopped at: Completed 2-gpu-acceleration-01-PLAN.md (CuPy port of preprocess transpose/crop/normalize; pixel-exact + residency gates PASS)
 Resume file: None
 
 ## Next — Phase 1 (Core Pipeline)
