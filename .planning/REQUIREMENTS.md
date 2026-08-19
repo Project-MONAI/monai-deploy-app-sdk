@@ -152,8 +152,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | TEST-003 | 1 | Pending |
 | TEST-004 | 1 | Pending |
 | TEST-005 | 2 | **Done (Phase 2, Plan 05, met-with-deviation)** — per-config oracle gates for the three 3D configs + bundle; 2d blocked-on-model (D-01/D-03) |
-| TEST-006 | 0, 1, 2, 3 | **Done (Phase 0)** — baseline_benchmark.py + baseline_results.csv |
-| TEST-007 | 0, 2, 3 | **Baseline done (Phase 0)** — speedup-ratio pending Ph2/3 |
+| TEST-006 | 0, 1, 2, 3 | **Done (Phase 0 + Phase 2 Plan 06)** — baseline_benchmark.py + baseline_results.csv; fast-app per-rep/per-config harness `phase2_benchmark.py` + `phase2_results.csv` (fresh process, warmup excluded, mean±std, both scopes) |
+| TEST-007 | 0, 2, 3 | **Done (Phase 2 Plan 06)** — two-bar report: same-scope 57.14 s vs 61.8 s (1.082×, D-18 bar MET) + headline bundle 129.54 s vs 169,747 ms (1.310×); per-operator deltas vs both baselines in `02-BENCHMARK-REPORT.md` |
 
 **Coverage:**
 - v1 requirements: 36 total

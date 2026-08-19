@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 2-gpu-acceleration-05-PLAN.md (per-config reference oracles + pixel-exact gates — ALL 4 gates PASS incl. 100% bundle match vs current_output; TEST-01/TEST-005 met on dev corpus with recorded deviations)
-last_updated: "2026-08-19T10:46:40Z"
+stopped_at: Completed 2-gpu-acceleration-06-PLAN.md (two-bar benchmark 57.14 s same-scope / 129.54 s bundle + nsys profiling — PHASE 2 COMPLETE; Phase 3 next)
+last_updated: "2026-08-19T11:00:00.000Z"
 last_activity: 2026-08-19
 progress:
   total_phases: 4
   completed_phases: 2
   total_plans: 12
-  completed_plans: 11
-  percent: 92
+  completed_plans: 12
+  percent: 100
 ---
 
 # Project State
@@ -25,15 +25,16 @@ See: .planning/PROJECT.md (updated 2026-08-14)
 
 ## Current Position
 
-Phase: 02 of 3 (gpu acceleration)
-Plan: 6 of 6
-Status: Executing Phase 02
+Phase: 02 of 3 (gpu acceleration) — **COMPLETE**
+Plan: 6 of 6 (all done)
+Status: Phase 02 complete — ready for Phase 3 (Optimization) or VERIFICATION close-out
 Last activity: 2026-08-19
 
-Progress: [████████░░] 92% (Phase 1 complete; Phase 2 plans 01–05 done, plan 06 pending)
+Progress: [██████████] 100% (Phase 1 + Phase 2 complete; Phase 3 pending)
 
 ## Transition Log
 
+- **2026-08-19 Phase 2 Plan 06 complete (two-bar benchmark + nsys profiling + Phase 3 handoff) — PHASE 2 COMPLETE:** `.planning/scripts/phase2_benchmark.py` (fresh-subprocess reps w/ 32 MB stack rlimit, 1 warmup + 3 measured, parses the fast app's config-tagged `timing: {json}` logs + app-level `study_timing_summary` (Pitfall 9)) → `.planning/benchmarks/phase2_results.csv` (10 rows: 2 scopes × (1 warmup + 3 measured) + 2 mean±std summary rows; per-config columns for both scopes; both speedups). **RESULTS: same-scope fullres 57,140.3 ± 250.4 ms E2E = 1.082× vs Phase 1 61.8 s — the D-18 positive-improvement bar is MET** (preprocess 7.63 s vs 9.5 s cold = the CuPy port −1.9 s; inference 26.16 s vs 27.2 s — no env drift; in-study 39.06 s vs 42.1 s); **headline bundle 129,542.9 ± 896.4 ms = 1.310× vs 169.7 s reference** (inference stage 76.7 s vs 138.2 s = −44.5% dominant; postprocess −85.8% within its 9–23 s variance). Bundle-vs-61.8 s (0.477×) printed WITH the scope note — D-18 deviation documented, not hidden (RESEARCH's 70–80 s serial estimate measured against 129.5 s: it excluded the ~20.8 s bootstrap + under-counted the serial D-13 resample spans; the 1.310× is below the plan's 2.0–2.8 expectation — recorded honestly, no bar massaged). nsys bundle trace → `.planning/profiles/phase2/` (rep 72.5 MB + sqlite + cuda_api_sum/nvtx_sum/nvtx_kern_sum/cuda_gpu_kern_sum, committed per Phase 0/1 convention): **RMM churn check PASS — 9 cudaMalloc / 1 cudaFree vs 629,929 kernel launches (the 8 in-window ones are pool-expansion events at operator-stage starts, each < 2 ms; never per-tile)**; 14/14 per-config NVTX ranges legible (INFR-005); **stream overlap NOT visible (D-16 honest note) — all kernels on a single CUDA stream (id 7), the 3 inference fragments strictly back-to-back (0.2 ms gap); serial fragment scheduling is the blocker, not the pools** (overlap only at light boundaries: postresample_3d_fullres ∥ lowres inference). ncu documented UNAVAILABLE (`ncu_status.txt`: ERR_NVGPUCTRPERM, admin `NVreg_RestrictProfilingToAdminUsers=0` required; zero ncu metrics in artifacts). `02-BENCHMARK-REPORT.md` = the two-bar report (6 sections) + ranked Phase 3 bottleneck list (1. scipy resample ~28.8 s → GPU resampling GPUP-01; 2. serial fragment scheduling ~25 s potential; 3. inference kernels 91–96% GPU-busy — ncu-blocked for counters; 4. postprocess 9.9 s wall; 5. bootstrap 20.8 s) + carried items (INFR-02, ≥5-CT corpus, 2d model). **Deviations (see SUMMARY):** (1) Rule 3 — wrapper REPO_ROOT path depth (stray dir cleaned); (2) Rule 3 — three hand-summed table values corrected before commit. TEST-006 + TEST-007 + INFR-005 satisfied. ROADMAP Phase 2 acceptance: all criteria checked except "operator overlap" = PARTIAL (D-16 honest note). Commits fc7e977 + fb6cbea + f405d83. See 2-gpu-acceleration-06-SUMMARY.md.
 - **2026-08-19 Phase 2 Plan 05 complete (per-config reference oracles + pixel-exact gates):** the two missing per-config reference oracles now exist, generated with the reference app UNMODIFIED — `testdata/ref_lowres_only` (2404 post-CC voxels, 74 s) and `testdata/ref_cascade_only` (2519 post-CC voxels, 131 s, `3d_lowres,3d_cascade_fullres` pin — lowres auxiliary, cascade-only ensemble by construction, D-07); `reference_fullres_run.py --config` now accepts a comma-separated model list (default `3d_fullres` unchanged). **Deviations (see SUMMARY):** (1) Rule 3 blocking — the plan anticipated the cascade-only reference crash but NOT that the reference also RAISES on lowres-only ("At least one non-auxiliary model configuration is required") → harness-side subclass reproduces the fast app's DOCUMENTED self-ensemble fallback (ensemble=run; Plan 04 decision), with the named-kwargs pop sub-fix (pybind 'converted to Arg' otherwise); (2) Rule 1 — phase2_gate.py refactor left the main() tail (sanity/residency/JSON) unreachable → restructured. `phase2_gate.py` runs all 4 fast-app configurations (HOLOSCAN_MODEL_LIST per row, unset = bundle) + pixel_diff + SR volume + logged run/ensemble list assertions + residency static/runtime + bundle-ensembles sanity → `gates/02-GATE-RESULTS.json`. **GATES: ALL 4 PASS — fullres 99.99986%/3 (the documented fp16↔fp32 boundary class, IoU 0.998714, 2331 vs 2330), lowres 100.00000%/0 (2404=2404), cascade 100.00000%/0 (2519=2519), BUNDLE 100.00000%/0 vs testdata/current_output (2447=2447, D-06)**; SR airway volume 0.0% delta on all 4 rows (bar 0.1%); residency static + runtime PASS in the multi-fragment bundle configuration (D-13 boundary deliberate); sanity: bundle SEG ≠ fullres-only SEG (382 differing voxels — the bundle actually ensembles). TEST-01 + TEST-005 met on the dev corpus with the deviations recorded in the gate JSON for VERIFICATION.md: TEST-005-2d (blocked-on-model, D-01/D-03, met-with-deviation) + TEST-01-corpus (single airway dev study; ≥5-CT re-run deferred). Oracle bytes gitignored per the existing testdata convention (current_output/ref_fullres_only precedent); provenance in `gates/oracle_provenance.md` + per-oracle SEG sha256 in the JSON. Evidence: `.planning/phases/02-gpu-acceleration/gates/`. Commits 8adeef8 + b423800 + 4a956e4 + bf0c39f + 1f2aa69 + e53e026 + c5cc593 + 07fde68 + 257fdb4. See 2-gpu-acceleration-05-SUMMARY.md.
 - **2026-08-19 Phase 2 Plan 04 complete (multi-fragment DAG assembly):** the single-config DAG is now the reference-semantics multi-fragment DAG — one `Subgraph` per `resolve_run_model_list` entry (config-generic factory, zero config-name literals, D-02; `HOLOSCAN_MODEL_LIST` env var, unset = reference default), cross-fragment `lowres_seg` cascade flow (zero disk I/O, D-09/D-10), app-level ensemble with ordered `prob_<cfg>` ports + `CountCondition(len)` + list-order reconstruction (never arrival order) over the UNTOUCHED Phase 1 bit-exact averaging (D-19 documented at source), per-subgraph `CudaStreamPool` (NonBlocking, reserved_size=1, `streams_<cfg>`, INFR-004/D-16), config-tagged NVTX + timing (`preprocess_<cfg>`/`inference_<cfg>`/`postresample_<cfg>` + `"config"` record field) and `gpu_util._root` app-keyed study/timing (Pitfall 9 — the bundle run's single `study_timing_summary` carries all 14 records across sub-Fragments). Gates: 4/4 model-list configurations E2E exit 0 on the airway study (SEG/SR/SC; run/ensemble lists logged exactly per the Context table; exactly one `study_timing_summary` per run; each fragment's operators fired exactly once; lowres-only SEG ≠ fullres-only SEG); fullres regression pixel_diff **99.99986% vs ref_fullres_only (same 3 documented boundary voxels, IoU 0.998714)**; 14-case unit suite exit 0. **Deviations (see SUMMARY):** (1) the plan's C++ `Fragment` + mixed app-operator API does not exist in holoscan-cu13 4.2 — app_driver rejects mixed graphs ("Both fragments and operators are added to the application graph") and the fragment→fragment flow overload has no operator-port addressing (live-probed) → **Subgraph + interface ports** (the 4.2-supported mechanism); (2) Rule 1 fix: cascade one-hot stacked the 4D `(1,*spatial)` resampled seg to 5D (plan-03 latent bug, first exercised by the real DAG) → one-hot `seg[0]` (reference semantics) + regression test; (3) plan-text contradiction: plan 03's replicated reference ValueError (lowres-only) vs plan 04's must-have (all 4 configs exit 0) → documented fast-app **self-ensemble fallback** in `resolve_run_model_list` (empty ensemble + non-empty run ⇒ ensemble=run; truly empty still raises the reference error) — unit-tested both ways. Bundle per-operator (single study): inference 26.1/25.1/25.4 s (fullres/lowres/cascade), preprocess 7.6/5.0/9.3 s, postresample 1.7/3.2/1.7 s, ensemble 0.012 s, postprocess 2.4 s. Evidence: `.planning/phases/02-gpu-acceleration/plan04-gates/`. Commits f1e421b + 2bba495 + bd49c61 + 2309a4d + fb46cc6. See 2-gpu-acceleration-04-SUMMARY.md.
 
@@ -63,7 +64,7 @@ Done: app scaffold (examples/apps/cchmc-nnunet-fast, standard MAP layout, app.py
 
 ## Performance Metrics
 
-**Velocity:** 11 planned GSD plans executed (Phase 1, Plans 01–05; Phase 2 Plans 01–05): 57 min + ~105 min + ~228 min + ~40 min + ~95 min + ~40 min + ~40 min + ~31 min + ~62 min + ~65 min wall (subagent, 2–5 tasks / 2–9 commits each). Phase 1 gate passed; Phase 2 correctness gate (plan 05) passed — all 4 configurations pixel-exact.
+**Velocity:** 12 planned GSD plans executed (Phase 1, Plans 01–05; Phase 2 Plans 01–06): 57 min + ~105 min + ~228 min + ~40 min + ~95 min + ~40 min + ~40 min + ~31 min + ~62 min + ~65 min + ~55 min wall (subagent, 2–5 tasks / 2–9 commits each). Phase 1 gate passed; Phase 2 correctness gate (plan 05) passed — all 4 configurations pixel-exact; Phase 2 performance gate (plan 06) passed — D-18 same-scope bar MET (1.082×), headline bundle 1.310×.
 
 **By Phase:**
 
@@ -71,15 +72,19 @@ Done: app scaffold (examples/apps/cchmc-nnunet-fast, standard MAP layout, app.py
 | ----- | ----- | --------- | -------- |
 | 0     | 0     | 0         | -        |
 | 1     | 5     | 525 min   | 105 min  |
-| 2     | 5/6   | 238 min   | 48 min   |
+| 2     | 6/6   | 293 min   | 49 min   |
 
-**Recent Trend:** plan 05 (validation gate) is where the real correctness work happened — the gate tools did their job, catching two bugs that 4 plans of component-level verification had missed (F-contiguous preprocess view; solid-vs-contour SEG payload + orientation). Lesson: component bit-exactness ≠ end-to-end bit-exactness; the last-mile transforms (writer axis mapping, transform order) need the full oracle in the loop.
+**Recent Trend:** plan 05 (validation gate) is where the real correctness work happened — the gate tools did their job, catching two bugs that 4 plans of component-level verification had missed (F-contiguous preprocess view; solid-vs-contour SEG payload + orientation). Lesson: component bit-exactness ≠ end-to-end bit-exactness; the last-mile transforms (writer axis mapping, transform order) need the full oracle in the loop. Plan 06 (benchmark/profiling) confirmed the performance story is the resample spans + serial scheduling, not the inference kernels — the nsys churn check passed first-try (RMM pool expansions only) and the D-16 stream-overlap criterion came out honestly PARTIAL (single stream, back-to-back fragments): the Phase 3 lever list is now measurement-backed (report §6).
 
 ## Accumulated Context
 
 ### Decisions
 
 Logged in PROJECT.md Key Decisions table. Recent:
+
+- [Phase 2, Plan 06]: The D-18 two-bar report shipped as approved: same-scope fullres-only is the CONTROLLING positive-improvement bar (MET: 57.14 s vs 61.8 s, 1.082×); the bundle headline is 1.310× vs 169.7 s — below the plan's 2.0–2.8 expectation because RESEARCH's 70–80 s serial estimate excluded the ~20.8 s fresh-process bootstrap and under-counted the three serial D-13 scipy-resample preprocess spans (22.2 s); the bundle-vs-61.8 s ratio (0.477×) is printed with the explicit scope note, never used as a bar
+- [Phase 2, Plan 06]: D-16 stream-overlap finding (honest, no-overlap): every kernel in the bundle run executes on a single CUDA stream (id 7) and the three inference fragments are strictly back-to-back (0.2 ms gap) — the per-fragment CudaStreamPools are never concurrently active because the DAG schedules fragments serially (cascade also waits on the lowres_seg edge); overlap appears only at light boundaries (postresample_3d_fullres ∥ lowres inference). Phase 3 overlap work is a DAG/executor scheduling change, not a stream-pool change
+- [Phase 2, Plan 06]: RMM churn check method: compare cudaMalloc/cudaFree call counts + timestamps (nsys sqlite CUPTI_ACTIVITY_KIND_RUNTIME — names carry a `_v3020` suffix) against the first operator NVTX range; 9 mallocs / 1 free vs 629,929 kernel launches in the 117.5 s study window = pool expansions only (each < 2 ms), never per-tile. The nsys harness must capture full-process (NO --capture-range=cudaProfilerApi) so the setup/RMM-warm span is in the trace
 
 - [Phase 2, Plan 05]: The lowres-only reference oracle uses the fast app's documented self-ensemble semantics (ensemble=run) — the reference app itself RAISES on model_list=['3d_lowres'] (empty ensemble) and can never produce a lowres-only SEG; the gate compares like-for-like only if both sides use the same semantics. Implemented as a harness-side subclass in reference_fullres_run.py: catch the ValueError mid-__init__ (it fires AFTER run_model_list is set) and replay the plain tail with ensemble=run — the reference's own inference/ensemble/CC/SEG-SR-SC code runs untouched; the replay must POP the named __init__ kwargs (app_context/model_path/output_folder/output_labels/model_list/model_name/save_*) before the holoscan Operator parent call or pybind fails ('python object could not be converted to Arg')
 - [Phase 2, Plan 05]: Gate-evidence convention: oracle bytes are gitignored (matching testdata/current_output/ + ref_fullres_only/ precedent — added ref_lowres_only/ + ref_cascade_only/ to .gitignore); provenance (model_lists, wall times, post-CC voxel counts) lives in gates/oracle_provenance.md and per-oracle SEG sha256 in 02-GATE-RESULTS.json
@@ -134,29 +139,27 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-08-19 10:46 UTC
-Stopped at: Completed 2-gpu-acceleration-05-PLAN.md (per-config reference oracles + pixel-exact gates — all 4 gates PASS; TEST-01/TEST-005 met on dev corpus)
+Last session: 2026-08-19 11:00 UTC
+Stopped at: Completed 2-gpu-acceleration-06-PLAN.md (two-bar benchmark + nsys profiling — PHASE 2 COMPLETE)
 Resume file: None
 
-## Next — Phase 1 (Core Pipeline)
+## Next — Phase 3 (Optimization)
 
-Phase 1 (Core Pipeline) is now **PLANNED** — 5 plans across 4 waves in `.planning/phases/01-core-pipeline/`:
+Phase 2 is COMPLETE (6/6 plans; correctness gate plan 05, performance gate plan 06). Phase 3 is data-driven off `02-BENCHMARK-REPORT.md` §6 (ranked, trace-cited bottlenecks, all in `.planning/profiles/phase2/`):
 
-- **01** (wave 1): PreprocessOperator + GPU handoff contract (PREP-01..05, INF-005)
-- **02** (wave 2): SlideWindowOperator / inference core — model load in setup, TTA order, FP32 accumulator (INF-001..008, INF-011)
-- **03** (wave 2): PostResample + EnsembleAverage (in-memory, no disk) + Postprocess (CC on GPU) (POST-01..03, INF-009/010)
-- **04** (wave 3): DAG assembly in app.py (replace NNUnetSegOperator) + NVTX + timing logs (PIPE-01/02/05, INFR-005/006)
-- **05** (wave 4): validation tools (pixel-diff, GPU-residency) + pixel-exact E2E gate + SR comparison (TEST-01 dev-study, TEST-002..004)
+1. **scipy resample spans (~28.8 s of the 129.5 s bundle)** — GPU resampling (GPUP-01); largest single lever
+2. **serial fragment scheduling (~25 s potential)** — overlap fullres + lowres inference (DAG/executor-level; D-16 note)
+3. **inference kernels (76.7 s, 91–96% GPU-busy)** — needs ncu admin access (ERR_NVGPUCTRPERM) for counter metrics
+4. **postprocess (9.9 s wall, 5 ms GPU)** — CC + contour + exactly-once D2H boundary
+5. **bootstrap (~20.8 s)** — model-load caching / lazy RMM warm if usage shifts to repeat studies
 
-Scope: single config `3D_fullres`; operators built config-driven so Phase 2 adds 2D/lowres/cascade. Gate = pixel-exact vs freshly regenerated reference (`testdata/current_output` == historical GT).
+Carried items: INFR-02 cross-study buffer reuse (user adding reference examples in Phase 3), ≥5-CT corpus re-run (TEST-01 final gate), 2d model validation (D-04 — a test, not a code change). Docker build + container test remains deferred to post-Phase-3.
 
-Next:
+Carried env facts:
 
-1. **`/gsd-execute-plan 1 05`** (validation tools + pixel-exact E2E gate + SR comparison, wave 4). CRITICAL gate input (Plan 04 finding): compare against a **3d_fullres-only reference run** (e.g. reference app with `model_list=['3d_fullres']`, as Plan 03 did in-harness) — `testdata/current_output` is the full-bundle cascade ensemble (2447 voxels) and is out of scope for Phase 1 (3655 voxels).
-2. Carried env facts:
-   - App runs: from `examples/apps/cchmc-nnunet-fast`, `ulimit -s unlimited`, `/tmp/monai-env/.venv/bin/python my_app -i <dicom> -m <bundle> -o <out>` (my_app name-collision + 32 MB stack hazards)
-   - venv monai ptp patches (re-apply after monai reinstall); baseline to beat: 169.7 ± 7.3 s/study
-   - Docker build + container test deferred to post-Phase-3 — validate pythonically in Phase 1
-3. **Carried blocker (not a plan task):** TEST-01's ≥5-CT-study corpus is the final Phase 1 acceptance gate — blocked on CT data. The single airway study (dev) gate is what plans 01–05 verify now.
+- App runs: from `examples/apps/cchmc-nnunet-fast`, `ulimit -s unlimited`, `/tmp/monai-env/.venv/bin/python my_app -i <dicom> -m <bundle> -o <out>` (my_app name-collision + 32 MB stack hazards; `HOLOSCAN_MODEL_LIST` unset = bundle, must stay UNSET not empty)
+- venv monai 1.3.0 ptp patches (re-apply after any monai reinstall: `data/utils.py:906`, `transforms/spatial/functional.py:376`)
+- Baselines: reference 169.7 ± 7.3 s/study (`.planning/baseline_results.csv`); Phase 1 fast 61.8 s (`benchmarks/baseline-2026-08-18.csv`); Phase 2 fast same-scope 57.14 s / bundle 129.54 s (`benchmarks/phase2_results.csv`)
+- ncu blocked (ERR_NVGPUCTRPERM) — Phase 3 kernel work needs admin access or stays at the nsys level
 
 > Note: shazam LSP "client not started" noise seen on 2026-08-15 was stale in-process manager state after an external pyright-langserver kill — not a code issue; cleared by a fresh pi session.
