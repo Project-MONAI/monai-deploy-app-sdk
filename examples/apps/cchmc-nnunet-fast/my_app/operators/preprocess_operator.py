@@ -66,6 +66,12 @@ try:  # package-style import (my_app.*)
         nvtx_range,
         set_study_id,
     )
+    from my_app.operators.gpu_zoom import (
+        gpu_resample_enabled,
+        stock_gpu_resize,
+        stock_gpu_zoom,
+        zoom_factors_for,
+    )
 except ImportError:  # flat import (my_app dir on sys.path, as the app runner provides)
     from config import PreprocessParams, load_preprocess_params
     from buffer_cache import _ShapeCache
@@ -76,6 +82,12 @@ except ImportError:  # flat import (my_app dir on sys.path, as the app runner pr
         assert_on_gpu,
         nvtx_range,
         set_study_id,
+    )
+    from gpu_zoom import (
+        gpu_resample_enabled,
+        stock_gpu_resize,
+        stock_gpu_zoom,
+        zoom_factors_for,
     )
 
 __all__ = ["PreprocessOperator", "preprocess_reference", "to_holoscan_gpu_tensor"]
@@ -231,6 +243,19 @@ def _resample_to_shape(
     new_shape = np.array(new_shape)
 
     if np.any(shape != new_shape):
+        if gpu_resample_enabled() and not do_separate_z:
+            # D-22 (D-22a amended) gated GPU resample (HOLOSCAN_GPU_RESAMPLE=1):
+            # the STOCK cupyx.scipy.ndimage path — per-channel exact mirror of
+            # the flag-OFF chain (fp64 widening -> grid_mode zoom -> fp64
+            # clip -> fp32 cast). Stays on GPU end-to-end; no D2H for the
+            # resample span. Flag OFF (default) runs the verbatim scipy/skimage
+            # reference below. (The custom RawKernel provenance in gpu_zoom.py
+            # is NOT wired — D-22a.)
+            return stock_gpu_resize(
+                cp.asarray(data, dtype=cp.float32),
+                tuple(int(s) for s in new_shape),
+                params.resample_order,
+            )
         dtype_out = data.dtype
         data = data.astype(float, copy=False)
         reshaped_final = np.zeros((data.shape[0], *new_shape), dtype=dtype_out)
@@ -239,6 +264,10 @@ def _resample_to_shape(
         resize_kwargs = {"mode": "edge", "anti_aliasing": False}
 
         if do_separate_z:
+            # D-22: the separate-z map_coordinates branches stay scipy in
+            # BOTH flag states — inactive in this bundle (near-isotropic
+            # spacings); order_z=0 was byte-identical on CuPy anyway, so no
+            # port is needed. The flag only gates the non-sep-z branch.
             assert axis is not None, "if do_separate_z, we need to know what axis is anisotropic"
             if axis == 0:
                 new_shape_2d = new_shape[1:]
@@ -299,6 +328,31 @@ def _resize_segmentation(segmentation: np.ndarray, new_shape: Sequence[int], ord
     is exactly ``np.sort(pd.unique(...))`` for numeric arrays.
     """
     tpe = segmentation.dtype
+    if gpu_resample_enabled() and segmentation.ndim == 3:
+        # D-22 (D-22a amended) gated GPU multihot (HOLOSCAN_GPU_RESAMPLE=1):
+        # per-label fp64 0/1 mask -> stock CuPy grid_mode zoom (exact mirror
+        # of the OFF-path skimage chain: fp64 widening, fp64 clip) -> the
+        # SAME >= 0.5 threshold / label-assignment / cast tail the scipy path
+        # has. The 2D separate-z slice calls (and the flag-OFF path) stay on
+        # the verbatim scipy/skimage reference.
+        out_shape = tuple(int(s) for s in new_shape)
+        base = cp.asarray(np.ascontiguousarray(segmentation), dtype=cp.float32)
+        zf = zoom_factors_for(segmentation.shape, out_shape)
+        if order == 0:
+            # Reference early return: resize(..., 0, clip=True).astype(tpe) —
+            # nearest copy of the (exactly representable) label values.
+            m0 = stock_gpu_zoom(base, zf, 0, out_shape=out_shape)
+            m0 = cp.clip(
+                m0, float(cp.min(base).get()), float(cp.max(base).get())
+            )
+            return np.asarray(m0.get(), dtype=tpe)
+        reshaped = np.zeros(out_shape, dtype=tpe)
+        for c in np.unique(segmentation.ravel()):
+            mask = cp.equal(base, np.float32(c)).astype(cp.float32)
+            m = stock_gpu_zoom(mask, zf, order, out_shape=out_shape)
+            m = cp.clip(m, 0.0, 1.0).get()
+            reshaped[m >= 0.5] = c
+        return reshaped
     if order == 0:
         return resize(segmentation.astype(float), new_shape, order, mode="edge", clip=True, anti_aliasing=False).astype(tpe)
     reshaped = np.zeros(new_shape, dtype=tpe)
@@ -356,6 +410,9 @@ def _resample_seg_to_shape(
         order_z = params.resample_seg_order_z
 
         if do_separate_z:
+            # D-22: the separate-z map_coordinates branches stay scipy in
+            # BOTH flag states (inactive in this bundle) — see the comment
+            # in _resample_to_shape.
             assert axis is not None, "if do_separate_z, we need to know what axis is anisotropic"
             if axis == 0:
                 new_shape_2d = new_shape[1:]
@@ -809,16 +866,23 @@ class PreprocessOperator(Operator):
         # Materialize after per-channel writes (D-12) before leaving the GPU.
         vol_c = cp.ascontiguousarray(vol_c)
 
-        # 4. resample (PREP-03) on the UNCHANGED scipy/skimage CPU reference
-        #    path (D-13): device->host of the normalized volume, then the
-        #    exact Phase 1 _resample_to_shape. Entering it requires a
-        #    C-contiguous fp32 buffer (skimage.resize/map_coordinates are not
+        # 4. resample (PREP-03) — flag-gated (D-22 / D-22a): flag ON runs the
+        #    stock cupyx.scipy.ndimage mirror on GPU (no D2H for the span);
+        #    flag OFF (default) is the UNCHANGED scipy/skimage CPU reference
+        #    path: device->host of the normalized volume, then the exact
+        #    Phase 1 _resample_to_shape. Entering it requires a C-contiguous
+        #    fp32 buffer (skimage.resize/map_coordinates are not
         #    layout-invariant at float32 — the Phase 1 1-ulp lesson).
-        vol_out = np.ascontiguousarray(vol_c.get())  # D2H fp32 — D-13 accepted
-        assert vol_out.dtype == np.float32 and vol_out.flags["C_CONTIGUOUS"]
-        vol_out = _resample_to_shape(
-            vol_out, new_shape, original_spacing, params.spacing, params
-        )
+        if gpu_resample_enabled():
+            vol_out = _resample_to_shape(
+                vol_c, new_shape, original_spacing, params.spacing, params
+            )
+        else:
+            vol_out = np.ascontiguousarray(vol_c.get())  # D2H fp32 — D-13 accepted
+            assert vol_out.dtype == np.float32 and vol_out.flags["C_CONTIGUOUS"]
+            vol_out = _resample_to_shape(
+                vol_out, new_shape, original_spacing, params.spacing, params
+            )
         if lowres_seg is None:
             return vol_out, properties
 

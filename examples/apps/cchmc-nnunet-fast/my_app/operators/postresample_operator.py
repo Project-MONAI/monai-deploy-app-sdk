@@ -48,6 +48,8 @@ import torch
 from scipy.ndimage import map_coordinates
 from skimage.transform import resize
 
+import cupy as cp  # D-22: gated GPU resample path (flag OFF = unused numerically)
+
 from monai.deploy.core import Operator, OperatorSpec
 
 try:  # package-style import (my_app.*)
@@ -59,6 +61,7 @@ try:  # package-style import (my_app.*)
         get_study_id,
         nvtx_range,
     )
+    from my_app.operators.gpu_zoom import gpu_resample_enabled, stock_gpu_resize
     from my_app.operators.preprocess_operator import _determine_do_sep_z_and_axis, to_holoscan_gpu_tensor
 except ImportError:  # flat import (my_app dir on sys.path, as the app runner provides)
     from gpu_util import (
@@ -69,6 +72,7 @@ except ImportError:  # flat import (my_app dir on sys.path, as the app runner pr
         get_study_id,
         nvtx_range,
     )
+    from gpu_zoom import gpu_resample_enabled, stock_gpu_resize
     from preprocess_operator import _determine_do_sep_z_and_axis, to_holoscan_gpu_tensor
 
 __all__ = [
@@ -121,12 +125,30 @@ def resample_probabilities_to_shape(
     new_shape = np.array(new_shape)
 
     if np.any(shape != new_shape):
+        if gpu_resample_enabled() and not do_separate_z:
+            # D-22 (D-22a amended) gated GPU resample (HOLOSCAN_GPU_RESAMPLE=1):
+            # per channel, the STOCK cupyx.scipy.ndimage mirror of the OFF-path
+            # skimage chain (fp64 widening -> grid_mode zoom -> fp64 clip ->
+            # fp32 cast; the custom RawKernel provenance in gpu_zoom.py is NOT
+            # wired — D-22a). The result returns to CPU numpy because the
+            # reference torch CPU softmax (thread-scoped, bit-exactness
+            # decision) runs downstream — the resample span itself computes on
+            # GPU. Flag OFF (default) is the verbatim Phase 2/3 path.
+            data_gpu = cp.asarray(data, dtype=cp.float32)
+            return np.ascontiguousarray(
+                stock_gpu_resize(
+                    data_gpu, tuple(int(s) for s in new_shape), order
+                ).get()
+            )
         dtype_out = data.dtype
         data = data.astype(float, copy=False)
         reshaped_final = np.zeros((data.shape[0], *new_shape), dtype=dtype_out)
         resize_kwargs = {"mode": "edge", "anti_aliasing": False}
 
         if do_separate_z:
+            # D-22: the separate-z map_coordinates branches stay scipy in
+            # BOTH flag states (inactive in this bundle; near-isotropic
+            # spacings) — the flag only gates the non-sep-z branch below.
             assert axis is not None, "if do_separate_z, we need to know what axis is anisotropic"
             if axis == 0:
                 new_shape_2d = new_shape[1:]
