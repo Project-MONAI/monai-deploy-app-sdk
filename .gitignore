@@ -282,3 +282,9 @@ testdata/ref_cascade_only/
 # nnUNet scratch dir created at repo root when running the reference app
 # from the repo root (Img_in_context.* per config)
 tmp/
+
+# Heavy binaries — kept local only, never pushed (GitHub 100 MB limit)
+testdata/models/
+.planning/profiles/**/*.sqlite
+.planning/profiles/**/*.nsys-rep
+examples/apps/cchmc_nnunet_fifteen_ckpt_app/tmp/
