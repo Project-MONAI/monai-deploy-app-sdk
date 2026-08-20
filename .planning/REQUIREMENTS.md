@@ -93,8 +93,10 @@ Deferred to future release. Tracked but not in current roadmap.
 
 ### GPU Preprocessing
 
-- **GPUP-01**: The system replaces the reference CPU resampling path with a GPU-accelerated resampler (CuPy or monai.data) while maintaining pixel-exact equivalence
-- **GPUP-02**: The system performs all preprocessing steps (transpose, crop, normalize, resample) on GPU with zero CPU-GPU transfers before inference
+- [x] **GPUP-01**: The system replaces the reference CPU resampling path with a GPU-accelerated resampler (CuPy or monai.data) while maintaining pixel-exact equivalence
+  - **Satisfied (Phase 3, Plan 04, 2026-08-19, met-with-documented-tolerance under the AMENDED D-22b gate):** stock `cupyx.scipy.ndimage` resample ships behind `HOLOSCAN_GPU_RESAMPLE` (default ON); per-tensor accuracy vs scipy **100.0000% equal (max abs diff 0) on all 5 tensors** (≥99% bar); ON gate pixel-identical to the OFF baseline. The custom RawKernel (D-22a bounded attempt) was discarded (o3 100% divergence + real-shape crash) and kept as provenance. Resample spans 28.8 s → 9.65 s (bundle) in the Phase 3 matrix. The ≥99% bar is the user-directed tolerance (byte-for-byte was overly strict; ensemble averaging absorbs bit-level noise).
+- [x] **GPUP-02**: The system performs all preprocessing steps (transpose, crop, normalize, resample) on GPU with zero CPU-GPU transfers before inference
+  - **Satisfied (Phase 1–2 for transpose/crop/normalize — CuPy; Phase 3 Plan 04 for the resample span, met-with-documented-tolerance):** residual per `evidence/gpu_resample_verdict.md` — the numpy mean/std reductions + ~8 MB mask round trip stay CPU per D-12/D-13 (Phase 1/2 locked decisions; CuPy reductions not bit-exact). Resample span itself: zero new CPU-GPU transfers (stock CuPy mirror of the exact scipy OFF-path call).
 
 ## Out of Scope
 
@@ -119,43 +121,43 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| PIPE-01 | 0, 1 | Pending |
-| PIPE-02 | 1 | Pending |
+| PIPE-01 | 0, 1 | **Done (Phase 1, Plan 04)** — full DICOM-I/O→GPU-operator DAG in `app.py`; zero SDK core changes (verifier: empty `git log monai/` for the phase) |
+| PIPE-02 | 1 | **Done (Phase 1, Plan 04)** — `NNUnetSegOperator` replaced by the 5-operator chain (Preprocess → SlideWindow → PostResample → EnsembleAverage → Postprocess); name appears in `app.py` only in comments |
 | PIPE-03 | 2 | **Done (Phase 2, Plans 03–04)** — resolve_run_model_list reference semantics (Plan 03) + one Subgraph per config in one DAG, config-generic factory, HOLOSCAN_MODEL_LIST selection, 4/4 configurations E2E (Plan 04) |
 | PIPE-04 | 2 | **Done (Phase 2, Plans 03–04)** — lowres_seg port contract + 2-channel input (Plan 03) + cross-fragment flow with zero disk I/O, end-to-end in cascade-only and bundle runs (Plan 04) |
-| PIPE-05 | 1 | Pending |
+| PIPE-05 | 1 | **Done (Phase 1, Plan 04)** — E2E DICOMDIR → DICOM-SEG/SR/SC on the dev corpus, verifier's fresh re-run exit 0 (≥5-CT re-run deferred, TEST-01 note) |
 | PREP-01 | 1, 2 | **Done (Phase 2, Plan 01)** — CuPy transpose, fp32 C-contiguous |
 | PREP-02 | 1, 2 | **Done (Phase 2, Plan 01)** — element-wise on GPU, numpy reductions |
 | PREP-03 | 1 | **Done (Phase 2, Plan 01)** — unchanged scipy/skimage path (D-13) |
 | PREP-04 | 1, 2 | **Done (Phase 2, Plan 01)** — CuPy crop-slice, materialized |
-| PREP-05 | 1 | Pending |
-| INF-001 | 1 | Pending |
-| INF-002 | 1 | Pending |
-| INF-003 | 1 | Pending |
-| INF-004 | 1 | Pending |
-| INF-005 | 1 | Pending |
-| INF-006 | 1 | Pending |
-| INF-007 | 1 | Pending |
-| INF-008 | 1 | Pending |
+| PREP-05 | 1 | **Done (Phase 1, Plan 01)** — GPU tensor emit for zero-copy handoff (documented 4.2 API substitution: `holoscan.core.Tensor` via DLPack on kDLDeviceCUDA; 4.2 has no MemoryData) |
+| INF-001 | 1 | **Done (Phase 1, Plan 02)** — eager GPU inference under `torch.no_grad()`, no CPU fallback; `assert_on_gpu` guards in all 5 `compute()`s |
+| INF-002 | 1 | **Done (Phase 1, Plan 02, documented deviation)** — same patch size/overlap/Gaussian weighting as the reference nnUNet predictor; nnUNet's own steps/gaussian used because MONAI 1.3.0's kernel measured non-identical (max diff 0.034) |
+| INF-003 | 1 | **Done (Phase 1, Plan 02)** — TTA flip order verified equal to reference (`(2),(3),(4),(2,3),(2,4),(3,4),(2,3,4)`) |
+| INF-004 | 1 | **Done (Phase 1, Plan 02)** — FP32 sequential `+=` accumulators, source-verified; is itself the documented numeric deviation vs the FP16 reference (bounded: ≤4.54e-01 logits, 2–3 boundary voxels E2E) |
+| INF-005 | 1 | **Done (Phase 1, Plan 02)** — `assert_on_gpu` at every operator boundary; RuntimeError propagation verified (never swallowed) |
+| INF-006 | 1 | **Done (Phase 1 Plan 02 — config-driven operator; Phase 2 Plans 03–04 — all configs E2E)** — `InferenceParams`/`load_preprocess_params` per config, zero config-name literals; full 4-config E2E exit 0 (2d blocked-on-model, D-01/D-03) |
+| INF-007 | 1 | **Done (Phase 1, Plan 02)** — checkpoint-path loading, `best_model.pt` auto-order + explicit-name resolution; no trainer-class hardcoding |
+| INF-008 | 1 | **Done (Phase 1, Plan 02)** — one-shot model load in `setup()` (load count 1; second study 1.0 s, no cold start) |
 | INF-009 | 1, 2 | **Done (Phase 2, Plan 04)** met-with-deviation per D-19 — ordered per-config `prob_<cfg>` inputs + list-order reconstruction over Phase 1 in-place accumulation + CuPy exact final division (bit-exact; deviation documented at source) |
-| INF-010 | 1 | Pending |
-| INF-011 | 1 | Pending |
-| POST-01 | 1 | Pending |
-| POST-02 | 1 | Pending |
-| POST-03 | 1 | Pending |
+| INF-010 | 1 | **Done (Phase 1, Plan 03)** — argmax after probability averaging, 100% vs reference conversion |
+| INF-011 | 1 | **Done (Phase 1, Plan 02)** — autocast confined to the SlideWindow boundary (per-fold; measured torch 2.13 corruption with a single loop-wide ctx); never crosses operator boundaries |
+| POST-01 | 1 | **Done (Phase 1, Plan 03)** — GPU connected-component analysis (deterministic CuPy two-pass, 26-conn) + interpreted pkl size rules + keep-largest; 14/14 parity trials |
+| POST-02 | 1 | **Done (Phase 1, Plan 03)** — crop/transpose reverted on GPU (permute + fill), bit-exact revert to original DICOM orientation |
+| POST-03 | 1 | **Done (Phase 1, Plan 03)** — exactly one boundary `.cpu()` at postprocess (gpu_residency static re-run: count 1) before the SEG writer |
 | INFR-01 | 0, 2 | **Done (Phase 2, Plan 02)** — RMM pluggable allocator (rmm first-import, import-order self-test) + pool warm-up |
 | INFR-02 | 2 | **Done (Phase 3, Plan 03, D-24)** — shape-keyed buffer reuse proven by (a) unit suite + (b) 3× replay (address stability, cudaMalloc flat on studies 2/3); user reference examples = D-26 external dependency |
 | INFR-03 | 2 | **Done (Phase 2, Plan 02)** — BudgetPlan calculator + defer-strategy wiring; real OOM documented unexercised |
 | INFR-004 | 2 | **Done (Phase 2, Plan 04)** — CudaStreamPool per model-config subgraph (NonBlocking, reserved_size=1, streams_<cfg>) |
 | INFR-005 | 0, 1 | **Done (Phase 2, Plan 04)** — per-config NVTX range names + `"config"` timing fields + app-keyed per-study aggregate (sub-Fragment-safe via gpu_util._root) |
-| INFR-006 | 1 | Pending |
-| TEST-01 | 1, 2 | **Done (Phase 2, Plan 05, met-with-deviation)** — all 4 gate configs pixel-exact on the dev corpus (bundle 100.00000% vs current_output); ≥5-CT re-run deferred |
-| TEST-002 | 1, 2 | **Done (Phase 3, Plan 01)** — SR 0.0% delta on all 4 gate rows, serial + concurrent suites |
-| TEST-003 | 1 | **Done (Phase 3, Plan 01)** — pixel_diff.py re-run in every Phase 3 gate row (fails on divergence; sanity check exercises the rc-1 path) |
-| TEST-004 | 1 | Pending |
+| INFR-006 | 1 | **Done (Phase 1, Plan 04)** — structured `timing: {operator, study, start, end, duration_ms}` JSON records per operator per study + `study_timing_summary` aggregate; live-verified by the verifier's fresh re-run |
+| TEST-01 | 1, 2, 3 | **Done (Phase 1 Plan 05; Phase 2 Plan 05; re-verified Phase 3, met-with-deviation)** — pixel-exact on the dev corpus at every gate: Phase 1 fullres 99.99986–99.99990% (documented fp16↔fp32 boundary class); Phase 2 all 4 gate configs (bundle 100.00000% vs current_output); Phase 3 final shipping-config gate pixel-identical to baseline (`03-GATE-RESULTS.json`); ≥5-CT re-run blocked-on-external (D-26) |
+| TEST-002 | 1, 2, 3 | **Done (first Phase 1 Plan 05; Phase 2 Plan 05; re-verified Phase 3 Plans 01–05)** — SR airway-volume delta 0.0% on all gate rows in every gate suite (bar 0.1%), final `03-GATE-RESULTS.json` 0.0% ×4 |
+| TEST-003 | 1 | **Done (Phase 1, Plan 05; re-run in every Phase 2/3 gate row)** — `pixel_diff.py` (byte-identity + decoded-voxel compare, fails on divergence; rc-1 path exercised); drives every gate JSON |
+| TEST-004 | 1 | **Done (Phase 1, Plan 05; re-verified through Phase 3)** — `gpu_residency.py` static + runtime PASS (exactly 1 authorized boundary `.cpu()`, D-13 allow-list deliberate); final Phase 3 gate residency static+runtime PASS |
 | TEST-005 | 2 | **Done (Phase 2, Plan 05, met-with-deviation)** — per-config oracle gates for the three 3D configs + bundle; 2d blocked-on-model (D-01/D-03) |
-| TEST-006 | 0, 1, 2, 3 | **Done (Phase 0 + Phase 2 Plan 06)** — baseline_benchmark.py + baseline_results.csv; fast-app per-rep/per-config harness `phase2_benchmark.py` + `phase2_results.csv` (fresh process, warmup excluded, mean±std, both scopes) |
-| TEST-007 | 0, 2, 3 | **Done (Phase 2 Plan 06)** — two-bar report: same-scope 57.14 s vs 61.8 s (1.082×, D-18 bar MET) + headline bundle 129.54 s vs 169,747 ms (1.310×); per-operator deltas vs both baselines in `02-BENCHMARK-REPORT.md` |
+| TEST-006 | 0, 1, 2, 3 | **Done (Phase 0 + Phase 2 Plan 06 + Phase 3 Plan 05)** — `baseline_benchmark.py` + `baseline_results.csv`; `phase2_benchmark.py` + `phase2_results.csv` (fresh process, warmup excluded, mean±std, both scopes); `phase3_benchmark.py` + `phase3_results.csv` (2×2 matrix, per-operator columns, device recorded) |
+| TEST-007 | 0, 2, 3 | **Done (Phase 2 Plan 06; final Phase 3 Plan 05)** — two-bar report: Phase 2 same-scope 57.14 s vs 61.8 s (1.082×, D-18 bar MET) + bundle 129.54 s vs 169,747 ms (1.310×); **final (shipping config): same-scope fullres 49,672.9 ms = 1.244× vs 61.8 s / 1.150× vs 57.14 s; bundle 104,180.1 ms = 1.629× vs 169,747 ms / 1.243× vs 129.54 s** — `03-BENCHMARK-REPORT.md` + `03-GATE-RESULTS.json` |
 
 **Coverage:**
 - v1 requirements: 36 total
@@ -164,4 +166,4 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 ---
 *Requirements defined: 2025-08-13*
-*Last updated: 2026-08-19 — MEM-003 marked complete (Phase 3 Plan 02: release hook frees the 3d_lowres bundle exactly once after the aux fragment's terminal lowres_seg emit; pool −0.8 GB derived / driver flat measured — Open Q2 answered; D-25 gate re-run green with the hook active)*
+*Last updated: 2026-08-20 (milestone close-out) — v1.0 traceability corrected: all Phase 1 rows marked Done per 1-core-pipeline-VERIFICATION.md (24/24); Phase 3 rows (INFR-02, TEST-001/002/003/006/007) re-verified at the final shipping-config gate; GPUP-01/02 + MEM-003 checked off per Phase 3 evidence. v1 milestone status: **33/36 Done** (all evidenced in VERIFICATION.md artifacts); **3 deliberately deferred with locked reasons** (ACCEL-01/02/03 — ncu admin-blocked ERR_NVGPUCTRPERM + hostile compile env; MEM-01 — not a measured bottleneck; MEM-02 — 8 GB target hardware-unverifiable on A100-40GB). Carried external dependencies (not gaps): ≥5-CT corpus re-run (TEST-01 final gate, D-26), ncu admin access, 2d model (D-01/D-03), user's INFR-02 reference examples.*
