@@ -2,13 +2,13 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: executing
-stopped_at: "Completed 3-optimization-05-PLAN.md (Phase 3 close-out: 2x2 benchmark matrix measured, final shipping-config gate green pixel-identical to baseline, 03-BENCHMARK-REPORT.md two-bar story + §7/§8 verbatim-liftable — Phase 3 5/5 plans complete, awaiting /gsd-verify-phase)"
-last_updated: "2026-08-20T03:12:00.000Z"
+status: completed
+stopped_at: "Completed 3-optimization-04-PLAN.md (D-22 GPU-resample, amended D-22a/D-22b gate: custom RawKernel discarded after the bounded verdict, stock CuPy shipped, gate green pixel-identical to baseline, flag default ON)"
+last_updated: "2026-08-20T13:32:29.097Z"
 last_activity: 2026-08-20
 progress:
   total_phases: 4
-  completed_phases: 3
+  completed_phases: 4
   total_plans: 17
   completed_plans: 17
   percent: 100
@@ -26,8 +26,8 @@ See: .planning/PROJECT.md (updated 2026-08-19)
 ## Current Position
 
 Phase: 03 of 4 (optimization)
-Plan: 5 of 5 (complete)
-Status: Phase 03 plans complete — awaiting verification (all 5 acceptance criteria checked)
+Plan: 5 of 5
+Status: Milestone complete
 Last activity: 2026-08-20
 
 Progress: [██████████] 100% (Phases 1–2 complete + verified; Phase 3 all 5 plans done, pending /gsd-verify-phase)
