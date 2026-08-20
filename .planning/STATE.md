@@ -4,7 +4,7 @@ milestone: v1.0
 milestone_name: milestone
 status: completed
 stopped_at: "Completed 3-optimization-04-PLAN.md (D-22 GPU-resample, amended D-22a/D-22b gate: custom RawKernel discarded after the bounded verdict, stock CuPy shipped, gate green pixel-identical to baseline, flag default ON)"
-last_updated: "2026-08-20T13:32:29.097Z"
+last_updated: "2026-08-20T13:43:20.458Z"
 last_activity: 2026-08-20
 progress:
   total_phases: 4
