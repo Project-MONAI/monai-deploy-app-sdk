@@ -26,7 +26,7 @@ VERIFICATION.md.
 - **1.150× vs Phase 2's 57,140.3 ± 250.4 ms** (`phase2_results.csv`) — Δ −7,467 ms (−13.1%); the increment is the GPU resample: `preprocess_ms_3d_fullres` 7,628.8 → 2,279.3 ms (−70.1%), `postresample_ms_3d_fullres` 1,680.4 → 264.5 ms (−84.3%); inference unchanged within noise (−2.5%)
 
 **Headline bundle (env unset = 3-config reference default): 104,180.1 ± 618.5 ms**
-- **1.639× vs the 169,747 ± 7,274 ms reference** (`baseline_results.csv`)
+- **1.629× vs the 169,747 ± 7,274 ms reference** (`baseline_results.csv`)
 - **1.243× vs Phase 2's 129,542.9 ± 896.4 ms** — Δ −25,363 ms (−19.6%)
 - Bundle-vs-61.8 s prints as 0.593× WITH the D-18 scope-asymmetry note (never a bar)
 
