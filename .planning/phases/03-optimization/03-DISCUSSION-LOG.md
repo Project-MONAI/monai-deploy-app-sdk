@@ -83,3 +83,11 @@
 ## Deferred Ideas
 
 TensorRT (ACCEL-01/02), torch.compile (ACCEL-03), MEM-01, MEM-02, inference-kernel tuning (ncu-blocked), ≥5-CT re-run, INFR-02 user examples, 2d model validation, bootstrap caching (usage-model dependent). See CONTEXT.md <deferred>.
+
+---
+
+## Post-lock amendment (2026-08-19, direct user directive)
+
+**User:** if the custom RawKernel doesn't work after one more attempt, ditch it and port to stock CuPy; **≥99% accuracy vs the CPU reference is acceptable** — byte-for-byte is "extreme" and not worth the time. Original intent was never byte-identity; it was *"don't end up with a fast model that diverges significantly in its predictions — a small tolerance is okay"* (ensembles absorb bit-level noise).
+
+Locked as **D-22a/D-22b** in CONTEXT.md: in-flight kernel test run = final kernel attempt; on failure → stock `cupyx.scipy.ndimage` port behind the same flag; arbiter = ≥99% per-tensor element equality + final gate SEG byte-identity ≥99.0% ∧ IoU ≥0.99 ∧ SR Δ≤0.1%; green → flag ships ON.
