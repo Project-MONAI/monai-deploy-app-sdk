@@ -1,0 +1,74 @@
+{
+  "corpus": "/users/srv-mde/projects/monai-deploy-app-sdk/testdata/airway_input",
+  "results": [
+    {
+      "tensor": "image o3 fullres/cascade (256, 256, 256)->(np.int64(255), np.int64(255), np.int64(256))",
+      "shape_ok": true,
+      "shape": [
+        1,
+        255,
+        255,
+        256
+      ],
+      "dtype": "float32",
+      "elements_equal_pct": 100.0,
+      "max_abs_diff": 0.0,
+      "meets_99pct_bar": true
+    },
+    {
+      "tensor": "image o3 lowres (256, 256, 256)->(np.int64(201), np.int64(201), np.int64(202))",
+      "shape_ok": true,
+      "shape": [
+        1,
+        201,
+        201,
+        202
+      ],
+      "dtype": "float32",
+      "elements_equal_pct": 100.0,
+      "max_abs_diff": 0.0,
+      "meets_99pct_bar": true
+    },
+    {
+      "tensor": "seg o1 multihot (256, 256, 256)->(np.int64(255), np.int64(255), np.int64(256))",
+      "shape_ok": true,
+      "shape": [
+        255,
+        255,
+        256
+      ],
+      "dtype": "uint8",
+      "elements_equal_pct": 100.0,
+      "max_abs_diff": 0.0,
+      "meets_99pct_bar": true
+    },
+    {
+      "tensor": "seg o0 nearest (256, 256, 256)->(np.int64(255), np.int64(255), np.int64(256))",
+      "shape_ok": true,
+      "shape": [
+        255,
+        255,
+        256
+      ],
+      "dtype": "uint8",
+      "elements_equal_pct": 100.0,
+      "max_abs_diff": 0.0,
+      "meets_99pct_bar": true
+    },
+    {
+      "tensor": "prob o1 2ch (2,(201, 201, 202))->(256, 256, 256)",
+      "shape_ok": true,
+      "shape": [
+        2,
+        256,
+        256,
+        256
+      ],
+      "dtype": "float32",
+      "elements_equal_pct": 100.0,
+      "max_abs_diff": 0.0,
+      "meets_99pct_bar": true
+    }
+  ],
+  "all_meet_99pct": true
+}
