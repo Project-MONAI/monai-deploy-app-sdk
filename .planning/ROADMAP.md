@@ -30,6 +30,12 @@ Phase 0 is a hard prerequisite for all subsequent phases. Phases 1–3 are stric
 
 ---
 
+## Milestone v1.0 — Holoscan-native nnUNet inference (2026-08-14 → 2026-08-20, COMPLETE)
+
+All four phases below executed and verified (4/4; 17/17 plans; 74/74 must-haves across Phases 2–3 + 24/24 Phase 1 + 5/5 Phase 0; zero pixel-regressions shipped). Final latency: bundle **104,180 ms = 1.629× vs the 169,747 ms reference** (1.243× vs Phase 2); same-scope fullres **49,673 ms = 1.244× vs Phase 1 61.8 s** (1.150× vs Phase 2). Content below is preserved as-written — phase status blocks and task tables are the historical record. Archive: `.planning/milestones/v1.0-ROADMAP.md`, `.planning/milestones/v1.0-REQUIREMENTS.md`, `.planning/milestones/v1.0-MILESTONE-AUDIT.md`; milestone summary in `.planning/MILESTONES.md`.
+
+---
+
 ## Phase 0: Foundation
 
 **Status (2026-08-17, evening):** 7/7 tasks done. 0.1 scaffold ✓, 0.2 cu13 pins ✓, 0.3 corpus ✓ (deviation: single airway MR series `testdata/airway_input`, 256 slices, with SC/SEG/SR ground truth in `testdata/airway_output`; ≥5-CT bar deferred to final Phase 1 gate per TEST-01 note), 0.4 benchmark script ✓ (`.planning/scripts/baseline_benchmark.py`), 0.5 baseline ✓ (`.planning/baseline_results.csv`: **169,747 ± 7,274 ms** per study, n=3, setup ~12.8 s / inference ~138 s / postprocess 9–23 s / write ~1.2 s), 0.6 Nsight harness ✓ (demo trace `.planning/profiles/nsight_demo_target_20260817_111555.nsys-rep` + .sqlite, NVTX ranges verified in trace), 0.7 RMM ✓ (driver 610.57.04/CUDA 13.3, A100-SXM4-40GB). Models at `examples/apps/cchmc_nnunet_fifteen_ckpt_app/models` (`MRI_NICU-Airway_TRAINv2`: 3d_fullres, 3d_lowres, 3d_cascade_fullres; 2d absent). ⚠ Carried finding: fresh reference output is ~45 mm from historical GT (world COM) — see STATE.md 2026-08-17 evening. Phase 0 accepted with documented deviation.
@@ -257,6 +263,12 @@ Plans:
 - [x] Final benchmark report shows improvement over Phase 2 (2026-08-20, plan 05 — `03-BENCHMARK-REPORT.md`: fullres 49.67 s = 1.150× vs 57.14 s; bundle 104.18 s = 1.243× vs 129.54 s; no regressed cell)
 - [x] Final benchmark report saved to `.planning/benchmarks/phase3_results.csv` (2026-08-20, plan 05 — 2×2 matrix, 2 scopes × 4 cells × (1 warmup + 3 measured) + 8 summary rows, GPU 0 pinned)
 - [x] Decision documented for each v2 requirement (ACCEL, MEM, GPUP, THRU): implemented, deferred, or rejected with rationale (2026-08-20, plan 05 — `03-BENCHMARK-REPORT.md` §7: ACCEL-01/02/03 deferred ncu-admin-blocked, MEM-01 deferred not-a-bottleneck, MEM-02 deferred hardware-unverifiable, GPUP-01/02 implemented (stock CuPy, met-with-documented-tolerance), MEM-003 implemented, INFR-02 implemented, pylibraft (3.5) evaluated-not-taken; THRU out of scope per the latency-first decision)
+
+---
+
+## Next Milestone (TBD)
+
+v1.0 is complete. The next milestone will be scoped from the open external dependencies (≥5-CT corpus re-run, ncu admin access, 2d model) plus the deferred v2 requirement set (THRU-01..03, ACCEL-01..03, MEM-01/02) — see `.planning/MILESTONES.md` v1.0 "Known Gaps / External Dependencies".
 
 ---
 
