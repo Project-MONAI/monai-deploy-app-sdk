@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 3-optimization-04-PLAN.md (D-22 GPU-resample under the AMENDED D-22a/D-22b gate: custom RawKernel discarded after the bounded verdict, stock CuPy shipped, gate green, flag default ON)
-last_updated: "2026-08-20T01:33:22Z"
+stopped_at: "Completed 3-optimization-04-PLAN.md (D-22 GPU-resample, amended D-22a/D-22b gate: custom RawKernel discarded after the bounded verdict, stock CuPy shipped, gate green pixel-identical to baseline, flag default ON)"
+last_updated: "2026-08-20T02:02:36.631Z"
 last_activity: 2026-08-20
 progress:
   total_phases: 4
@@ -26,8 +26,8 @@ See: .planning/PROJECT.md (updated 2026-08-19)
 ## Current Position
 
 Phase: 03 of 4 (optimization)
-Plan: 5 of 5 (next: Plan 05 — close-out: 2×2 benchmark (D-18 two bars) + final gate + 03-BENCHMARK-REPORT.md)
-Status: Plan 04 complete (amended D-22b gate) — Plan 05 next
+Plan: 5 of 5
+Status: Executing Phase 03
 Last activity: 2026-08-20
 
 Progress: [█████████░] 94% (Phases 1–2 complete; Phase 3 4/5 plans done)
