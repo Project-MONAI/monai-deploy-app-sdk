@@ -248,7 +248,8 @@ def _resample_to_shape(
             # the STOCK cupyx.scipy.ndimage path — per-channel exact mirror of
             # the flag-OFF chain (fp64 widening -> grid_mode zoom -> fp64
             # clip -> fp32 cast). Stays on GPU end-to-end; no D2H for the
-            # resample span. Flag OFF (default) runs the verbatim scipy/skimage
+            # resample span. Flag OFF (``HOLOSCAN_GPU_RESAMPLE=0``) runs
+            # the verbatim scipy/skimage
             # reference below. (The custom RawKernel provenance in gpu_zoom.py
             # is NOT wired — D-22a.)
             return stock_gpu_resize(
@@ -866,10 +867,10 @@ class PreprocessOperator(Operator):
         # Materialize after per-channel writes (D-12) before leaving the GPU.
         vol_c = cp.ascontiguousarray(vol_c)
 
-        # 4. resample (PREP-03) — flag-gated (D-22 / D-22a): flag ON runs the
-        #    stock cupyx.scipy.ndimage mirror on GPU (no D2H for the span);
-        #    flag OFF (default) is the UNCHANGED scipy/skimage CPU reference
-        #    path: device->host of the normalized volume, then the exact
+        # 4. resample (PREP-03) — flag-gated (D-22 / D-22a): default ON
+        #    runs the stock cupyx.scipy.ndimage mirror on GPU (no D2H for
+        #    the span); HOLOSCAN_GPU_RESAMPLE=0 is the UNCHANGED
+        #    scipy/skimage CPU reference path: device->host of the normalized volume, then the exact
         #    Phase 1 _resample_to_shape. Entering it requires a C-contiguous
         #    fp32 buffer (skimage.resize/map_coordinates are not
         #    layout-invariant at float32 — the Phase 1 1-ulp lesson).

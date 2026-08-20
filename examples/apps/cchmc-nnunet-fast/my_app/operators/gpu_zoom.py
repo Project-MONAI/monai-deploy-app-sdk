@@ -71,9 +71,11 @@ Restriction: ndim = 3 only (every active call site is 3D); other ndim raise
 ``NotImplementedError``. Inputs must be fp32, C-contiguous (integer/0-1
 labels are exactly representable; the fp64 widening is exact).
 
-Gating (D-22): ``HOLOSCAN_GPU_RESAMPLE=1`` opts in; the flag DEFAULTS OFF —
-with it off the operators run the scipy/skimage reference path unchanged
-(byte-for-byte Phase 2/3 behavior).
+Gating (D-22 / D-22b): the flag DEFAULTS ON since the amended D-22b gate
+came green (2026-08-20: ON-path gate pixel-identical to the OFF baseline
+on the dev corpus, per-tensor accuracy 100.0000% vs scipy — see
+evidence/gpu_resample_verdict.md); ``HOLOSCAN_GPU_RESAMPLE=0`` forces the
+scipy/skimage CPU reference path (byte-for-byte Phase 2/3 behavior).
 
 PROVENANCE NOTICE (D-22a amendment, 2026-08-19): the custom RawKernel below
 (``gpu_zoom_grid_mode`` / ``gpu_zoom_resize`` and the ``_get_kernel`` /
@@ -124,8 +126,11 @@ _MAX_LINE = 368
 
 
 def gpu_resample_enabled() -> bool:
-    """D-22 gate flag: True iff ``HOLOSCAN_GPU_RESAMPLE=1`` (default OFF)."""
-    return os.environ.get("HOLOSCAN_GPU_RESAMPLE") == "1"
+    """D-22 gate flag: default ON (the D-22b gate is green — ON-path gate
+    pixel-identical to the OFF baseline, per-tensor accuracy 100.0000% vs
+    scipy on the dev corpus); ``HOLOSCAN_GPU_RESAMPLE=0`` forces the
+    scipy/skimage CPU reference path (D-21-style default-ON convention)."""
+    return os.environ.get("HOLOSCAN_GPU_RESAMPLE", "1") != "0"
 
 
 def zoom_factors_for(

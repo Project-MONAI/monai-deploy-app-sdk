@@ -133,7 +133,7 @@ def resample_probabilities_to_shape(
             # wired — D-22a). The result returns to CPU numpy because the
             # reference torch CPU softmax (thread-scoped, bit-exactness
             # decision) runs downstream — the resample span itself computes on
-            # GPU. Flag OFF (default) is the verbatim Phase 2/3 path.
+            # GPU. HOLOSCAN_GPU_RESAMPLE=0 is the verbatim Phase 2/3 path.
             data_gpu = cp.asarray(data, dtype=cp.float32)
             return np.ascontiguousarray(
                 stock_gpu_resize(
