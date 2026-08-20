@@ -109,7 +109,7 @@ Best shipping cell = `conc-resample-on` (shipped defaults), n=3. Reference basel
 | **preprocess (3 configs summed)** | 22,206.7 | 6,935.3 | −15,271.4 | −68.8% |
 | **postresample (3 configs summed)** | 6,600.3 | 2,715.9 | −3,884.4 | −58.9% |
 | **`total_ms` (E2E)** | **129,542.9 ± 896.4** | **104,180.1 ± 618.5** | **−25,362.8** | **−19.6%** |
-| speedup vs 169,747 ms | 1.310× | **1.639×** | | |
+| speedup vs 169,747 ms | 1.310× | **1.629×** | | |
 | speedup vs Phase 2 bundle | 1.000× | **1.243×** | | |
 
 ² The inference per-fragment and summed increases are the **expected concurrency
