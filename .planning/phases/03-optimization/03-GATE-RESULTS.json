@@ -1,0 +1,164 @@
+{
+  "phase": "2-gpu-acceleration",
+  "plan": "05",
+  "note": "Final Phase 3 shipping-configuration gate (3-optimization-05): all four plan flags in their shipped default states \u2014 HOLOSCAN_CONCURRENT_FRAGMENTS unset = concurrent ON (EventBasedScheduler, D-21), HOLOSCAN_GPU_RESAMPLE unset = ON (stock CuPy, D-22b), INFR-02 shape caches active (Plan 03), MEM-003 lowres release hook active (Plan 02); RMM initial_pool_size pinned 4 GiB (Plan 01). GPU pinned CUDA_VISIBLE_DEVICES=0 (Pitfall 7). Result: pixel-identical to the Phase 2/3 baseline \u2014 the Phase 3 optimizations add zero divergence. Stands as the TEST-02 (SR 0.1% bar) and TEST-003 (automated pixel-diff fails on divergence) deliverable for Phase 3.",
+  "gates": [
+    {
+      "row": "fullres_only",
+      "model_list": "3d_fullres",
+      "oracle": "/users/srv-mde/projects/monai-deploy-app-sdk/testdata/ref_fullres_only",
+      "fast_exit": 0,
+      "fast_log": "/tmp/phase2_gate/fullres_only.log",
+      "logged_run_model_list": [
+        "3d_fullres"
+      ],
+      "logged_ensemble_model_list": [
+        "3d_fullres"
+      ],
+      "lists_match": true,
+      "pixel_diff": {
+        "byte_identity_pct": 99.99986,
+        "differing_voxels": 3,
+        "iou": 0.9987135506003431,
+        "fast_voxels": 2331,
+        "oracle_voxels": 2330,
+        "geometry_match": true,
+        "pass": true,
+        "fail_reasons": []
+      },
+      "oracle_seg_sha256": "358dbf94fa83f9fd84f4ee1e3ced6d98606682bd97a3ca19bdef8a2ed62f070e",
+      "oracle_seg_file": "/users/srv-mde/projects/monai-deploy-app-sdk/testdata/ref_fullres_only/SEG/1.2.826.0.1.3680043.10.511.3.26461384464221890112329357325699713.dcm",
+      "sr_fast": 1.0,
+      "sr_oracle": 1.0,
+      "sr_delta_pct": 0.0,
+      "sr_ok": true,
+      "pass": true,
+      "fail_reasons": []
+    },
+    {
+      "row": "lowres_only",
+      "model_list": "3d_lowres",
+      "oracle": "/users/srv-mde/projects/monai-deploy-app-sdk/testdata/ref_lowres_only",
+      "fast_exit": 0,
+      "fast_log": "/tmp/phase2_gate/lowres_only.log",
+      "logged_run_model_list": [
+        "3d_lowres"
+      ],
+      "logged_ensemble_model_list": [
+        "3d_lowres"
+      ],
+      "lists_match": true,
+      "pixel_diff": {
+        "byte_identity_pct": 100.0,
+        "differing_voxels": 0,
+        "iou": 1.0,
+        "fast_voxels": 2404,
+        "oracle_voxels": 2404,
+        "geometry_match": true,
+        "pass": true,
+        "fail_reasons": []
+      },
+      "oracle_seg_sha256": "8bc9287a89f355f4f4c864d49255685bfcf060026972c8a66e029c984de9ce83",
+      "oracle_seg_file": "/users/srv-mde/projects/monai-deploy-app-sdk/testdata/ref_lowres_only/SEG/1.2.826.0.1.3680043.10.511.3.92210611187211826977690177058141110.dcm",
+      "sr_fast": 1.0,
+      "sr_oracle": 1.0,
+      "sr_delta_pct": 0.0,
+      "sr_ok": true,
+      "pass": true,
+      "fail_reasons": []
+    },
+    {
+      "row": "cascade_only",
+      "model_list": "3d_cascade_fullres",
+      "oracle": "/users/srv-mde/projects/monai-deploy-app-sdk/testdata/ref_cascade_only",
+      "fast_exit": 0,
+      "fast_log": "/tmp/phase2_gate/cascade_only.log",
+      "logged_run_model_list": [
+        "3d_lowres",
+        "3d_cascade_fullres"
+      ],
+      "logged_ensemble_model_list": [
+        "3d_cascade_fullres"
+      ],
+      "lists_match": true,
+      "pixel_diff": {
+        "byte_identity_pct": 100.0,
+        "differing_voxels": 0,
+        "iou": 1.0,
+        "fast_voxels": 2519,
+        "oracle_voxels": 2519,
+        "geometry_match": true,
+        "pass": true,
+        "fail_reasons": []
+      },
+      "oracle_seg_sha256": "bb3ce2ed5bb02d49cfee3c872ecbc40c39b819f7b22d8aadbd1d8538185f3ee0",
+      "oracle_seg_file": "/users/srv-mde/projects/monai-deploy-app-sdk/testdata/ref_cascade_only/SEG/1.2.826.0.1.3680043.10.511.3.87626630576508764317821824984034262.dcm",
+      "sr_fast": 1.0,
+      "sr_oracle": 1.0,
+      "sr_delta_pct": 0.0,
+      "sr_ok": true,
+      "pass": true,
+      "fail_reasons": []
+    },
+    {
+      "row": "bundle",
+      "model_list": null,
+      "oracle": "/users/srv-mde/projects/monai-deploy-app-sdk/testdata/current_output",
+      "fast_exit": 0,
+      "fast_log": "/tmp/phase2_gate/bundle.log",
+      "logged_run_model_list": [
+        "3d_fullres",
+        "3d_lowres",
+        "3d_cascade_fullres"
+      ],
+      "logged_ensemble_model_list": [
+        "3d_fullres",
+        "3d_cascade_fullres"
+      ],
+      "lists_match": true,
+      "pixel_diff": {
+        "byte_identity_pct": 100.0,
+        "differing_voxels": 0,
+        "iou": 1.0,
+        "fast_voxels": 2447,
+        "oracle_voxels": 2447,
+        "geometry_match": true,
+        "pass": true,
+        "fail_reasons": []
+      },
+      "oracle_seg_sha256": "1d73abd45791edd9c6ece142671298f014fa4ede987698ba554b1b7042e9b1eb",
+      "oracle_seg_file": "/users/srv-mde/projects/monai-deploy-app-sdk/testdata/current_output/SEG/1.2.826.0.1.3680043.10.511.3.40028959079797217628140533470535229.dcm",
+      "sr_fast": 1.0,
+      "sr_oracle": 1.0,
+      "sr_delta_pct": 0.0,
+      "sr_ok": true,
+      "pass": true,
+      "fail_reasons": []
+    }
+  ],
+  "residency": {
+    "static": "PASS",
+    "runtime": "PASS",
+    "static_log": "/tmp/phase2_gate/residency_static.out",
+    "runtime_log": "/tmp/phase2_gate/residency_runtime.out",
+    "note": "runtime runs the multi-fragment BUNDLE configuration (HOLOSCAN_MODEL_LIST unset = reference default); preprocess_operator.py is the deliberate D-13 allow-list entry (Plan 01); postprocess_operator.py is the only exactly-once final boundary"
+  },
+  "sanity": {
+    "bundle_vs_fullres_differing_voxels": 382,
+    "bundle_voxels": 2447,
+    "fullres_only_voxels": 2331,
+    "ok": true
+  },
+  "deviations": [
+    {
+      "id": "TEST-005-2d",
+      "text": "2d config blocked-on-model (D-01/D-03): the bundle has no 2d model; TEST-005 counts as met-with-deviation, same pattern as the Phase 0 corpus deviation. Fragment wiring is config-generic (D-02) \u2014 a real 2d model is a test, not a code change (D-04)."
+    },
+    {
+      "id": "TEST-01-corpus",
+      "text": "Single airway dev-study corpus (TEST-01 deviation, carried from Phase 0/1); the >=5-CT-study re-run remains a deferred final gate."
+    }
+  ],
+  "fixes": [],
+  "all_gates_pass": true
+}
