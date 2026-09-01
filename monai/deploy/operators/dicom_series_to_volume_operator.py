@@ -1,4 +1,4 @@
-# Copyright 2021-2025 MONAI Consortium
+# Copyright 2021-2026 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -11,7 +11,6 @@
 
 import copy
 import logging
-import math
 from typing import Dict, List, Union
 
 import numpy as np
@@ -324,15 +323,14 @@ class DICOMSeriesToVolumeOperator(Operator):
         series.depth_direction_cosine = copy.deepcopy(last_slice_normal)
 
         if len(series._sop_instances) > 1:
-            p1 = series._sop_instances[0].first_pixel_on_slice_normal
-            p2 = series._sop_instances[1].first_pixel_on_slice_normal
-            depth_pixel_spacing = (
-                (p1[0] - p2[0]) * (p1[0] - p2[0])
-                + (p1[1] - p2[1]) * (p1[1] - p2[1])
-                + (p1[2] - p2[2]) * (p1[2] - p2[2])
-            )
-            depth_pixel_spacing = math.sqrt(depth_pixel_spacing)
-            series.depth_pixel_spacing = depth_pixel_spacing
+            # Depth spacing is the difference of the two slice origins' scalar projections
+            # onto the unit slice normal, dot(n, p) — already computed into .distance above
+            d1 = series._sop_instances[0].distance
+            d2 = series._sop_instances[1].distance
+            series.depth_pixel_spacing = abs(d2 - d1)
+
+            logging.debug(f"Slice normal projections, first two instances: {d1} & {d2}")
+            logging.debug(f"Depth pixel spacing: {series.depth_pixel_spacing:.6f} mm ")
 
         s_1 = series._sop_instances[0]
         s_n = series._sop_instances[-1]
