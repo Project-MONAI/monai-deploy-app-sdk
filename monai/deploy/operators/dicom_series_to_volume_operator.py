@@ -262,7 +262,6 @@ class DICOMSeriesToVolumeOperator(Operator):
             return
 
         slice_indices_to_be_removed = []
-        depth_pixel_spacing = 0.0
         last_slice_normal = [0.0, 0.0, 0.0]
 
         for slice_index, slice in enumerate(series._sop_instances):
