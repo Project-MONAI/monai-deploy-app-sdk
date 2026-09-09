@@ -29,6 +29,8 @@ python convert_nnunet_ckpts.py --dataset_name_or_id DATASET_ID --MAP_root OUTPUT
 
 The RESULTS_PATH should have "inference_information.json" file created by nnunetv2 automatically, as the conversion relies on this to figure out the best model configuration and convert those for the MAP.
 
+`MAP_root` must resolve to a directory inside the current working directory. Relative paths such as `.` and `output` are supported; paths that escape the current directory are rejected.
+
 ### Command-line Arguments
 
 | Argument | Description | Required | Default |
@@ -36,6 +38,7 @@ The RESULTS_PATH should have "inference_information.json" file created by nnunet
 | `--dataset_name_or_id` | Name or ID of the nnUNet dataset to convert | Yes | N/A |
 | `--MAP_root` | Output directory for the converted MONAI bundle | No | Current directory |
 | `--nnUNet_results` | Path to nnUNet results directory with trained models | Yes | Uses environment variable if set |
+| `--checkpoint_type` | Checkpoints to convert: `final` produces `final_model.pt`, `best` produces `best_model.pt`, and `both` produces both files | No | `final` |
 
 #### Example
 
@@ -62,7 +65,7 @@ MAP_root/
     ├── 3d_fullres/           # Model configuration (if present)
     │   ├── nnunet_checkpoint.pth
     │   └── fold_X/           # Each fold's model weights
-    │       └── best_model.pt
+    │       └── final_model.pt
     ├── 3d_lowres/            # Model configuration (if present)
     └── 3d_cascade_fullres/   # Model configuration (if present)
 ```
