@@ -64,9 +64,7 @@ from typing import Any, Callable, Iterable
 
 import numpy as np
 from pydicom.pixels.common import PhotometricInterpretation as PI  # noqa: N817
-from pydicom.pixels.common import (
-    RunnerBase,
-)
+from pydicom.pixels.common import RunnerBase
 from pydicom.pixels.decoders import (
     HTJ2KDecoder,
     HTJ2KLosslessDecoder,
