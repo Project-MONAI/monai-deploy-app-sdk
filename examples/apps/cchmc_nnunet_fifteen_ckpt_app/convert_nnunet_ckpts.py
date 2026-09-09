@@ -56,9 +56,7 @@ def _validated_map_root(value: str) -> Path:
     try:
         map_root.relative_to(allowed_root)
     except ValueError as exc:
-        raise argparse.ArgumentTypeError(
-            f"MAP_root must be inside the current directory ({allowed_root})."
-        ) from exc
+        raise argparse.ArgumentTypeError(f"MAP_root must be inside the current directory ({allowed_root}).") from exc
 
     if map_root.exists() and not map_root.is_dir():
         raise argparse.ArgumentTypeError(f"MAP_root is not a directory: {map_root}")
