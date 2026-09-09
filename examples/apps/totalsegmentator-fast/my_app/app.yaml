@@ -1,0 +1,21 @@
+---
+# MAP application manifest for totalsegmentator-fast (SDK 4.2.0 / Holoscan CLI 4.2.0).
+# resources.gpu drives MAR GPU exposure (NVIDIA_VISIBLE_DEVICES) + nvidia-ctk check.
+application:
+  title: MONAI Deploy App Package - TotalSegmentator Fast (GPU)
+  description: GPU-resident nnU-Net TotalSegmentator (43-task registry, selected via HOLOSCAN_TASK; MAP images ship one task per bake — e.g. total 5 parts → 117 classes, or body); CT DICOM in → DICOM-SEG + DICOM-SR sidecars in the output (shipped MAPs disable the debug numpy .npy + emit_meta.json emit via HOLOSCAN_EMIT_NPY=0; the dev default leaves it ON)
+  version: 0.1.0
+  inputFormats: ["file"]
+  outputFormats: ["file"]
+resources:
+  cpu: 4
+  gpu: 1
+  memory: 8Gi
+  gpuMemory: 20Gi
+environment:
+  # Task-neutral (no HOLOSCAN_TASK here — task identity stays with the baked
+  # manifest per MAP). NOTE: holoscan-cli 4.2 does NOT forward this section to
+  # the container env; the MAP image-embedded /etc/holoscan/app.json carries it
+  # via a manifest-patch docker layer (map-config/app.total.json / app.body.json).
+  # Kept here as the single task-neutral source of truth.
+  HOLOSCAN_EMIT_NPY: "0"

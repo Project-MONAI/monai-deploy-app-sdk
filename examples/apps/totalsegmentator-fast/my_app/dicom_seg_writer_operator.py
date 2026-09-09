@@ -23,12 +23,16 @@ from monai.deploy.utils.importutil import optional_import
 from monai.deploy.utils.version import get_sdk_semver
 
 dcmread, _ = optional_import("pydicom", name="dcmread")
-generate_uid, _ = optional_import("pydicom.uid", name="generate_uid")
-ImplicitVRLittleEndian, _ = optional_import("pydicom.uid", name="ImplicitVRLittleEndian")
-Dataset, _ = optional_import("pydicom.dataset", name="Dataset")
-FileDataset, _ = optional_import("pydicom.dataset", name="FileDataset")
-DA, _ = optional_import("pydicom.valuerep", name="DA")
-TM, _ = optional_import("pydicom.valuerep", name="TM")
+_PYDICOM_UID = "pydicom.uid"
+_PYDICOM_DATASET = "pydicom.dataset"
+_PYDICOM_VALUEREP = "pydicom.valuerep"
+generate_uid, _ = optional_import(_PYDICOM_UID, name="generate_uid")
+ImplicitVRLittleEndian, _ = optional_import(_PYDICOM_UID, name="ImplicitVRLittleEndian")
+ExplicitVRLittleEndian, _ = optional_import(_PYDICOM_UID, name="ExplicitVRLittleEndian")
+Dataset, _ = optional_import(_PYDICOM_DATASET, name="Dataset")
+FileDataset, _ = optional_import(_PYDICOM_DATASET, name="FileDataset")
+DA, _ = optional_import(_PYDICOM_VALUEREP, name="DA")
+TM, _ = optional_import(_PYDICOM_VALUEREP, name="TM")
 PyDicomSequence, _ = optional_import("pydicom.sequence", name="Sequence")
 sitk, _ = optional_import("SimpleITK")
 codes, _ = optional_import("pydicom.sr.codedict", name="codes")
@@ -43,6 +47,19 @@ from monai.deploy.core import ConditionType, Fragment, Image, Operator, Operator
 from monai.deploy.core.domain.dicom_series import DICOMSeries
 from monai.deploy.core.domain.dicom_series_selection import StudySelectedSeries
 from monai.deploy.operators.dicom_utils import ModelInfo
+
+# P14 (14-02): chunked-parallel SEG save (WS-2). Same-directory module; mirror
+# app.py's dual-import pattern (my_app package vs flat my_app-dir on sys.path).
+# pydicom + stdlib only — worker processes never import monai/holoscan/torch.
+try:
+    from my_app.dicom_seg_writer_parallel import FRAME_THRESHOLD, save_seg_parallel
+except ImportError:  # flat import
+    from dicom_seg_writer_parallel import FRAME_THRESHOLD, save_seg_parallel
+
+# P14 (14-02): process-pool size for the PFFG serialization fan-out. Default 8
+# (the 31322 production-scale sweep winner, 1.614x, p14_writer_sweep_31322.json);
+# N==1 (or nframes < FRAME_THRESHOLD) always keeps the serial save_as path.
+_SEG_WRITER_NPROC = int(os.environ.get("HOLOSCAN_SEG_WRITER_PROC", "8"))
 
 
 class SegmentDescription:
@@ -229,6 +246,11 @@ class DICOMSegmentationWriterOperator(Operator):
         self.input_name_series = "study_selected_series_list"
         self.input_name_output_folder = "output_folder"
 
+        # Print type of all objects used for initialization for debugging
+        logging.debug(f"Segment Descriptions Type: {type(self._seg_descs)}")
+        logging.debug(f"Output Folder: {self.output_folder}")
+        logging.debug(f"Model Info Type: {type(self.model_info)}")
+
         super().__init__(fragment, *args, **kwargs)
 
     def setup(self, spec: OperatorSpec):
@@ -310,33 +332,6 @@ class DICOMSegmentationWriterOperator(Operator):
             self.create_dicom_seg(seg_image_numpy, dicom_series, output_dir)
             break
 
-    def _to_highdicom_frame_major(self, image: np.ndarray, dicom_series: DICOMSeries) -> np.ndarray:
-        """Normalize a segmentation array to highdicom's expected layout.
-
-        highdicom >= 0.28 expects (num_planes, rows, cols[, channels]); apps
-        typically emit channel-first (1, rows, cols, slices) or rows-first
-        (rows, cols, slices) arrays, which older highdicom accepted directly.
-        Without this normalization, 3D volumes with slices != rows crash the
-        Segmentation constructor with a plane_positions/pixel_measures error.
-        """
-        arr = np.asarray(image)
-        src0 = dicom_series.get_sop_instances()[0].get_native_sop_instance()
-        rows = src0.Rows
-        cols = src0.Columns
-        if arr.ndim == 4 and arr.shape[0] == 1:
-            # channel-first single channel: (1, R, C, S) -> (R, C, S)
-            arr = arr[0]
-        if arr.ndim == 3:
-            if arr.shape[0] == rows and arr.shape[1] == cols:
-                # rows-first volume (R, C, S) -> frame-major (S, R, C)
-                arr = np.transpose(arr, (2, 0, 1))
-            # else: assume already frame-major (S, R, C)
-        elif arr.ndim == 4:
-            if arr.shape[1] == rows and arr.shape[2] == cols and arr.shape[0] != rows:
-                # (R, C, S, segs) -> (S, R, C, segs)
-                arr = np.transpose(arr, (2, 0, 1, 3))
-        return arr
-
     def create_dicom_seg(self, image: np.ndarray, dicom_series: DICOMSeries, output_dir: Path):
         # Generate SOP instance UID, and use it as dcm file name too
         seg_sop_instance_uid = hd.UID()  # generate_uid() can be used too.
@@ -345,7 +340,6 @@ class DICOMSegmentationWriterOperator(Operator):
         output_path = output_dir / f"{seg_sop_instance_uid}{DICOMSegmentationWriterOperator.DCM_EXTENSION}"
 
         dicom_dataset_list = [i.get_native_sop_instance() for i in dicom_series.get_sop_instances()]
-        image = self._to_highdicom_frame_major(image, dicom_series)
 
         try:
             version_str = get_sdk_semver()  # SDK Version
@@ -367,6 +361,11 @@ class DICOMSegmentationWriterOperator(Operator):
             device_serial_number="0000",
             omit_empty_frames=self._omit_empty_frames,
         )
+
+        # add source SeriesInstanceUID as private DICOM tag
+        # tag identifier: 0019,1001, label: CCHMC Private, VR: UI
+        block = seg.private_block(0x0019, "CCHMC Private", create=True)
+        block.add_new(0x01, "UI", f"{dicom_series._series_instance_uid}")  # 0x01 is the offset (0x1001 → offset = 0x01)
 
         # Adding a few tags that are not in the Dataset
         # Also try to set the custom tags that are of string type
@@ -426,7 +425,34 @@ class DICOMSegmentationWriterOperator(Operator):
             seq_contributing_equipment.append(seg_contributing_equipment)
             seg.ContributingEquipmentSequence = seq_contributing_equipment
 
-        seg.save_as(output_path)
+        # P14 (14-02): the highdicom BUILD above is unchanged and SERIAL; only
+        # the PFFG-item serialization is fanned out over a bounded process pool
+        # (dicom_seg_writer_parallel.save_seg_parallel) — byte-for-byte
+        # identical to save_as (full-file sha256 proof: scripts/
+        # test_writer_parallel.py on 44238) with a post-write self-check that
+        # raises on any on-disk mismatch (never emits a corrupt/partial SEG).
+        # Frame order/assignment happens in the parent BEFORE spawn (contiguous
+        # order-preserving chunks); workers only encode. Small studies (44238's
+        # 4914 frames < FRAME_THRESHOLD) and N<=1 keep the EXISTING serial
+        # save_as path, byte-for-byte unchanged (regression safety).
+        n_frames = len(seg.PerFrameFunctionalGroupsSequence)
+        if _SEG_WRITER_NPROC <= 1 or n_frames < FRAME_THRESHOLD:
+            seg.save_as(output_path)
+            logging.info(
+                "seg_writer: serial save_as (frames=%d, HOLOSCAN_SEG_WRITER_PROC=%d, threshold=%d)",
+                n_frames,
+                _SEG_WRITER_NPROC,
+                FRAME_THRESHOLD,
+            )
+        else:
+            info = save_seg_parallel(seg, str(output_path), nproc=_SEG_WRITER_NPROC, self_check=True)
+            logging.info(
+                "seg_writer: parallel save_as (frames=%d, nproc=%d, pool_s=%.3f, total_s=%.3f, byte-equal self-check ok)",
+                info["n_items"],
+                info["nproc"],
+                info.get("pool_s", -1.0),
+                info.get("total_s", -1.0),
+            )
 
         try:
             # Test reading back

@@ -1,0 +1,45 @@
+# cchmc-nnunet-fast MAP runtime deps.
+# Base image is CUDA 13 runtime with NO torch; the cu130 index is required.
+--extra-index-url https://download.pytorch.org/whl/cu130
+torch==2.13.0+cu130
+
+# GPU numerics — CUDA 13 wheels ONLY (cupy-cuda12x / rmm-cu12 must NOT appear)
+cupy-cuda13x==14.1.1
+rmm-cu13==26.2.0
+
+# Medical imaging — pydicom 3.x API (the SDK 4.x DICOM writers require it; do NOT downgrade)
+# monai==1.5.2: first version that (a) allows numpy 2.x (numpy<3.0,>=1.24) AND (b) supports
+# Py3.12 AND (c) is numpy-2 code-clean (np.ptp, not the removed ndarray.ptp). The base image is
+# CUDA-13/Py3.12 and cupy-cuda13x 14.1.1 hard-requires numpy>=2.0, so the venv's monai 1.3.x
+# (numpy<2.0) CANNOT be used in-image; 1.4.0 has the same numpy<2.0 packaging bug. 1.5.2 resolves
+# cleanly with numpy 2.2.6 + torch 2.13.0+cu130. Deviation from venv parity (1.3.0) is Rule-3
+# (blocking): MONAI-ML is only on the input (DICOMSeriesToVolume) + SC-overlay paths, not the SEG
+# pixel path (SDK pydicom writer + app torch/cupy inference), so the pixel_diff gate is safe.
+monai==1.5.2
+pydicom==3.0.2
+highdicom==0.28.1
+nibabel==5.4.2
+# itk (SimpleITK): MONAI SaveImaged(output_ext=.dcm) in operators/sc_overlay.py requires the
+# ITK writer for .dcm; without it MONAI falls back to nibabel and crashes. Pinned to dev venv.
+itk==5.4.7
+
+# Numerics
+numpy==2.2.6
+scipy==1.15.3
+
+# App utilities (imported by my_app)
+scikit-image>=0.21
+# matplotlib pinned to dev venv: 3.11+ removed cm.get_cmap used by operators/sc_overlay.py
+matplotlib==3.10.9
+
+# nnunetv2 (PyPI, pinned to the vendored version 2.8.1) — the pins below are
+# belt-and-braces hard pins on its transitive deps:
+nnunetv2==2.8.1
+batchgenerators==0.25.3
+acvl-utils==0.2.6
+dynamic-network-architectures==0.4.4
+einops
+tqdm
+pandas
+
+# NOT listed (packager installs these itself): holoscan-cu13, monai-deploy-app-sdk.

@@ -1,0 +1,14 @@
+---
+# MAP application manifest for cchmc-nnunet-fast (SDK 4.2.0 / Holoscan CLI 4.2.0).
+# resources.gpu drives MAR GPU exposure (NVIDIA_VISIBLE_DEVICES) + nvidia-ctk check.
+application:
+  title: MONAI Deploy App Package - CCHMC nnUNet Fast (GPU)
+  description: GPU-resident nnU-Net airway segmentation for NICU-PULM MR; DICOM in, DICOM-SEG + SR + SC out
+  version: 0.1.0
+  inputFormats: ["file"]
+  outputFormats: ["file"]
+resources:
+  cpu: 4
+  gpu: 1
+  memory: 8Gi
+  gpuMemory: 20Gi
