@@ -34,4 +34,7 @@ monai-deploy-app-sdk==3.0.0
 holoscan==3.2.0
 holoscan-cli==3.2.0
 nvflare>=2.6.2,<3.0.0
+# nnunetv2 intentionally a 2.x range, not a hard pin: the inference path is stable
+# across 2.x, the floor matches the nnUNet that produced the converted bundle, and
+# <3.0.0 guards a future breaking major; the MAP bakes the exact build at build time.
 nnunetv2>=2.6.2,<3.0.0
