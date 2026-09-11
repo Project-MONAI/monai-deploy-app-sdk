@@ -57,8 +57,12 @@ def test_verifier_passes_on_mock_output(tmp_path):
 
 def test_mock_mode_is_reproducible(tmp_path):
     result_path = _run_mock(tmp_path, study_id="REPRO_STUDY")
+    # Double quotes (not !r/repr's single quotes) are required here: this command runs
+    # via shell=True and must be valid for both POSIX shells and Windows cmd.exe, which
+    # does not treat single quotes as quoting.
     rerun_cmd = (
-        f'"{sys.executable}" "{RUN_SCRIPT}" --study-id REPRO_STUDY --mock --output-dir "{result_path.parent}"'
+        f'"{sys.executable}" "{RUN_SCRIPT}" --study-id REPRO_STUDY --mock '  # noqa: B907
+        f'--output-dir "{result_path.parent}"'  # noqa: B907
     )
     proc = subprocess.run(
         [sys.executable, str(VERIFY_SCRIPT), str(result_path), "--rerun-cmd", rerun_cmd],

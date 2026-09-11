@@ -37,6 +37,7 @@ from typing import Any, Dict, List
 
 try:
     import torch
+
     from monai.networks.nets import SegResNet
 
     MONAI_AVAILABLE = True
@@ -149,8 +150,10 @@ def main() -> int:
     args = parser.parse_args()
 
     use_real = MONAI_AVAILABLE and not args.mock
-    result = run_real(args.study_id, args.sensitivity_threshold) if use_real else run_mock(
-        args.study_id, args.sensitivity_threshold
+    result = (
+        run_real(args.study_id, args.sensitivity_threshold)
+        if use_real
+        else run_mock(args.study_id, args.sensitivity_threshold)
     )
 
     args.output_dir.mkdir(parents=True, exist_ok=True)
