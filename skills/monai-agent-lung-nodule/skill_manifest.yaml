@@ -1,0 +1,62 @@
+name: monai-agent-lung-nodule
+version: 0.1.0
+purpose: >
+  Reference implementation of an agent/MCP-callable wrapper around a MONAI Deploy
+  segmentation operator, proposed as the general pattern for exposing MONAI Deploy
+  operators to LLM/agent orchestrators. Development-time reference; not a validated
+  clinical model.
+
+inputs:
+  study_id:
+    type: string
+    required: true
+    description: DICOM Study Instance UID or local accession identifier.
+  sensitivity_threshold:
+    type: number
+    required: false
+    default: 0.85
+    description: Detection confidence threshold between 0.0 and 1.0.
+
+outputs:
+  result_json:
+    type: file
+    description: >
+      Structured evidence pack: per-nodule findings (location slice, diameter_mm,
+      volume, confidence_score), Fleischner Society follow-up category per finding,
+      execution_metadata (mode, device, model_version, inference_time_ms), and an
+      AI_Generated / Verification_Status flag pair on every record.
+
+runtime:
+  language: python
+  python_version: "3.10-3.12"
+  packages:
+    required: []
+    optional:
+      - torch>=2.0
+      - monai>=1.3
+  gpu:
+    required: false
+    accelerated_if_available: true
+    device_selection: auto (cuda if available, else cpu)
+
+resources:
+  local_storage_mb: 50
+  gpu_memory_peak_mb: 512
+  runtime_seconds: [0.05, 5.0]
+
+constraints:
+  - Not approved for clinical deployment, clinical interpretation, autonomous diagnosis,
+    or regulatory submission.
+  - No PHI is read, stored, or transmitted. Operates on a synthetic volume or caller-
+    supplied de-identified/public data only.
+  - Every emitted finding must carry AI_Generated: true and Verification_Status: "Pending".
+
+validation_gates:
+  - schema: result_json must validate against the documented finding schema
+  - sanity: at least one of {nodules_detected == 0, findings non-empty} must hold
+  - physical_bounds: max_diameter_mm in [0, 100]; volume_mm3 (or volume_voxels) >= 0
+  - runtime: inference_time_ms within resources.runtime_seconds bound (real mode only)
+  - reproducibility: repeat invocation with identical study_id and mock mode yields
+    identical findings (simulation mode is deterministic by design)
+
+paired_verifier: verifiers/agent_output_quality_v1
