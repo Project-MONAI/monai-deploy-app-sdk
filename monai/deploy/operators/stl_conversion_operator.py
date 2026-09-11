@@ -287,7 +287,7 @@ class STLConverter:
                 component = STLConverter.get_largest_cc(component)
                 self._logger.info(f"all non-zero labels: {int(component.sum())} voxels after CC filter")
             np.maximum(binary_mask, component, out=binary_mask)
-        else:
+        elif id_list:
             # nda is cast to float32 by SpatialImage, so compare on rounded values rather
             # than relying on exact float equality with an integer label
             rounded = np.rint(np.asarray(nda))
@@ -302,6 +302,8 @@ class STLConverter:
                     component = STLConverter.get_largest_cc(component)
                     self._logger.info(f"class_id {class_id}: {int(component.sum())} voxels after CC filter")
                 np.maximum(binary_mask, component, out=binary_mask)
+        else:
+            self._logger.warning("class_ids is an empty selection; no labels selected")
 
         # ------------------------------------------------------------------
         # Volume from the voxel count and the source spacing, before any resampling or smoothing
@@ -434,7 +436,7 @@ class STLConverter:
             )
             delta = float(np.max(np.abs(itk_point - verts_phys[0])))
             self._logger.info(f"index->physical agreement with SimpleITK on first vertex: {delta:.3e} mm")
-        except Exception as err:  # pragma: no cover - diagnostic only
+        except Exception as err:  # noqa: BLE001  # pragma: no cover - diagnostic only
             self._logger.warning(f"Could not cross-check index->physical against SimpleITK: {err}")
 
         # ------------------------------------------------------------------
@@ -448,7 +450,7 @@ class STLConverter:
             if mesh_data.is_watertight and mesh_data.volume < 0:
                 self._logger.info("Inverting mesh winding (negative enclosed volume)")
                 mesh_data.invert()
-        except Exception as err:  # pragma: no cover - diagnostic only
+        except Exception as err:  # noqa: BLE001  # pragma: no cover - diagnostic only
             self._logger.warning(f"Could not evaluate mesh orientation: {err}")
 
         if is_smooth and int(smoothing_iterations) > 0:
@@ -493,7 +495,7 @@ class STLConverter:
             return None
         if isinstance(class_ids, (list, tuple, set, np.ndarray)):
             ids = [int(np.rint(float(c))) for c in np.asarray(list(class_ids)).ravel()]
-            return ids if ids else None
+            return ids
         try:
             return [int(np.rint(float(class_ids)))]
         except (TypeError, ValueError) as err:
@@ -723,9 +725,37 @@ class STLConverter:
 
             return np.zeros(3, dtype=np.float64), "fallback (0, 0, 0)"
 
+        @staticmethod
+        def _require_spatial_metadata(img_meta_dict):
+            """Fails early and by name when the geometry metadata is absent.
+
+            DICOMDataLoaderOperator tolerates a series without PixelSpacing or
+            ImageOrientationPatient, and DICOMSeries returns None for unset properties, so
+            these keys can be missing or None by the time they reach here. Without the guard
+            the first float() call raises TypeError with no indication of which attribute is
+            at fault.
+            """
+            required = (
+                "row_pixel_spacing",
+                "col_pixel_spacing",
+                "depth_pixel_spacing",
+                "row_direction_cosine",
+                "col_direction_cosine",
+                "depth_direction_cosine",
+            )
+            missing = [key for key in required if img_meta_dict.get(key) is None]
+            if missing:
+                raise ValueError(
+                    f"Image metadata is missing {missing}; the mesh cannot be placed in patient "
+                    "coordinates. Check that the source series has PixelSpacing and "
+                    "ImageOrientationPatient"
+                )
+
         def _load_data(self, image):
-            img_array = image.asnumpy()
             img_meta_dict = image.metadata()
+            self._require_spatial_metadata(img_meta_dict)
+
+            img_array = image.asnumpy()
             shape = np.asarray(img_array.shape)
 
             row_pixel_spacing = float(img_meta_dict["row_pixel_spacing"])
@@ -740,7 +770,7 @@ class STLConverter:
             # PixelSpacing[1] is the step along the COLUMN index
             spacing_dhw = np.asarray((depth_pixel_spacing, row_pixel_spacing, col_pixel_spacing))
 
-            original_affine = img_meta_dict["nifti_affine_transform"]
+            original_affine = img_meta_dict.get("nifti_affine_transform", None)
             affine = original_affine
 
             itk_image = sitk.GetImageFromArray(img_array)
