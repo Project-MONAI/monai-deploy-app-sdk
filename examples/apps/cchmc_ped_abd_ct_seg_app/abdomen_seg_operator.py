@@ -1,4 +1,4 @@
-# Copyright 2021-2025 MONAI Consortium
+# Copyright 2021-2026 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -11,15 +11,13 @@
 
 import logging
 from pathlib import Path
-from typing import List
+from typing import Dict
 
 import torch
 from numpy import float32, int16
 
-# import custom transforms from post_transforms.py
-from post_transforms import CalculateVolumeFromMaskd, ExtractVolumeToTextd, LabelToContourd, OverlayImageLabeld
-
 import monai
+from monai.data import MetaTensor
 from monai.deploy.core import AppContext, Fragment, Model, Operator, OperatorSpec
 from monai.deploy.operators.monai_seg_inference_operator import InfererType, InMemImageReader, MonaiSegInferenceOperator
 from monai.transforms import (
@@ -31,11 +29,13 @@ from monai.transforms import (
     EnsureChannelFirstd,
     EnsureTyped,
     Invertd,
+    KeepLargestConnectedComponentd,
     LoadImaged,
     Orientationd,
     SaveImaged,
     ScaleIntensityRanged,
     Spacingd,
+    ToDeviced,
 )
 
 
@@ -52,7 +52,7 @@ class AbdomenSegOperator(Operator):
         app_context: AppContext,
         model_path: Path,
         output_folder: Path = DEFAULT_OUTPUT_FOLDER,
-        output_labels: List[int],
+        output_labels: Dict,
         **kwargs,
     ):
 
@@ -69,9 +69,7 @@ class AbdomenSegOperator(Operator):
         self.app_context = app_context
         self.input_name_image = "image"
         self.output_name_seg = "seg_image"
-        self.output_name_text_dicom_sr = "result_text_dicom_sr"
-        self.output_name_text_mongodb = "result_text_mongodb"
-        self.output_name_sc_path = "dicom_sc_dir"
+        self.output_name_seg_metatensor = "seg_metatensor"
 
         # the base class has an attribute called fragment to hold the reference to the fragment object
         super().__init__(fragment, *args, **kwargs)
@@ -140,14 +138,8 @@ class AbdomenSegOperator(Operator):
         # DICOM SEG
         spec.output(self.output_name_seg)
 
-        # DICOM SR
-        spec.output(self.output_name_text_dicom_sr)
-
-        # MongoDB
-        spec.output(self.output_name_text_mongodb)
-
-        # DICOM SC
-        spec.output(self.output_name_sc_path)
+        # MetaTensor
+        spec.output(self.output_name_seg_metatensor)
 
     def compute(self, op_input, op_output, context):
         input_image = op_input.receive(self.input_name_image)
@@ -183,55 +175,44 @@ class AbdomenSegOperator(Operator):
             sw_batch_size=4,
             model_path=self.model_path,
             name="monai_seg_inference_op",
+            metatensor_output=True,  # keep seg image on GPU as MetaTensor
         )
 
         # setting the keys used in the dictionary-based transforms
         infer_operator.input_dataset_key = self._input_dataset_key
         infer_operator.pred_dataset_key = self._pred_dataset_key
 
+        # compute_impl returns a single Image object
         seg_image = infer_operator.compute_impl(input_image, context)
 
         # DICOM SEG
+        self._logger.info(f"Seg Image Shape: {seg_image._data.shape}, Type: {type(seg_image)}")
         op_output.emit(seg_image, self.output_name_seg)
 
-        # grab result_text_dicom_sr and result_text_mongodb from ExractVolumeToTextd transform
-        result_text_dicom_sr, result_text_mongodb = self.get_result_text_from_transforms(post_transforms)
-        if not result_text_dicom_sr or not result_text_mongodb:
-            raise ValueError("Result text could not be generated.")
-
-        # only log volumes for target organs so logs reflect MAP behavior
-        self._logger.info(f"Calculated Organ Volumes: {result_text_dicom_sr}")
-
-        # DICOM SR
-        op_output.emit(result_text_dicom_sr, self.output_name_text_dicom_sr)
-
-        # MongoDB
-        op_output.emit(result_text_mongodb, self.output_name_text_mongodb)
-
-        # DICOM SC
-        # temporary DICOM SC (w/o source DICOM metadata) saved in output_folder / temp directory
-        dicom_sc_dir = self.output_folder / "temp"
-
-        self._logger.info(f"Temporary DICOM SC saved at: {dicom_sc_dir}")
-
-        op_output.emit(dicom_sc_dir, self.output_name_sc_path)
+        # MetaTensor - wrap numpy array so downstream operators receive a MetaTensor
+        seg_metatensor = MetaTensor(torch.from_numpy(seg_image._data.copy()))
+        self._logger.info(f"Seg MetaTensor Shape: {seg_metatensor.shape}, Type: {type(seg_metatensor)}")
+        op_output.emit(seg_metatensor, self.output_name_seg_metatensor)
 
     def pre_process(self, img_reader) -> Compose:
         """Composes transforms for preprocessing the input image before predicting on a model."""
 
-        my_key = self._input_dataset_key
+        image_key = self._input_dataset_key
 
         return Compose(
             [
                 # img_reader: specialized InMemImageReader, derived from MONAI ImageReader
-                LoadImaged(keys=my_key, reader=img_reader),
-                EnsureChannelFirstd(keys=my_key),
-                Orientationd(keys=my_key, axcodes="RAS"),
-                Spacingd(keys=my_key, pixdim=[1.5, 1.5, 3.0], mode=["bilinear"]),
-                ScaleIntensityRanged(keys=my_key, a_min=-250, a_max=400, b_min=0.0, b_max=1.0, clip=True),
-                CropForegroundd(keys=my_key, source_key=my_key, mode="minimum"),
-                EnsureTyped(keys=my_key),
-                CastToTyped(keys=my_key, dtype=float32),
+                LoadImaged(keys=image_key, reader=img_reader),
+                # Transform to move to GPU if available
+                ToDeviced(keys=image_key, device="cuda" if torch.cuda.is_available() else "cpu"),
+                EnsureChannelFirstd(keys=image_key),
+                Orientationd(keys=image_key, axcodes="RAS"),
+                Spacingd(keys=image_key, pixdim=[1.5, 1.5, 3.0], mode=["bilinear"]),
+                ScaleIntensityRanged(keys=image_key, a_min=-250, a_max=400, b_min=0.0, b_max=1.0, clip=True),
+                # allow_smaller default True --> False from monai==1.2.0 --> 1.5.0; explicitly set
+                CropForegroundd(keys=image_key, source_key=image_key, allow_smaller=True, mode="minimum"),
+                EnsureTyped(keys=image_key),
+                CastToTyped(keys=image_key, dtype=float32),
             ]
         )
 
@@ -239,8 +220,6 @@ class AbdomenSegOperator(Operator):
         """Composes transforms for postprocessing the prediction results."""
 
         pred_key = self._pred_dataset_key
-
-        labels = {"background": 0, "liver": 1, "spleen": 2, "pancreas": 3}
 
         return Compose(
             [
@@ -254,41 +233,18 @@ class AbdomenSegOperator(Operator):
                     to_tensor=True,
                 ),
                 AsDiscreted(keys=pred_key, argmax=True),
-                # custom post-processing steps
-                CalculateVolumeFromMaskd(keys=pred_key, label_names=labels),
-                # optional code for saving segmentation masks as a NIfTI
-                # SaveImaged(
-                #     keys=pred_key,
-                #     output_ext=".nii.gz",
-                #     output_dir=self.output_folder / "NIfTI",
-                #     meta_keys="pred_meta_dict",
-                #     separate_folder=False,
-                #     output_dtype=int16
-                # ),
-                # volume data stored in dictionary under pred_key + '_volumes' key
-                ExtractVolumeToTextd(
-                    keys=[pred_key + "_volumes"], label_names=labels, output_labels=self.output_labels
+                # change from MONAI Bundle - Keep LCC
+                KeepLargestConnectedComponentd(
+                    keys=pred_key, applied_labels=[i for i in self.output_labels.values() if i > 0]
                 ),
-                # comment out LabelToContourd for seg masks instead of contours; organ filtering will be lost
-                LabelToContourd(keys=pred_key, output_labels=self.output_labels),
-                OverlayImageLabeld(image_key=self._input_dataset_key, label_key=pred_key, overlay_key="overlay"),
+                # optional code for saving segmentation masks as a NIfTI
                 SaveImaged(
-                    keys="overlay",
-                    output_ext=".dcm",
-                    # save temporary DICOM SC (w/o source DICOM metadata) in output_folder / temp directory
-                    output_dir=self.output_folder / "temp",
+                    keys=pred_key,
+                    output_ext=".nii.gz",
+                    output_dir=self.output_folder / "NIfTI",
+                    meta_keys="pred_meta_dict",
                     separate_folder=False,
                     output_dtype=int16,
                 ),
             ]
         )
-
-    # grab volume data from ExtractVolumeToTextd transform
-    def get_result_text_from_transforms(self, post_transforms: Compose):
-        """Extracts the result_text variables from post-processing transforms output."""
-
-        # grab the result_text variables from ExractVolumeToTextd transfor
-        for transform in post_transforms.transforms:
-            if isinstance(transform, ExtractVolumeToTextd):
-                return transform.result_text_dicom_sr, transform.result_text_mongodb
-        return None

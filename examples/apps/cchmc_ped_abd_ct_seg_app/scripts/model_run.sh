@@ -18,4 +18,4 @@ source .env
 rm -rf "$HOLOSCAN_OUTPUT_PATH"
 
 # execute model bundle locally (pythonically)
-python cchmc_ped_abd_ct_seg_app -i "$HOLOSCAN_INPUT_PATH" -o "$HOLOSCAN_OUTPUT_PATH" -m "$HOLOSCAN_MODEL_PATH"
+python3 ../cchmc_ped_abd_ct_seg_app -i "$HOLOSCAN_INPUT_PATH" -o "$HOLOSCAN_OUTPUT_PATH" -m "$HOLOSCAN_MODEL_PATH"
