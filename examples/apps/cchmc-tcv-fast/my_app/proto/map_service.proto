@@ -1,0 +1,52 @@
+syntax = "proto3";
+
+package map_service;
+
+service MapService {
+  // Readiness + liveness probe. Must answer fast even while a study is BUSY.
+  // status is exactly one of: "INITIALIZING" | "IDLE" | "BUSY".
+  rpc CheckHealth(HealthRequest) returns (HealthResponse);
+  // Unary, paths-only study dispatch. Long RPC (10-120 s); client deadline >= 600 s.
+  // Typed failure semantics: INVALID_ARGUMENT (bad request, before enqueue),
+  // ALREADY_EXISTS (duplicate in-flight/queued study_uid), RESOURCE_EXHAUSTED
+  // (queue full), INTERNAL (pipeline failure, stage_at_failure set),
+  // DEADLINE_EXCEEDED (study timeout).
+  rpc ProcessStudy(StudyRequest) returns (StudyResponse);
+}
+
+message HealthRequest {}
+
+// One loaded model config (from the SlideWindowOperator model_load records).
+message ModelInfo {
+  string config = 1;
+  string trainer = 2;
+  int32 folds = 3;
+  repeated int32 patch_size = 4;
+}
+
+message HealthResponse {
+  string status = 1;                // "INITIALIZING" | "IDLE" | "BUSY"
+  repeated ModelInfo models = 2;    // model residency (empty while INITIALIZING)
+  int32 queue_depth = 3;            // studies waiting in the bounded FIFO
+  int32 queue_capacity = 4;         // MAP_GRPC_QUEUE_DEPTH (default 4)
+  string in_flight_study_uid = 5;   // "" when idle
+}
+
+message StudyRequest {
+  string study_uid = 1;    // MUST equal the DICOM StudyID on disk (INVALID_ARGUMENT otherwise)
+  string input_path = 2;   // absolute path under MAP_PAYLOADS_ROOT containing DICOM instances
+  string output_path = 3;  // absolute path under MAP_PAYLOADS_ROOT; SEG/ SR/ SC/ are written here
+}
+
+message StageTiming {
+  string stage = 1;         // operator/stage name (e.g. "preprocess_3d_fullres", "write_seg")
+  double duration_ms = 2;
+}
+
+message StudyResponse {
+  string status = 1;              // "OK" on success
+  double latency_ms = 2;          // end-to-end wall time, ms (admission -> egress)
+  repeated StageTiming stages = 3; // per-stage timings (per-study collector take())
+  string stage_at_failure = 4;    // set only when status != "OK"
+  string detail = 5;              // human-readable failure detail
+}

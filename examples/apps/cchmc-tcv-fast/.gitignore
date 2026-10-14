@@ -1,0 +1,5 @@
+# ~5.3 GB model bundle (5 nnUNet fold checkpoints + bundle config),
+# downloaded via scripts/download_models.sh (see README).
+models/
+tmp/
+__pycache__/
