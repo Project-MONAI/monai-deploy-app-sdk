@@ -1,0 +1,47 @@
+{
+  "model": "quadratic_in_vsum",
+  "formula": "peak_mib = a*vsum^2 + b*vsum + c   (vsum in M-voxels)",
+  "vsum_definition": "resampled FULL-volume (pre-crop upper bound) voxel count of the lowres + fullres configs (cascading config excluded: same space as fullres, runs after lowres; the fitted peak absorbs the small fullres/cascade overlap)",
+  "a": 0.164953,
+  "b": 22.6545,
+  "c": 4238.07,
+  "safety_factor_default": 1.15,
+  "fit_points": [
+    {
+      "study": "study-1",
+      "payload": "cal-a",
+      "vsum_mvox": 20.166,
+      "peak_mib": 4762.0,
+      "source": "measured floor (2026-09-08)",
+      "predicted_mib": 4762.0,
+      "fit_err_pct": 0.0
+    },
+    {
+      "study": "study-2",
+      "payload": "cal-b",
+      "vsum_mvox": 98.392,
+      "peak_mib": 8064.0,
+      "source": "measured floor (2026-09-08)",
+      "predicted_mib": 8064.0,
+      "fit_err_pct": 0.0
+    },
+    {
+      "study": "study-3",
+      "payload": "cal-c2",
+      "vsum_mvox": 263.458,
+      "peak_mib": 21656.0,
+      "source": "measured floor (2026-09-10)",
+      "predicted_mib": 21656.0,
+      "fit_err_pct": 0.0
+    }
+  ],
+  "validation": {
+    "study": "study-4",
+    "payload": "cal-c",
+    "expected": "REJECT (the study OOMed the A100 in the OOM probe; 40,381/40,960 MiB)",
+    "vsum_mvox": 625.938,
+    "predicted_mib": 83046.7
+  },
+  "provenance": "Measured on a 40,960 MiB A100: startup floor B0=5095 MiB; per-study measured floors 9857/13159/26751 MiB for study-1/2/3; study-4 OOM probe: RMM pool extension refused at 40,381/40,960 MiB (2026-09-10). Payloads are synthetic volumes sized to each study's resampled full+lowres voxel count.",
+  "recompute_when": "weights or pipeline change, or a new corpus study is measured that deviates from the model by > 25%"
+}
