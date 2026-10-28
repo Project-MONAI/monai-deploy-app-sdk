@@ -1,0 +1,15 @@
+---
+# MAP application manifest for cchmc-tcv-fast.
+# resources.gpu drives MAR GPU exposure (NVIDIA_VISIBLE_DEVICES) + nvidia-ctk check.
+application:
+  title: MONAI Deploy App Package - CCHMC TCV Cardiac+Lung nnUNet Fast (GPU)
+  description: 3d_fullres 5-fold ensemble, labels 1 heart / 2 l_lung / 3 r_lung, DICOM-SEG + DICOM-SR per-structure volumes; batch + serve
+  version: 0.1.0
+  inputFormats: ["file"]
+  outputFormats: ["file"]
+resources:
+  cpu: 4
+  gpu: 1
+  memory: 8Gi
+  gpuMemory: 20Gi
+  sharedMemory: "4Gi"
