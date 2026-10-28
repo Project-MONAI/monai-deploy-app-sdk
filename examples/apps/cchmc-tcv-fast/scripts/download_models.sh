@@ -67,7 +67,7 @@ while IFS= read -r entry; do
         /*) echo "ERROR: unsafe archive path: $entry" >&2; exit 1 ;;
     esac
 done < <(unzip -Z1 "$ARCHIVE")
-if unzip -Z "$ARCHIVE" | awk 'NR > 2 {print $1}' | grep -q '^[lbcp]'; then
+if unzip -Z "$ARCHIVE" | awk 'NR > 2 {print $1}' | grep '^[lbcp]' >/dev/null; then
     echo "ERROR: archive contains symlink/special entries; refusing" >&2
     exit 1
 fi
